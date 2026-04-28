@@ -5,15 +5,14 @@ import { useState } from "react";
 export default function CreatePage() {
   const [request, setRequest] = useState("");
   const [plan, setPlan] = useState("");
-  const [loading, setLoading] = useState(false);
   const [links, setLinks] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
   const generatePlan = async () => {
     try {
       setLoading(true);
       setPlan("");
-
-      console.log("BUTTON CLICKED");
+      setLinks(null);
 
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -25,7 +24,7 @@ export default function CreatePage() {
 
       const data = await res.json();
 
-      console.log("API RESPONSE:", data);
+      console.log("API RESPONSE:", data); // 👈 debug
 
       if (!res.ok) {
         setPlan(`Error: ${data.error || "Something went wrong"}`);
@@ -33,6 +32,7 @@ export default function CreatePage() {
       }
 
       setPlan(data.plan);
+      setLinks(data.links); // 👈 IMPORTANT
     } catch (error) {
       console.error(error);
       setPlan("Error: Could not reach API");
@@ -52,6 +52,7 @@ export default function CreatePage() {
           Tell RoseOut what you want in your own words.
         </p>
 
+        {/* INPUT BOX */}
         <div className="mt-8 rounded-3xl bg-white p-6 text-black">
           <textarea
             className="min-h-40 w-full rounded-xl border px-4 py-3"
@@ -69,6 +70,7 @@ export default function CreatePage() {
           </button>
         </div>
 
+        {/* RESULT */}
         {plan && (
           <div className="mt-8 rounded-3xl bg-white p-6 text-black">
             <h2 className="text-2xl font-bold">Your RoseOut Plan</h2>
@@ -77,6 +79,30 @@ export default function CreatePage() {
               {plan}
             </p>
 
+            {/* BOOKING BUTTONS */}
+            {links && (
+              <div className="mt-6 space-y-3">
+                <a href={links.dinner} target="_blank">
+                  <button className="w-full bg-black text-white py-3 rounded-xl">
+                    🍽 Book Dinner
+                  </button>
+                </a>
+
+                <a href={links.activity} target="_blank">
+                  <button className="w-full bg-black text-white py-3 rounded-xl">
+                    🎯 Find Activities
+                  </button>
+                </a>
+
+                <a href={links.dessert} target="_blank">
+                  <button className="w-full bg-black text-white py-3 rounded-xl">
+                    🍰 Dessert & Drinks
+                  </button>
+                </a>
+              </div>
+            )}
+
+            {/* COPY BUTTON */}
             <button
               onClick={() => navigator.clipboard.writeText(plan)}
               className="mt-6 rounded-xl bg-black px-6 py-3 font-semibold text-white"
