@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Turnstile from "react-turnstile";
 
-export default function RestaurantApplyPage() {
+function RestaurantApplyForm() {
   const searchParams = useSearchParams();
   const inviteCode = searchParams.get("invite");
 
@@ -41,9 +41,7 @@ export default function RestaurantApplyPage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        invite_code: inviteCode,
-      }),
+      body: JSON.stringify({ invite_code: inviteCode }),
     });
   }, [inviteCode]);
 
@@ -76,28 +74,6 @@ export default function RestaurantApplyPage() {
       }
 
       setMessage("Restaurant submitted successfully for review.");
-
-      setForm({
-        restaurant_name: "",
-        address: "",
-        city: "",
-        state: "",
-        zip_code: "",
-        neighborhood: "",
-        cuisine_type: "",
-        price_range: "",
-        reservation_link: "",
-        website: "",
-        phone: "",
-        email: "",
-        instagram_url: "",
-        tiktok_url: "",
-        x_url: "",
-        hours_of_operation: "",
-        kitchen_closing_time: "",
-        description: "",
-      });
-
       setCaptchaToken("");
     } catch {
       setMessage("Error: Could not submit restaurant.");
@@ -122,30 +98,25 @@ export default function RestaurantApplyPage() {
         )}
 
         <div className="mt-8 space-y-4 rounded-3xl bg-white p-6 text-black">
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Restaurant Name" value={form.restaurant_name} onChange={(e) => update("restaurant_name", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Street Address" value={form.address} onChange={(e) => update("address", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="City" value={form.city} onChange={(e) => update("city", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="State" value={form.state} onChange={(e) => update("state", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Zip Code" value={form.zip_code} onChange={(e) => update("zip_code", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Neighborhood" value={form.neighborhood} onChange={(e) => update("neighborhood", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Cuisine Type" value={form.cuisine_type} onChange={(e) => update("cuisine_type", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Price Range, example: $$" value={form.price_range} onChange={(e) => update("price_range", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Reservation Link" value={form.reservation_link} onChange={(e) => update("reservation_link", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Website" value={form.website} onChange={(e) => update("website", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Phone Number" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Email" value={form.email} onChange={(e) => update("email", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Instagram URL" value={form.instagram_url} onChange={(e) => update("instagram_url", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="TikTok URL" value={form.tiktok_url} onChange={(e) => update("tiktok_url", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="X URL" value={form.x_url} onChange={(e) => update("x_url", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Hours of Operation" value={form.hours_of_operation} onChange={(e) => update("hours_of_operation", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Kitchen Closing Time" value={form.kitchen_closing_time} onChange={(e) => update("kitchen_closing_time", e.target.value)} />
-
-          <textarea
-            className="min-h-32 w-full rounded-xl border px-4 py-3"
-            placeholder="Describe your restaurant atmosphere, food, vibe, lighting, and best occasions."
-            value={form.description}
-            onChange={(e) => update("description", e.target.value)}
-          />
+          {Object.entries(form).map(([key, value]) =>
+            key === "description" ? (
+              <textarea
+                key={key}
+                className="min-h-32 w-full rounded-xl border px-4 py-3"
+                placeholder="Describe your restaurant atmosphere, food, vibe, lighting, and best occasions."
+                value={value}
+                onChange={(e) => update(key, e.target.value)}
+              />
+            ) : (
+              <input
+                key={key}
+                className="w-full rounded-xl border px-4 py-3"
+                placeholder={key.replaceAll("_", " ")}
+                value={value}
+                onChange={(e) => update(key, e.target.value)}
+              />
+            )
+          )}
 
           <Turnstile
             sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
@@ -165,5 +136,13 @@ export default function RestaurantApplyPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function RestaurantApplyPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black text-white p-6">Loading...</div>}>
+      <RestaurantApplyForm />
+    </Suspense>
   );
 }
