@@ -61,9 +61,10 @@ Guidelines:
 `
 },
         {
-          role: "user",
-          content: body.request,
-        },
+  role: "user",
+  content: `User request: ${body.request}
+Location context: New York area`
+},
       ],
     });
 
