@@ -39,7 +39,7 @@ export default function RestaurantApplyPage() {
         libraries: ["places"],
       });
 
-      await loader.load();
+      await loader.importLibrary("places");
 
       const autocomplete = new google.maps.places.Autocomplete(
         addressRef.current,
