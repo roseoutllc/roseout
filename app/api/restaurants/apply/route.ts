@@ -5,7 +5,7 @@ import { sendEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
-
+console.log("RESEND KEY:", process.env.RESEND_API_KEY);
     await sendEmail({
       to: "yourpersonalemail@gmail.com",
       subject: "FORCE TEST",
