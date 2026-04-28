@@ -52,33 +52,38 @@ const userId = userData?.user?.id || null;
 const userEmail = userData?.user?.email || body.email || null;
 
     const { error } = await supabase.from("restaurants").insert({
-      restaurant_name: body.restaurant_name,
-      address: body.address,
-      city: body.city,
-      state: body.state,
-      zip_code: body.zip_code,
-      neighborhood: body.neighborhood,
-      cuisine_type: body.cuisine_type,
-      price_range: body.price_range,
-      reservation_link: body.reservation_link,
-      website: body.website,
-      phone: body.phone,
-      email: body.email,
-      instagram_url: body.instagram_url,
-      tiktok_url: body.tiktok_url,
-      x_url: body.x_url,
-      hours_of_operation: body.hours_of_operation,
-      kitchen_closing_time: body.kitchen_closing_time,
-      description: body.description,
+  restaurant_name: body.restaurant_name,
+  address: body.address,
+  city: body.city,
+  state: body.state,
+  zip_code: body.zip_code,
+  neighborhood: body.neighborhood,
 
-      qr_link: qrLink,
-      qr_code_data_url: qrCodeDataUrl,
+  cuisine_type: body.cuisine_type,
+  price_range: body.price_range,
 
-        owner_user_id: userId,
-  owner_email: userEmail,
+  reservation_link: body.reservation_link,
+  website: body.website,
+  phone: body.phone,
+  email: body.email,
 
-      status: "pending",
-    });
+  instagram_url: body.instagram_url,
+  tiktok_url: body.tiktok_url,
+  x_url: body.x_url,
+
+  hours_of_operation: body.hours_of_operation,
+  kitchen_closing_time: body.kitchen_closing_time,
+  description: body.description,
+
+  qr_link: qrLink,
+  qr_code_data_url: qrCodeDataUrl,
+
+  // 🔥 MUST BE INSIDE HERE
+  owner_user_id: ownerUserId,
+  owner_email: body.email,
+
+  status: "pending",
+});
 
     owner_user_id: userId,
 owner_email: userEmail,
