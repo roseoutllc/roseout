@@ -1,0 +1,113 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase-browser";
+
+export default function AdminInvitesPage() {
+  const supabase = createClient();
+
+  const [form, setForm] = useState({
+    restaurant_name: "",
+    contact_name: "",
+    mailing_address: "",
+    city: "",
+    state: "",
+    zip_code: "",
+  });
+
+  const [qrCode, setQrCode] = useState("");
+  const [qrLink, setQrLink] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data } = await supabase.auth.getUser();
+
+      if (!data.user) {
+        window.location.href = "/login";
+      }
+    };
+
+    checkUser();
+  }, []);
+
+  const update = (key: string, value: string) => {
+    setForm({ ...form, [key]: value });
+  };
+
+  const createInvite = async () => {
+    setMessage("");
+    setQrCode("");
+    setQrLink("");
+
+    const res = await fetch("/api/admin/invites", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(form),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setMessage(`Error: ${data.error || "Could not create invite"}`);
+      return;
+    }
+
+    setQrCode(data.qrCodeDataUrl);
+    setQrLink(data.invite.qr_link);
+    setMessage("QR invite created successfully.");
+  };
+
+  return (
+    <main className="min-h-screen bg-black px-6 py-12 text-white">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-8 flex gap-4">
+          <a href="/admin" className="underline">Dashboard</a>
+          <a href="/admin/restaurants" className="underline">Restaurants</a>
+          <a href="/admin/invites" className="underline">Invites</a>
+        </div>
+
+        <h1 className="text-4xl font-bold">Create Restaurant QR Invite</h1>
+
+        <p className="mt-3 text-neutral-400">
+          Generate a unique QR code mailer link for each restaurant.
+        </p>
+
+        <div className="mt-8 space-y-4 rounded-3xl bg-white p-6 text-black">
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Restaurant Name" value={form.restaurant_name} onChange={(e) => update("restaurant_name", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Contact Name" value={form.contact_name} onChange={(e) => update("contact_name", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Mailing Address" value={form.mailing_address} onChange={(e) => update("mailing_address", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="City" value={form.city} onChange={(e) => update("city", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="State" value={form.state} onChange={(e) => update("state", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Zip Code" value={form.zip_code} onChange={(e) => update("zip_code", e.target.value)} />
+
+          <button
+            onClick={createInvite}
+            disabled={!form.restaurant_name.trim()}
+            className="w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold text-black disabled:opacity-50"
+          >
+            Create QR Invite
+          </button>
+
+          {message && <p className="text-center font-semibold">{message}</p>}
+
+          {qrCode && (
+            <div className="mt-6 text-center">
+              <img src={qrCode} alt="Restaurant QR Code" className="mx-auto h-64 w-64" />
+
+              <p className="mt-4 break-all text-sm">{qrLink}</p>
+
+              <a href={qrCode} download="roseout-restaurant-qr.png">
+                <button className="mt-4 rounded-xl bg-black px-6 py-3 font-semibold text-white">
+                  Download QR Code
+                </button>
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
