@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     }
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      process.env.NEXT_PUBLIC_SITE_URL || "http://https://roseout.vercel.app/";
 
     const qrLink = `${siteUrl}/restaurants/${encodeURIComponent(
       body.restaurant_name
@@ -37,6 +37,13 @@ export async function POST(req: Request) {
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
     }
+
+    await supabase.auth.signInWithOtp({
+  email: body.email,
+  options: {
+    emailRedirectTo: `${siteUrl}/restaurants/dashboard`,
+  },
+});
 
     await supabase.auth.signInWithOtp({
       email: body.email,
