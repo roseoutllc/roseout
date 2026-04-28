@@ -158,9 +158,9 @@ export async function POST(req: Request) {
     });
 
 await sendEmail({
-  to: "nicbillie@gmail.com",
-  subject: "Resend Test",
-  html: "<p>If you see this, Resend is working.</p>",
+      to: "nicbillie@gmail.com",
+      subject: "FORCE TEST",
+      html: "<p>This should send no matter what</p>",
 });
 
     if (body.invite_code) {
