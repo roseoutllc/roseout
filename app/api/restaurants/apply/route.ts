@@ -1,15 +1,12 @@
 import QRCode from "qrcode";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // ✅ Validate
     if (!body.restaurant_name) {
       return Response.json(
         { error: "Restaurant name is required." },
@@ -24,7 +21,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔐 CAPTCHA
     const verifyRes = await fetch(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
       {
@@ -48,9 +44,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔐 Create or find user
-    const tempPassword =
-      Math.random().toString(36).slice(-10) + "Aa1!";
+    const tempPassword = Math.random().toString(36).slice(-10) + "Aa1!";
 
     const { data: createdUser, error: createUserError } =
       await supabaseAdmin.auth.admin.createUser({
@@ -61,20 +55,24 @@ export async function POST(req: Request) {
 
     let ownerUserId = createdUser?.user?.id || null;
 
-    // If user already exists → find it
     if (createUserError) {
-      const { data: usersData } =
+      const { data: usersData, error: listUsersError } =
         await supabaseAdmin.auth.admin.listUsers();
 
+      if (listUsersError) {
+        return Response.json(
+          { error: listUsersError.message },
+          { status: 500 }
+        );
+      }
+
       const existingUser = usersData.users.find(
-        (u) =>
-          u.email?.toLowerCase() === body.email.toLowerCase()
+        (u) => u.email?.toLowerCase() === body.email.toLowerCase()
       );
 
       ownerUserId = existingUser?.id || null;
     }
 
-    // 🔗 Generate MAGIC LINK
     const { data: magicLinkData, error: linkError } =
       await supabaseAdmin.auth.admin.generateLink({
         type: "magiclink",
@@ -85,54 +83,22 @@ export async function POST(req: Request) {
       });
 
     if (linkError) {
-      return Response.json(
-        { error: linkError.message },
-        { status: 500 }
-      );
+      return Response.json({ error: linkError.message }, { status: 500 });
     }
 
-    const magicLink =
-      magicLinkData.properties.action_link;
+    const magicLink = magicLinkData.properties.action_link;
 
-    // 📧 Send email via Resend
-    await resend.emails.send({
-      from: "RoseOut <onboarding@resend.dev>", // update later
-      to: body.email,
-      subject: "Access your RoseOut dashboard",
-      html: `
-        <div style="font-family:Arial;padding:20px;">
-          <h2>Welcome to RoseOut</h2>
-
-          <p>Your restaurant has been submitted successfully.</p>
-
-          <p>Click below to access your dashboard:</p>
-
-          <a href="${magicLink}" 
-             style="display:inline-block;padding:12px 20px;background:#000;color:#fff;text-decoration:none;border-radius:8px;">
-             Open Dashboard
-          </a>
-
-          <p style="margin-top:20px;font-size:12px;color:#666;">
-            This secure link will log you in instantly.
-          </p>
-        </div>
-      `,
-    });
-
-    // 🔗 QR Code
     const restaurantSlug = body.restaurant_name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "http://localhost:3000";
+      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
     const qrLink = `${siteUrl}/restaurants/apply?restaurant=${restaurantSlug}`;
     const qrCodeDataUrl = await QRCode.toDataURL(qrLink);
 
-    // 🧱 Insert restaurant (FIXED)
     const { error } = await supabase.from("restaurants").insert({
       restaurant_name: body.restaurant_name,
       address: body.address,
@@ -152,13 +118,10 @@ export async function POST(req: Request) {
       hours_of_operation: body.hours_of_operation,
       kitchen_closing_time: body.kitchen_closing_time,
       description: body.description,
-
       qr_link: qrLink,
       qr_code_data_url: qrCodeDataUrl,
-
       owner_user_id: ownerUserId,
       owner_email: body.email,
-
       status: "pending",
     });
 
@@ -169,7 +132,46 @@ export async function POST(req: Request) {
       );
     }
 
-    // 📊 Invite tracking
+    await sendEmail({
+      to: body.email,
+      subject: "Access your RoseOut restaurant dashboard",
+      html: `
+        <div style="font-family:Arial,sans-serif;padding:24px;line-height:1.6;color:#111;">
+          <h2 style="margin:0 0 12px;">Welcome to RoseOut</h2>
+
+          <p>Your restaurant has been submitted successfully and is now pending review.</p>
+
+          <p>Click below to access your restaurant dashboard:</p>
+
+          <p>
+            <a href="${magicLink}" 
+              style="display:inline-block;padding:12px 20px;background:#000;color:#fff;text-decoration:none;border-radius:10px;font-weight:bold;">
+              Open Dashboard
+            </a>
+          </p>
+
+          <p style="margin-top:20px;font-size:12px;color:#666;">
+            This secure magic link will log you in instantly.
+          </p>
+        </div>
+      `,
+    });
+
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL || "your-email@example.com",
+      subject: "New RoseOut Restaurant Submission",
+      html: `
+        <div style="font-family:Arial,sans-serif;padding:24px;line-height:1.6;color:#111;">
+          <h2>New Restaurant Submitted</h2>
+          <p><strong>Name:</strong> ${body.restaurant_name}</p>
+          <p><strong>Email:</strong> ${body.email}</p>
+          <p><strong>Phone:</strong> ${body.phone || "Not provided"}</p>
+          <p><strong>Location:</strong> ${body.city || ""}, ${body.state || ""} ${body.zip_code || ""}</p>
+          <p><strong>Status:</strong> Pending Review</p>
+        </div>
+      `,
+    });
+
     if (body.invite_code) {
       await supabase
         .from("restaurant_invites")
