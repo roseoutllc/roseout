@@ -7,22 +7,34 @@ export async function POST(req: Request) {
     const userRequest = body.request?.trim();
 
     if (!userRequest) {
-      return Response.json({ error: "Please enter a request." }, { status: 400 });
+      return Response.json(
+        { error: "Please enter a request." },
+        { status: 400 }
+      );
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return Response.json(
+        { error: "Missing OPENAI_API_KEY" },
+        { status: 500 }
+      );
     }
 
     const { data: restaurants, error } = await supabase
       .from("restaurants")
       .select("*")
       .eq("status", "approved")
-      .limit(8);
+      .limit(12);
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    const restaurantContext = restaurants
-      ?.map(
-        (r) => `
+    const restaurantContext =
+      restaurants
+        ?.map(
+          (r) => `
+ID: ${r.id}
 Restaurant: ${r.restaurant_name}
 City: ${r.city}, ${r.state}
 Cuisine: ${r.cuisine_type}
@@ -33,28 +45,24 @@ Lighting: ${r.lighting || ""}
 Noise Level: ${r.noise_level || ""}
 Atmosphere: ${r.atmosphere || ""}
 Best For: ${r.best_for?.join(", ") || ""}
-Reservation Link: ${r.reservation_link || r.google_maps_link || ""}
-Phone: ${r.phone || ""}
+Reservation Link: ${r.reservation_link || ""}
+Google Maps: ${r.google_maps_link || ""}
 Website: ${r.website || ""}
+Phone: ${r.phone || ""}
 Instagram: ${r.instagram_url || ""}
 TikTok: ${r.tiktok_url || ""}
 X: ${r.x_url || ""}
 `
-      )
-      .join("\n");
-
-    const fallbackLinks = {
-      dinner: `https://www.opentable.com/s/?term=${encodeURIComponent(userRequest)}`,
-      activity: `https://www.eventbrite.com/d/online/search/?q=${encodeURIComponent(userRequest)}`,
-      dessert: `https://www.google.com/maps/search/${encodeURIComponent(userRequest + " dessert drinks")}`,
-    };
+        )
+        .join("\n") || "No approved restaurants available.";
 
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const response = await openai.chat.completions.create({
+    const aiResponse = await openai.chat.completions.create({
       model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
@@ -62,18 +70,25 @@ X: ${r.x_url || ""}
 You are RoseOut, a luxury AI date night and outing concierge.
 
 Use the approved restaurant data when it fits the user's request.
-Recommend the best matching restaurant based on city, mood, lighting, noise level, atmosphere, cuisine, price, and best_for.
+Pick the best matching restaurant based on city, mood, lighting, noise level, atmosphere, cuisine, price, and best_for.
 
 Do not invent restaurant names.
-If no restaurant fits, suggest a general dinner vibe.
+If no restaurant fits, use selectedRestaurantId as null.
 
-Format response:
+Return ONLY valid JSON in this exact structure:
+
+{
+  "selectedRestaurantId": "restaurant id or null",
+  "plan": "formatted customer-facing plan"
+}
+
+The plan should be natural, premium, and formatted like:
 
 🌹 RoseOut Plan:
 Short elegant intro.
 
 🍽 Dinner:
-Recommend the best matching real restaurant if available. Explain why it fits.
+Recommend the selected real restaurant if available and explain why it fits. If none fits, suggest a general dinner vibe.
 
 🎯 Activity:
 Suggest a matching activity.
@@ -84,7 +99,8 @@ Suggest dessert, drinks, or a final stop.
 📍 Why This Works:
 Explain why the plan matches the request.
 
-Do not include raw URLs in the written plan.
+Do not include raw URLs in the plan.
+Do not say "as an AI".
           `,
         },
         {
@@ -100,10 +116,23 @@ ${restaurantContext}
       ],
     });
 
-    const selectedRestaurant = restaurants?.[0];
+    const content = aiResponse.choices[0]?.message?.content || "{}";
+    const parsed = JSON.parse(content);
+
+    const selectedRestaurant =
+      restaurants?.find((r) => r.id === parsed.selectedRestaurantId) || null;
+
+    const encoded = encodeURIComponent(userRequest);
+
+    const fallbackLinks = {
+      dinner: `https://www.opentable.com/s/?term=${encoded}`,
+      activity: `https://www.eventbrite.com/d/online/search/?q=${encoded}`,
+      dessert: `https://www.google.com/maps/search/${encoded}+dessert+drinks`,
+    };
 
     return Response.json({
-      plan: response.choices[0].message.content,
+      plan: parsed.plan || "No plan generated.",
+      selectedRestaurant,
       links: {
         dinner:
           selectedRestaurant?.reservation_link ||
@@ -119,6 +148,8 @@ ${restaurantContext}
       },
     });
   } catch (error: any) {
+    console.error("API ERROR:", error);
+
     return Response.json(
       { error: error.message || "Server error" },
       { status: 500 }
