@@ -1,20 +1,8 @@
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-console.log("RESEND KEY:", process.env.RESEND_API_KEY);
-export async function sendEmail({
-  to,
-  subject,
-  html,
-}: {
-  to: string;
-  subject: string;
-  html: string;
-}) {
+export async function sendEmail() {
   return resend.emails.send({
-    from: "RoseOut.com <hello@roseout.com>",
-    to,
-    subject,
-    html,
+    from: "onboarding@resend.dev",
+    to: "yourpersonalemail@gmail.com",
+    subject: "Resend Test",
+    html: "<p>If you see this, Resend is working.</p>",
   });
 }
