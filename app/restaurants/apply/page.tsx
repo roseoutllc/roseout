@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Turnstile from "react-turnstile";
 
-function RestaurantApplyForm() {
+function ApplyForm() {
   const searchParams = useSearchParams();
   const inviteCode = searchParams.get("invite");
 
@@ -46,7 +46,10 @@ function RestaurantApplyForm() {
   }, [inviteCode]);
 
   const update = (key: string, value: string) => {
-    setForm({ ...form, [key]: value });
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
   const submitRestaurant = async () => {
@@ -69,11 +72,35 @@ function RestaurantApplyForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        setMessage(`Error: ${data.error || "Submission failed"}`);
+        setMessage(`Error: ${data.error || "Submission failed."}`);
         return;
       }
 
-      setMessage("Restaurant submitted successfully for review.");
+      setMessage(
+        "Restaurant submitted successfully. Check your email for your RoseOut dashboard login link."
+      );
+
+      setForm({
+        restaurant_name: "",
+        address: "",
+        city: "",
+        state: "",
+        zip_code: "",
+        neighborhood: "",
+        cuisine_type: "",
+        price_range: "",
+        reservation_link: "",
+        website: "",
+        phone: "",
+        email: "",
+        instagram_url: "",
+        tiktok_url: "",
+        x_url: "",
+        hours_of_operation: "",
+        kitchen_closing_time: "",
+        description: "",
+      });
+
       setCaptchaToken("");
     } catch {
       setMessage("Error: Could not submit restaurant.");
@@ -88,7 +115,8 @@ function RestaurantApplyForm() {
         <h1 className="text-4xl font-bold">List Your Restaurant on RoseOut</h1>
 
         <p className="mt-3 text-neutral-400">
-          Submit your restaurant to be featured in AI-generated date night plans.
+          Submit your restaurant to be featured in AI-generated date night and
+          outing plans.
         </p>
 
         {inviteCode && (
@@ -98,35 +126,46 @@ function RestaurantApplyForm() {
         )}
 
         <div className="mt-8 space-y-4 rounded-3xl bg-white p-6 text-black">
-          {Object.entries(form).map(([key, value]) =>
-            key === "description" ? (
-              <textarea
-                key={key}
-                className="min-h-32 w-full rounded-xl border px-4 py-3"
-                placeholder="Describe your restaurant atmosphere, food, vibe, lighting, and best occasions."
-                value={value}
-                onChange={(e) => update(key, e.target.value)}
-              />
-            ) : (
-              <input
-                key={key}
-                className="w-full rounded-xl border px-4 py-3"
-                placeholder={key.replaceAll("_", " ")}
-                value={value}
-                onChange={(e) => update(key, e.target.value)}
-              />
-            )
-          )}
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Restaurant Name" value={form.restaurant_name} onChange={(e) => update("restaurant_name", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Street Address" value={form.address} onChange={(e) => update("address", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="City" value={form.city} onChange={(e) => update("city", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="State" value={form.state} onChange={(e) => update("state", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Zip Code" value={form.zip_code} onChange={(e) => update("zip_code", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Neighborhood" value={form.neighborhood} onChange={(e) => update("neighborhood", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Cuisine Type" value={form.cuisine_type} onChange={(e) => update("cuisine_type", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Price Range, example: $$" value={form.price_range} onChange={(e) => update("price_range", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Reservation Link" value={form.reservation_link} onChange={(e) => update("reservation_link", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Website" value={form.website} onChange={(e) => update("website", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Phone Number" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Email" type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Instagram URL" value={form.instagram_url} onChange={(e) => update("instagram_url", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="TikTok URL" value={form.tiktok_url} onChange={(e) => update("tiktok_url", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="X URL" value={form.x_url} onChange={(e) => update("x_url", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Hours of Operation" value={form.hours_of_operation} onChange={(e) => update("hours_of_operation", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Kitchen Closing Time" value={form.kitchen_closing_time} onChange={(e) => update("kitchen_closing_time", e.target.value)} />
+
+          <textarea
+            className="min-h-32 w-full rounded-xl border px-4 py-3"
+            placeholder="Describe your restaurant atmosphere, food, vibe, lighting, and best occasions."
+            value={form.description}
+            onChange={(e) => update("description", e.target.value)}
+          />
 
           <Turnstile
-            sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+            sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
             onVerify={(token) => setCaptchaToken(token)}
+            onExpire={() => setCaptchaToken("")}
           />
 
           <button
             type="button"
             onClick={submitRestaurant}
-            disabled={loading || !form.restaurant_name.trim() || !captchaToken}
+            disabled={
+              loading ||
+              !form.restaurant_name.trim() ||
+              !form.email.trim() ||
+              !captchaToken
+            }
             className="w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold text-black disabled:opacity-50"
           >
             {loading ? "Submitting..." : "Submit Restaurant"}
@@ -141,8 +180,12 @@ function RestaurantApplyForm() {
 
 export default function RestaurantApplyPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black text-white p-6">Loading...</div>}>
-      <RestaurantApplyForm />
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black p-6 text-white">Loading...</main>
+      }
+    >
+      <ApplyForm />
     </Suspense>
   );
 }
