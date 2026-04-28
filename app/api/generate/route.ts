@@ -36,19 +36,27 @@ export async function POST(req: Request) {
           (r) => `
 ID: ${r.id}
 Restaurant: ${r.restaurant_name}
-City: ${r.city}, ${r.state}
-Cuisine: ${r.cuisine_type}
-Price: ${r.price_range}
-Description: ${r.description}
+Address: ${r.address || ""}
+City: ${r.city || ""}
+State: ${r.state || ""}
+Zip Code: ${r.zip_code || ""}
+Neighborhood: ${r.neighborhood || ""}
+Cuisine: ${r.cuisine_type || ""}
+Price: ${r.price_range || ""}
+Description: ${r.description || ""}
 Mood Tags: ${r.mood_tags?.join(", ") || ""}
 Lighting: ${r.lighting || ""}
 Noise Level: ${r.noise_level || ""}
 Atmosphere: ${r.atmosphere || ""}
 Best For: ${r.best_for?.join(", ") || ""}
+Hours: ${r.hours_of_operation || ""}
+Days Open: ${r.days_of_operation?.join(", ") || ""}
+Kitchen Closing Time: ${r.kitchen_closing_time || ""}
 Reservation Link: ${r.reservation_link || ""}
 Google Maps: ${r.google_maps_link || ""}
 Website: ${r.website || ""}
 Phone: ${r.phone || ""}
+Email: ${r.email || ""}
 Instagram: ${r.instagram_url || ""}
 TikTok: ${r.tiktok_url || ""}
 X: ${r.x_url || ""}
@@ -70,7 +78,21 @@ X: ${r.x_url || ""}
 You are RoseOut, a luxury AI date night and outing concierge.
 
 Use the approved restaurant data when it fits the user's request.
-Pick the best matching restaurant based on city, mood, lighting, noise level, atmosphere, cuisine, price, and best_for.
+Pick the best matching restaurant based on:
+- city
+- state
+- zip code
+- neighborhood
+- mood
+- lighting
+- noise level
+- atmosphere
+- cuisine
+- price
+- best_for
+- hours of operation
+- days of operation
+- kitchen closing time
 
 Do not invent restaurant names.
 If no restaurant fits, use selectedRestaurantId as null.
@@ -88,7 +110,7 @@ The plan should be natural, premium, and formatted like:
 Short elegant intro.
 
 🍽 Dinner:
-Recommend the selected real restaurant if available and explain why it fits. If none fits, suggest a general dinner vibe.
+Recommend the selected real restaurant if available and explain why it fits. Mention neighborhood or city when useful.
 
 🎯 Activity:
 Suggest a matching activity.
@@ -128,7 +150,12 @@ ${restaurantContext}
       dinner: `https://www.opentable.com/s/?term=${encoded}`,
       activity: `https://www.eventbrite.com/d/online/search/?q=${encoded}`,
       dessert: `https://www.google.com/maps/search/${encoded}+dessert+drinks`,
+      maps: `https://www.google.com/maps/search/${encoded}`,
     };
+
+    const addressForMaps = selectedRestaurant
+      ? `${selectedRestaurant.address || ""} ${selectedRestaurant.city || ""} ${selectedRestaurant.state || ""} ${selectedRestaurant.zip_code || ""}`
+      : userRequest;
 
     return Response.json({
       plan: parsed.plan || "No plan generated.",
@@ -140,8 +167,14 @@ ${restaurantContext}
           fallbackLinks.dinner,
         activity: fallbackLinks.activity,
         dessert: fallbackLinks.dessert,
+        maps: selectedRestaurant
+          ? `https://www.google.com/maps/search/${encodeURIComponent(
+              addressForMaps
+            )}`
+          : fallbackLinks.maps,
         website: selectedRestaurant?.website || null,
         phone: selectedRestaurant?.phone || null,
+        email: selectedRestaurant?.email || null,
         instagram: selectedRestaurant?.instagram_url || null,
         tiktok: selectedRestaurant?.tiktok_url || null,
         x: selectedRestaurant?.x_url || null,
