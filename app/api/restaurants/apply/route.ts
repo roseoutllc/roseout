@@ -1,134 +1,191 @@
-import QRCode from "qrcode";
-import { supabase } from "@/lib/supabase";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+"use client";
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Turnstile from "react-turnstile";
 
-    if (!body.restaurant_name) {
-      return Response.json({ error: "Restaurant name is required." }, { status: 400 });
-    }
+function ApplyForm() {
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get("invite");
 
-    if (!body.email) {
-      return Response.json({ error: "Email is required." }, { status: 400 });
-    }
+  const [form, setForm] = useState({
+    restaurant_name: "",
+    address: "",
+    city: "",
+    state: "",
+    zip_code: "",
+    neighborhood: "",
+    cuisine_type: "",
+    price_range: "",
+    reservation_link: "",
+    website: "",
+    phone: "",
+    email: "",
+    instagram_url: "",
+    tiktok_url: "",
+    x_url: "",
+    hours_of_operation: "",
+    kitchen_closing_time: "",
+    description: "",
+  });
 
-    const verifyRes = await fetch(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      {
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!inviteCode) return;
+
+    fetch("/api/invites/scan", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ invite_code: inviteCode }),
+    });
+  }, [inviteCode]);
+
+  const update = (key: string, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const submitRestaurant = async () => {
+    try {
+      setLoading(true);
+      setMessage("");
+
+      const res = await fetch("/api/restaurants/apply", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          secret: process.env.TURNSTILE_SECRET_KEY || "",
-          response: body.captchaToken || "",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...form,
+          captchaToken,
+          invite_code: inviteCode,
         }),
-      }
-    );
-
-    const verifyData = await verifyRes.json();
-
-    if (!verifyData.success) {
-      return Response.json({ error: "CAPTCHA verification failed." }, { status: 400 });
-    }
-
-    const tempPassword = Math.random().toString(36).slice(-10) + "Aa1!";
-
-    const { data: createdUser, error: createUserError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email: body.email,
-        password: tempPassword,
-        email_confirm: true,
       });
 
-    let ownerUserId = createdUser?.user?.id || null;
+      const data = await res.json();
 
-    if (createUserError) {
-      const { data: usersData, error: listUsersError } =
-        await supabaseAdmin.auth.admin.listUsers();
-
-      if (listUsersError) {
-        return Response.json({ error: listUsersError.message }, { status: 500 });
+      if (!res.ok) {
+        setMessage(`Error: ${data.error || "Submission failed."}`);
+        return;
       }
 
-      const existingUser = usersData.users.find(
-        (u) => u.email?.toLowerCase() === body.email.toLowerCase()
+      setMessage(
+        "Restaurant submitted successfully. Check your email for your RoseOut dashboard login link."
       );
 
-      ownerUserId = existingUser?.id || null;
+      setForm({
+        restaurant_name: "",
+        address: "",
+        city: "",
+        state: "",
+        zip_code: "",
+        neighborhood: "",
+        cuisine_type: "",
+        price_range: "",
+        reservation_link: "",
+        website: "",
+        phone: "",
+        email: "",
+        instagram_url: "",
+        tiktok_url: "",
+        x_url: "",
+        hours_of_operation: "",
+        kitchen_closing_time: "",
+        description: "",
+      });
+
+      setCaptchaToken("");
+    } catch {
+      setMessage("Error: Could not submit restaurant.");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    const restaurantSlug = body.restaurant_name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+  return (
+    <main className="min-h-screen bg-black px-6 py-12 text-white">
+      <div className="mx-auto max-w-2xl">
+        <h1 className="text-4xl font-bold">List Your Restaurant on RoseOut</h1>
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+        <p className="mt-3 text-neutral-400">
+          Submit your restaurant to be featured in AI-generated date night and
+          outing plans.
+        </p>
 
-    const qrLink = `${siteUrl}/restaurants/apply?restaurant=${restaurantSlug}`;
-    const qrCodeDataUrl = await QRCode.toDataURL(qrLink);
+        {inviteCode && (
+          <p className="mt-4 rounded-xl bg-yellow-500 px-4 py-3 font-semibold text-black">
+            Invite Code: {inviteCode}
+          </p>
+        )}
 
-    const { error } = await supabase.from("restaurants").insert({
-      restaurant_name: body.restaurant_name,
-      address: body.address,
-      city: body.city,
-      state: body.state,
-      zip_code: body.zip_code,
-      neighborhood: body.neighborhood,
-      cuisine_type: body.cuisine_type,
-      price_range: body.price_range,
-      reservation_link: body.reservation_link,
-      website: body.website,
-      phone: body.phone,
-      email: body.email,
-      instagram_url: body.instagram_url,
-      tiktok_url: body.tiktok_url,
-      x_url: body.x_url,
-      hours_of_operation: body.hours_of_operation,
-      kitchen_closing_time: body.kitchen_closing_time,
-      description: body.description,
-      qr_link: qrLink,
-      qr_code_data_url: qrCodeDataUrl,
-      owner_user_id: ownerUserId,
-      owner_email: body.email,
-      status: "pending",
-    });
+        <div className="mt-8 space-y-4 rounded-3xl bg-white p-6 text-black">
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Restaurant Name" value={form.restaurant_name} onChange={(e) => update("restaurant_name", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Street Address" value={form.address} onChange={(e) => update("address", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="City" value={form.city} onChange={(e) => update("city", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="State" value={form.state} onChange={(e) => update("state", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Zip Code" value={form.zip_code} onChange={(e) => update("zip_code", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Neighborhood" value={form.neighborhood} onChange={(e) => update("neighborhood", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Cuisine Type" value={form.cuisine_type} onChange={(e) => update("cuisine_type", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Price Range, example: $$" value={form.price_range} onChange={(e) => update("price_range", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Reservation Link" value={form.reservation_link} onChange={(e) => update("reservation_link", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Website" value={form.website} onChange={(e) => update("website", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Phone Number" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Email" type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Instagram URL" value={form.instagram_url} onChange={(e) => update("instagram_url", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="TikTok URL" value={form.tiktok_url} onChange={(e) => update("tiktok_url", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="X URL" value={form.x_url} onChange={(e) => update("x_url", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Hours of Operation" value={form.hours_of_operation} onChange={(e) => update("hours_of_operation", e.target.value)} />
+          <input className="w-full rounded-xl border px-4 py-3" placeholder="Kitchen Closing Time" value={form.kitchen_closing_time} onChange={(e) => update("kitchen_closing_time", e.target.value)} />
 
-    if (error) {
-      return Response.json({ error: error.message || "Database error" }, { status: 500 });
-    }
+          <textarea
+            className="min-h-32 w-full rounded-xl border px-4 py-3"
+            placeholder="Describe your restaurant atmosphere, food, vibe, lighting, and best occasions."
+            value={form.description}
+            onChange={(e) => update("description", e.target.value)}
+          />
 
-    if (body.invite_code) {
-      await supabase
-        .from("restaurant_invites")
-        .update({
-          submitted_at: new Date().toISOString(),
-          status: "submitted",
-        })
-        .eq("invite_code", body.invite_code);
-    }
+          <Turnstile
+            sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+            onVerify={(token) => setCaptchaToken(token)}
+            onExpire={() => setCaptchaToken("")}
+          />
 
-    await supabase.auth.signInWithOtp({
-      email: body.email,
-      options: {
-        emailRedirectTo: `${siteUrl}/restaurants/dashboard`,
-      },
-    });
+          <button
+            type="button"
+            onClick={submitRestaurant}
+            disabled={
+              loading ||
+              !form.restaurant_name.trim() ||
+              !form.email.trim() ||
+              !captchaToken
+            }
+            className="w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold text-black disabled:opacity-50"
+          >
+            {loading ? "Submitting..." : "Submit Restaurant"}
+          </button>
 
-    return Response.json({
-      success: true,
-      message:
-        "Restaurant submitted. Check your email for your secure RoseOut dashboard login link.",
-      qrLink,
-      qrCodeDataUrl,
-    });
-  } catch (error: any) {
-    console.error("API ERROR:", error);
-    console.log("OPENAI:", process.env.OPENAI_API_KEY);
+          {message && <p className="text-center font-semibold">{message}</p>}
+        </div>
+      </div>
+    </main>
+  );
+}
 
-    return Response.json(
-      { error: error.message || "Server error" },
-      { status: 500 }
-    );
-  }
+export default function RestaurantApplyPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black p-6 text-white">Loading...</main>
+      }
+    >
+      <ApplyForm />
+    </Suspense>
+  );
 }
