@@ -8,20 +8,36 @@ export default function CreatePage() {
   const [loading, setLoading] = useState(false);
 
   const generatePlan = async () => {
-    setLoading(true);
-    setPlan("");
+    try {
+      setLoading(true);
+      setPlan("");
 
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ request }),
-    });
+      console.log("BUTTON CLICKED");
 
-    const data = await res.json();
-    setPlan(data.plan);
-    setLoading(false);
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ request }),
+      });
+
+      const data = await res.json();
+
+      console.log("API RESPONSE:", data);
+
+      if (!res.ok) {
+        setPlan(`Error: ${data.error || "Something went wrong"}`);
+        return;
+      }
+
+      setPlan(data.plan);
+    } catch (error) {
+      console.error(error);
+      setPlan("Error: Could not reach API");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,14 +71,17 @@ export default function CreatePage() {
         {plan && (
           <div className="mt-8 rounded-3xl bg-white p-6 text-black">
             <h2 className="text-2xl font-bold">Your RoseOut Plan</h2>
-            <p className="mt-4 whitespace-pre-line leading-8">{plan}</p>
+
+            <p className="mt-4 whitespace-pre-line leading-8">
+              {plan}
+            </p>
 
             <button
-  onClick={() => alert("Button works")}
-  className="mt-4 w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold text-black"
->
-  Test Button
-</button>
+              onClick={() => navigator.clipboard.writeText(plan)}
+              className="mt-6 rounded-xl bg-black px-6 py-3 font-semibold text-white"
+            >
+              Copy Plan
+            </button>
           </div>
         )}
       </div>
