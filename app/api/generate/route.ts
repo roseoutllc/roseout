@@ -42,6 +42,16 @@ function scoreRestaurant(restaurant: any, input: string) {
   if (text.includes("fun") && restaurant.atmosphere?.toLowerCase().includes("lively")) score += 10;
   if (text.includes("first date") && restaurant.best_for?.includes("first date")) score += 15;
 
+  const now = new Date();
+
+const isCurrentlyFeatured =
+  restaurant.is_featured === true &&
+  (!restaurant.featured_until || new Date(restaurant.featured_until) > now);
+
+if (isCurrentlyFeatured) {
+  score += restaurant.featured_weight || 20;
+}
+
   return score;
 }
 
