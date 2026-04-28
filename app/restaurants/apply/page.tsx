@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Turnstile from "react-turnstile";
+import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 export default function RestaurantApplyPage() {
   const [form, setForm] = useState({
@@ -28,6 +30,22 @@ export default function RestaurantApplyPage() {
   const [captchaToken, setCaptchaToken] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+const inviteCode = searchParams.get("invite");
+
+useEffect(() => {
+  if (!inviteCode) return;
+
+  fetch("/api/invites/scan", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      invite_code: inviteCode,
+    }),
+  });
+}, [inviteCode]);
 
   const update = (key: string, value: string) => {
     setForm({ ...form, [key]: value });
@@ -44,10 +62,10 @@ export default function RestaurantApplyPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...form,
-          captchaToken,
-        }),
-      });
+  ...form,
+  captchaToken,
+  invite_code: inviteCode,
+}),
 
       const data = await res.json();
 

@@ -4,6 +4,16 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    if (body.invite_code) {
+  await supabase
+    .from("restaurant_invites")
+    .update({
+      submitted_at: new Date().toISOString(),
+      status: "submitted",
+    })
+    .eq("invite_code", body.invite_code);
+}
+
     // 🔐 Validate required fields
     if (!body.restaurant_name) {
       return Response.json(
