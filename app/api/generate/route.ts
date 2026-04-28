@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 
 export async function POST(req: Request) {
+  console.log("API HIT");
   try {
     const body = await req.json();
 
