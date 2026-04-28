@@ -178,6 +178,9 @@ await sendEmail({
         })
         .eq("invite_code", body.invite_code);
     }
+return Response.json({
+  debug: process.env.RESEND_API_KEY,
+});
 
     return Response.json({
       success: true,
