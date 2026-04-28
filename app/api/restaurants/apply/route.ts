@@ -5,6 +5,12 @@ import { sendEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
+
+    await sendEmail({
+      to: "yourpersonalemail@gmail.com",
+      subject: "FORCE TEST",
+      html: "<p>This should send no matter what</p>",
+    });
     const body = await req.json();
 
     if (!body.restaurant_name) {
