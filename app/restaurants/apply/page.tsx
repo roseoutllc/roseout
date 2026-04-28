@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader } from "@googlemaps/js-api-loader";
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 export default function RestaurantApplyPage() {
   const addressRef = useRef<HTMLInputElement | null>(null);
@@ -24,24 +29,10 @@ export default function RestaurantApplyPage() {
   };
 
   useEffect(() => {
-    const initAutocomplete = async () => {
-      if (!addressRef.current) return;
+    const initAutocomplete = () => {
+      if (!addressRef.current || !window.google) return;
 
-      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-      if (!apiKey) {
-        console.warn("Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
-        return;
-      }
-
-      const loader = new Loader({
-        apiKey,
-        libraries: ["places"],
-      });
-
-      await loader.importLibrary("places");
-
-      const autocomplete = new google.maps.places.Autocomplete(
+      const autocomplete = new window.google.maps.places.Autocomplete(
         addressRef.current,
         {
           types: ["address"],
@@ -58,7 +49,7 @@ export default function RestaurantApplyPage() {
         let state = "";
         let zip = "";
 
-        place.address_components?.forEach((component) => {
+        place.address_components?.forEach((component: any) => {
           const types = component.types;
 
           if (types.includes("street_number")) {
@@ -96,7 +87,34 @@ export default function RestaurantApplyPage() {
       });
     };
 
-    initAutocomplete();
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+    if (!apiKey) {
+      console.warn("Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
+      return;
+    }
+
+    if (window.google?.maps?.places) {
+      initAutocomplete();
+      return;
+    }
+
+    const existingScript = document.querySelector(
+      'script[src*="maps.googleapis.com/maps/api/js"]'
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener("load", initAutocomplete);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = initAutocomplete;
+
+    document.head.appendChild(script);
   }, []);
 
   const submit = async () => {
