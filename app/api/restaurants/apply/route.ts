@@ -157,20 +157,11 @@ export async function POST(req: Request) {
       `,
     });
 
-    await sendEmail({
-      to: process.env.ADMIN_EMAIL || "your-email@example.com",
-      subject: "New RoseOut Restaurant Submission",
-      html: `
-        <div style="font-family:Arial,sans-serif;padding:24px;line-height:1.6;color:#111;">
-          <h2>New Restaurant Submitted</h2>
-          <p><strong>Name:</strong> ${body.restaurant_name}</p>
-          <p><strong>Email:</strong> ${body.email}</p>
-          <p><strong>Phone:</strong> ${body.phone || "Not provided"}</p>
-          <p><strong>Location:</strong> ${body.city || ""}, ${body.state || ""} ${body.zip_code || ""}</p>
-          <p><strong>Status:</strong> Pending Review</p>
-        </div>
-      `,
-    });
+await sendEmail({
+  to: "nicbillie@gmail.com",
+  subject: "Resend Test",
+  html: "<p>If you see this, Resend is working.</p>",
+});
 
     if (body.invite_code) {
       await supabase
