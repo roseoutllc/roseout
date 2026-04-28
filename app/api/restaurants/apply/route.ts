@@ -46,6 +46,11 @@ export async function POST(req: Request) {
       );
     }
 
+    // 🔐 Get logged-in user (if exists)
+const { data: userData } = await supabase.auth.getUser();
+const userId = userData?.user?.id || null;
+const userEmail = userData?.user?.email || body.email || null;
+
     const { error } = await supabase.from("restaurants").insert({
       restaurant_name: body.restaurant_name,
       address: body.address,
@@ -69,8 +74,14 @@ export async function POST(req: Request) {
       qr_link: qrLink,
       qr_code_data_url: qrCodeDataUrl,
 
+        owner_user_id: userId,
+  owner_email: userEmail,
+
       status: "pending",
     });
+
+    owner_user_id: userId,
+owner_email: userEmail,
 
     if (error) {
       return Response.json(
