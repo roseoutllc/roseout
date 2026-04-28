@@ -58,11 +58,11 @@ export default function CreatePage() {
             <p className="mt-4 whitespace-pre-line leading-8">{plan}</p>
 
             <button
-              onClick={() => navigator.clipboard.writeText(plan)}
-              className="mt-6 rounded-xl bg-black px-6 py-3 font-semibold text-white"
-            >
-              Copy Plan
-            </button>
+  onClick={() => alert("Button works")}
+  className="mt-4 w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold text-black"
+>
+  Test Button
+</button>
           </div>
         )}
       </div>
