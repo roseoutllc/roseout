@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import QRCode from "qrcode";
 
 export async function POST(req: Request) {
   try {
