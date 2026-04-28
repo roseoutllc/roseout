@@ -18,9 +18,7 @@ export default function CreatePage() {
 
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ request }),
       });
 
@@ -34,7 +32,7 @@ export default function CreatePage() {
       setPlan(data.plan);
       setLinks(data.links);
       setSelectedRestaurant(data.selectedRestaurant);
-    } catch (error) {
+    } catch {
       setPlan("Error: Could not reach API");
     } finally {
       setLoading(false);
@@ -85,25 +83,46 @@ export default function CreatePage() {
                   {selectedRestaurant.description}
                 </p>
 
-                <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                <div className="mt-4 space-y-1 text-sm text-neutral-700">
+                  {selectedRestaurant.address && (
+                    <p>
+                      📍 {selectedRestaurant.address}, {selectedRestaurant.city},{" "}
+                      {selectedRestaurant.state} {selectedRestaurant.zip_code}
+                    </p>
+                  )}
+
+                  {selectedRestaurant.neighborhood && (
+                    <p>🏙 Neighborhood: {selectedRestaurant.neighborhood}</p>
+                  )}
+
+                  {selectedRestaurant.hours_of_operation && (
+                    <p>🕒 Hours: {selectedRestaurant.hours_of_operation}</p>
+                  )}
+
+                  {selectedRestaurant.kitchen_closing_time && (
+                    <p>
+                      🍳 Kitchen closes:{" "}
+                      {selectedRestaurant.kitchen_closing_time}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2 text-sm">
                   {selectedRestaurant.cuisine_type && (
                     <span className="rounded-full bg-black px-3 py-1 text-white">
                       {selectedRestaurant.cuisine_type}
                     </span>
                   )}
-
                   {selectedRestaurant.price_range && (
                     <span className="rounded-full bg-black px-3 py-1 text-white">
                       {selectedRestaurant.price_range}
                     </span>
                   )}
-
                   {selectedRestaurant.noise_level && (
                     <span className="rounded-full bg-black px-3 py-1 text-white">
                       {selectedRestaurant.noise_level}
                     </span>
                   )}
-
                   {selectedRestaurant.atmosphere && (
                     <span className="rounded-full bg-black px-3 py-1 text-white">
                       {selectedRestaurant.atmosphere}
@@ -117,10 +136,17 @@ export default function CreatePage() {
               <div className="mt-6 space-y-3">
                 <a href={links.dinner} target="_blank">
                   <button className="w-full rounded-xl bg-black py-3 text-white">
-                    🍽 Book{" "}
-                    {selectedRestaurant?.restaurant_name || "Dinner"}
+                    🍽 Book {selectedRestaurant?.restaurant_name || "Dinner"}
                   </button>
                 </a>
+
+                {links.maps && (
+                  <a href={links.maps} target="_blank">
+                    <button className="w-full rounded-xl bg-black py-3 text-white">
+                      📍 Open in Maps
+                    </button>
+                  </a>
+                )}
 
                 {links.phone && (
                   <a href={`tel:${links.phone}`}>
