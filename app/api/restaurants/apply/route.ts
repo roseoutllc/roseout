@@ -124,6 +124,7 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error("API ERROR:", error);
+    console.log("OPENAI:", process.env.OPENAI_API_KEY);
 
     return Response.json(
       { error: error.message || "Server error" },
