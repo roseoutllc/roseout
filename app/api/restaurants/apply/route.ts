@@ -6,7 +6,6 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // ✅ Validate
     if (!body.restaurant_name) {
       return Response.json(
         { error: "Restaurant name is required." },
@@ -14,7 +13,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔐 Verify Turnstile CAPTCHA
+    if (!body.email) {
+      return Response.json(
+        { error: "Email is required to create a restaurant portal account." },
+        { status: 400 }
+      );
+    }
+
     const verifyRes = await fetch(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
       {
@@ -38,26 +43,58 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔐 Create user account automatically
     const tempPassword = Math.random().toString(36).slice(-10) + "Aa1!";
 
-    const { data: createdUser, error: userError } =
+    const { data: createdUser, error: createUserError } =
       await supabaseAdmin.auth.admin.createUser({
         email: body.email,
         password: tempPassword,
         email_confirm: true,
       });
 
-    if (userError && !userError.message.includes("already registered")) {
-      return Response.json(
-        { error: userError.message },
-        { status: 500 }
-      );
+    let ownerUserId = createdUser?.user?.id || null;
+
+    if (createUserError) {
+      const alreadyExists =
+        createUserError.message.toLowerCase().includes("already") ||
+        createUserError.message.toLowerCase().includes("registered");
+
+      if (!alreadyExists) {
+        return Response.json(
+          { error: createUserError.message },
+          { status: 500 }
+        );
+      }
     }
 
-    const ownerUserId = createdUser?.user?.id || null;
+    if (!ownerUserId) {
+      const { data: usersData, error: listUserError } =
+        await supabaseAdmin.auth.admin.listUsers();
 
-    // 🔗 Create QR code
+      if (listUserError) {
+        return Response.json(
+          { error: listUserError.message },
+          { status: 500 }
+        );
+      }
+
+      const existingUser = usersData.users.find(
+        (user) => user.email?.toLowerCase() === body.email.toLowerCase()
+      );
+
+      ownerUserId = existingUser?.id || null;
+    }
+
+    if (ownerUserId) {
+      await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email: body.email,
+        options: {
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/restaurants/login`,
+        },
+      });
+    }
+
     const restaurantSlug = body.restaurant_name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -69,7 +106,6 @@ export async function POST(req: Request) {
     const qrLink = `${siteUrl}/restaurants/apply?restaurant=${restaurantSlug}`;
     const qrCodeDataUrl = await QRCode.toDataURL(qrLink);
 
-    // 🧱 Insert into Supabase (FIXED)
     const { error } = await supabase.from("restaurants").insert({
       restaurant_name: body.restaurant_name,
       address: body.address,
@@ -89,13 +125,10 @@ export async function POST(req: Request) {
       hours_of_operation: body.hours_of_operation,
       kitchen_closing_time: body.kitchen_closing_time,
       description: body.description,
-
       qr_link: qrLink,
       qr_code_data_url: qrCodeDataUrl,
-
       owner_user_id: ownerUserId,
       owner_email: body.email,
-
       status: "pending",
     });
 
@@ -106,7 +139,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 📊 Track invite submission
     if (body.invite_code) {
       await supabase
         .from("restaurant_invites")
@@ -120,7 +152,7 @@ export async function POST(req: Request) {
     return Response.json({
       success: true,
       message:
-        "Restaurant submitted successfully. A RoseOut account has been created.",
+        "Restaurant submitted successfully. A RoseOut account was created, and a password setup email was sent.",
       qrLink,
       qrCodeDataUrl,
     });
