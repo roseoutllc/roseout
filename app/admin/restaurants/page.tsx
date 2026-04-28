@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase-browser";
 
 export default function AdminRestaurantsPage() {
+  const supabase = createClient();
   const [restaurants, setRestaurants] = useState<any[]>([]);
 
   const fetchRestaurants = async () => {
@@ -22,12 +24,29 @@ export default function AdminRestaurantsPage() {
   };
 
   useEffect(() => {
-    fetchRestaurants();
+    const checkUser = async () => {
+      const { data } = await supabase.auth.getUser();
+
+      if (!data.user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      fetchRestaurants();
+    };
+
+    checkUser();
   }, []);
 
   return (
     <main className="min-h-screen bg-black px-6 py-12 text-white">
       <div className="mx-auto max-w-6xl">
+        <div className="mb-8 flex gap-4">
+          <a href="/admin" className="underline">Dashboard</a>
+          <a href="/admin/restaurants" className="underline">Restaurants</a>
+          <a href="/admin/invites" className="underline">Invites</a>
+        </div>
+
         <h1 className="text-4xl font-bold">Restaurant Approvals</h1>
 
         <div className="mt-8 grid gap-6">
@@ -69,10 +88,7 @@ export default function AdminRestaurantsPage() {
 
                   {r.qr_code_data_url ? (
                     <>
-                      <div
-                        id={`label-${r.id}`}
-                        className="mx-auto mt-3 flex w-[300px] flex-col items-center rounded-xl border bg-white p-4 text-black"
-                      >
+                      <div className="mx-auto mt-3 flex w-[300px] flex-col items-center rounded-xl border bg-white p-4 text-black">
                         <img
                           src={r.qr_code_data_url}
                           alt={`${r.restaurant_name} QR Code`}
@@ -106,37 +122,12 @@ export default function AdminRestaurantsPage() {
                               <head>
                                 <title>${r.restaurant_name} RoseOut Label</title>
                                 <style>
-                                  body {
-                                    margin: 0;
-                                    padding: 20px;
-                                    font-family: Arial, sans-serif;
-                                  }
-                                  .label {
-                                    width: 300px;
-                                    border: 1px solid #ddd;
-                                    border-radius: 12px;
-                                    padding: 16px;
-                                    text-align: center;
-                                  }
-                                  img {
-                                    width: 144px;
-                                    height: 144px;
-                                  }
-                                  h4 {
-                                    margin: 12px 0 4px;
-                                    font-size: 18px;
-                                    line-height: 1.1;
-                                  }
-                                  p {
-                                    margin: 2px 0;
-                                    font-size: 14px;
-                                    line-height: 1.2;
-                                  }
-                                  .small {
-                                    margin-top: 10px;
-                                    font-size: 12px;
-                                    font-weight: bold;
-                                  }
+                                  body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+                                  .label { width: 300px; border: 1px solid #ddd; border-radius: 12px; padding: 16px; text-align: center; }
+                                  img { width: 144px; height: 144px; }
+                                  h4 { margin: 12px 0 4px; font-size: 18px; line-height: 1.1; }
+                                  p { margin: 2px 0; font-size: 14px; line-height: 1.2; }
+                                  .small { margin-top: 10px; font-size: 12px; font-weight: bold; }
                                 </style>
                               </head>
                               <body>
@@ -144,15 +135,11 @@ export default function AdminRestaurantsPage() {
                                   <img src="${r.qr_code_data_url}" />
                                   <h4>${r.restaurant_name || ""}</h4>
                                   <p>${r.address || ""}</p>
-                                  <p>${r.city || ""}, ${r.state || ""} ${
-                                    r.zip_code || ""
-                                  }</p>
+                                  <p>${r.city || ""}, ${r.state || ""} ${r.zip_code || ""}</p>
                                   <p class="small">Scan to manage your RoseOut listing</p>
                                 </div>
                                 <script>
-                                  window.onload = function() {
-                                    window.print();
-                                  };
+                                  window.onload = function() { window.print(); };
                                 </script>
                               </body>
                             </html>
@@ -174,6 +161,12 @@ export default function AdminRestaurantsPage() {
               </div>
             </div>
           ))}
+
+          {restaurants.length === 0 && (
+            <p className="rounded-2xl bg-white p-6 text-black">
+              No restaurant submissions yet.
+            </p>
+          )}
         </div>
       </div>
     </main>
