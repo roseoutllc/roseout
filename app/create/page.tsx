@@ -6,6 +6,7 @@ export default function CreatePage() {
   const [request, setRequest] = useState("");
   const [plan, setPlan] = useState("");
   const [loading, setLoading] = useState(false);
+  const [links, setLinks] = useState<any>(null);
 
   const generatePlan = async () => {
     try {
