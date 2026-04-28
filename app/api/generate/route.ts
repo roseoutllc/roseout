@@ -1,6 +1,11 @@
 import OpenAI from "openai";
 import { supabase } from "@/lib/supabase";
 
+export async function GET() {
+  return Response.json({
+    message: "RoseOut API is working. Use POST from the create page.",
+  });
+}
 export async function POST(req: Request) {
   try {
     const body = await req.json();
