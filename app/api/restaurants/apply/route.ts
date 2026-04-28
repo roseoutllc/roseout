@@ -1,21 +1,10 @@
-import { supabase } from "@/lib/supabase";
 import QRCode from "qrcode";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    if (body.invite_code) {
-  await supabase
-    .from("restaurant_invites")
-    .update({
-      submitted_at: new Date().toISOString(),
-      status: "submitted",
-    })
-    .eq("invite_code", body.invite_code);
-}
-
-    // 🔐 Validate required fields
     if (!body.restaurant_name) {
       return Response.json(
         { error: "Restaurant name is required." },
@@ -23,7 +12,17 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔐 Verify Turnstile CAPTCHA
+    const restaurantSlug = body.restaurant_name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+    const qrLink = `${siteUrl}/restaurants/apply?restaurant=${restaurantSlug}`;
+    const qrCodeDataUrl = await QRCode.toDataURL(qrLink);
+
     const verifyRes = await fetch(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
       {
@@ -47,7 +46,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🧱 Insert into Supabase
     const { error } = await supabase.from("restaurants").insert({
       restaurant_name: body.restaurant_name,
       address: body.address,
@@ -68,21 +66,34 @@ export async function POST(req: Request) {
       kitchen_closing_time: body.kitchen_closing_time,
       description: body.description,
 
-      status: "pending", // 🔥 important for approval flow
+      qr_link: qrLink,
+      qr_code_data_url: qrCodeDataUrl,
+
+      status: "pending",
     });
 
     if (error) {
-      console.error("Supabase Insert Error:", error);
-
       return Response.json(
         { error: error.message || "Database error" },
         { status: 500 }
       );
     }
 
+    if (body.invite_code) {
+      await supabase
+        .from("restaurant_invites")
+        .update({
+          submitted_at: new Date().toISOString(),
+          status: "submitted",
+        })
+        .eq("invite_code", body.invite_code);
+    }
+
     return Response.json({
       success: true,
       message: "Restaurant submitted successfully for review.",
+      qrLink,
+      qrCodeDataUrl,
     });
   } catch (error: any) {
     console.error("API ERROR:", error);
