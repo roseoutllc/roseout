@@ -4,6 +4,39 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    // 🔐 Validate required fields
+    if (!body.restaurant_name) {
+      return Response.json(
+        { error: "Restaurant name is required." },
+        { status: 400 }
+      );
+    }
+
+    // 🔐 Verify Turnstile CAPTCHA
+    const verifyRes = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          secret: process.env.TURNSTILE_SECRET_KEY || "",
+          response: body.captchaToken || "",
+        }),
+      }
+    );
+
+    const verifyData = await verifyRes.json();
+
+    if (!verifyData.success) {
+      return Response.json(
+        { error: "CAPTCHA verification failed." },
+        { status: 400 }
+      );
+    }
+
+    // 🧱 Insert into Supabase
     const { error } = await supabase.from("restaurants").insert({
       restaurant_name: body.restaurant_name,
       address: body.address,
@@ -23,17 +56,26 @@ export async function POST(req: Request) {
       hours_of_operation: body.hours_of_operation,
       kitchen_closing_time: body.kitchen_closing_time,
       description: body.description,
-      status: "pending",
+
+      status: "pending", // 🔥 important for approval flow
     });
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      console.error("Supabase Insert Error:", error);
+
+      return Response.json(
+        { error: error.message || "Database error" },
+        { status: 500 }
+      );
     }
 
     return Response.json({
-      message: "Restaurant submitted successfully.",
+      success: true,
+      message: "Restaurant submitted successfully for review.",
     });
   } catch (error: any) {
+    console.error("API ERROR:", error);
+
     return Response.json(
       { error: error.message || "Server error" },
       { status: 500 }
