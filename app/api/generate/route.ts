@@ -1,23 +1,19 @@
 import OpenAI from "openai";
 
 export async function POST(req: Request) {
-  console.log("API HIT");
   try {
     const body = await req.json();
+    const userRequest = body.request || "";
 
-    if (!process.env.OPENAI_API_KEY) {
-      return Response.json(
-        { error: "Missing OPENAI_API_KEY in .env.local" },
-        { status: 500 }
-      );
-    }
+    // Encode user input for safe URLs
+    const encodedRequest = encodeURIComponent(userRequest);
 
-    if (!body.request) {
-      return Response.json(
-        { error: "Missing request text" },
-        { status: 400 }
-      );
-    }
+    // Dynamic booking links based on user request
+    const bookingLinks = `
+Dinner Reservations: https://www.opentable.com/s/?term=${encodedRequest}
+Activities & Events: https://www.eventbrite.com/d/online/search/?q=${encodedRequest}
+Dessert or Drinks Nearby: https://www.google.com/maps/search/${encodedRequest}
+`;
 
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
@@ -27,44 +23,52 @@ export async function POST(req: Request) {
       model: "gpt-4o-mini",
       messages: [
         {
-  role: "system",
-  content: `
+          role: "system",
+          content: `
 You are RoseOut, a luxury date night and outing concierge.
 
 The user will describe what they want in natural language.
 
-Your job is to create a smooth, elegant, real-world plan.
+Create a smooth, engaging, real-world plan.
 
-Format the response like this:
+FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
 
-Start with a short intro sentence setting the tone.
-
-Then structure:
+🌹 RoseOut Plan:
+Start with a short, elegant intro sentence setting the tone.
 
 🍽 Dinner:
-Recommend a specific type of place and vibe. Describe the experience.
+Describe a great dinner experience (vibe, type of place).
 
 🎯 Activity:
-Suggest something fun, interactive, or memorable that fits the mood.
+Suggest something fun, interactive, or memorable.
 
 🍰 Optional Add-On:
 Dessert, drinks, or a late-night stop.
 
-📍 Why This Works:
-Explain why this plan fits their request.
+🔗 Booking Links:
+Use the exact links provided by the system.
 
-Guidelines:
-- Write like a human concierge, not a robot
-- Keep it smooth and engaging
-- Make it feel real and doable
-- Do NOT say "as an AI"
-`
-},
+📍 Why This Works:
+Explain why this plan fits the user’s request.
+
+GUIDELINES:
+- Write like a human concierge
+- Keep it natural and smooth
+- Make it feel realistic and local
+- DO NOT say "as an AI"
+- DO NOT invent fake links
+          `,
+        },
         {
-  role: "user",
-  content: `User request: ${body.request}
-Location context: New York area`
-},
+          role: "user",
+          content: `
+User request:
+${userRequest}
+
+Use these booking links:
+${bookingLinks}
+          `,
+        },
       ],
     });
 
