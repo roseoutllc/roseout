@@ -17,10 +17,7 @@ export default function RestaurantApplyPage() {
   const [loading, setLoading] = useState(false);
 
   const update = (key: string, value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const submit = async () => {
@@ -39,11 +36,13 @@ export default function RestaurantApplyPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setMessage(data.error || "Something went wrong.");
+        setMessage(data.error || "Submission failed.");
         return;
       }
 
-      setMessage("Success! Check your email for your login link.");
+      setMessage(
+        "Success! Your restaurant was submitted. Check your email for your login link."
+      );
 
       setForm({
         restaurant_name: "",
@@ -55,7 +54,7 @@ export default function RestaurantApplyPage() {
         description: "",
       });
     } catch {
-      setMessage("Network error. Try again.");
+      setMessage("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -69,7 +68,7 @@ export default function RestaurantApplyPage() {
         </h1>
 
         <p className="mt-3 text-neutral-400">
-          Get discovered through AI-powered date and outing plans.
+          Get discovered in AI-powered date and outing plans.
         </p>
 
         <div className="mt-8 space-y-4 rounded-3xl bg-white p-6 text-black">
@@ -77,18 +76,14 @@ export default function RestaurantApplyPage() {
             className="w-full rounded-xl border px-4 py-3"
             placeholder="Restaurant Name"
             value={form.restaurant_name}
-            onChange={(e) =>
-              update("restaurant_name", e.target.value)
-            }
+            onChange={(e) => update("restaurant_name", e.target.value)}
           />
 
           <input
             className="w-full rounded-xl border px-4 py-3"
             placeholder="Address"
             value={form.address}
-            onChange={(e) =>
-              update("address", e.target.value)
-            }
+            onChange={(e) => update("address", e.target.value)}
           />
 
           <input
@@ -109,9 +104,7 @@ export default function RestaurantApplyPage() {
             className="w-full rounded-xl border px-4 py-3"
             placeholder="Zip Code"
             value={form.zip_code}
-            onChange={(e) =>
-              update("zip_code", e.target.value)
-            }
+            onChange={(e) => update("zip_code", e.target.value)}
           />
 
           <input
@@ -126,17 +119,15 @@ export default function RestaurantApplyPage() {
             className="min-h-28 w-full rounded-xl border px-4 py-3"
             placeholder="Describe your restaurant (vibe, cuisine, atmosphere)"
             value={form.description}
-            onChange={(e) =>
-              update("description", e.target.value)
-            }
+            onChange={(e) => update("description", e.target.value)}
           />
 
           <button
             onClick={submit}
             disabled={
               loading ||
-              !form.restaurant_name ||
-              !form.email
+              !form.restaurant_name.trim() ||
+              !form.email.trim()
             }
             className="w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold text-black disabled:opacity-50"
           >
@@ -144,9 +135,7 @@ export default function RestaurantApplyPage() {
           </button>
 
           {message && (
-            <p className="text-center font-semibold">
-              {message}
-            </p>
+            <p className="text-center font-semibold">{message}</p>
           )}
         </div>
       </div>
