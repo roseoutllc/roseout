@@ -1,8 +1,20 @@
-export async function sendEmail() {
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export async function sendEmail({
+  to,
+  subject,
+  html,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+}) {
   return resend.emails.send({
-    from: "onboarding@resend.dev",
-    to: "yourpersonalemail@gmail.com",
-    subject: "Resend Test",
-    html: "<p>If you see this, Resend is working.</p>",
+    from: "RoseOut <onboarding@resend.dev>",
+    to,
+    subject,
+    html,
   });
 }
