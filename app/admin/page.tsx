@@ -14,7 +14,7 @@ export default function AdminDashboard() {
       const { data } = await supabase.auth.getUser();
 
       if (!data.user) {
-        window.location.href = "/restaurants/apply";
+        window.location.href = "/login";
         return;
       }
 
