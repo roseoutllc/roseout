@@ -47,6 +47,10 @@ export default function AdminTopBar() {
                 Dashboard
               </a>
 
+              <a href="/admin/engagement" className="block rounded-xl px-4 py-3 hover:bg-neutral-100">
+  Engagement
+</a>
+
               <a
                 href="/admin/restaurants"
                 className="block rounded-xl px-4 py-3 hover:bg-neutral-100"

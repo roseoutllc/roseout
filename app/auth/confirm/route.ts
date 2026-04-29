@@ -74,6 +74,15 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
+  await supabaseAdmin.from("restaurant_events").insert({
+  restaurant_id: restaurant.id,
+  email,
+  event_type: "login_link_clicked",
+  metadata: {
+    source: "magic_link",
+  },
+});
+
   await supabaseAdmin
     .from("restaurants")
     .update({

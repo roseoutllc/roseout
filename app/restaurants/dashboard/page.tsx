@@ -32,6 +32,16 @@ export default function RestaurantDashboardPage() {
     }
 
     setRestaurant(data);
+
+    await fetch("/api/restaurants/track", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    restaurant_id: data.id,
+    email: data.email,
+    event_type: "dashboard_viewed",
+  }),
+});
     setLoading(false);
   };
 
