@@ -13,6 +13,8 @@ type RestaurantCard = {
   reservation_link?: string;
   website?: string;
   image_url?: string;
+  rating?: number | null;
+  review_count?: number | null;
   primary_tag?: string | null;
   date_style_tags?: string[];
 };
@@ -32,6 +34,8 @@ type ActivityCard = {
   reservation_link?: string;
   website?: string;
   image_url?: string;
+  rating?: number | null;
+  review_count?: number | null;
   primary_tag?: string | null;
   date_style_tags?: string[];
 };
@@ -48,6 +52,12 @@ export default function CreatePage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [selectedRestaurant, setSelectedRestaurant] =
+    useState<RestaurantCard | null>(null);
+
+  const [selectedActivity, setSelectedActivity] =
+    useState<ActivityCard | null>(null);
 
   const sendMessage = async () => {
     if (!input.trim()) {
@@ -66,6 +76,8 @@ export default function CreatePage() {
     setInput("");
     setError("");
     setLoading(true);
+    setSelectedRestaurant(null);
+    setSelectedActivity(null);
 
     try {
       const res = await fetch("/api/generate", {
@@ -104,8 +116,14 @@ export default function CreatePage() {
     }
   };
 
+  const selectedRestaurantName =
+    selectedRestaurant?.restaurant_name || "Select a restaurant";
+
+  const selectedActivityName =
+    selectedActivity?.activity_name || "Select an activity";
+
   return (
-    <main className="min-h-screen bg-[#050505] px-5 py-14 text-white">
+    <main className="min-h-screen bg-[#050505] px-5 py-14 pb-40 text-white">
       <div className="mx-auto max-w-2xl">
         <div className="mb-8">
           <p className="mb-2 text-sm font-semibold uppercase tracking-[0.25em] text-yellow-500">
@@ -150,7 +168,7 @@ export default function CreatePage() {
                       </p>
 
                       <p className="mt-1 text-sm font-medium text-neutral-500">
-                        Top Matches for You
+                        Choose a restaurant and an activity to build your night.
                       </p>
                     </div>
 
@@ -163,11 +181,17 @@ export default function CreatePage() {
                         <div className="grid gap-5">
                           {msg.restaurants?.map((r, restaurantIndex) => {
                             const restaurantId = String(r.id);
+                            const isSelected =
+                              selectedRestaurant?.id === r.id;
 
                             return (
                               <div
                                 key={restaurantId || restaurantIndex}
-                                className="overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-lg"
+                                className={`overflow-hidden rounded-[1.75rem] border bg-white shadow-lg transition ${
+                                  isSelected
+                                    ? "border-yellow-500 ring-2 ring-yellow-500"
+                                    : "border-neutral-200"
+                                }`}
                               >
                                 {r.image_url ? (
                                   <img
@@ -197,6 +221,15 @@ export default function CreatePage() {
                                       {r.address}, {r.city}, {r.state}{" "}
                                       {r.zip_code}
                                     </p>
+
+                                    {r.rating && (
+                                      <p className="mt-2 text-sm font-semibold text-neutral-700">
+                                        ⭐ {r.rating}
+                                        {r.review_count
+                                          ? ` (${r.review_count} reviews)`
+                                          : ""}
+                                      </p>
+                                    )}
 
                                     {r.primary_tag && (
                                       <p className="mt-3 text-sm font-bold text-black">
@@ -238,6 +271,20 @@ export default function CreatePage() {
                                   </div>
 
                                   <div className="mt-5 flex flex-wrap gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedRestaurant(r)}
+                                      className={`rounded-full px-5 py-2.5 text-sm font-bold ${
+                                        isSelected
+                                          ? "bg-yellow-500 text-black"
+                                          : "border border-black text-black"
+                                      }`}
+                                    >
+                                      {isSelected
+                                        ? "Selected"
+                                        : "Select Restaurant"}
+                                    </button>
+
                                     <a
                                       href={`/restaurants/${restaurantId}`}
                                       className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
@@ -273,11 +320,16 @@ export default function CreatePage() {
                         <div className="grid gap-5">
                           {msg.activities?.map((a, activityIndex) => {
                             const activityId = String(a.id);
+                            const isSelected = selectedActivity?.id === a.id;
 
                             return (
                               <div
                                 key={activityId || activityIndex}
-                                className="overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-lg"
+                                className={`overflow-hidden rounded-[1.75rem] border bg-white shadow-lg transition ${
+                                  isSelected
+                                    ? "border-yellow-500 ring-2 ring-yellow-500"
+                                    : "border-neutral-200"
+                                }`}
                               >
                                 {a.image_url ? (
                                   <img
@@ -313,6 +365,15 @@ export default function CreatePage() {
                                       {a.address}, {a.city}, {a.state}{" "}
                                       {a.zip_code}
                                     </p>
+
+                                    {a.rating && (
+                                      <p className="mt-2 text-sm font-semibold text-neutral-700">
+                                        ⭐ {a.rating}
+                                        {a.review_count
+                                          ? ` (${a.review_count} reviews)`
+                                          : ""}
+                                      </p>
+                                    )}
 
                                     {a.primary_tag && (
                                       <p className="mt-3 text-sm font-bold text-black">
@@ -354,6 +415,20 @@ export default function CreatePage() {
                                   </div>
 
                                   <div className="mt-5 flex flex-wrap gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedActivity(a)}
+                                      className={`rounded-full px-5 py-2.5 text-sm font-bold ${
+                                        isSelected
+                                          ? "bg-yellow-500 text-black"
+                                          : "border border-black text-black"
+                                      }`}
+                                    >
+                                      {isSelected
+                                        ? "Selected"
+                                        : "Select Activity"}
+                                    </button>
+
                                     {a.website && (
                                       <a
                                         href={a.website}
@@ -412,7 +487,7 @@ export default function CreatePage() {
           placeholder={
             messages.length
               ? "Ask a follow-up question..."
-              : "Example: Plan a quiet museum date with dinner after"
+              : "Example: Plan a full date night in Queens with dinner and bowling"
           }
           className="mt-6 w-full rounded-[1.5rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
         />
@@ -425,6 +500,29 @@ export default function CreatePage() {
           {loading ? "Thinking..." : messages.length ? "Send" : "Create Plan"}
         </button>
       </div>
+
+      {(selectedRestaurant || selectedActivity) && (
+        <div className="fixed bottom-0 left-0 right-0 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
+          <div className="mx-auto max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-500">
+              Building your night
+            </p>
+
+            <p className="mt-1 text-sm font-bold">
+              {selectedRestaurantName} + {selectedActivityName}
+            </p>
+
+            {selectedRestaurant && selectedActivity && (
+              <button
+                type="button"
+                className="mt-3 w-full rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black"
+              >
+                View My Night Plan
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
