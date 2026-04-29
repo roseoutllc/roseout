@@ -69,6 +69,8 @@ export async function POST(req: Request) {
       .map((m: any) => `${m.role}: ${m.content}`)
       .join("\n");
 
+    const isFollowUp = messages.length > 1;
+
 const prompt = `
 You are RoseOut, a concise AI outing planner.
 
