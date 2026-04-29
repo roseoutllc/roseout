@@ -119,37 +119,38 @@ export async function POST(req: Request) {
       );
     }
 
-    const rows = (data.places || [])
-  .filter((place: any) => isValidPlace(place, type)) // 👈 ADD THIS LINE
+const rows = (data.places || [])
+  .filter((place: any) => isValidPlace(place, type))
   .map((place: any) => {
-    
-      return {
-        restaurant_name:
-          type === "restaurant" ? place.displayName?.text || "" : null,
+    const addressParts = place.formattedAddress?.split(",") || [];
 
-        activity_name:
-          type === "activity" ? place.displayName?.text || "" : null,
+    return {
+      restaurant_name:
+        type === "restaurant" ? place.displayName?.text || "" : null,
 
-        activity_type: getActivityType(place),
+      activity_name:
+        type === "activity" ? place.displayName?.text || "" : null,
 
-        address: addressParts[0]?.trim() || place.formattedAddress || "",
-        city: addressParts[1]?.trim() || "",
-        state: "NY",
-        zip_code: "",
+      activity_type: getActivityType(place),
 
-        rating: place.rating || null,
-        review_count: place.userRatingCount || null,
+      address: addressParts[0]?.trim() || place.formattedAddress || "",
+      city: addressParts[1]?.trim() || "",
+      state: "NY",
+      zip_code: "",
 
-        website: place.websiteUri || place.googleMapsUri || null,
-        image_url: getPhotoUrl(place),
+      rating: place.rating || null,
+      review_count: place.userRatingCount || null,
 
-        google_place_id: place.id,
-        primary_tag: getPrimaryTag(place),
-        date_style_tags: buildTags(place),
+      website: place.websiteUri || place.googleMapsUri || null,
+      image_url: getPhotoUrl(place),
 
-        status: "approved",
-      };
-    });
+      google_place_id: place.id,
+      primary_tag: getPrimaryTag(place),
+      date_style_tags: buildTags(place),
+
+      status: "approved",
+    };
+  });
 
     const table = type === "activity" ? "activities" : "restaurants";
 
