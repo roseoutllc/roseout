@@ -54,31 +54,51 @@ export default function AdminRestaurantsPage() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>${r.restaurant_name} RoseOut QR Label</title>
+          <title>${r.restaurant_name}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .label {
-              width: 320px;
-              border: 1px solid #ddd;
-              border-radius: 14px;
-              padding: 18px;
-              text-align: center;
+            body {
+              font-family: Arial;
+              padding: 20px;
             }
-            img { width: 160px; height: 160px; }
-            h2 { font-size: 20px; margin: 12px 0 6px; }
-            p { font-size: 14px; margin: 3px 0; }
-            .small { margin-top: 12px; font-size: 12px; font-weight: bold; }
+            .label {
+              width: 420px;
+              display: flex;
+              gap: 16px;
+              align-items: center;
+              border: 1px solid #ddd;
+              border-radius: 12px;
+              padding: 16px;
+            }
+            img {
+              width: 120px;
+              height: 120px;
+            }
+            .text h2 {
+              margin: 0;
+              font-size: 18px;
+            }
+            .text p {
+              margin: 4px 0;
+              font-size: 13px;
+            }
           </style>
         </head>
         <body>
           <div class="label">
-            <img src="${r.qr_code_data_url || ""}" />
-            <h2>${r.restaurant_name || ""}</h2>
-            <p>${r.address || ""}</p>
-            <p>${r.city || ""}, ${r.state || ""} ${r.zip_code || ""}</p>
-            <p class="small">Scan to manage your RoseOut listing</p>
+            <img src="${r.qr_code_data_url}" />
+            <div class="text">
+              <h2>${r.restaurant_name}</h2>
+              <p>${r.address}</p>
+              <p>${r.city}, ${r.state} ${r.zip_code}</p>
+              <p><strong>Scan to manage your listing</strong></p>
+            </div>
           </div>
-          <script>window.onload = function() { window.print(); };</script>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
         </body>
       </html>
     `);
@@ -145,6 +165,8 @@ export default function AdminRestaurantsPage() {
             return (
               <div key={r.id} className="rounded-3xl bg-white p-6 text-black">
                 <div className="grid gap-6 md:grid-cols-[1fr_320px]">
+                  
+                  {/* LEFT SIDE */}
                   <div>
                     <h2 className="text-2xl font-bold">{r.restaurant_name}</h2>
 
@@ -155,16 +177,9 @@ export default function AdminRestaurantsPage() {
                     <p className="mt-2"><strong>Status:</strong> {r.status}</p>
                     <p className="mt-2"><strong>Featured:</strong> {r.is_featured ? "Yes" : "No"}</p>
 
-                    {r.description && <p className="mt-4 leading-7">{r.description}</p>}
-
-                    <div className="mt-4 grid gap-2 text-sm text-neutral-700">
-                      {r.email && <p><strong>Email:</strong> {r.email}</p>}
-                      {r.phone && <p><strong>Phone:</strong> {r.phone}</p>}
-                      {r.cuisine_type && <p><strong>Cuisine:</strong> {r.cuisine_type}</p>}
-                      {r.price_range && <p><strong>Price:</strong> {r.price_range}</p>}
-                      {r.hours_of_operation && <p><strong>Hours:</strong> {r.hours_of_operation}</p>}
-                      {r.kitchen_closing_time && <p><strong>Kitchen closes:</strong> {r.kitchen_closing_time}</p>}
-                    </div>
+                    {r.description && (
+                      <p className="mt-4 leading-7">{r.description}</p>
+                    )}
 
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button
@@ -182,57 +197,49 @@ export default function AdminRestaurantsPage() {
                       </button>
 
                       <button
-                        onClick={() => updateRestaurant(r.id, { is_featured: !r.is_featured })}
+                        onClick={() =>
+                          updateRestaurant(r.id, { is_featured: !r.is_featured })
+                        }
                         className={`rounded-xl px-4 py-2 ${
-                          r.is_featured ? "bg-yellow-500 text-black" : "bg-neutral-900 text-white"
+                          r.is_featured
+                            ? "bg-yellow-500 text-black"
+                            : "bg-neutral-900 text-white"
                         }`}
                       >
                         {r.is_featured ? "Remove Featured" : "Make Featured"}
                       </button>
 
                       <a href={mapsLink} target="_blank">
-                        <button className="rounded-xl bg-black px-4 py-2 text-white">Open Maps</button>
+                        <button className="rounded-xl bg-black px-4 py-2 text-white">
+                          Open Maps
+                        </button>
                       </a>
-
-                      {r.website && (
-                        <a href={r.website} target="_blank">
-                          <button className="rounded-xl bg-black px-4 py-2 text-white">Website</button>
-                        </a>
-                      )}
-
-                      {r.reservation_link && (
-                        <a href={r.reservation_link} target="_blank">
-                          <button className="rounded-xl bg-black px-4 py-2 text-white">Reservation</button>
-                        </a>
-                      )}
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border bg-neutral-50 p-4 text-center">
-                    <h3 className="font-bold">Printable QR Label</h3>
+                  {/* RIGHT SIDE - QR LABEL */}
+                  <div className="rounded-2xl border bg-neutral-50 p-4">
+                    <h3 className="mb-3 text-center font-bold">
+                      Printable QR Label
+                    </h3>
 
                     {r.qr_code_data_url ? (
                       <>
-                        <div className="mx-auto mt-3 w-[260px] rounded-xl border bg-white p-4">
+                        <div className="flex items-center gap-4 rounded-xl border bg-white p-4">
                           <img
                             src={r.qr_code_data_url}
-                            alt={`${r.restaurant_name} QR`}
-                            className="mx-auto h-40 w-40"
+                            className="h-32 w-32 flex-shrink-0"
                           />
 
-                          <h4 className="mt-3 text-lg font-bold leading-tight">
-                            {r.restaurant_name}
-                          </h4>
-
-                          <p className="mt-1 text-sm leading-tight">{r.address}</p>
-
-                          <p className="text-sm leading-tight">
-                            {r.city}, {r.state} {r.zip_code}
-                          </p>
-
-                          <p className="mt-2 text-xs font-semibold">
-                            Scan to manage your RoseOut listing
-                          </p>
+                          <div>
+                            <h4 className="text-lg font-bold">
+                              {r.restaurant_name}
+                            </h4>
+                            <p className="text-sm">{r.address}</p>
+                            <p className="text-sm">
+                              {r.city}, {r.state} {r.zip_code}
+                            </p>
+                          </div>
                         </div>
 
                         <button
@@ -243,8 +250,8 @@ export default function AdminRestaurantsPage() {
                         </button>
                       </>
                     ) : (
-                      <p className="mt-4 text-sm text-neutral-500">
-                        No QR available.
+                      <p className="text-center text-sm text-neutral-500">
+                        No QR available
                       </p>
                     )}
                   </div>
@@ -252,12 +259,6 @@ export default function AdminRestaurantsPage() {
               </div>
             );
           })}
-
-          {restaurants.length === 0 && (
-            <p className="rounded-2xl bg-white p-6 text-black">
-              No restaurants found.
-            </p>
-          )}
         </div>
       </div>
     </main>
