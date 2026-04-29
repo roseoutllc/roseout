@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import Link from "next/link";
+import BackButton from "./BackButton";
 
 type PageProps = {
   params: Promise<{
@@ -21,17 +21,7 @@ export default async function RestaurantPage({ params }: PageProps) {
     return (
       <main className="min-h-screen bg-black px-6 py-12 text-white">
         <div className="mx-auto max-w-3xl">
-         "use client";
-import { useRouter } from "next/navigation";
-
-const router = useRouter();
-
-<button
-  onClick={() => router.back()}
-  className="text-sm font-semibold text-yellow-500"
->
-  ← Back to RoseOut
-</button>
+          <BackButton />
 
           <div className="mt-8 rounded-3xl bg-white p-6 text-black">
             <h1 className="text-2xl font-bold">Restaurant Not Found</h1>
@@ -47,9 +37,7 @@ const router = useRouter();
   return (
     <main className="min-h-screen bg-black px-6 py-12 text-white">
       <div className="mx-auto max-w-3xl">
-        <Link href="/create" className="text-sm font-semibold text-yellow-500">
-          ← Back to RoseOut
-        </Link>
+        <BackButton />
 
         <div className="mt-8 overflow-hidden rounded-3xl bg-white text-black shadow-xl">
           {restaurant.image_url ? (
