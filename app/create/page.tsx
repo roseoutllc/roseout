@@ -150,21 +150,15 @@ export default function CreatePage() {
 
                           {/* CONTENT */}
                           <div className="p-5">
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <h3 className="text-2xl font-bold text-black">
-                                  {r.restaurant_name}
-                                </h3>
+                           <div>
+  <h3 className="text-2xl font-bold text-black">
+    {r.restaurant_name}
+  </h3>
 
-                                <p className="mt-2 text-sm text-neutral-600">
-                                  {r.address}, {r.city}, {r.state}{" "}
-                                  {r.zip_code}
-                                </p>
-                              </div>
-
-                              <div className="rounded-full bg-yellow-500 px-4 py-2 text-sm font-bold text-black">
-                                {r.roseout_score}
-                              </div>
+  <p className="mt-2 text-sm text-neutral-600">
+    {r.address}, {r.city}, {r.state} {r.zip_code}
+  </p>
+</div>
                             </div>
 
                             {/* ⭐ RATING BAR */}
