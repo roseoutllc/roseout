@@ -40,8 +40,7 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const messages = body.messages || [];
-    const input =
-      body.input || messages[messages.length - 1]?.content || "";
+    const input = body.input || messages[messages.length - 1]?.content || "";
 
     if (!input) {
       return Response.json({ error: "Missing input" }, { status: 400 });
@@ -71,7 +70,7 @@ export async function POST(req: Request) {
 
     const isFollowUp = messages.length > 1;
 
-const prompt = `
+    const prompt = `
 You are RoseOut, a concise AI outing planner.
 
 ${isFollowUp ? "This is a follow-up. Use the previous assistant plan as context and modify or answer only what the user asked. Do not restart the whole plan unless asked." : ""}
@@ -109,27 +108,28 @@ For first-time plan requests:
 - Give one short reason it fits.
 - Only include extra plan details if the user asked for them.
 `;
+
     const response = await openai.responses.create({
       model: "gpt-5-mini",
       input: prompt,
       max_output_tokens: 700,
     });
 
- return Response.json({
-  result: response.output_text || "No response generated.",
-  restaurants: topRestaurants.map((r: any) => ({
-    id: r.id,
-    restaurant_name: r.restaurant_name,
-    address: r.address,
-    city: r.city,
-    state: r.state,
-    zip_code: r.zip_code,
-    roseout_score: r.roseout_score,
-    reservation_link: r.reservation_link,
-    website: r.website,
-    image_url: r.image_url || null,
-  })),
-});
+    return Response.json({
+      reply: response.output_text || "No response generated.",
+      restaurants: topRestaurants.map((r: any) => ({
+        id: r.id,
+        restaurant_name: r.restaurant_name,
+        address: r.address,
+        city: r.city,
+        state: r.state,
+        zip_code: r.zip_code,
+        roseout_score: r.roseout_score,
+        reservation_link: r.reservation_link,
+        website: r.website,
+        image_url: r.image_url || null,
+      })),
+    });
   } catch (error: any) {
     console.error("GENERATE ERROR:", error);
 
