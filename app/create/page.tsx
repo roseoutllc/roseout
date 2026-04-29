@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type RestaurantCard = {
-  id: string;
+  id?: string;
+  restaurant_id?: string;
   restaurant_name: string;
   address: string;
   city: string;
@@ -84,6 +85,17 @@ export default function CreatePage() {
     }
   };
 
+  const openRestaurant = (restaurant: RestaurantCard) => {
+    const restaurantId = restaurant.id || restaurant.restaurant_id;
+
+    if (!restaurantId) {
+      setError("Restaurant details are missing an ID.");
+      return;
+    }
+
+    router.push(`/restaurants/${restaurantId}`);
+  };
+
   return (
     <main className="min-h-screen bg-black px-6 py-16 text-white">
       <div className="mx-auto max-w-2xl">
@@ -107,69 +119,73 @@ export default function CreatePage() {
 
               {msg.role === "assistant" && msg.restaurants?.length ? (
                 <div className="mt-5 grid gap-4">
-                  {msg.restaurants.map((r) => (
-                    <div
-                      key={r.id}
-                      onClick={() => router.push(`/restaurants/${r.id}`)}
-                      className="cursor-pointer overflow-hidden rounded-2xl border bg-neutral-50 transition hover:scale-[1.01] hover:shadow-xl"
-                    >
-                      {r.image_url ? (
-                        <img
-                          src={r.image_url}
-                          alt={r.restaurant_name}
-                          className="h-44 w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-44 w-full items-center justify-center bg-neutral-200 text-sm text-neutral-500">
-                          No image available
-                        </div>
-                      )}
+                  {msg.restaurants.map((r, restaurantIndex) => {
+                    const restaurantId = r.id || r.restaurant_id;
 
-                      <div className="p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <h3 className="text-xl font-bold text-black">
-                              {r.restaurant_name}
-                            </h3>
+                    return (
+                      <div
+                        key={restaurantId || restaurantIndex}
+                        onClick={() => openRestaurant(r)}
+                        className="cursor-pointer overflow-hidden rounded-2xl border bg-neutral-50 transition hover:scale-[1.01] hover:shadow-xl"
+                      >
+                        {r.image_url ? (
+                          <img
+                            src={r.image_url}
+                            alt={r.restaurant_name}
+                            className="h-44 w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-44 w-full items-center justify-center bg-neutral-200 text-sm text-neutral-500">
+                            No image available
+                          </div>
+                        )}
 
-                            <p className="mt-1 text-sm text-neutral-600">
-                              {r.address}, {r.city}, {r.state}{" "}
-                              {r.zip_code}
-                            </p>
+                        <div className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <h3 className="text-xl font-bold text-black">
+                                {r.restaurant_name}
+                              </h3>
+
+                              <p className="mt-1 text-sm text-neutral-600">
+                                {r.address}, {r.city}, {r.state}{" "}
+                                {r.zip_code}
+                              </p>
+                            </div>
+
+                            <span className="rounded-full bg-yellow-500 px-3 py-1 text-sm font-bold text-black">
+                              {r.roseout_score}
+                            </span>
                           </div>
 
-                          <span className="rounded-full bg-yellow-500 px-3 py-1 text-sm font-bold text-black">
-                            {r.roseout_score}
-                          </span>
-                        </div>
+                          <div className="mt-4 flex flex-wrap gap-3">
+                            {r.reservation_link && (
+                              <a
+                                href={r.reservation_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white"
+                              >
+                                Reserve
+                              </a>
+                            )}
 
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          {r.reservation_link && (
-                            <a
-                              href={r.reservation_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white"
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openRestaurant(r);
+                              }}
+                              className="rounded-xl border border-black px-4 py-2 text-sm font-semibold text-black"
                             >
-                              Reserve
-                            </a>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/restaurants/${r.id}`);
-                            }}
-                            className="rounded-xl border border-black px-4 py-2 text-sm font-semibold text-black"
-                          >
-                            View Details
-                          </button>
+                              View Details
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : null}
             </div>
