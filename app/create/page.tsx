@@ -505,7 +505,7 @@ export default function CreatePage() {
         <div className="fixed bottom-0 left-0 right-0 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
           <div className="mx-auto max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-500">
-              Building your night
+              Building your plans
             </p>
 
             <p className="mt-1 text-sm font-bold">
@@ -513,13 +513,24 @@ export default function CreatePage() {
             </p>
 
             {selectedRestaurant && selectedActivity && (
-              <button
-                type="button"
-                className="mt-3 w-full rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black"
-              >
-                View My Night Plan
-              </button>
-            )}
+  <button
+    type="button"
+    onClick={() => {
+      localStorage.setItem(
+        "roseout_plan",
+        JSON.stringify({
+          restaurant: selectedRestaurant,
+          activity: selectedActivity,
+        })
+      );
+
+      window.location.href = "/plan";
+    }}
+    className="mt-3 w-full rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black"
+  >
+    View Your Plan
+  </button>
+)}
           </div>
         </div>
       )}
