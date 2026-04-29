@@ -51,14 +51,6 @@ function scoreActivity(activity: any, input: string) {
   if (activity.price_range && text.includes(activity.price_range.toLowerCase())) score += 10;
 
   if (
-    activity.primary_tag &&
-    text.includes("fun") &&
-    activity.primary_tag.toLowerCase().includes("fun")
-  ) {
-    score += 25;
-  }
-
-  if (
     activity.date_style_tags?.some((tag: string) =>
       text.includes(tag.toLowerCase())
     )
@@ -66,12 +58,14 @@ function scoreActivity(activity: any, input: string) {
     score += 20;
   }
 
-  if (text.includes("bowling") && activity.activity_type?.toLowerCase().includes("bowling")) score += 35;
-  if (text.includes("axe") && activity.activity_type?.toLowerCase().includes("axe")) score += 35;
-  if (text.includes("arcade") && activity.activity_type?.toLowerCase().includes("arcade")) score += 35;
-  if (text.includes("karaoke") && activity.activity_type?.toLowerCase().includes("karaoke")) score += 35;
-  if (text.includes("escape") && activity.activity_type?.toLowerCase().includes("escape")) score += 35;
-  if (text.includes("museum") && activity.activity_type?.toLowerCase().includes("museum")) score += 40;
+  if (text.includes("museum") && activity.activity_type?.toLowerCase().includes("museum")) score += 100;
+  if (text.includes("bowling") && activity.activity_type?.toLowerCase().includes("bowling")) score += 100;
+  if (text.includes("axe") && activity.activity_type?.toLowerCase().includes("axe")) score += 100;
+  if (text.includes("arcade") && activity.activity_type?.toLowerCase().includes("arcade")) score += 100;
+  if (text.includes("karaoke") && activity.activity_type?.toLowerCase().includes("karaoke")) score += 100;
+  if (text.includes("escape") && activity.activity_type?.toLowerCase().includes("escape")) score += 100;
+  if (text.includes("mini golf") && activity.activity_type?.toLowerCase().includes("mini golf")) score += 100;
+
   if (text.includes("art") && activity.activity_type?.toLowerCase().includes("museum")) score += 25;
   if (text.includes("culture") && activity.atmosphere?.toLowerCase().includes("cultural")) score += 20;
   if (text.includes("quiet") && activity.atmosphere?.toLowerCase().includes("quiet")) score += 15;
@@ -121,7 +115,12 @@ Return ONLY valid JSON in this format:
 }
 
 Score each item from 0 to 50 based on how well it fits the user's request.
-Do not explain.
+
+Important:
+- If the user explicitly asks for a museum, museum items should score highest.
+- If the user explicitly asks for bowling, bowling items should score highest.
+- If the user explicitly asks for a specific activity type, unrelated activity types should get very low scores.
+- Do not explain.
 `,
     max_output_tokens: 700,
   });
@@ -162,14 +161,25 @@ export async function POST(req: Request) {
       text.includes("lunch") ||
       text.includes("brunch");
 
+    const wantsMuseum = text.includes("museum");
+    const wantsBowling = text.includes("bowling");
+    const wantsAxe = text.includes("axe");
+    const wantsArcade = text.includes("arcade");
+    const wantsKaraoke = text.includes("karaoke");
+    const wantsEscape = text.includes("escape");
+    const wantsMiniGolf = text.includes("mini golf");
+
+    const wantsSpecificActivity =
+      wantsMuseum ||
+      wantsBowling ||
+      wantsAxe ||
+      wantsArcade ||
+      wantsKaraoke ||
+      wantsEscape ||
+      wantsMiniGolf;
+
     const wantsActivity =
-      text.includes("bowling") ||
-      text.includes("axe") ||
-      text.includes("arcade") ||
-      text.includes("karaoke") ||
-      text.includes("museum") ||
-      text.includes("escape") ||
-      text.includes("mini golf") ||
+      wantsSpecificActivity ||
       text.includes("activity") ||
       text.includes("activities");
 
@@ -203,12 +213,44 @@ export async function POST(req: Request) {
       return Response.json({ error: activityError.message }, { status: 500 });
     }
 
+    let filteredActivities = activities || [];
+
+    if (wantsMuseum) {
+      filteredActivities = filteredActivities.filter((a: any) =>
+        a.activity_type?.toLowerCase().includes("museum")
+      );
+    } else if (wantsBowling) {
+      filteredActivities = filteredActivities.filter((a: any) =>
+        a.activity_type?.toLowerCase().includes("bowling")
+      );
+    } else if (wantsAxe) {
+      filteredActivities = filteredActivities.filter((a: any) =>
+        a.activity_type?.toLowerCase().includes("axe")
+      );
+    } else if (wantsArcade) {
+      filteredActivities = filteredActivities.filter((a: any) =>
+        a.activity_type?.toLowerCase().includes("arcade")
+      );
+    } else if (wantsKaraoke) {
+      filteredActivities = filteredActivities.filter((a: any) =>
+        a.activity_type?.toLowerCase().includes("karaoke")
+      );
+    } else if (wantsEscape) {
+      filteredActivities = filteredActivities.filter((a: any) =>
+        a.activity_type?.toLowerCase().includes("escape")
+      );
+    } else if (wantsMiniGolf) {
+      filteredActivities = filteredActivities.filter((a: any) =>
+        a.activity_type?.toLowerCase().includes("mini golf")
+      );
+    }
+
     const aiRestaurantScores = shouldReturnRestaurants
       ? await getAiFitScores(input, restaurants || [], "restaurant")
       : {};
 
     const aiActivityScores = shouldReturnActivities
-      ? await getAiFitScores(input, activities || [], "activity")
+      ? await getAiFitScores(input, filteredActivities || [], "activity")
       : {};
 
     const rankedRestaurants = (restaurants || [])
@@ -229,7 +271,7 @@ export async function POST(req: Request) {
       })
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
-    const rankedActivities = (activities || [])
+    const rankedActivities = (filteredActivities || [])
       .map((activity: any) => {
         const ruleScore = scoreActivity(activity, input);
         const ratingBoost = activity.rating ? activity.rating * 5 : 0;
@@ -293,6 +335,7 @@ STRICT RULES:
 - Keep it short and direct.
 - If the user asks for dinner only, recommend restaurants only.
 - If the user asks for an activity only, recommend activities only.
+- If the user asks for a specific activity type, recommend only that activity type.
 - If the user asks for a full outing/date night, recommend one restaurant and one activity.
 `;
 
