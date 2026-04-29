@@ -1,5 +1,40 @@
 import { supabase } from "@/lib/supabase";
+function isValidPlace(place: any, type: string) {
+  // ❌ No name
+  if (!place.displayName?.text) return false;
 
+  // ❌ No rating
+  if (!place.rating || place.rating < 3.8) return false;
+
+  // ❌ Too few reviews (low quality)
+  if (!place.userRatingCount || place.userRatingCount < 20) return false;
+
+  // ❌ Missing address
+  if (!place.formattedAddress) return false;
+
+  // ❌ Exclude unwanted types
+  const badTypes = [
+    "gas_station",
+    "convenience_store",
+    "grocery_store",
+    "hardware_store",
+    "car_repair",
+    "school",
+    "hospital",
+    "church",
+  ];
+
+  if (place.types?.some((t: string) => badTypes.includes(t))) {
+    return false;
+  }
+
+  // 🎯 Restaurant-specific filter
+  if (type === "restaurant") {
+    if (!place.types?.includes("restaurant")) return false;
+  }
+
+  return true;
+}
 function buildTags(place: any) {
   const tags: string[] = [];
 
