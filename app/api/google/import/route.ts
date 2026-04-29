@@ -97,7 +97,13 @@ export async function POST(req: Request) {
       type === "activity"
         ? rows.map((r: any) => ({
             activity_name: r.activity_name,
-            activity_type: "Activity",
+            activity_type: place.types?.includes("museum")
+  ? "Museum"
+  : place.types?.includes("bowling_alley")
+  ? "Bowling"
+  : place.types?.includes("amusement_center")
+  ? "Arcade"
+  : "Activity",
             address: r.address,
             city: r.city,
             state: r.state,
