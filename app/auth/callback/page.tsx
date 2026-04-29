@@ -7,7 +7,14 @@ export default function AuthCallbackPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    const routeUser = async () => {
+    const finishLogin = async () => {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+
+      if (code) {
+        await supabase.auth.exchangeCodeForSession(code);
+      }
+
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
@@ -34,7 +41,7 @@ export default function AuthCallbackPage() {
       window.location.href = "/restaurants/apply";
     };
 
-    routeUser();
+    finishLogin();
   }, []);
 
   return (
