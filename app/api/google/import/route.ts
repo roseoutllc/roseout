@@ -144,7 +144,9 @@ export async function POST(req: Request) {
             status: r.status,
           }));
 
-    const { error } = await supabase.from(table).insert(cleanRows);
+    const { error } = await supabase.from(table).upsert(cleanRows, {
+  onConflict: "google_place_id",
+});
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
