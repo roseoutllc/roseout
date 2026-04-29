@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
+import AdminTopBar from "@/app/admin/components/AdminTopBar";
 
 export default function AdminLabelsPage() {
   const supabase = createClient();
@@ -165,13 +166,10 @@ export default function AdminLabelsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black px-6 py-12 text-white">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex gap-4">
-          <a href="/admin" className="underline">Dashboard</a>
-          <a href="/admin/restaurants" className="underline">Restaurants</a>
-          <a href="/admin/invites" className="underline">Invites</a>
-          <a href="/admin/labels" className="underline">Labels</a>
+      <main className="min-h-screen bg-black text-white">
+    <AdminTopBar />
+
+    <div className="px-6 py-12">
         </div>
 
         <h1 className="text-4xl font-bold">Bulk Print Labels</h1>
