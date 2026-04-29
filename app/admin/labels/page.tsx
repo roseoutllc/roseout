@@ -1,0 +1,242 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase-browser";
+
+export default function AdminLabelsPage() {
+  const supabase = createClient();
+
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [unauthorized, setUnauthorized] = useState(false);
+
+  const loadRestaurants = async () => {
+    const res = await fetch("/api/admin/restaurants");
+    const data = await res.json();
+    setRestaurants(data.restaurants || []);
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      const { data, error } = await supabase.auth.getUser();
+
+      if (error || !data.user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      if (data.user.user_metadata?.role !== "superuser") {
+        setUnauthorized(true);
+        setLoading(false);
+        return;
+      }
+
+      await loadRestaurants();
+      setLoading(false);
+    };
+
+    init();
+  }, []);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id]
+    );
+  };
+
+  const selectedRestaurants = restaurants.filter((r) =>
+    selectedIds.includes(r.id)
+  );
+
+  const printLabels = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const labelsHtml = selectedRestaurants
+      .map(
+        (r) => `
+          <div class="label">
+            <img src="${r.qr_code_data_url || ""}" />
+            <div class="text">
+              <h2>${r.restaurant_name || ""}</h2>
+              <p>${r.address || ""}</p>
+              <p>${r.city || ""}, ${r.state || ""} ${r.zip_code || ""}</p>
+              <p class="small">Scan to manage your RoseOut listing</p>
+            </div>
+          </div>
+        `
+      )
+      .join("");
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>RoseOut Restaurant Labels</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+            }
+
+            .sheet {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 16px;
+            }
+
+            .label {
+              display: flex;
+              align-items: center;
+              gap: 14px;
+              border: 1px solid #ddd;
+              border-radius: 12px;
+              padding: 14px;
+              min-height: 140px;
+              break-inside: avoid;
+            }
+
+            img {
+              width: 110px;
+              height: 110px;
+            }
+
+            h2 {
+              margin: 0 0 6px;
+              font-size: 18px;
+            }
+
+            p {
+              margin: 3px 0;
+              font-size: 13px;
+            }
+
+            .small {
+              margin-top: 8px;
+              font-size: 11px;
+              font-weight: bold;
+            }
+
+            @media print {
+              body {
+                padding: 0;
+              }
+
+              .label {
+                page-break-inside: avoid;
+              }
+            }
+          </style>
+        </head>
+
+        <body>
+          <div class="sheet">
+            ${labelsHtml}
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+  };
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-black p-6 text-white">
+        Loading...
+      </main>
+    );
+  }
+
+  if (unauthorized) {
+    return (
+      <main className="min-h-screen bg-black p-6 text-white">
+        Not authorized
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-black px-6 py-12 text-white">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 flex gap-4">
+          <a href="/admin" className="underline">Dashboard</a>
+          <a href="/admin/restaurants" className="underline">Restaurants</a>
+          <a href="/admin/invites" className="underline">Invites</a>
+          <a href="/admin/labels" className="underline">Labels</a>
+        </div>
+
+        <h1 className="text-4xl font-bold">Bulk Print Labels</h1>
+
+        <p className="mt-3 text-neutral-400">
+          Select restaurants and print QR labels in bulk.
+        </p>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={() => setSelectedIds(restaurants.map((r) => r.id))}
+            className="rounded-xl bg-white px-4 py-2 font-semibold text-black"
+          >
+            Select All
+          </button>
+
+          <button
+            onClick={() => setSelectedIds([])}
+            className="rounded-xl bg-white px-4 py-2 font-semibold text-black"
+          >
+            Clear
+          </button>
+
+          <button
+            onClick={printLabels}
+            disabled={selectedIds.length === 0}
+            className="rounded-xl bg-yellow-500 px-4 py-2 font-bold text-black disabled:opacity-50"
+          >
+            Print Selected Labels
+          </button>
+        </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-2">
+          {restaurants.map((r) => (
+            <label
+              key={r.id}
+              className="flex cursor-pointer items-center gap-4 rounded-2xl bg-white p-4 text-black"
+            >
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(r.id)}
+                onChange={() => toggleSelect(r.id)}
+              />
+
+              {r.qr_code_data_url && (
+                <img
+                  src={r.qr_code_data_url}
+                  alt={`${r.restaurant_name} QR`}
+                  className="h-20 w-20"
+                />
+              )}
+
+              <div>
+                <h2 className="font-bold">{r.restaurant_name}</h2>
+                <p className="text-sm text-neutral-600">
+                  {r.address}, {r.city}, {r.state} {r.zip_code}
+                </p>
+                <p className="text-xs text-neutral-500">
+                  Status: {r.status}
+                </p>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+    </main>
+  );
+}

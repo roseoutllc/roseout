@@ -66,6 +66,7 @@ if (data.user.user_metadata?.role !== "superuser") {
           <a href="/admin/invites" className="underline">
             Invites
           </a>
+          <a href="/admin/labels" className="underline">Labels</a>
         </div>
 
         <h1 className="text-4xl font-bold">RoseOut Admin Portal</h1>
