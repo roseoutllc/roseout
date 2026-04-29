@@ -8,7 +8,6 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const run = async () => {
-      // STEP 1: exchange code for session
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
 
@@ -16,7 +15,6 @@ export default function AuthCallbackPage() {
         await supabase.auth.exchangeCodeForSession(code);
       }
 
-      // STEP 2: get user
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
@@ -24,25 +22,61 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      // STEP 3: admin check
       if (userData.user.user_metadata?.role === "superuser") {
         window.location.href = "/admin";
         return;
       }
 
-      // STEP 4: check if restaurant exists
-      const { data: restaurant } = await supabase
+      const userId = userData.user.id;
+      const userEmail = userData.user.email;
+
+      if (!userEmail) {
+        window.location.href = "/restaurants/apply";
+        return;
+      }
+
+      const { data: existingRestaurant } = await supabase
         .from("restaurants")
-        .select("id")
-        .eq("owner_user_id", userData.user.id)
+        .select("id, owner_user_id")
+        .eq("owner_user_id", userId)
         .maybeSingle();
 
-      if (restaurant) {
+      if (existingRestaurant) {
         window.location.href = "/restaurants/dashboard";
         return;
       }
 
-      // STEP 5: fallback
+      const { data: restaurantByEmail } = await supabase
+        .from("restaurants")
+        .select("id, email, owner_user_id")
+        .ilike("email", userEmail)
+        .maybeSingle();
+
+      if (restaurantByEmail) {
+        await supabase
+          .from("restaurants")
+          .update({
+            owner_user_id: userId,
+            owner_email: userEmail,
+          })
+          .eq("id", restaurantByEmail.id);
+
+        await supabase.auth.updateUser({
+          data: {
+            role: "restaurants",
+          },
+        });
+
+        window.location.href = "/restaurants/dashboard";
+        return;
+      }
+
+      await supabase.auth.updateUser({
+        data: {
+          role: "restaurants",
+        },
+      });
+
       window.location.href = "/restaurants/apply";
     };
 
