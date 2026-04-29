@@ -278,11 +278,10 @@ const rankedRestaurants = (restaurants || [])
       : 0;
     const aiScore = aiActivityScores[String(activity.id)] || 0;
 
-    const finalScore =
-      ruleScore * 0.5 +
-      aiScore * 0.3 +
-      ratingBoost * 0.15 +
-      reviewBoost * 0.05;
+      const finalScore =
+  ruleScore * 0.75 +
+  ratingBoost * 0.2 +
+  reviewBoost * 0.05;
 
     return {
       ...activity,
