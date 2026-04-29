@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 
 type RestaurantCard = {
   id?: string;
@@ -124,8 +123,7 @@ export default function CreatePage() {
                     </p>
 
                     <p className="mt-1 text-sm font-medium text-neutral-500">
-                      Top Matches for You · {msg.restaurants.length} curated
-                      options near you
+                      Top Matches for You · {msg.restaurants.length} curated options
                     </p>
                   </div>
 
@@ -136,73 +134,25 @@ export default function CreatePage() {
                       return (
                         <div
                           key={restaurantId || restaurantIndex}
-                          className="group overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-lg transition duration-300 hover:-translate-y-1 hover:shadow-2xl"
+                          className="overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-lg"
                         >
-                          {restaurantId ? (
-                            <Link
-                              href={`/restaurants/${restaurantId}`}
-                              className="block"
-                            >
-                              <div className="relative">
-                                {r.image_url ? (
-                                  <img
-                                    src={r.image_url}
-                                    alt={r.restaurant_name}
-                                    className="h-56 w-full object-cover transition duration-500 group-hover:scale-105"
-                                  />
-                                ) : (
-                                  <div className="flex h-56 w-full items-center justify-center bg-neutral-200 text-sm text-neutral-500">
-                                    No image available
-                                  </div>
-                                )}
-
-                                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
-
-                                <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
-                                  <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-300">
-                                      Top Match
-                                    </p>
-
-                                    <h3 className="mt-1 text-2xl font-bold text-white drop-shadow">
-                                      {r.restaurant_name}
-                                    </h3>
-                                  </div>
-
-                                  <div className="rounded-full bg-yellow-500 px-4 py-2 text-sm font-extrabold text-black shadow-lg">
-                                    {r.roseout_score}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="p-5">
-                                <p className="text-sm leading-relaxed text-neutral-600">
-                                  {r.address}, {r.city}, {r.state}{" "}
-                                  {r.zip_code}
-                                </p>
-
-                                <div className="mt-5 flex flex-wrap gap-3">
-                                  <span className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white transition group-hover:bg-yellow-500 group-hover:text-black">
-                                    View Details
-                                  </span>
-                                </div>
-                              </div>
-                            </Link>
+                          {/* IMAGE */}
+                          {r.image_url ? (
+                            <img
+                              src={r.image_url}
+                              alt={r.restaurant_name}
+                              className="h-56 w-full object-cover"
+                            />
                           ) : (
-                            <div>
-                              {r.image_url ? (
-                                <img
-                                  src={r.image_url}
-                                  alt={r.restaurant_name}
-                                  className="h-56 w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-56 w-full items-center justify-center bg-neutral-200 text-sm text-neutral-500">
-                                  No image available
-                                </div>
-                              )}
+                            <div className="flex h-56 items-center justify-center bg-neutral-200 text-neutral-500">
+                              No image available
+                            </div>
+                          )}
 
-                              <div className="p-5">
+                          {/* CONTENT */}
+                          <div className="p-5">
+                            <div className="flex items-start justify-between">
+                              <div>
                                 <h3 className="text-2xl font-bold text-black">
                                   {r.restaurant_name}
                                 </h3>
@@ -211,27 +161,36 @@ export default function CreatePage() {
                                   {r.address}, {r.city}, {r.state}{" "}
                                   {r.zip_code}
                                 </p>
+                              </div>
 
-                                <p className="mt-4 rounded-2xl bg-red-100 p-3 text-sm font-semibold text-red-700">
-                                  Missing restaurant ID. Your API needs to
-                                  return id or restaurant_id.
-                                </p>
+                              <div className="rounded-full bg-yellow-500 px-4 py-2 text-sm font-bold text-black">
+                                {r.roseout_score}
                               </div>
                             </div>
-                          )}
 
-                          {r.reservation_link && (
-                            <div className="border-t border-neutral-100 px-5 pb-5 pt-4">
-                              <a
-                                href={r.reservation_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex w-full items-center justify-center rounded-full border border-black px-5 py-3 text-sm font-bold text-black transition hover:bg-black hover:text-white"
-                              >
-                                Reserve Table
-                              </a>
+                            {/* BUTTONS */}
+                            <div className="mt-5 flex gap-3">
+                              {restaurantId && (
+                                <a
+                                  href={`/restaurants/${restaurantId}`}
+                                  className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
+                                >
+                                  View Details
+                                </a>
+                              )}
+
+                              {r.reservation_link && (
+                                <a
+                                  href={r.reservation_link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="rounded-full border border-black px-5 py-2.5 text-sm font-bold text-black"
+                                >
+                                  Reserve
+                                </a>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
                       );
                     })}
@@ -264,13 +223,13 @@ export default function CreatePage() {
               ? "Ask a follow-up question..."
               : "Example: Plan a pizza date in Queens that’s not too loud"
           }
-          className="mt-6 w-full rounded-[1.5rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 shadow-xl focus:border-yellow-500 focus:outline-none"
+          className="mt-6 w-full rounded-[1.5rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
         />
 
         <button
           onClick={sendMessage}
           disabled={loading}
-          className="mt-4 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black shadow-lg transition hover:bg-yellow-400 disabled:opacity-50"
+          className="mt-4 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black"
         >
           {loading ? "Thinking..." : messages.length ? "Send" : "Create Plan"}
         </button>
