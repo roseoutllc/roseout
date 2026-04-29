@@ -39,7 +39,6 @@ export default function AdminRestaurantsPage() {
       setRestaurants(restaurantsJson.restaurants || []);
       setRestaurantClaims(claimsJson.restaurantClaims || []);
       setActivityClaims(claimsJson.activityClaims || []);
-
       setLoading(false);
     };
 
@@ -55,7 +54,35 @@ export default function AdminRestaurantsPage() {
       body: JSON.stringify({ id, type, status }),
     });
 
-    window.location.reload();
+    if (type === "restaurant") {
+      setRestaurantClaims((prev) =>
+        prev.map((claim) =>
+          claim.id === id ? { ...claim, status } : claim
+        )
+      );
+    }
+
+    if (type === "activity") {
+      setActivityClaims((prev) =>
+        prev.map((claim) =>
+          claim.id === id ? { ...claim, status } : claim
+        )
+      );
+    }
+  };
+
+  const getClaimStatus = (restaurantId: string) => {
+    const claims = restaurantClaims.filter(
+      (claim) => claim.restaurant_id === restaurantId
+    );
+
+    if (claims.length === 0) return "none";
+
+    if (claims.some((claim) => claim.status === "pending")) return "pending";
+    if (claims.some((claim) => claim.status === "approved")) return "approved";
+    if (claims.some((claim) => claim.status === "rejected")) return "rejected";
+
+    return "none";
   };
 
   if (loading) {
@@ -89,33 +116,61 @@ export default function AdminRestaurantsPage() {
             {restaurants.length === 0 ? (
               <p className="text-neutral-400">No restaurants found.</p>
             ) : (
-              restaurants.map((r) => (
-                <a
-                  key={r.id}
-                  href={`/admin/restaurants/${r.id}`}
-                  className="rounded-3xl bg-white p-6 text-black hover:bg-neutral-100"
-                >
-                  <h3 className="text-2xl font-bold">
-                    {r.restaurant_name}
-                  </h3>
+              restaurants.map((r) => {
+                const claimStatus = getClaimStatus(r.id);
 
-                  <p className="mt-1 text-sm text-neutral-600">
-                    {r.address}, {r.city}, {r.state} {r.zip_code}
-                  </p>
+                return (
+                  <a
+                    key={r.id}
+                    href={`/admin/restaurants/${r.id}`}
+                    className="rounded-3xl bg-white p-6 text-black hover:bg-neutral-100"
+                  >
+                    <h3 className="text-2xl font-bold">
+                      {r.restaurant_name}
+                    </h3>
 
-                  <div className="mt-3 flex gap-3 text-sm">
-                    <span className="rounded-full bg-black px-3 py-1 text-white">
-                      {r.status}
-                    </span>
+                    <p className="mt-1 text-sm text-neutral-600">
+                      {r.address}, {r.city}, {r.state} {r.zip_code}
+                    </p>
 
-                    {r.is_featured && (
-                      <span className="rounded-full bg-yellow-500 px-3 py-1 text-black">
-                        Featured
+                    <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                      <span className="rounded-full bg-black px-3 py-1 text-white">
+                        {r.status}
                       </span>
-                    )}
-                  </div>
-                </a>
-              ))
+
+                      {r.is_featured && (
+                        <span className="rounded-full bg-yellow-500 px-3 py-1 text-black">
+                          Featured
+                        </span>
+                      )}
+
+                      {claimStatus === "pending" && (
+                        <span className="rounded-full bg-yellow-500 px-3 py-1 text-black">
+                          Claim Pending
+                        </span>
+                      )}
+
+                      {claimStatus === "approved" && (
+                        <span className="rounded-full bg-blue-600 px-3 py-1 text-white">
+                          Claimed
+                        </span>
+                      )}
+
+                      {claimStatus === "rejected" && (
+                        <span className="rounded-full bg-red-600 px-3 py-1 text-white">
+                          Claim Rejected
+                        </span>
+                      )}
+
+                      {claimStatus === "none" && (
+                        <span className="rounded-full bg-neutral-600 px-3 py-1 text-white">
+                          No Claims
+                        </span>
+                      )}
+                    </div>
+                  </a>
+                );
+              })
             )}
           </div>
         </section>
@@ -126,17 +181,40 @@ export default function AdminRestaurantsPage() {
 
           <div className="mt-4 grid gap-4">
             {restaurantClaims.length === 0 ? (
-              <p className="text-neutral-400">No restaurant claims found.</p>
+              <p className="text-neutral-400">
+                No restaurant claims found.
+              </p>
             ) : (
               restaurantClaims.map((c) => (
-                <div key={c.id} className="rounded-2xl bg-white p-6 text-black">
-                  <h3 className="text-xl font-bold">
-                    {c.restaurant_name}
-                  </h3>
+                <div
+                  key={c.id}
+                  className="rounded-2xl bg-white p-6 text-black"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold">
+                        {c.restaurant_name}
+                      </h3>
 
-                  <p className="mt-1 text-sm text-neutral-600">
-                    {c.owner_name} — {c.owner_email}
-                  </p>
+                      <p className="mt-1 text-sm text-neutral-600">
+                        {c.owner_name} — {c.owner_email}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-sm ${
+                        c.status === "pending"
+                          ? "bg-yellow-500 text-black"
+                          : c.status === "approved"
+                          ? "bg-blue-600 text-white"
+                          : c.status === "rejected"
+                          ? "bg-red-600 text-white"
+                          : "bg-neutral-600 text-white"
+                      }`}
+                    >
+                      {c.status || "unknown"}
+                    </span>
+                  </div>
 
                   {c.message && (
                     <p className="mt-2 text-sm text-neutral-700">
@@ -144,25 +222,27 @@ export default function AdminRestaurantsPage() {
                     </p>
                   )}
 
-                  <div className="mt-4 flex gap-3">
-                    <button
-                      onClick={() =>
-                        updateClaim(c.id, "restaurant", "approved")
-                      }
-                      className="rounded-full bg-green-600 px-4 py-2 text-white"
-                    >
-                      Approve
-                    </button>
+                  {c.status === "pending" && (
+                    <div className="mt-4 flex gap-3">
+                      <button
+                        onClick={() =>
+                          updateClaim(c.id, "restaurant", "approved")
+                        }
+                        className="rounded-full bg-green-600 px-4 py-2 text-white"
+                      >
+                        Approve
+                      </button>
 
-                    <button
-                      onClick={() =>
-                        updateClaim(c.id, "restaurant", "rejected")
-                      }
-                      className="rounded-full bg-red-600 px-4 py-2 text-white"
-                    >
-                      Reject
-                    </button>
-                  </div>
+                      <button
+                        onClick={() =>
+                          updateClaim(c.id, "restaurant", "rejected")
+                        }
+                        className="rounded-full bg-red-600 px-4 py-2 text-white"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -175,17 +255,40 @@ export default function AdminRestaurantsPage() {
 
           <div className="mt-4 grid gap-4">
             {activityClaims.length === 0 ? (
-              <p className="text-neutral-400">No activity claims found.</p>
+              <p className="text-neutral-400">
+                No activity claims found.
+              </p>
             ) : (
               activityClaims.map((c) => (
-                <div key={c.id} className="rounded-2xl bg-white p-6 text-black">
-                  <h3 className="text-xl font-bold">
-                    {c.activity_name}
-                  </h3>
+                <div
+                  key={c.id}
+                  className="rounded-2xl bg-white p-6 text-black"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold">
+                        {c.activity_name}
+                      </h3>
 
-                  <p className="mt-1 text-sm text-neutral-600">
-                    {c.owner_name} — {c.owner_email}
-                  </p>
+                      <p className="mt-1 text-sm text-neutral-600">
+                        {c.owner_name} — {c.owner_email}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-sm ${
+                        c.status === "pending"
+                          ? "bg-yellow-500 text-black"
+                          : c.status === "approved"
+                          ? "bg-blue-600 text-white"
+                          : c.status === "rejected"
+                          ? "bg-red-600 text-white"
+                          : "bg-neutral-600 text-white"
+                      }`}
+                    >
+                      {c.status || "unknown"}
+                    </span>
+                  </div>
 
                   {c.message && (
                     <p className="mt-2 text-sm text-neutral-700">
@@ -193,25 +296,27 @@ export default function AdminRestaurantsPage() {
                     </p>
                   )}
 
-                  <div className="mt-4 flex gap-3">
-                    <button
-                      onClick={() =>
-                        updateClaim(c.id, "activity", "approved")
-                      }
-                      className="rounded-full bg-green-600 px-4 py-2 text-white"
-                    >
-                      Approve
-                    </button>
+                  {c.status === "pending" && (
+                    <div className="mt-4 flex gap-3">
+                      <button
+                        onClick={() =>
+                          updateClaim(c.id, "activity", "approved")
+                        }
+                        className="rounded-full bg-green-600 px-4 py-2 text-white"
+                      >
+                        Approve
+                      </button>
 
-                    <button
-                      onClick={() =>
-                        updateClaim(c.id, "activity", "rejected")
-                      }
-                      className="rounded-full bg-red-600 px-4 py-2 text-white"
-                    >
-                      Reject
-                    </button>
-                  </div>
+                      <button
+                        onClick={() =>
+                          updateClaim(c.id, "activity", "rejected")
+                        }
+                        className="rounded-full bg-red-600 px-4 py-2 text-white"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
