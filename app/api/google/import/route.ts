@@ -144,6 +144,15 @@ function parseAddress(formattedAddress: string) {
     zip_code: stateZipMatch?.[2] || "",
   };
 }
+function getQualityScore(place: any) {
+  const rating = place.rating || 0;
+  return Math.round(rating * 20); // 4.5 rating = 90
+}
+
+function getPopularityScore(place: any) {
+  const reviews = place.userRatingCount || 0;
+  return Math.round(Math.min(Math.log10(reviews + 1) * 25, 100));
+}
 export async function POST(req: Request) {
     const secret = req.headers.get("x-internal-import-secret");
 
@@ -204,6 +213,9 @@ zip_code: parsedAddress.zip_code,
       rating: place.rating || null,
       review_count: place.userRatingCount || null,
 
+      quality_score: getQualityScore(place),
+  popularity_score: getPopularityScore(place),
+
       website: place.websiteUri || place.googleMapsUri || null,
       image_url: getPhotoUrl(place),
 
@@ -234,6 +246,8 @@ zip_code: parsedAddress.zip_code,
             primary_tag: r.primary_tag,
             date_style_tags: r.date_style_tags,
             status: r.status,
+            quality_score: r.quality_score,
+popularity_score: r.popularity_score,
           }))
         : rows.map((r: any) => ({
             restaurant_name: r.restaurant_name,
@@ -249,6 +263,8 @@ zip_code: parsedAddress.zip_code,
             primary_tag: r.primary_tag,
             date_style_tags: r.date_style_tags,
             status: r.status,
+            quality_score: r.quality_score,
+popularity_score: r.popularity_score,
           }));
 
     const { error } = await supabase.from(table).upsert(cleanRows, {
