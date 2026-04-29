@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import QRCode from "qrcode";
+import crypto from "crypto";
 
 function buildTags(place: any) {
   const tags: string[] = [];
@@ -219,10 +220,12 @@ export async function POST(req: Request) {
               ? `${baseUrl}/restaurants/${place.id}`
               : `${baseUrl}/activities/${place.id}`;
 
+          const claimToken = crypto.randomUUID();
+
           const claimUrl =
             type === "restaurant"
-              ? `${baseUrl}/claim/${place.id}`
-              : `${baseUrl}/claim-activity/${place.id}`;
+              ? `${baseUrl}/claim/${claimToken}`
+              : `${baseUrl}/claim-activity/${claimToken}`;
 
           const qrCodeDataUrl = await generateQrCodeDataUrl(claimUrl);
 
@@ -251,7 +254,10 @@ export async function POST(req: Request) {
 
             google_place_id: place.id,
             detail_url: detailUrl,
+
+            claim_token: claimToken,
             claim_url: claimUrl,
+            claim_status: "unclaimed",
             qr_code_data_url: qrCodeDataUrl,
 
             primary_tag: getPrimaryTag(place),
@@ -281,7 +287,9 @@ export async function POST(req: Request) {
             image_url: r.image_url,
             google_place_id: r.google_place_id,
             detail_url: r.detail_url,
+            claim_token: r.claim_token,
             claim_url: r.claim_url,
+            claim_status: r.claim_status,
             qr_code_data_url: r.qr_code_data_url,
             primary_tag: r.primary_tag,
             date_style_tags: r.date_style_tags,
@@ -301,7 +309,9 @@ export async function POST(req: Request) {
             image_url: r.image_url,
             google_place_id: r.google_place_id,
             detail_url: r.detail_url,
+            claim_token: r.claim_token,
             claim_url: r.claim_url,
+            claim_status: r.claim_status,
             qr_code_data_url: r.qr_code_data_url,
             primary_tag: r.primary_tag,
             date_style_tags: r.date_style_tags,
