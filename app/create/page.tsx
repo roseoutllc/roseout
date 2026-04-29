@@ -116,11 +116,19 @@ export default function CreatePage() {
     }
   };
 
-  const selectedRestaurantName =
-    selectedRestaurant?.restaurant_name || "Select a restaurant";
+  const getPlanButtonText = () => {
+    if (selectedRestaurant && selectedActivity) return "View Full Plan";
+    if (selectedRestaurant) return "View Dinner Plan";
+    if (selectedActivity) return "View Activity Plan";
+    return "View Your Plan";
+  };
 
-  const selectedActivityName =
-    selectedActivity?.activity_name || "Select an activity";
+  const selectedPlanText =
+    selectedRestaurant && selectedActivity
+      ? `${selectedRestaurant.restaurant_name} + ${selectedActivity.activity_name}`
+      : selectedRestaurant?.restaurant_name ||
+        selectedActivity?.activity_name ||
+        "";
 
   return (
     <main className="min-h-screen bg-[#050505] px-5 py-14 pb-40 text-white">
@@ -131,7 +139,7 @@ export default function CreatePage() {
           </p>
 
           <h1 className="text-4xl font-bold tracking-tight">
-            Plan Your Night
+            Plan Your Outing
           </h1>
 
           <p className="mt-3 text-neutral-400">
@@ -168,7 +176,7 @@ export default function CreatePage() {
                       </p>
 
                       <p className="mt-1 text-sm font-medium text-neutral-500">
-                        Choose a restaurant and an activity to build your night.
+                        Select what you like to build your plan.
                       </p>
                     </div>
 
@@ -206,45 +214,43 @@ export default function CreatePage() {
                                 )}
 
                                 <div className="p-5">
-                                  <div>
-                                    {r.roseout_score >= 80 && (
-                                      <div className="mb-3 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-yellow-700">
-                                        Top 10% Match
-                                      </div>
-                                    )}
+                                  {r.roseout_score >= 80 && (
+                                    <div className="mb-3 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-yellow-700">
+                                      Top 10% Match
+                                    </div>
+                                  )}
 
-                                    <h3 className="text-2xl font-bold text-black">
-                                      {r.restaurant_name}
-                                    </h3>
+                                  <h3 className="text-2xl font-bold text-black">
+                                    {r.restaurant_name}
+                                  </h3>
 
-                                    <p className="mt-2 text-sm text-neutral-600">
-                                      {r.address}, {r.city}, {r.state}{" "}
-                                      {r.zip_code}
+                                  <p className="mt-2 text-sm text-neutral-600">
+                                    {r.address}, {r.city}, {r.state}{" "}
+                                    {r.zip_code}
+                                  </p>
+
+                                  {r.rating && (
+                                    <p className="mt-2 text-sm font-semibold text-neutral-700">
+                                      ⭐ {r.rating}
+                                      {r.review_count
+                                        ? ` (${r.review_count} reviews)`
+                                        : ""}
                                     </p>
+                                  )}
 
-                                    {r.rating && (
-                                      <p className="mt-2 text-sm font-semibold text-neutral-700">
-                                        ⭐ {r.rating}
-                                        {r.review_count
-                                          ? ` (${r.review_count} reviews)`
-                                          : ""}
-                                      </p>
-                                    )}
+                                  {r.primary_tag && (
+                                    <p className="mt-3 text-sm font-bold text-black">
+                                      ✨ {r.primary_tag}
+                                    </p>
+                                  )}
 
-                                    {r.primary_tag && (
-                                      <p className="mt-3 text-sm font-bold text-black">
-                                        ✨ {r.primary_tag}
-                                      </p>
-                                    )}
-
-                                    {r.date_style_tags?.length ? (
-                                      <p className="mt-1 text-sm text-neutral-500">
-                                        {r.date_style_tags
-                                          .slice(0, 3)
-                                          .join(" · ")}
-                                      </p>
-                                    ) : null}
-                                  </div>
+                                  {r.date_style_tags?.length ? (
+                                    <p className="mt-1 text-sm text-neutral-500">
+                                      {r.date_style_tags
+                                        .slice(0, 3)
+                                        .join(" · ")}
+                                    </p>
+                                  ) : null}
 
                                   <div className="mt-4">
                                     <div className="mb-2 flex items-center justify-between">
@@ -319,12 +325,12 @@ export default function CreatePage() {
 
                         <div className="grid gap-5">
                           {msg.activities?.map((a, activityIndex) => {
-                            const activityId = String(a.id);
-                            const isSelected = selectedActivity?.id === a.id;
+                            const isSelected =
+                              selectedActivity?.id === a.id;
 
                             return (
                               <div
-                                key={activityId || activityIndex}
+                                key={a.id || activityIndex}
                                 className={`overflow-hidden rounded-[1.75rem] border bg-white shadow-lg transition ${
                                   isSelected
                                     ? "border-yellow-500 ring-2 ring-yellow-500"
@@ -344,51 +350,49 @@ export default function CreatePage() {
                                 )}
 
                                 <div className="p-5">
-                                  <div>
-                                    {a.roseout_score >= 80 && (
-                                      <div className="mb-3 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-yellow-700">
-                                        Top 10% Match
-                                      </div>
-                                    )}
+                                  {a.roseout_score >= 80 && (
+                                    <div className="mb-3 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-yellow-700">
+                                      Top 10% Match
+                                    </div>
+                                  )}
 
-                                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">
-                                      {a.activity_type === "Museum"
-                                        ? "🏛 Museum"
-                                        : a.activity_type || "Activity"}
+                                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">
+                                    {a.activity_type === "Museum"
+                                      ? "🏛 Museum"
+                                      : a.activity_type || "Activity"}
+                                  </p>
+
+                                  <h3 className="text-2xl font-bold text-black">
+                                    {a.activity_name}
+                                  </h3>
+
+                                  <p className="mt-2 text-sm text-neutral-600">
+                                    {a.address}, {a.city}, {a.state}{" "}
+                                    {a.zip_code}
+                                  </p>
+
+                                  {a.rating && (
+                                    <p className="mt-2 text-sm font-semibold text-neutral-700">
+                                      ⭐ {a.rating}
+                                      {a.review_count
+                                        ? ` (${a.review_count} reviews)`
+                                        : ""}
                                     </p>
+                                  )}
 
-                                    <h3 className="text-2xl font-bold text-black">
-                                      {a.activity_name}
-                                    </h3>
-
-                                    <p className="mt-2 text-sm text-neutral-600">
-                                      {a.address}, {a.city}, {a.state}{" "}
-                                      {a.zip_code}
+                                  {a.primary_tag && (
+                                    <p className="mt-3 text-sm font-bold text-black">
+                                      ✨ {a.primary_tag}
                                     </p>
+                                  )}
 
-                                    {a.rating && (
-                                      <p className="mt-2 text-sm font-semibold text-neutral-700">
-                                        ⭐ {a.rating}
-                                        {a.review_count
-                                          ? ` (${a.review_count} reviews)`
-                                          : ""}
-                                      </p>
-                                    )}
-
-                                    {a.primary_tag && (
-                                      <p className="mt-3 text-sm font-bold text-black">
-                                        ✨ {a.primary_tag}
-                                      </p>
-                                    )}
-
-                                    {a.date_style_tags?.length ? (
-                                      <p className="mt-1 text-sm text-neutral-500">
-                                        {a.date_style_tags
-                                          .slice(0, 3)
-                                          .join(" · ")}
-                                      </p>
-                                    ) : null}
-                                  </div>
+                                  {a.date_style_tags?.length ? (
+                                    <p className="mt-1 text-sm text-neutral-500">
+                                      {a.date_style_tags
+                                        .slice(0, 3)
+                                        .join(" · ")}
+                                    </p>
+                                  ) : null}
 
                                   <div className="mt-4">
                                     <div className="mb-2 flex items-center justify-between">
@@ -487,7 +491,7 @@ export default function CreatePage() {
           placeholder={
             messages.length
               ? "Ask a follow-up question..."
-              : "Example: Plan a full date night in Queens with dinner and bowling"
+              : "Example: Plan a romantic dinner in Queens"
           }
           className="mt-6 w-full rounded-[1.5rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
         />
@@ -495,41 +499,41 @@ export default function CreatePage() {
         <button
           onClick={sendMessage}
           disabled={loading}
-          className="mt-4 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black"
+          className="mt-4 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black disabled:opacity-50"
         >
           {loading ? "Thinking..." : messages.length ? "Send" : "Create Plan"}
         </button>
       </div>
 
       {(selectedRestaurant || selectedActivity) && (
-  <div className="fixed bottom-0 left-0 right-0 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
-    <div className="mx-auto max-w-2xl">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-500">
-        Building your plans
-      </p>
+        <div className="fixed bottom-0 left-0 right-0 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
+          <div className="mx-auto max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-500">
+              Building your plan
+            </p>
 
-      <p className="mt-1 text-sm font-bold">
-        {selectedRestaurant?.restaurant_name ||
-          selectedActivity?.activity_name}
-      </p>
+            <p className="mt-1 text-sm font-bold">{selectedPlanText}</p>
 
-      <button
-        type="button"
-        onClick={() => {
-          localStorage.setItem(
-            "roseout_plan",
-            JSON.stringify({
-              restaurant: selectedRestaurant,
-              activity: selectedActivity,
-            })
-          );
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.setItem(
+                  "roseout_plan",
+                  JSON.stringify({
+                    restaurant: selectedRestaurant,
+                    activity: selectedActivity,
+                  })
+                );
 
-          window.location.href = "/plan";
-        }}
-        className="mt-3 w-full rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black"
-      >
-        View Your Plans
-      </button>
-    </div>
-  </div>
-)}
+                window.location.href = "/plan";
+              }}
+              className="mt-3 w-full rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black"
+            >
+              {getPlanButtonText()}
+            </button>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
