@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
@@ -8,9 +8,9 @@ const supabaseAdmin = createClient(
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
+  const { id } = await params;
 
   const { data, error } = await supabaseAdmin
     .from("restaurants")
@@ -19,17 +19,17 @@ export async function GET(
     .single();
 
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ restaurant: data });
+  return NextResponse.json({ restaurant: data });
 }
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
+  const { id } = await params;
   const body = await request.json();
 
   const { error } = await supabaseAdmin
@@ -38,8 +38,8 @@ export async function PATCH(
     .eq("id", id);
 
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ success: true });
+  return NextResponse.json({ success: true });
 }
