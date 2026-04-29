@@ -90,7 +90,7 @@ Rules:
 - Mention the restaurant name and address when recommending dinner.
 - If the user says "not too loud", avoid loud places.
 - If the user says "romantic", prioritize cozy, dim, intimate, upscale, or warm atmosphere.
-- Stay under 180 words unless the user asks for more detail.
+- Keep the first plan under 250 words. Follow-up answers can be shorter.
 
 Format when creating a plan:
 
@@ -113,7 +113,7 @@ For follow-up questions, answer naturally and directly.
     const response = await openai.responses.create({
       model: "gpt-5-mini",
       input: prompt,
-      max_output_tokens: 250,
+      max_output_tokens: 700,
     });
 
     return Response.json({
