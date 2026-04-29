@@ -10,7 +10,7 @@ export default function AdminInvitesPage() {
   const [form, setForm] = useState({
     restaurant_name: "",
     contact_name: "",
-    mailing_address: "",
+    address: "",
     city: "",
     state: "",
     zip_code: "",
@@ -26,7 +26,7 @@ export default function AdminInvitesPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const createInvite = async () => {
+  const addRestaurant = async () => {
     setMessage("");
     setQrCode("");
     setQrLink("");
@@ -42,13 +42,15 @@ export default function AdminInvitesPage() {
     const data = await res.json();
 
     if (!res.ok) {
-      setMessage(data.error || "Could not create invite.");
+      setMessage(data.error || "Could not add restaurant.");
       return;
     }
 
     setQrCode(data.qrCodeDataUrl);
-    setQrLink(data.invite.qr_link);
-    setMessage("QR invite created successfully.");
+setQrLink(data.qrLink);
+    setQrCode(data.restaurant.qr_code_data_url);
+    setQrLink(data.restaurant.claim_url);
+    setMessage("Restaurant added and QR code created successfully.");
   };
 
   useEffect(() => {
@@ -85,33 +87,72 @@ export default function AdminInvitesPage() {
       <AdminTopBar />
 
       <div className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-4xl font-bold">Create Restaurant QR Invite</h1>
+        <h1 className="text-4xl font-bold">Add Manual Restaurant</h1>
 
         <p className="mt-3 text-neutral-400">
-          Generate a unique QR code mailer link for each restaurant.
+          Add a restaurant manually and automatically generate its claim QR code.
         </p>
 
         <div className="mt-8 space-y-4 rounded-3xl bg-white p-6 text-black">
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Restaurant Name" value={form.restaurant_name} onChange={(e) => update("restaurant_name", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Contact Name" value={form.contact_name} onChange={(e) => update("contact_name", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Mailing Address" value={form.mailing_address} onChange={(e) => update("mailing_address", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="City" value={form.city} onChange={(e) => update("city", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="State" value={form.state} onChange={(e) => update("state", e.target.value)} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Zip Code" value={form.zip_code} onChange={(e) => update("zip_code", e.target.value)} />
+          <input
+            className="w-full rounded-xl border px-4 py-3"
+            placeholder="Restaurant Name"
+            value={form.restaurant_name}
+            onChange={(e) => update("restaurant_name", e.target.value)}
+          />
+
+          <input
+            className="w-full rounded-xl border px-4 py-3"
+            placeholder="Contact Name"
+            value={form.contact_name}
+            onChange={(e) => update("contact_name", e.target.value)}
+          />
+
+          <input
+            className="w-full rounded-xl border px-4 py-3"
+            placeholder="Restaurant Address"
+            value={form.address}
+            onChange={(e) => update("address", e.target.value)}
+          />
+
+          <input
+            className="w-full rounded-xl border px-4 py-3"
+            placeholder="City"
+            value={form.city}
+            onChange={(e) => update("city", e.target.value)}
+          />
+
+          <input
+            className="w-full rounded-xl border px-4 py-3"
+            placeholder="State"
+            value={form.state}
+            onChange={(e) => update("state", e.target.value)}
+          />
+
+          <input
+            className="w-full rounded-xl border px-4 py-3"
+            placeholder="Zip Code"
+            value={form.zip_code}
+            onChange={(e) => update("zip_code", e.target.value)}
+          />
 
           <button
-            onClick={createInvite}
+            onClick={addRestaurant}
             disabled={!form.restaurant_name.trim()}
             className="w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold text-black disabled:opacity-50"
           >
-            Create QR Invite
+            Add Restaurant
           </button>
 
           {message && <p className="text-center font-semibold">{message}</p>}
 
           {qrCode && (
             <div className="mt-6 text-center">
-              <img src={qrCode} alt="Restaurant QR Code" className="mx-auto h-64 w-64" />
+              <img
+                src={qrCode}
+                alt="Restaurant QR Code"
+                className="mx-auto h-64 w-64"
+              />
 
               <p className="mt-4 break-all text-sm">{qrLink}</p>
 
