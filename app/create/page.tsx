@@ -528,7 +528,7 @@ export default function CreatePage() {
     }}
     className="mt-3 w-full rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black"
   >
-    View Your Plan
+    View Your Plans
   </button>
 )}
           </div>
