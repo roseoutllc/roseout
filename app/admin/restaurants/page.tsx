@@ -57,10 +57,7 @@ export default function AdminRestaurantsPage() {
         <head>
           <title>${r.restaurant_name}</title>
           <style>
-            body {
-              font-family: Arial;
-              padding: 20px;
-            }
+            body { font-family: Arial; padding: 20px; }
             .label {
               width: 420px;
               display: flex;
@@ -70,36 +67,22 @@ export default function AdminRestaurantsPage() {
               border-radius: 12px;
               padding: 16px;
             }
-            img {
-              width: 120px;
-              height: 120px;
-            }
-            .text h2 {
-              margin: 0;
-              font-size: 18px;
-            }
-            .text p {
-              margin: 4px 0;
-              font-size: 13px;
-            }
+            img { width: 120px; height: 120px; }
+            .text h2 { margin: 0; font-size: 18px; }
+            .text p { margin: 4px 0; font-size: 13px; }
           </style>
         </head>
         <body>
           <div class="label">
             <img src="${r.qr_code_data_url}" />
             <div class="text">
-              <h2>${r.restaurant_name}</h2>
-              <p>${r.address}</p>
-              <p>${r.city}, ${r.state} ${r.zip_code}</p>
+              <h2>${r.restaurant_name || ""}</h2>
+              <p>${r.address || ""}</p>
+              <p>${r.city || ""}, ${r.state || ""} ${r.zip_code || ""}</p>
               <p><strong>Scan to manage your listing</strong></p>
             </div>
           </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
+          <script>window.onload = function() { window.print(); };</script>
         </body>
       </html>
     `);
@@ -109,26 +92,21 @@ export default function AdminRestaurantsPage() {
 
   useEffect(() => {
     const init = async () => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
+      const { data, error } = await supabase.auth.getUser();
 
-        if (error || !data.user) {
-          window.location.href = "/login";
-          return;
-        }
+      if (error || !data.user) {
+        window.location.href = "/login";
+        return;
+      }
 
-        if (data.user.user_metadata?.role !== "superuser") {
-          setUnauthorized(true);
-          setLoading(false);
-          return;
-        }
-
-        await loadRestaurants();
-        setLoading(false);
-      } catch {
+      if (data.user.user_metadata?.role !== "superuser") {
         setUnauthorized(true);
         setLoading(false);
+        return;
       }
+
+      await loadRestaurants();
+      setLoading(false);
     };
 
     init();
@@ -143,15 +121,10 @@ export default function AdminRestaurantsPage() {
   }
 
   return (
-  <main className="min-h-screen bg-black text-white">
-    <AdminTopBar />
+    <main className="min-h-screen bg-black text-white">
+      <AdminTopBar />
 
-    <div className="px-6 py-12">
-      {/* your page content */}
-    </div>
-  </main>
-);
-
+      <div className="mx-auto max-w-6xl px-6 py-12">
         <h1 className="text-4xl font-bold">Manage Restaurants</h1>
 
         {message && (
@@ -166,9 +139,7 @@ export default function AdminRestaurantsPage() {
 
             return (
               <div key={r.id} className="rounded-3xl bg-white p-6 text-black">
-                <div className="grid gap-6 md:grid-cols-[1fr_320px]">
-                  
-                  {/* LEFT SIDE */}
+                <div className="grid gap-6 md:grid-cols-[1fr_340px]">
                   <div>
                     <h2 className="text-2xl font-bold">{r.restaurant_name}</h2>
 
@@ -176,8 +147,13 @@ export default function AdminRestaurantsPage() {
                       {r.address}, {r.city}, {r.state} {r.zip_code}
                     </p>
 
-                    <p className="mt-2"><strong>Status:</strong> {r.status}</p>
-                    <p className="mt-2"><strong>Featured:</strong> {r.is_featured ? "Yes" : "No"}</p>
+                    <p className="mt-2">
+                      <strong>Status:</strong> {r.status}
+                    </p>
+
+                    <p className="mt-2">
+                      <strong>Featured:</strong> {r.is_featured ? "Yes" : "No"}
+                    </p>
 
                     {r.description && (
                       <p className="mt-4 leading-7">{r.description}</p>
@@ -199,13 +175,9 @@ export default function AdminRestaurantsPage() {
                       </button>
 
                       <button
-                        onClick={() =>
-                          updateRestaurant(r.id, { is_featured: !r.is_featured })
-                        }
+                        onClick={() => updateRestaurant(r.id, { is_featured: !r.is_featured })}
                         className={`rounded-xl px-4 py-2 ${
-                          r.is_featured
-                            ? "bg-yellow-500 text-black"
-                            : "bg-neutral-900 text-white"
+                          r.is_featured ? "bg-yellow-500 text-black" : "bg-neutral-900 text-white"
                         }`}
                       >
                         {r.is_featured ? "Remove Featured" : "Make Featured"}
@@ -216,10 +188,25 @@ export default function AdminRestaurantsPage() {
                           Open Maps
                         </button>
                       </a>
+
+                      {r.website && (
+                        <a href={r.website} target="_blank">
+                          <button className="rounded-xl bg-black px-4 py-2 text-white">
+                            Website
+                          </button>
+                        </a>
+                      )}
+
+                      {r.reservation_link && (
+                        <a href={r.reservation_link} target="_blank">
+                          <button className="rounded-xl bg-black px-4 py-2 text-white">
+                            Reservation
+                          </button>
+                        </a>
+                      )}
                     </div>
                   </div>
 
-                  {/* RIGHT SIDE - QR LABEL */}
                   <div className="rounded-2xl border bg-neutral-50 p-4">
                     <h3 className="mb-3 text-center font-bold">
                       Printable QR Label
@@ -230,11 +217,12 @@ export default function AdminRestaurantsPage() {
                         <div className="flex items-center gap-4 rounded-xl border bg-white p-4">
                           <img
                             src={r.qr_code_data_url}
+                            alt={`${r.restaurant_name} QR`}
                             className="h-32 w-32 flex-shrink-0"
                           />
 
                           <div>
-                            <h4 className="text-lg font-bold">
+                            <h4 className="text-lg font-bold leading-tight">
                               {r.restaurant_name}
                             </h4>
                             <p className="text-sm">{r.address}</p>
@@ -261,6 +249,12 @@ export default function AdminRestaurantsPage() {
               </div>
             );
           })}
+
+          {restaurants.length === 0 && (
+            <p className="rounded-2xl bg-white p-6 text-black">
+              No restaurants found.
+            </p>
+          )}
         </div>
       </div>
     </main>

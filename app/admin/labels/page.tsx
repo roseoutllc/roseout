@@ -77,17 +77,8 @@ export default function AdminLabelsPage() {
         <head>
           <title>RoseOut Restaurant Labels</title>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-            }
-
-            .sheet {
-              display: grid;
-              grid-template-columns: repeat(2, 1fr);
-              gap: 16px;
-            }
-
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .sheet { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
             .label {
               display: flex;
               align-items: center;
@@ -98,50 +89,19 @@ export default function AdminLabelsPage() {
               min-height: 140px;
               break-inside: avoid;
             }
-
-            img {
-              width: 110px;
-              height: 110px;
-            }
-
-            h2 {
-              margin: 0 0 6px;
-              font-size: 18px;
-            }
-
-            p {
-              margin: 3px 0;
-              font-size: 13px;
-            }
-
-            .small {
-              margin-top: 8px;
-              font-size: 11px;
-              font-weight: bold;
-            }
-
+            img { width: 110px; height: 110px; }
+            h2 { margin: 0 0 6px; font-size: 18px; }
+            p { margin: 3px 0; font-size: 13px; }
+            .small { margin-top: 8px; font-size: 11px; font-weight: bold; }
             @media print {
-              body {
-                padding: 0;
-              }
-
-              .label {
-                page-break-inside: avoid;
-              }
+              body { padding: 0; }
+              .label { page-break-inside: avoid; }
             }
           </style>
         </head>
-
         <body>
-          <div class="sheet">
-            ${labelsHtml}
-          </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
+          <div class="sheet">${labelsHtml}</div>
+          <script>window.onload = function() { window.print(); };</script>
         </body>
       </html>
     `);
@@ -150,28 +110,18 @@ export default function AdminLabelsPage() {
   };
 
   if (loading) {
-    return (
-      <main className="min-h-screen bg-black p-6 text-white">
-        Loading...
-      </main>
-    );
+    return <main className="min-h-screen bg-black p-6 text-white">Loading...</main>;
   }
 
   if (unauthorized) {
-    return (
-      <main className="min-h-screen bg-black p-6 text-white">
-        Not authorized
-      </main>
-    );
+    return <main className="min-h-screen bg-black p-6 text-white">Not authorized</main>;
   }
 
   return (
-      <main className="min-h-screen bg-black text-white">
-    <AdminTopBar />
+    <main className="min-h-screen bg-black text-white">
+      <AdminTopBar />
 
-    <div className="px-6 py-12">
-        </div>
-
+      <div className="mx-auto max-w-6xl px-6 py-12">
         <h1 className="text-4xl font-bold">Bulk Print Labels</h1>
 
         <p className="mt-3 text-neutral-400">

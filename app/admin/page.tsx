@@ -12,20 +12,13 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data } = await supabase.auth.getUser();
+      const { data, error } = await supabase.auth.getUser();
 
-      if (!data.user) {
-  window.location.href = "/login";
-  return;
-}
+      if (error || !data.user) {
+        window.location.href = "/login";
+        return;
+      }
 
-if (data.user.user_metadata?.role !== "superuser") {
-  setUnauthorized(true);
-  setLoading(false);
-  return;
-}
-
-      // 🔥 CHECK ADMIN ROLE
       if (data.user.user_metadata?.role !== "superuser") {
         setUnauthorized(true);
         setLoading(false);
@@ -40,9 +33,7 @@ if (data.user.user_metadata?.role !== "superuser") {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-black p-6 text-white">
-        Loading...
-      </main>
+      <main className="min-h-screen bg-black p-6 text-white">Loading...</main>
     );
   }
 
@@ -54,37 +45,36 @@ if (data.user.user_metadata?.role !== "superuser") {
     );
   }
 
-return (
-  <main className="min-h-screen bg-black text-white">
-    <AdminTopBar />
+  return (
+    <main className="min-h-screen bg-black text-white">
+      <AdminTopBar />
 
-    <div className="px-6 py-12">
-        </div>
-
+      <div className="mx-auto max-w-5xl px-6 py-12">
         <h1 className="text-4xl font-bold">RoseOut Admin Portal</h1>
 
         <p className="mt-3 text-neutral-400">
-          Manage restaurant approvals, QR invites, and platform activity.
+          Manage restaurant approvals, QR invites, labels, and platform activity.
         </p>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
-          <a
-            href="/admin/restaurants"
-            className="rounded-3xl bg-white p-6 text-black"
-          >
+        <div className="mt-8 grid gap-6 md:grid-cols-3">
+          <a href="/admin/restaurants" className="rounded-3xl bg-white p-6 text-black">
             <h2 className="text-2xl font-bold">Restaurants</h2>
             <p className="mt-2 text-neutral-600">
-              Review, approve, reject, and manage listings.
+              Review, approve, reject, and feature listings.
             </p>
           </a>
 
-          <a
-            href="/admin/invites"
-            className="rounded-3xl bg-white p-6 text-black"
-          >
+          <a href="/admin/invites" className="rounded-3xl bg-white p-6 text-black">
             <h2 className="text-2xl font-bold">QR Invites</h2>
             <p className="mt-2 text-neutral-600">
-              Create QR invite links and labels.
+              Create QR invite links for restaurant outreach.
+            </p>
+          </a>
+
+          <a href="/admin/labels" className="rounded-3xl bg-white p-6 text-black">
+            <h2 className="text-2xl font-bold">Labels</h2>
+            <p className="mt-2 text-neutral-600">
+              Bulk print QR labels for restaurant mailers.
             </p>
           </a>
         </div>

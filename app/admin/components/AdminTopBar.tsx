@@ -8,11 +8,12 @@ export default function AdminTopBar() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const load = async () => {
+    const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
       setUser(data.user || null);
     };
-    load();
+
+    loadUser();
   }, []);
 
   const signOut = async () => {
@@ -20,16 +21,10 @@ export default function AdminTopBar() {
     window.location.href = "/login";
   };
 
-  const signIn = () => {
-    window.location.href = "/login";
-  };
-
   return (
-    <div className="sticky top-0 z-50 w-full border-b border-neutral-800 bg-black">
+    <div className="sticky top-0 z-50 border-b border-neutral-800 bg-black">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 text-white">
-        
-        {/* LEFT NAV */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-5">
           <a href="/admin" className="font-semibold hover:underline">
             Dashboard
           </a>
@@ -44,24 +39,21 @@ export default function AdminTopBar() {
           </a>
         </div>
 
-        {/* RIGHT ACTION */}
-        <div>
-          {user ? (
-            <button
-              onClick={signOut}
-              className="rounded-xl bg-white px-4 py-2 font-semibold text-black"
-            >
-              Sign Out
-            </button>
-          ) : (
-            <button
-              onClick={signIn}
-              className="rounded-xl bg-white px-4 py-2 font-semibold text-black"
-            >
-              Sign In
-            </button>
-          )}
-        </div>
+        {user ? (
+          <button
+            onClick={signOut}
+            className="rounded-xl bg-white px-4 py-2 font-semibold text-black"
+          >
+            Sign Out
+          </button>
+        ) : (
+          <a
+            href="/login"
+            className="rounded-xl bg-white px-4 py-2 font-semibold text-black"
+          >
+            Sign In
+          </a>
+        )}
       </div>
     </div>
   );
