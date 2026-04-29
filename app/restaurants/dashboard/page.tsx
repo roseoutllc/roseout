@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
+import RestaurantTopBar from "@/app/restaurants/components/RestaurantTopBar";
 
 export default function RestaurantDashboardPage() {
   const supabase = createClient();
@@ -41,7 +42,9 @@ export default function RestaurantDashboardPage() {
 
     const res = await fetch("/api/restaurants/send-link", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ email: restaurant.email }),
     });
 
@@ -61,33 +64,39 @@ export default function RestaurantDashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-black px-6 py-12 text-white">
-        Loading...
+      <main className="min-h-screen bg-black text-white">
+        <RestaurantTopBar />
+        <div className="px-6 py-12">Loading...</div>
       </main>
     );
   }
 
   if (!restaurant) {
     return (
-      <main className="min-h-screen bg-black px-6 py-12 text-white">
-        {message}
+      <main className="min-h-screen bg-black text-white">
+        <RestaurantTopBar />
+        <div className="px-6 py-12">{message}</div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-black px-6 py-12 text-white">
-      <div className="mx-auto max-w-3xl">
+    <main className="min-h-screen bg-black text-white">
+      <RestaurantTopBar />
+
+      <div className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="text-4xl font-bold">Restaurant Dashboard</h1>
 
         <p className="mt-3 text-neutral-400">
-          View and manage your RoseOut restaurant listing.
+          View your restaurant listing.
         </p>
 
         <div className="mt-8 rounded-3xl bg-white p-6 text-black">
-          <h2 className="text-2xl font-bold">{restaurant.restaurant_name}</h2>
+          <h2 className="text-2xl font-bold">
+            {restaurant.restaurant_name}
+          </h2>
 
-          <p className="mt-2 rounded-xl bg-yellow-500 px-4 py-3 font-semibold text-black">
+          <p className="mt-2 rounded-xl bg-yellow-500 px-4 py-3 font-semibold">
             Status: {restaurant.status}
           </p>
 
@@ -101,14 +110,14 @@ export default function RestaurantDashboardPage() {
           )}
 
           <a href="/restaurants/update">
-            <button className="mt-6 w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold text-black">
+            <button className="mt-6 w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold">
               Edit Restaurant Listing
             </button>
           </a>
 
           <button
             onClick={sendLoginLink}
-            className="mt-4 w-full rounded-xl bg-black px-6 py-3 font-semibold text-white"
+            className="mt-4 w-full rounded-xl bg-black px-6 py-3 text-white"
           >
             Send me a new login link
           </button>
