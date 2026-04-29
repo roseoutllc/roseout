@@ -13,6 +13,7 @@ type RestaurantCard = {
   reservation_link?: string;
   website?: string;
   image_url?: string;
+  primary_tag?: string | null;
   date_style_tags?: string[];
 };
 
@@ -31,6 +32,7 @@ type ActivityCard = {
   reservation_link?: string;
   website?: string;
   image_url?: string;
+  primary_tag?: string | null;
   date_style_tags?: string[];
 };
 
@@ -195,17 +197,21 @@ export default function CreatePage() {
                                       {r.address}, {r.city}, {r.state}{" "}
                                       {r.zip_code}
                                     </p>
+
+                                    {r.primary_tag && (
+                                      <p className="mt-3 text-sm font-bold text-black">
+                                        ✨ {r.primary_tag}
+                                      </p>
+                                    )}
+
+                                    {r.date_style_tags?.length ? (
+                                      <p className="mt-1 text-sm text-neutral-500">
+                                        {r.date_style_tags
+                                          .slice(0, 3)
+                                          .join(" · ")}
+                                      </p>
+                                    ) : null}
                                   </div>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-  {r.date_style_tags?.slice(0, 3).map((tag, i) => (
-    <span
-      key={i}
-      className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700"
-    >
-      {tag}
-    </span>
-  ))}
-</div>
 
                                   <div className="mt-4">
                                     <div className="mb-2 flex items-center justify-between">
@@ -294,7 +300,9 @@ export default function CreatePage() {
                                     )}
 
                                     <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">
-                                      {a.activity_type || "Activity"}
+                                      {a.activity_type === "Museum"
+                                        ? "🏛 Museum"
+                                        : a.activity_type || "Activity"}
                                     </p>
 
                                     <h3 className="text-2xl font-bold text-black">
@@ -305,36 +313,20 @@ export default function CreatePage() {
                                       {a.address}, {a.city}, {a.state}{" "}
                                       {a.zip_code}
                                     </p>
-                                    <div className="mt-3 flex flex-wrap gap-2">
-  {a.date_style_tags?.slice(0, 3).map((tag, i) => (
-    <span
-      key={i}
-      className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700"
-    >
-      {tag}
-    </span>
-  ))}
-</div>
 
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                      {a.price_range && (
-                                        <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">
-                                          {a.price_range}
-                                        </span>
-                                      )}
+                                    {a.primary_tag && (
+                                      <p className="mt-3 text-sm font-bold text-black">
+                                        ✨ {a.primary_tag}
+                                      </p>
+                                    )}
 
-                                      {a.atmosphere && (
-                                        <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">
-                                          {a.atmosphere}
-                                        </span>
-                                      )}
-
-                                      {a.group_friendly && (
-                                        <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">
-                                          Group Friendly
-                                        </span>
-                                      )}
-                                    </div>
+                                    {a.date_style_tags?.length ? (
+                                      <p className="mt-1 text-sm text-neutral-500">
+                                        {a.date_style_tags
+                                          .slice(0, 3)
+                                          .join(" · ")}
+                                      </p>
+                                    ) : null}
                                   </div>
 
                                   <div className="mt-4">
@@ -420,7 +412,7 @@ export default function CreatePage() {
           placeholder={
             messages.length
               ? "Ask a follow-up question..."
-              : "Example: Plan a pizza date in Queens and bowling after"
+              : "Example: Plan a quiet museum date with dinner after"
           }
           className="mt-6 w-full rounded-[1.5rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
         />
