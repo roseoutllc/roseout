@@ -125,7 +125,25 @@ function getPhotoUrl(place: any) {
 
   return `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=800&key=${process.env.GOOGLE_PLACES_API_KEY}`;
 }
+function parseAddress(formattedAddress: string) {
+  const parts = formattedAddress?.split(",").map((p) => p.trim()) || [];
 
+  const address = parts[0] || "";
+  const city = parts[1] || "";
+
+  const stateZipPart = parts.find((part) =>
+    /\b[A-Z]{2}\s+\d{5}/.test(part)
+  );
+
+  const stateZipMatch = stateZipPart?.match(/\b([A-Z]{2})\s+(\d{5})/);
+
+  return {
+    address,
+    city,
+    state: stateZipMatch?.[1] || "NY",
+    zip_code: stateZipMatch?.[2] || "",
+  };
+}
 export async function POST(req: Request) {
     const secret = req.headers.get("x-internal-import-secret");
 
@@ -167,7 +185,7 @@ export async function POST(req: Request) {
 const rows = (data.places || [])
   .filter((place: any) => isValidPlace(place, type))
   .map((place: any) => {
-    const addressParts = place.formattedAddress?.split(",") || [];
+    const parsedAddress = parseAddress(place.formattedAddress || "");
 
     return {
       restaurant_name:
@@ -178,10 +196,10 @@ const rows = (data.places || [])
 
       activity_type: getActivityType(place),
 
-      address: addressParts[0]?.trim() || place.formattedAddress || "",
-      city: addressParts[1]?.trim() || "",
-      state: "NY",
-      zip_code: "",
+      address: parsedAddress.address || place.formattedAddress || "",
+city: parsedAddress.city,
+state: parsedAddress.state,
+zip_code: parsedAddress.zip_code,
 
       rating: place.rating || null,
       review_count: place.userRatingCount || null,
