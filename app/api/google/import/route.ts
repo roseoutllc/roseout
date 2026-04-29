@@ -37,38 +37,83 @@ function isValidPlace(place: any, type: string) {
 }
 function buildTags(place: any) {
   const tags: string[] = [];
+  const types = place.types || [];
+  const name = place.displayName?.text?.toLowerCase() || "";
 
-  if (place.rating >= 4.5) tags.push("Highly Rated");
-  if (place.priceLevel === "PRICE_LEVEL_INEXPENSIVE") tags.push("Budget");
+  if (place.rating >= 4.5) tags.push("Top Rated");
+  if (place.rating >= 4.2) tags.push("Highly Rated");
+
+  if (types.includes("museum") || types.includes("art_gallery")) {
+    tags.push("Cultural");
+  }
 
   if (
-    place.priceLevel === "PRICE_LEVEL_EXPENSIVE" ||
-    place.priceLevel === "PRICE_LEVEL_VERY_EXPENSIVE"
+    types.includes("bowling_alley") ||
+    types.includes("amusement_center") ||
+    name.includes("axe") ||
+    name.includes("escape") ||
+    name.includes("arcade")
   ) {
+    tags.push("Fun");
+  }
+
+  if (types.includes("bar") || types.includes("night_club") || name.includes("lounge")) {
+    tags.push("Nightlife");
+  }
+
+  if (name.includes("rooftop")) tags.push("Rooftop");
+  if (name.includes("romantic")) tags.push("Romantic");
+  if (name.includes("luxury") || place.priceLevel === "PRICE_LEVEL_EXPENSIVE") {
     tags.push("Upscale");
   }
 
-  if (place.types?.includes("museum")) tags.push("Cultural");
-  if (place.types?.includes("bowling_alley")) tags.push("Fun");
-  if (place.types?.includes("restaurant")) tags.push("Dinner");
+  if (place.priceLevel === "PRICE_LEVEL_INEXPENSIVE") {
+    tags.push("Budget");
+  }
 
-  return tags.slice(0, 3);
+  return [...new Set(tags)].slice(0, 3);
 }
 
 function getPrimaryTag(place: any) {
-  if (place.types?.includes("museum")) return "Best for a Cultural Date";
-  if (place.types?.includes("bowling_alley")) return "Best for a Fun Night";
+  const type = getActivityType(place);
+
+  if (type === "Museum") return "Best for a Cultural Date";
+  if (type === "Art Gallery") return "Best for an Artsy Date";
+  if (type === "Bowling") return "Best for a Fun Night";
+  if (type === "Axe Throwing") return "Best for an Adventurous Date";
+  if (type === "Escape Room") return "Best for a Challenge Night";
+  if (type === "Karaoke") return "Best for a Playful Night";
+  if (type === "Rooftop") return "Best for a Scenic Night";
+  if (type === "Lounge") return "Best for a Chill Night";
+  if (type === "Comedy Club") return "Best for Laughs";
+  if (type === "Park") return "Best for a Relaxed Outing";
+
   if (place.rating >= 4.5) return "Best for a Highly Rated Experience";
 
   return "Popular Local Spot";
 }
-
 function getActivityType(place: any) {
-  if (place.types?.includes("museum")) return "Museum";
-  if (place.types?.includes("bowling_alley")) return "Bowling";
-  if (place.types?.includes("amusement_center")) return "Arcade";
-  if (place.types?.includes("movie_theater")) return "Movie";
-  if (place.types?.includes("art_gallery")) return "Art Gallery";
+  const types = place.types || [];
+  const name = place.displayName?.text?.toLowerCase() || "";
+
+  if (types.includes("museum")) return "Museum";
+  if (types.includes("art_gallery")) return "Art Gallery";
+  if (types.includes("bowling_alley")) return "Bowling";
+  if (types.includes("movie_theater")) return "Movie Theater";
+  if (types.includes("amusement_center")) return "Arcade";
+  if (types.includes("tourist_attraction")) return "Attraction";
+  if (types.includes("park")) return "Park";
+  if (types.includes("night_club")) return "Nightlife";
+  if (types.includes("bar")) return "Lounge";
+  if (types.includes("performing_arts_theater")) return "Live Show";
+
+  if (name.includes("axe")) return "Axe Throwing";
+  if (name.includes("karaoke")) return "Karaoke";
+  if (name.includes("escape")) return "Escape Room";
+  if (name.includes("mini golf") || name.includes("minigolf")) return "Mini Golf";
+  if (name.includes("rooftop")) return "Rooftop";
+  if (name.includes("comedy")) return "Comedy Club";
+  if (name.includes("paint")) return "Paint & Sip";
 
   return "Activity";
 }
