@@ -52,7 +52,7 @@ export default function AdminRestaurantsPage() {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    printWindow.document.write(`
+    const html = `
       <html>
         <head>
           <title>${r.restaurant_name}</title>
@@ -68,25 +68,31 @@ export default function AdminRestaurantsPage() {
               padding: 16px;
             }
             img { width: 120px; height: 120px; }
-            .text h2 { margin: 0; font-size: 18px; }
-            .text p { margin: 4px 0; font-size: 13px; }
+            h2 { margin: 0; font-size: 18px; }
+            p { margin: 4px 0; font-size: 13px; }
           </style>
         </head>
         <body>
           <div class="label">
-            <img src="${r.qr_code_data_url}" />
-            <div class="text">
-              <h2>${r.restaurant_name || ""}</h2>
+            <img src="${r.qr_code_data_url || ""}" />
+            <div>
+              <h2>${r.restaurant_name}</h2>
               <p>${r.address || ""}</p>
               <p>${r.city || ""}, ${r.state || ""} ${r.zip_code || ""}</p>
               <p><strong>Scan to manage your listing</strong></p>
             </div>
           </div>
-          <script>window.onload = function() { window.print(); };</script>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
         </body>
       </html>
-    `);
+    `;
 
+    printWindow.document.write(html);
     printWindow.document.close();
   };
 
@@ -128,7 +134,9 @@ export default function AdminRestaurantsPage() {
         <h1 className="text-4xl font-bold">Manage Restaurants</h1>
 
         {message && (
-          <p className="mt-4 rounded-xl bg-white p-3 text-black">{message}</p>
+          <p className="mt-4 rounded-xl bg-white p-3 text-black">
+            {message}
+          </p>
         )}
 
         <div className="mt-8 space-y-6">
@@ -139,7 +147,9 @@ export default function AdminRestaurantsPage() {
 
             return (
               <div key={r.id} className="rounded-3xl bg-white p-6 text-black">
-                <div className="grid gap-6 md:grid-cols-[1fr_340px]">
+                <div className="grid gap-6 md:grid-cols-[1fr_320px]">
+
+                  {/* LEFT */}
                   <div>
                     <h2 className="text-2xl font-bold">{r.restaurant_name}</h2>
 
@@ -147,17 +157,8 @@ export default function AdminRestaurantsPage() {
                       {r.address}, {r.city}, {r.state} {r.zip_code}
                     </p>
 
-                    <p className="mt-2">
-                      <strong>Status:</strong> {r.status}
-                    </p>
-
-                    <p className="mt-2">
-                      <strong>Featured:</strong> {r.is_featured ? "Yes" : "No"}
-                    </p>
-
-                    {r.description && (
-                      <p className="mt-4 leading-7">{r.description}</p>
-                    )}
+                    <p className="mt-2"><strong>Status:</strong> {r.status}</p>
+                    <p className="mt-2"><strong>Featured:</strong> {r.is_featured ? "Yes" : "No"}</p>
 
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button
@@ -176,40 +177,23 @@ export default function AdminRestaurantsPage() {
 
                       <button
                         onClick={() => updateRestaurant(r.id, { is_featured: !r.is_featured })}
-                        className={`rounded-xl px-4 py-2 ${
-                          r.is_featured ? "bg-yellow-500 text-black" : "bg-neutral-900 text-white"
-                        }`}
+                        className="rounded-xl bg-neutral-900 px-4 py-2 text-white"
                       >
-                        {r.is_featured ? "Remove Featured" : "Make Featured"}
+                        Toggle Featured
                       </button>
 
                       <a href={mapsLink} target="_blank">
                         <button className="rounded-xl bg-black px-4 py-2 text-white">
-                          Open Maps
+                          Maps
                         </button>
                       </a>
-
-                      {r.website && (
-                        <a href={r.website} target="_blank">
-                          <button className="rounded-xl bg-black px-4 py-2 text-white">
-                            Website
-                          </button>
-                        </a>
-                      )}
-
-                      {r.reservation_link && (
-                        <a href={r.reservation_link} target="_blank">
-                          <button className="rounded-xl bg-black px-4 py-2 text-white">
-                            Reservation
-                          </button>
-                        </a>
-                      )}
                     </div>
                   </div>
 
+                  {/* RIGHT QR */}
                   <div className="rounded-2xl border bg-neutral-50 p-4">
                     <h3 className="mb-3 text-center font-bold">
-                      Printable QR Label
+                      QR Label
                     </h3>
 
                     {r.qr_code_data_url ? (
@@ -217,12 +201,11 @@ export default function AdminRestaurantsPage() {
                         <div className="flex items-center gap-4 rounded-xl border bg-white p-4">
                           <img
                             src={r.qr_code_data_url}
-                            alt={`${r.restaurant_name} QR`}
-                            className="h-32 w-32 flex-shrink-0"
+                            className="h-32 w-32"
                           />
 
                           <div>
-                            <h4 className="text-lg font-bold leading-tight">
+                            <h4 className="text-lg font-bold">
                               {r.restaurant_name}
                             </h4>
                             <p className="text-sm">{r.address}</p>
@@ -236,25 +219,17 @@ export default function AdminRestaurantsPage() {
                           onClick={() => printLabel(r)}
                           className="mt-4 w-full rounded-xl bg-black px-4 py-2 text-white"
                         >
-                          Download / Print Label
+                          Print Label
                         </button>
                       </>
                     ) : (
-                      <p className="text-center text-sm text-neutral-500">
-                        No QR available
-                      </p>
+                      <p>No QR</p>
                     )}
                   </div>
                 </div>
               </div>
             );
           })}
-
-          {restaurants.length === 0 && (
-            <p className="rounded-2xl bg-white p-6 text-black">
-              No restaurants found.
-            </p>
-          )}
         </div>
       </div>
     </main>
