@@ -87,7 +87,7 @@ setQrLink(data.qrLink);
       <AdminTopBar />
 
       <div className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-4xl font-bold">Add Manual Restaurant</h1>
+        <h1 className="text-4xl font-bold">Manually Add Restaurant</h1>
 
         <p className="mt-3 text-neutral-400">
           Add a restaurant manually and automatically generate its claim QR code.
