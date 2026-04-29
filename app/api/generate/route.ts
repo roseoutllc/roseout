@@ -162,6 +162,7 @@ Follow-up behavior:
         reservation_link: r.reservation_link,
         website: r.website,
         image_url: r.image_url || null,
+        date_style_tags: r.date_style_tags || [],
       })),
 
       activities: topActivities.map((a: any) => ({
@@ -179,6 +180,7 @@ Follow-up behavior:
         reservation_link: a.reservation_link,
         website: a.website,
         image_url: a.image_url || null,
+        date_style_tags: a.date_style_tags || [],
       })),
     });
   } catch (error: any) {
