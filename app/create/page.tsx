@@ -117,7 +117,7 @@ export default function CreatePage() {
   };
 
   const getPlanButtonText = () => {
-    if (selectedRestaurant && selectedActivity) return "View Full Plan";
+    if (selectedRestaurant && selectedActivity) return "View Your Full Plan";
     if (selectedRestaurant) return "View Dinner Plan";
     if (selectedActivity) return "View Activity Plan";
     return "View Your Plan";
@@ -509,7 +509,7 @@ export default function CreatePage() {
         <div className="fixed bottom-0 left-0 right-0 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
           <div className="mx-auto max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-500">
-              Building your plan
+              Building your plans
             </p>
 
             <p className="mt-1 text-sm font-bold">{selectedPlanText}</p>
