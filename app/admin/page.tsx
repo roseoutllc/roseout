@@ -32,17 +32,11 @@ export default function AdminDashboard() {
   }, []);
 
   if (loading) {
-    return (
-      <main className="min-h-screen bg-black p-6 text-white">Loading...</main>
-    );
+    return <main className="min-h-screen bg-black p-6 text-white">Loading...</main>;
   }
 
   if (unauthorized) {
-    return (
-      <main className="min-h-screen bg-black p-6 text-white">
-        Not authorized
-      </main>
-    );
+    return <main className="min-h-screen bg-black p-6 text-white">Not authorized</main>;
   }
 
   return (
@@ -53,14 +47,21 @@ export default function AdminDashboard() {
         <h1 className="text-4xl font-bold">RoseOut Admin Portal</h1>
 
         <p className="mt-3 text-neutral-400">
-          Manage restaurant approvals, QR invites, labels, and platform activity.
+          Manage approvals, claims, QR invites, labels, and platform activity.
         </p>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
+        <div className="mt-8 grid gap-6 md:grid-cols-4">
           <a href="/admin/restaurants" className="rounded-3xl bg-white p-6 text-black">
             <h2 className="text-2xl font-bold">Restaurants</h2>
             <p className="mt-2 text-neutral-600">
               Review, approve, reject, and feature listings.
+            </p>
+          </a>
+
+          <a href="/admin/claims" className="rounded-3xl bg-yellow-500 p-6 text-black">
+            <h2 className="text-2xl font-bold">Claims</h2>
+            <p className="mt-2 text-black/70">
+              Review restaurant and activity ownership claims.
             </p>
           </a>
 
