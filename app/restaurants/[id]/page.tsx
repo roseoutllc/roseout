@@ -1,35 +1,35 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+type PageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
 
-export default async function RestaurantPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const restaurantId = params.id;
+export default async function RestaurantPage({ params }: PageProps) {
+  const { id } = await params;
 
   const { data: restaurant, error } = await supabase
     .from("restaurants")
     .select("*")
-    .eq("id", restaurantId)
+    .eq("id", id)
+    .eq("status", "approved")
     .maybeSingle();
 
   if (error || !restaurant) {
     return (
       <main className="min-h-screen bg-black px-6 py-12 text-white">
         <div className="mx-auto max-w-3xl">
-          <Link href="/create" className="text-yellow-500">
+          <Link href="/create" className="text-sm font-semibold text-yellow-500">
             ← Back to RoseOut
           </Link>
 
           <div className="mt-8 rounded-3xl bg-white p-6 text-black">
             <h1 className="text-2xl font-bold">Restaurant Not Found</h1>
-            <p className="mt-2 text-neutral-600">ID: {restaurantId}</p>
+            <p className="mt-2 text-neutral-600">
+              This restaurant may not be approved or available yet.
+            </p>
           </div>
         </div>
       </main>
@@ -65,10 +65,6 @@ export default async function RestaurantPage({
               {restaurant.address}, {restaurant.city}, {restaurant.state}{" "}
               {restaurant.zip_code}
             </p>
-
-            <div className="mt-4 inline-block rounded-full bg-yellow-500 px-4 py-2 text-sm font-bold text-black">
-              RoseOut Score: {restaurant.roseout_score}
-            </div>
 
             {restaurant.description && (
               <p className="mt-6 text-neutral-700">
