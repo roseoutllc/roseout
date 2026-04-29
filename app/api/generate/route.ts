@@ -17,6 +17,9 @@ function scoreRestaurant(restaurant: any, input: string) {
   if (restaurant.noise_level && text.includes(restaurant.noise_level.toLowerCase())) score += 10;
   if (restaurant.price_range && text.includes(restaurant.price_range.toLowerCase())) score += 10;
 
+  if (restaurant.primary_tag && text.includes("romantic") && restaurant.primary_tag.toLowerCase().includes("romantic")) score += 25;
+  if (restaurant.date_style_tags?.some((tag: string) => text.includes(tag.toLowerCase()))) score += 20;
+
   if (text.includes("pizza") && restaurant.cuisine_type?.toLowerCase().includes("pizza")) score += 25;
   if (text.includes("romantic") && restaurant.atmosphere?.toLowerCase().includes("cozy")) score += 15;
   if (text.includes("quiet") && restaurant.noise_level?.toLowerCase().includes("quiet")) score += 15;
@@ -34,11 +37,18 @@ function scoreActivity(activity: any, input: string) {
   if (activity.atmosphere && text.includes(activity.atmosphere.toLowerCase())) score += 15;
   if (activity.price_range && text.includes(activity.price_range.toLowerCase())) score += 10;
 
+  if (activity.primary_tag && text.includes("fun") && activity.primary_tag.toLowerCase().includes("fun")) score += 25;
+  if (activity.date_style_tags?.some((tag: string) => text.includes(tag.toLowerCase()))) score += 20;
+
   if (text.includes("bowling") && activity.activity_type?.toLowerCase().includes("bowling")) score += 35;
   if (text.includes("axe") && activity.activity_type?.toLowerCase().includes("axe")) score += 35;
   if (text.includes("arcade") && activity.activity_type?.toLowerCase().includes("arcade")) score += 35;
   if (text.includes("karaoke") && activity.activity_type?.toLowerCase().includes("karaoke")) score += 35;
   if (text.includes("escape") && activity.activity_type?.toLowerCase().includes("escape")) score += 35;
+  if (text.includes("museum") && activity.activity_type?.toLowerCase().includes("museum")) score += 40;
+  if (text.includes("art") && activity.activity_type?.toLowerCase().includes("museum")) score += 25;
+  if (text.includes("culture") && activity.atmosphere?.toLowerCase().includes("cultural")) score += 20;
+  if (text.includes("quiet") && activity.atmosphere?.toLowerCase().includes("quiet")) score += 15;
   if (text.includes("fun") && activity.atmosphere?.toLowerCase().includes("fun")) score += 20;
   if (text.includes("group") && activity.group_friendly === true) score += 20;
 
@@ -56,16 +66,48 @@ export async function POST(req: Request) {
       return Response.json({ error: "Missing input" }, { status: 400 });
     }
 
+    const text = input.toLowerCase();
+
+    const wantsDinner =
+      text.includes("dinner") ||
+      text.includes("restaurant") ||
+      text.includes("food") ||
+      text.includes("eat") ||
+      text.includes("pizza") ||
+      text.includes("lunch") ||
+      text.includes("brunch");
+
+    const wantsActivity =
+      text.includes("bowling") ||
+      text.includes("axe") ||
+      text.includes("arcade") ||
+      text.includes("karaoke") ||
+      text.includes("museum") ||
+      text.includes("escape") ||
+      text.includes("mini golf") ||
+      text.includes("activity") ||
+      text.includes("activities");
+
+    const wantsFullOuting =
+      text.includes("date night") ||
+      text.includes("night out") ||
+      text.includes("outing") ||
+      text.includes("plan a date") ||
+      text.includes("full plan");
+
+    const shouldReturnRestaurants =
+      wantsDinner || wantsFullOuting || (!wantsDinner && !wantsActivity);
+
+    const shouldReturnActivities =
+      wantsActivity || wantsFullOuting;
+
     const { data: restaurants, error: restaurantError } = await supabase
       .from("restaurants")
       .select("*")
       .eq("status", "approved");
 
     if (restaurantError) {
-      return Response.json(
-        { error: restaurantError.message },
-        { status: 500 }
-      );
+      return Response.json({ error: restaurantError.message }, { status: 500 });
     }
 
     const { data: activities, error: activityError } = await supabase
@@ -74,10 +116,7 @@ export async function POST(req: Request) {
       .eq("status", "approved");
 
     if (activityError) {
-      return Response.json(
-        { error: activityError.message },
-        { status: 500 }
-      );
+      return Response.json({ error: activityError.message }, { status: 500 });
     }
 
     const rankedRestaurants = (restaurants || [])
@@ -94,8 +133,13 @@ export async function POST(req: Request) {
       }))
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
-    const topRestaurants = rankedRestaurants.slice(0, 5);
-    const topActivities = rankedActivities.slice(0, 5);
+    const topRestaurants = shouldReturnRestaurants
+      ? rankedRestaurants.slice(0, 5)
+      : [];
+
+    const topActivities = shouldReturnActivities
+      ? rankedActivities.slice(0, 5)
+      : [];
 
     const conversation = messages
       .map((m: any) => `${m.role}: ${m.content}`)
@@ -132,14 +176,6 @@ STRICT RULES:
 - If the user asks for dinner only, recommend restaurants only.
 - If the user asks for an activity only, recommend activities only.
 - If the user asks for a full outing/date night, recommend one restaurant and one activity.
-
-Follow-up behavior:
-- If user says “make it cheaper,” adjust the existing recommendation.
-- If user says “make it more fun,” focus on activities.
-- If user says “make it quieter,” focus on quieter options.
-- If user asks “why this one?” explain briefly.
-- If user asks “give me another option,” suggest one alternative from the list.
-- If user asks “what’s the address?” give only the address.
 `;
 
     const response = await openai.responses.create({
@@ -162,9 +198,10 @@ Follow-up behavior:
         reservation_link: r.reservation_link,
         website: r.website,
         image_url: r.image_url || null,
-        date_style_tags: r.date_style_tags || [],
+        rating: r.rating || null,
+        review_count: r.review_count || null,
         primary_tag: r.primary_tag || null,
-
+        date_style_tags: r.date_style_tags || [],
       })),
 
       activities: topActivities.map((a: any) => ({
@@ -182,9 +219,10 @@ Follow-up behavior:
         reservation_link: a.reservation_link,
         website: a.website,
         image_url: a.image_url || null,
-        date_style_tags: a.date_style_tags || [],
+        rating: a.rating || null,
+        review_count: a.review_count || null,
         primary_tag: a.primary_tag || null,
-
+        date_style_tags: a.date_style_tags || [],
       })),
     });
   } catch (error: any) {
