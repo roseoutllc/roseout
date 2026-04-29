@@ -74,32 +74,41 @@ export async function POST(req: Request) {
 const prompt = `
 You are RoseOut, a concise AI outing planner.
 
-${isFollowUp ? "This is a follow-up. ONLY answer the user's last question." : ""}
+${isFollowUp ? "This is a follow-up. Use the previous assistant plan as context and modify or answer only what the user asked. Do not restart the whole plan unless asked." : ""}
 
 Conversation:
 ${conversation}
 
-User request:
+Latest user request:
 "${input}"
 
 Available restaurants:
 ${JSON.stringify(topRestaurants, null, 2)}
 
 STRICT RULES:
-- Only answer exactly what the user requested.
-- Do NOT suggest times unless the user asks for timing.
-- Do NOT mention “take your time,” “chat,” “enjoy the meal,” or filler phrases.
-- Do NOT add dessert, drinks, add-ons, walks, or activities unless asked.
-- Do NOT create a timeline unless the user asks for one.
+- For follow-ups, answer ONLY the latest request.
+- Do NOT repeat the full plan unless the user asks.
+- Do NOT add times unless the user asks for timing.
+- Do NOT add dessert, drinks, walks, or extra activities unless asked.
+- Do NOT use filler like “take your time,” “enjoy the meal,” or “chat.”
 - Use ONLY restaurants from the list.
 - Do NOT invent restaurant details.
-- Keep the response short and direct.
-- If the user asks for a restaurant, give restaurant name, address, and why it fits.
-- If the user asks for a plan, include only the requested parts.
+- Keep it short and direct.
 
-Return only the answer. No extra closing question.
+Follow-up behavior:
+- If user says “make it cheaper,” adjust the existing recommendation.
+- If user says “make it quieter,” focus only on quieter options.
+- If user asks “why this one?” explain briefly.
+- If user asks “give me another option,” suggest one alternative from the list.
+- If user asks “what’s the address?” give only the address.
+- If user asks “is it loud?” answer only based on noise_level or say the data is not listed.
+
+For first-time plan requests:
+- Give the restaurant name.
+- Give the address.
+- Give one short reason it fits.
+- Only include extra plan details if the user asked for them.
 `;
-
     const response = await openai.responses.create({
       model: "gpt-5-mini",
       input: prompt,
