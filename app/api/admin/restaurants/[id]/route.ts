@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
@@ -6,7 +7,7 @@ const supabaseAdmin = createClient(
 );
 
 export async function GET(
-  req: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
@@ -25,11 +26,11 @@ export async function GET(
 }
 
 export async function PATCH(
-  req: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const body = await req.json();
+  const body = await request.json();
 
   const { error } = await supabaseAdmin
     .from("restaurants")
