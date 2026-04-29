@@ -277,19 +277,21 @@ export default function CreatePage() {
                                   </div>
 
                                   <div className="mt-5 flex flex-wrap gap-3">
-                                    <button
-                                      type="button"
-                                      onClick={() => setSelectedRestaurant(r)}
-                                      className={`rounded-full px-5 py-2.5 text-sm font-bold ${
-                                        isSelected
-                                          ? "bg-yellow-500 text-black"
-                                          : "border border-black text-black"
-                                      }`}
-                                    >
-                                      {isSelected
-                                        ? "Selected"
-                                        : "Select Restaurant"}
-                                    </button>
+                                <button
+  type="button"
+  onClick={() =>
+    setSelectedRestaurant(
+      selectedRestaurant?.id === r.id ? null : r
+    )
+  }
+  className={`rounded-full px-5 py-2.5 text-sm font-bold ${
+    isSelected
+      ? "bg-yellow-500 text-black"
+      : "border border-black text-black"
+  }`}
+>
+  {isSelected ? "Unselect" : "Select Restaurant"}
+</button>
 
                                     <a
                                       href={`/restaurants/${restaurantId}`}
@@ -420,19 +422,20 @@ export default function CreatePage() {
 
                                   <div className="mt-5 flex flex-wrap gap-3">
                                     <button
-                                      type="button"
-                                      onClick={() => setSelectedActivity(a)}
-                                      className={`rounded-full px-5 py-2.5 text-sm font-bold ${
-                                        isSelected
-                                          ? "bg-yellow-500 text-black"
-                                          : "border border-black text-black"
-                                      }`}
-                                    >
-                                      {isSelected
-                                        ? "Selected"
-                                        : "Select Activity"}
-                                    </button>
-
+  type="button"
+  onClick={() =>
+    setSelectedActivity(
+      selectedActivity?.id === a.id ? null : a
+    )
+  }
+  className={`rounded-full px-5 py-2.5 text-sm font-bold ${
+    isSelected
+      ? "bg-yellow-500 text-black"
+      : "border border-black text-black"
+  }`}
+>
+  {isSelected ? "Unselect" : "Select Activity"}
+</button>
                                     {a.website && (
                                       <a
                                         href={a.website}
