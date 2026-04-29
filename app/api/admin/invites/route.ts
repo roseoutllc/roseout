@@ -1,5 +1,10 @@
 import QRCode from "qrcode";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 function createInviteCode(name: string) {
   return (
@@ -23,13 +28,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
+
     const inviteCode = createInviteCode(body.restaurant_name);
-
-    const qrLink = `${process.env.NEXT_PUBLIC_SITE_URL}/restaurants/apply?invite=${inviteCode}`;
-
+    const qrLink = `${siteUrl}/restaurants/apply?invite=${inviteCode}`;
     const qrCodeDataUrl = await QRCode.toDataURL(qrLink);
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("restaurant_invites")
       .insert({
         restaurant_name: body.restaurant_name,
