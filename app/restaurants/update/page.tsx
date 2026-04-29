@@ -114,10 +114,6 @@ export default function RestaurantUpdatePage() {
 
         <h1 className="mt-6 text-4xl font-bold">Edit Restaurant Listing</h1>
 
-        <p className="mt-3 text-neutral-400">
-          Update your restaurant details for RoseOut recommendations.
-        </p>
-
         <div className="mt-8 space-y-4 rounded-3xl bg-white p-6 text-black">
           <input className="w-full rounded-xl border px-4 py-3" placeholder="Restaurant Name" value={restaurant.restaurant_name || ""} onChange={(e) => update("restaurant_name", e.target.value)} />
           <input className="w-full rounded-xl border px-4 py-3" placeholder="Street Address" value={restaurant.address || ""} onChange={(e) => update("address", e.target.value)} />
