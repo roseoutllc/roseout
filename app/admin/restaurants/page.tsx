@@ -12,47 +12,28 @@ export default function AdminRestaurantsPage() {
   const [message, setMessage] = useState("");
 
   const loadRestaurants = async () => {
-    const { data } = await supabase.auth.getUser();
-
-    if (!data.user) {
-      window.location.href = "/login";
-      return;
-    }
-
-    if (data.user.user_metadata?.role !== "superuser") {
-      setUnauthorized(true);
-      setLoading(false);
-      return;
-    }
-
-    const res = await fetch("/api/admin/restaurants");
-    const dataJson = await res.json();
-
     try {
-  const res = await fetch("/api/admin/restaurants");
-  const dataJson = await res.json();
+      const res = await fetch("/api/admin/restaurants");
+      const data = await res.json();
 
-  if (!res.ok) {
-    setMessage(dataJson.error || "Failed to load restaurants.");
-    setLoading(false);
-    return;
-  }
+      if (!res.ok) {
+        setMessage(data.error || "Failed to load restaurants.");
+        return;
+      }
 
-  setRestaurants(dataJson.restaurants || []);
-  setLoading(false);
-} catch (error) {
-  setMessage("Could not connect to admin restaurant API.");
-  setLoading(false);
-}
+      setRestaurants(data.restaurants || []);
+    } catch {
+      setMessage("Could not connect to admin restaurant API.");
+    }
   };
 
-  const updateStatus = async (id: string, status: string) => {
+  const updateRestaurant = async (id: string, updates: any) => {
     setMessage("");
 
     const res = await fetch("/api/admin/restaurants", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id, ...updates }),
     });
 
     const data = await res.json();
@@ -66,29 +47,6 @@ export default function AdminRestaurantsPage() {
     loadRestaurants();
   };
 
-  const toggleFeatured = async (id: string, current: boolean) => {
-    setMessage("");
-
-    const res = await fetch("/api/admin/restaurants", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id,
-        is_featured: !current,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      setMessage(data.error || "Featured update failed.");
-      return;
-    }
-
-    setMessage("Featured status updated.");
-    loadRestaurants();
-  };
-
   const printLabel = (r: any) => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -98,10 +56,7 @@ export default function AdminRestaurantsPage() {
         <head>
           <title>${r.restaurant_name} RoseOut QR Label</title>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-            }
+            body { font-family: Arial, sans-serif; padding: 20px; }
             .label {
               width: 320px;
               border: 1px solid #ddd;
@@ -109,38 +64,21 @@ export default function AdminRestaurantsPage() {
               padding: 18px;
               text-align: center;
             }
-            img {
-              width: 160px;
-              height: 160px;
-            }
-            h2 {
-              font-size: 20px;
-              margin: 12px 0 6px;
-            }
-            p {
-              font-size: 14px;
-              margin: 3px 0;
-            }
-            .small {
-              margin-top: 12px;
-              font-size: 12px;
-              font-weight: bold;
-            }
+            img { width: 160px; height: 160px; }
+            h2 { font-size: 20px; margin: 12px 0 6px; }
+            p { font-size: 14px; margin: 3px 0; }
+            .small { margin-top: 12px; font-size: 12px; font-weight: bold; }
           </style>
         </head>
         <body>
           <div class="label">
-            <img src="${r.qr_code_data_url}" />
+            <img src="${r.qr_code_data_url || ""}" />
             <h2>${r.restaurant_name || ""}</h2>
             <p>${r.address || ""}</p>
             <p>${r.city || ""}, ${r.state || ""} ${r.zip_code || ""}</p>
             <p class="small">Scan to manage your RoseOut listing</p>
           </div>
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
+          <script>window.onload = function() { window.print(); };</script>
         </body>
       </html>
     `);
@@ -149,23 +87,38 @@ export default function AdminRestaurantsPage() {
   };
 
   useEffect(() => {
-    loadRestaurants();
+    const init = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+
+        if (error || !data.user) {
+          window.location.href = "/login";
+          return;
+        }
+
+        if (data.user.user_metadata?.role !== "superuser") {
+          setUnauthorized(true);
+          setLoading(false);
+          return;
+        }
+
+        await loadRestaurants();
+        setLoading(false);
+      } catch {
+        setUnauthorized(true);
+        setLoading(false);
+      }
+    };
+
+    init();
   }, []);
 
   if (loading) {
-    return (
-      <main className="min-h-screen bg-black p-6 text-white">
-        Loading...
-      </main>
-    );
+    return <main className="min-h-screen bg-black p-6 text-white">Loading...</main>;
   }
 
   if (unauthorized) {
-    return (
-      <main className="min-h-screen bg-black p-6 text-white">
-        Not authorized
-      </main>
-    );
+    return <main className="min-h-screen bg-black p-6 text-white">Not authorized</main>;
   }
 
   return (
@@ -180,9 +133,7 @@ export default function AdminRestaurantsPage() {
         <h1 className="text-4xl font-bold">Manage Restaurants</h1>
 
         {message && (
-          <p className="mt-4 rounded-xl bg-white p-3 text-black">
-            {message}
-          </p>
+          <p className="mt-4 rounded-xl bg-white p-3 text-black">{message}</p>
         )}
 
         <div className="mt-8 space-y-6">
@@ -201,64 +152,57 @@ export default function AdminRestaurantsPage() {
                       {r.address}, {r.city}, {r.state} {r.zip_code}
                     </p>
 
-                    <p className="mt-2">
-                      <strong>Status:</strong> {r.status}
-                    </p>
+                    <p className="mt-2"><strong>Status:</strong> {r.status}</p>
+                    <p className="mt-2"><strong>Featured:</strong> {r.is_featured ? "Yes" : "No"}</p>
 
-                    <p className="mt-2">
-                      <strong>Featured:</strong>{" "}
-                      {r.is_featured ? "Yes" : "No"}
-                    </p>
+                    {r.description && <p className="mt-4 leading-7">{r.description}</p>}
 
-                    {r.description && (
-                      <p className="mt-4 leading-7">{r.description}</p>
-                    )}
+                    <div className="mt-4 grid gap-2 text-sm text-neutral-700">
+                      {r.email && <p><strong>Email:</strong> {r.email}</p>}
+                      {r.phone && <p><strong>Phone:</strong> {r.phone}</p>}
+                      {r.cuisine_type && <p><strong>Cuisine:</strong> {r.cuisine_type}</p>}
+                      {r.price_range && <p><strong>Price:</strong> {r.price_range}</p>}
+                      {r.hours_of_operation && <p><strong>Hours:</strong> {r.hours_of_operation}</p>}
+                      {r.kitchen_closing_time && <p><strong>Kitchen closes:</strong> {r.kitchen_closing_time}</p>}
+                    </div>
 
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button
-                        onClick={() => updateStatus(r.id, "approved")}
+                        onClick={() => updateRestaurant(r.id, { status: "approved" })}
                         className="rounded-xl bg-green-600 px-4 py-2 text-white"
                       >
                         Approve
                       </button>
 
                       <button
-                        onClick={() => updateStatus(r.id, "rejected")}
+                        onClick={() => updateRestaurant(r.id, { status: "rejected" })}
                         className="rounded-xl bg-red-600 px-4 py-2 text-white"
                       >
                         Reject
                       </button>
 
                       <button
-                        onClick={() => toggleFeatured(r.id, r.is_featured)}
+                        onClick={() => updateRestaurant(r.id, { is_featured: !r.is_featured })}
                         className={`rounded-xl px-4 py-2 ${
-                          r.is_featured
-                            ? "bg-yellow-500 text-black"
-                            : "bg-neutral-900 text-white"
+                          r.is_featured ? "bg-yellow-500 text-black" : "bg-neutral-900 text-white"
                         }`}
                       >
                         {r.is_featured ? "Remove Featured" : "Make Featured"}
                       </button>
 
                       <a href={mapsLink} target="_blank">
-                        <button className="rounded-xl bg-black px-4 py-2 text-white">
-                          Open Maps
-                        </button>
+                        <button className="rounded-xl bg-black px-4 py-2 text-white">Open Maps</button>
                       </a>
 
                       {r.website && (
                         <a href={r.website} target="_blank">
-                          <button className="rounded-xl bg-black px-4 py-2 text-white">
-                            Website
-                          </button>
+                          <button className="rounded-xl bg-black px-4 py-2 text-white">Website</button>
                         </a>
                       )}
 
                       {r.reservation_link && (
                         <a href={r.reservation_link} target="_blank">
-                          <button className="rounded-xl bg-black px-4 py-2 text-white">
-                            Reservation
-                          </button>
+                          <button className="rounded-xl bg-black px-4 py-2 text-white">Reservation</button>
                         </a>
                       )}
                     </div>
@@ -280,9 +224,7 @@ export default function AdminRestaurantsPage() {
                             {r.restaurant_name}
                           </h4>
 
-                          <p className="mt-1 text-sm leading-tight">
-                            {r.address}
-                          </p>
+                          <p className="mt-1 text-sm leading-tight">{r.address}</p>
 
                           <p className="text-sm leading-tight">
                             {r.city}, {r.state} {r.zip_code}

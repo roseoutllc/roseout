@@ -19,45 +19,10 @@ export default function AdminInvitesPage() {
   const [qrLink, setQrLink] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-const [unauthorized, setUnauthorized] = useState(false);
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getUser();
-
-     if (!data.user) {
-  window.location.href = "/login";
-  return;
-}
-
-if (data.user.user_metadata?.role !== "superuser") {
-  setUnauthorized(true);
-  setLoading(false);
-  return;
-}
-    };
-
-    checkUser();
-  }, []);
-  
-  if (loading) {
-  return (
-    <main className="min-h-screen bg-black p-6 text-white">
-      Loading...
-    </main>
-  );
-}
-
-if (unauthorized) {
-  return (
-    <main className="min-h-screen bg-black p-6 text-white">
-      Not authorized
-    </main>
-  );
-}
+  const [unauthorized, setUnauthorized] = useState(false);
 
   const update = (key: string, value: string) => {
-    setForm({ ...form, [key]: value });
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const createInvite = async () => {
@@ -76,7 +41,7 @@ if (unauthorized) {
     const data = await res.json();
 
     if (!res.ok) {
-      setMessage(`Error: ${data.error || "Could not create invite"}`);
+      setMessage(data.error || "Could not create invite.");
       return;
     }
 
@@ -84,6 +49,40 @@ if (unauthorized) {
     setQrLink(data.invite.qr_link);
     setMessage("QR invite created successfully.");
   };
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+
+        if (error || !data.user) {
+          window.location.href = "/login";
+          return;
+        }
+
+        if (data.user.user_metadata?.role !== "superuser") {
+          setUnauthorized(true);
+          setLoading(false);
+          return;
+        }
+
+        setLoading(false);
+      } catch {
+        setUnauthorized(true);
+        setLoading(false);
+      }
+    };
+
+    init();
+  }, []);
+
+  if (loading) {
+    return <main className="min-h-screen bg-black p-6 text-white">Loading...</main>;
+  }
+
+  if (unauthorized) {
+    return <main className="min-h-screen bg-black p-6 text-white">Not authorized</main>;
+  }
 
   return (
     <main className="min-h-screen bg-black px-6 py-12 text-white">
