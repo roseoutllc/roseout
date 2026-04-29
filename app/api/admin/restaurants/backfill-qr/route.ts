@@ -48,6 +48,14 @@ export async function POST(req: Request) {
     if (!updateError) updated++;
   }
 
+  if (process.env.NODE_ENV === "development") {
+  // skip secret check locally
+} else {
+  if (secret !== process.env.IMPORT_SECRET) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+}
+
   return Response.json({
     success: true,
     updated,
