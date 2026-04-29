@@ -7,7 +7,8 @@ export default function AuthCallbackPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    const finishLogin = async () => {
+    const run = async () => {
+      // STEP 1: exchange code for session
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
 
@@ -15,6 +16,7 @@ export default function AuthCallbackPage() {
         await supabase.auth.exchangeCodeForSession(code);
       }
 
+      // STEP 2: get user
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
@@ -22,11 +24,13 @@ export default function AuthCallbackPage() {
         return;
       }
 
+      // STEP 3: admin check
       if (userData.user.user_metadata?.role === "superuser") {
         window.location.href = "/admin";
         return;
       }
 
+      // STEP 4: check if restaurant exists
       const { data: restaurant } = await supabase
         .from("restaurants")
         .select("id")
@@ -38,10 +42,11 @@ export default function AuthCallbackPage() {
         return;
       }
 
+      // STEP 5: fallback
       window.location.href = "/restaurants/apply";
     };
 
-    finishLogin();
+    run();
   }, []);
 
   return (
