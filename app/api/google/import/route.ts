@@ -119,9 +119,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const rows = (data.places || []).map((place: any) => {
-      const addressParts = place.formattedAddress?.split(",") || [];
-
+    const rows = (data.places || [])
+  .filter((place: any) => isValidPlace(place, type)) // 👈 ADD THIS LINE
+  .map((place: any) => {
+    
       return {
         restaurant_name:
           type === "restaurant" ? place.displayName?.text || "" : null,
