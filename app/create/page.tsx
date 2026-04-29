@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type RestaurantCard = {
   id: string;
@@ -23,6 +23,8 @@ type Message = {
 };
 
 export default function CreatePage() {
+  const router = useRouter();
+
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -106,10 +108,10 @@ export default function CreatePage() {
               {msg.role === "assistant" && msg.restaurants?.length ? (
                 <div className="mt-5 grid gap-4">
                   {msg.restaurants.map((r) => (
-                    <Link
-                      href={`/restaurants/${r.id}`}
+                    <div
                       key={r.id}
-                      className="block cursor-pointer overflow-hidden rounded-2xl border bg-neutral-50 transition hover:scale-[1.01] hover:shadow-xl"
+                      onClick={() => router.push(`/restaurants/${r.id}`)}
+                      className="cursor-pointer overflow-hidden rounded-2xl border bg-neutral-50 transition hover:scale-[1.01] hover:shadow-xl"
                     >
                       {r.image_url ? (
                         <img
@@ -154,12 +156,19 @@ export default function CreatePage() {
                             </a>
                           )}
 
-                          <span className="rounded-xl border border-black px-4 py-2 text-sm font-semibold text-black">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/restaurants/${r.id}`);
+                            }}
+                            className="rounded-xl border border-black px-4 py-2 text-sm font-semibold text-black"
+                          >
                             View Details
-                          </span>
+                          </button>
                         </div>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               ) : null}
