@@ -47,6 +47,12 @@ function getPhotoUrl(place: any) {
 }
 
 export async function POST(req: Request) {
+    const secret = req.headers.get("x-internal-import-secret");
+
+  if (secret !== process.env.IMPORT_SECRET) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { query = "restaurants in Queens NY", type = "restaurant" } =
       await req.json();
@@ -54,6 +60,7 @@ export async function POST(req: Request) {
     const res = await fetch(
       "https://places.googleapis.com/v1/places:searchText",
       {
+        
         method: "POST",
         headers: {
           "Content-Type": "application/json",
