@@ -251,15 +251,13 @@ const aiActivityScores = {};
 const rankedRestaurants = (restaurants || [])
   .map((restaurant: any) => {
     const ruleScore = scoreRestaurant(restaurant, input);
-    const ratingBoost = restaurant.rating ? restaurant.rating * 5 : 0;
-    const reviewBoost = restaurant.review_count
-      ? Math.min(Math.log10(restaurant.review_count + 1) * 10, 25)
-      : 0;
+    const qualityScore = restaurant.quality_score || 0;
+const popularityScore = restaurant.popularity_score || 0;
 
-    const finalScore =
-  ruleScore * 0.75 +
-  ratingBoost * 0.2 +
-  reviewBoost * 0.05;
+const finalScore =
+  ruleScore * 0.7 +
+  qualityScore * 0.2 +
+  popularityScore * 0.1;
 
     return {
       ...restaurant,
@@ -271,16 +269,13 @@ const rankedRestaurants = (restaurants || [])
     const rankedActivities = (filteredActivities || [])
   .map((activity: any) => {
     const ruleScore = scoreActivity(activity, input);
-    const ratingBoost = activity.rating ? activity.rating * 5 : 0;
-    const reviewBoost = activity.review_count
-      ? Math.min(Math.log10(activity.review_count + 1) * 10, 25)
-      : 0;
+    const qualityScore = activity.quality_score || 0;
+const popularityScore = activity.popularity_score || 0;
 
-      const finalScore =
-  ruleScore * 0.75 +
-  ratingBoost * 0.2 +
-  reviewBoost * 0.05;
-
+const finalScore =
+  ruleScore * 0.7 +
+  qualityScore * 0.2 +
+  popularityScore * 0.1;
     return {
       ...activity,
       roseout_score: Math.round(Math.min(finalScore, 100)),
