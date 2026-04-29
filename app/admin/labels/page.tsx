@@ -57,46 +57,106 @@ export default function AdminLabelsPage() {
     if (!printWindow) return;
 
     const labelsHtml = selectedRestaurants
-      .map(
-        (r) => `
-          <div class="label">
-            <img src="${r.qr_code_data_url || ""}" />
-            <div class="text">
-              <h2>${r.restaurant_name || ""}</h2>
-              <p>${r.address || ""}</p>
-              <p>${r.city || ""}, ${r.state || ""} ${r.zip_code || ""}</p>
-              <p class="small">Scan to manage your RoseOut listing</p>
-            </div>
-          </div>
-        `
-      )
-      .join("");
+  .map(
+    (r) => `
+      <div class="label">
+        <div class="qr-section">
+          <img src="${r.qr_code_data_url || ""}" />
+          <p class="scan-text">Scan to claim & manage</p>
+        </div>
+
+        <div class="text">
+          <h2>${r.restaurant_name || ""}</h2>
+
+          <p class="address">
+            ${r.address || ""}
+          </p>
+
+          <p class="address">
+            ${r.city || ""}, ${r.state || ""} ${r.zip_code || ""}
+          </p>
+
+          <p class="brand">Powered by RoseOut</p>
+        </div>
+      </div>
+    `
+  )
+  .join("");
 
     printWindow.document.write(`
       <html>
         <head>
           <title>RoseOut Restaurant Labels</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .sheet { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-            .label {
-              display: flex;
-              align-items: center;
-              gap: 14px;
-              border: 1px solid #ddd;
-              border-radius: 12px;
-              padding: 14px;
-              min-height: 140px;
-              break-inside: avoid;
-            }
-            img { width: 110px; height: 110px; }
-            h2 { margin: 0 0 6px; font-size: 18px; }
-            p { margin: 3px 0; font-size: 13px; }
-            .small { margin-top: 8px; font-size: 11px; font-weight: bold; }
-            @media print {
-              body { padding: 0; }
-              .label { page-break-inside: avoid; }
-            }
+            <style>
+  body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+  }
+
+  .sheet {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+
+  .label {
+    display: flex;
+    gap: 16px;
+    border: 1px solid #ddd;
+    border-radius: 14px;
+    padding: 16px;
+    min-height: 150px;
+    align-items: center;
+    background: white;
+  }
+
+  .qr-section {
+    text-align: center;
+  }
+
+  img {
+    width: 110px;
+    height: 110px;
+  }
+
+  .scan-text {
+    margin-top: 6px;
+    font-size: 10px;
+    font-weight: bold;
+  }
+
+  .text {
+    flex: 1;
+  }
+
+  h2 {
+    margin: 0 0 6px;
+    font-size: 18px;
+  }
+
+  .address {
+    margin: 2px 0;
+    font-size: 13px;
+  }
+
+  .brand {
+    margin-top: 10px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #888;
+  }
+
+  @media print {
+    body {
+      padding: 0;
+    }
+
+    .label {
+      page-break-inside: avoid;
+    }
+  }
+</style>
           </style>
         </head>
         <body>
