@@ -83,8 +83,6 @@ export default function CreatePage() {
     }
   };
 
-  const filters = ["Quiet", "Romantic", "Cheap", "Pizza", "Upscale"];
-
   return (
     <main className="min-h-screen bg-black px-6 py-16 text-white">
       <div className="mx-auto max-w-2xl">
@@ -115,8 +113,7 @@ export default function CreatePage() {
                   </p>
 
                   <p className="mt-1 text-sm font-medium text-neutral-600">
-                    Top Matches for You · {msg.restaurants.length} great
-                    options near you
+                    Top Matches for You · {msg.restaurants.length} great options near you
                   </p>
 
                   <div className="mt-5 grid gap-4">
@@ -195,8 +192,7 @@ export default function CreatePage() {
                                 </p>
 
                                 <p className="mt-2 rounded-xl bg-red-100 p-3 text-sm font-semibold text-red-700">
-                                  Missing restaurant ID. Your API needs to
-                                  return id or restaurant_id.
+                                  Missing restaurant ID. Your API needs to return id or restaurant_id.
                                 </p>
                               </div>
                             </div>
@@ -248,21 +244,6 @@ export default function CreatePage() {
           }
           className="mt-6 w-full rounded-2xl border border-neutral-700 bg-black px-4 py-4 text-white placeholder-neutral-500 focus:outline-none"
         />
-
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
-          {filters.map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() =>
-                setInput((prev) => (prev ? `${prev} ${filter}` : filter))
-              }
-              className="whitespace-nowrap rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-300 transition hover:border-yellow-500 hover:bg-yellow-500 hover:text-black"
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
 
         <button
           onClick={sendMessage}
