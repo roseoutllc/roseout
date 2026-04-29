@@ -255,7 +255,6 @@ const rankedRestaurants = (restaurants || [])
     const reviewBoost = restaurant.review_count
       ? Math.min(Math.log10(restaurant.review_count + 1) * 10, 25)
       : 0;
-    const aiScore = aiRestaurantScores[String(restaurant.id)] || 0;
 
     const finalScore =
   ruleScore * 0.75 +
@@ -276,7 +275,6 @@ const rankedRestaurants = (restaurants || [])
     const reviewBoost = activity.review_count
       ? Math.min(Math.log10(activity.review_count + 1) * 10, 25)
       : 0;
-    const aiScore = aiActivityScores[String(activity.id)] || 0;
 
       const finalScore =
   ruleScore * 0.75 +
