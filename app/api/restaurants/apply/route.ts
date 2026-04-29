@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req: Request) {
   try {
@@ -13,12 +14,32 @@ export async function POST(req: Request) {
     }
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "http://https://roseout.vercel.app/";
+      process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
 
-    const qrLink = `${siteUrl}/restaurants/${encodeURIComponent(
-      body.restaurant_name
-    )}`;
+    // Create or find user
+    const tempPassword = Math.random().toString(36).slice(-10) + "Aa1!";
 
+    const { data: createdUser } =
+      await supabaseAdmin.auth.admin.createUser({
+        email: body.email,
+        password: tempPassword,
+        email_confirm: true,
+      });
+
+    let ownerUserId = createdUser?.user?.id || null;
+
+    if (!ownerUserId) {
+      const { data: usersData } =
+        await supabaseAdmin.auth.admin.listUsers();
+
+      const existingUser = usersData.users.find(
+        (user) => user.email?.toLowerCase() === body.email.toLowerCase()
+      );
+
+      ownerUserId = existingUser?.id || null;
+    }
+
+    const qrLink = `${siteUrl}/restaurants/dashboard`;
     const qrCodeDataUrl = await QRCode.toDataURL(qrLink);
 
     const { error } = await supabase.from("restaurants").insert({
@@ -31,19 +52,14 @@ export async function POST(req: Request) {
       description: body.description,
       qr_link: qrLink,
       qr_code_data_url: qrCodeDataUrl,
+      owner_user_id: ownerUserId,
+      owner_email: body.email,
       status: "pending",
     });
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
     }
-
-    await supabase.auth.signInWithOtp({
-  email: body.email,
-  options: {
-    emailRedirectTo: `${siteUrl}/restaurants/dashboard`,
-  },
-});
 
     await supabase.auth.signInWithOtp({
       email: body.email,
