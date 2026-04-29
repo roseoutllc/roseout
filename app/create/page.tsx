@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type RestaurantCard = {
   id: string;
@@ -63,7 +64,6 @@ export default function CreatePage() {
         return;
       }
 
-      // ✅ FIXED: define assistantReply before using it
       const assistantReply =
         data.reply || data.message || data.answer || "";
 
@@ -103,13 +103,13 @@ export default function CreatePage() {
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
 
-              {msg.role === "assistant" &&
-              msg.restaurants?.length ? (
+              {msg.role === "assistant" && msg.restaurants?.length ? (
                 <div className="mt-5 grid gap-4">
                   {msg.restaurants.map((r) => (
-                    <div
+                    <Link
+                      href={`/restaurants/${r.id}`}
                       key={r.id}
-                      className="overflow-hidden rounded-2xl border bg-neutral-50"
+                      className="block cursor-pointer overflow-hidden rounded-2xl border bg-neutral-50 transition hover:scale-[1.01] hover:shadow-xl"
                     >
                       {r.image_url ? (
                         <img
@@ -118,7 +118,7 @@ export default function CreatePage() {
                           className="h-44 w-full object-cover"
                         />
                       ) : (
-                        <div className="flex h-44 items-center justify-center bg-neutral-200 text-sm text-neutral-500">
+                        <div className="flex h-44 w-full items-center justify-center bg-neutral-200 text-sm text-neutral-500">
                           No image available
                         </div>
                       )}
@@ -126,7 +126,7 @@ export default function CreatePage() {
                       <div className="p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <h3 className="text-xl font-bold">
+                            <h3 className="text-xl font-bold text-black">
                               {r.restaurant_name}
                             </h3>
 
@@ -147,21 +147,19 @@ export default function CreatePage() {
                               href={r.reservation_link}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white"
                             >
-                              <button className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white">
-                                Reserve
-                              </button>
+                              Reserve
                             </a>
                           )}
 
-                          <a href={`/restaurants/${r.id}`}>
-                            <button className="rounded-xl border border-black px-4 py-2 text-sm font-semibold text-black">
-                              View Details
-                            </button>
-                          </a>
+                          <span className="rounded-xl border border-black px-4 py-2 text-sm font-semibold text-black">
+                            View Details
+                          </span>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : null}
@@ -170,9 +168,7 @@ export default function CreatePage() {
         </div>
 
         {loading && (
-          <p className="mt-6 text-center text-neutral-400">
-            Thinking...
-          </p>
+          <p className="mt-6 text-center text-neutral-400">Thinking...</p>
         )}
 
         {error && (
@@ -197,11 +193,7 @@ export default function CreatePage() {
           disabled={loading}
           className="mt-4 w-full rounded-2xl bg-yellow-500 px-6 py-3 font-bold text-black disabled:opacity-50"
         >
-          {loading
-            ? "Thinking..."
-            : messages.length
-            ? "Send"
-            : "Create Plan"}
+          {loading ? "Thinking..." : messages.length ? "Send" : "Create Plan"}
         </button>
       </div>
     </main>
