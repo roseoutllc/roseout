@@ -5,6 +5,7 @@ function buildTags(place: any) {
 
   if (place.rating >= 4.5) tags.push("Highly Rated");
   if (place.priceLevel === "PRICE_LEVEL_INEXPENSIVE") tags.push("Budget");
+
   if (
     place.priceLevel === "PRICE_LEVEL_EXPENSIVE" ||
     place.priceLevel === "PRICE_LEVEL_VERY_EXPENSIVE"
@@ -27,6 +28,16 @@ function getPrimaryTag(place: any) {
   return "Popular Local Spot";
 }
 
+function getActivityType(place: any) {
+  if (place.types?.includes("museum")) return "Museum";
+  if (place.types?.includes("bowling_alley")) return "Bowling";
+  if (place.types?.includes("amusement_center")) return "Arcade";
+  if (place.types?.includes("movie_theater")) return "Movie";
+  if (place.types?.includes("art_gallery")) return "Art Gallery";
+
+  return "Activity";
+}
+
 function getPhotoUrl(place: any) {
   const photoName = place.photos?.[0]?.name;
 
@@ -40,19 +51,22 @@ export async function POST(req: Request) {
     const { query = "restaurants in Queens NY", type = "restaurant" } =
       await req.json();
 
-    const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": process.env.GOOGLE_PLACES_API_KEY!,
-        "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.websiteUri,places.googleMapsUri,places.photos",
-      },
-      body: JSON.stringify({
-        textQuery: query,
-        maxResultCount: 10,
-      }),
-    });
+    const res = await fetch(
+      "https://places.googleapis.com/v1/places:searchText",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": process.env.GOOGLE_PLACES_API_KEY!,
+          "X-Goog-FieldMask":
+            "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.websiteUri,places.googleMapsUri,places.photos",
+        },
+        body: JSON.stringify({
+          textQuery: query,
+          maxResultCount: 10,
+        }),
+      }
+    );
 
     const data = await res.json();
 
@@ -69,8 +83,11 @@ export async function POST(req: Request) {
       return {
         restaurant_name:
           type === "restaurant" ? place.displayName?.text || "" : null,
+
         activity_name:
           type === "activity" ? place.displayName?.text || "" : null,
+
+        activity_type: getActivityType(place),
 
         address: addressParts[0]?.trim() || place.formattedAddress || "",
         city: addressParts[1]?.trim() || "",
@@ -97,13 +114,7 @@ export async function POST(req: Request) {
       type === "activity"
         ? rows.map((r: any) => ({
             activity_name: r.activity_name,
-            activity_type: place.types?.includes("museum")
-  ? "Museum"
-  : place.types?.includes("bowling_alley")
-  ? "Bowling"
-  : place.types?.includes("amusement_center")
-  ? "Arcade"
-  : "Activity",
+            activity_type: r.activity_type,
             address: r.address,
             city: r.city,
             state: r.state,
