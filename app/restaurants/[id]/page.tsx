@@ -1,29 +1,39 @@
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-
-type PageProps = {
-  params: {
-    id: string;
-  };
-};
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default async function RestaurantPage({ params }: PageProps) {
+export default async function RestaurantPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const restaurantId = params.id;
 
   const { data: restaurant, error } = await supabase
     .from("restaurants")
     .select("*")
-    .or(`id.eq.${restaurantId},restaurant_id.eq.${restaurantId}`)
+    .eq("id", restaurantId)
     .maybeSingle();
 
   if (error || !restaurant) {
-    notFound();
+    return (
+      <main className="min-h-screen bg-black px-6 py-12 text-white">
+        <div className="mx-auto max-w-3xl">
+          <Link href="/create" className="text-yellow-500">
+            ← Back to RoseOut
+          </Link>
+
+          <div className="mt-8 rounded-3xl bg-white p-6 text-black">
+            <h1 className="text-2xl font-bold">Restaurant Not Found</h1>
+            <p className="mt-2 text-neutral-600">ID: {restaurantId}</p>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
