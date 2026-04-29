@@ -30,7 +30,11 @@ const GOOGLE_IMPORT_QUERIES = [
   { query: "things to do in Suffolk County NY", type: "activity" },
   { query: "fun activities in Suffolk County NY", type: "activity" },
 ];
-
+export async function GET() {
+  return Response.json({
+    message: "Use POST to trigger import",
+  });
+}
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
