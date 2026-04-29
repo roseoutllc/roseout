@@ -7,12 +7,14 @@ const supabaseAdmin = createClient(
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params;
+
   const { data, error } = await supabaseAdmin
     .from("restaurants")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (error) {
@@ -24,14 +26,15 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params;
   const body = await req.json();
 
   const { error } = await supabaseAdmin
     .from("restaurants")
     .update(body)
-    .eq("id", params.id);
+    .eq("id", id);
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
