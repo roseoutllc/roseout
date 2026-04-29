@@ -14,9 +14,15 @@ export default function AdminDashboard() {
       const { data } = await supabase.auth.getUser();
 
       if (!data.user) {
-        window.location.href = "/login";
-        return;
-      }
+  window.location.href = "/login";
+  return;
+}
+
+if (data.user.user_metadata?.role !== "superuser") {
+  setUnauthorized(true);
+  setLoading(false);
+  return;
+}
 
       // 🔥 CHECK ADMIN ROLE
       if (data.user.user_metadata?.role !== "superuser") {

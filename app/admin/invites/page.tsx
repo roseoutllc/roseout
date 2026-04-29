@@ -23,9 +23,16 @@ export default function AdminInvitesPage() {
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser();
 
-      if (!data.user) {
-        window.location.href = "/login";
-      }
+     if (!data.user) {
+  window.location.href = "/login";
+  return;
+}
+
+if (data.user.user_metadata?.role !== "superuser") {
+  setUnauthorized(true);
+  setLoading(false);
+  return;
+}
     };
 
     checkUser();
