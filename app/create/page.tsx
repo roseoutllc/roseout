@@ -150,6 +150,11 @@ export default function CreatePage() {
 
                           <div className="p-5">
                             <div>
+                                  {r.roseout_score >= 80 && (
+      <div className="mb-3 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-yellow-700">
+        Top 10% Match
+      </div>
+    )}
                               <h3 className="text-2xl font-bold text-black">
                                 {r.restaurant_name}
                               </h3>
