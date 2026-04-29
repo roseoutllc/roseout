@@ -27,7 +27,7 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      await fetch("/api/auth/link-restaurant", {
+      const res = await fetch("/api/auth/link-restaurant", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -37,6 +37,11 @@ export default function AuthCallbackPage() {
           email: data.user.email,
         }),
       });
+
+      if (!res.ok) {
+        window.location.href = "/restaurants/apply";
+        return;
+      }
 
       window.location.href = "/restaurants/dashboard";
     };

@@ -1,13 +1,18 @@
-import { supabase } from "@/lib/supabase";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-export async function POST(req: Request) {
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const email = body.email;
 
-    if (!email) {
-      return Response.json(
-        { error: "Missing email" },
+    if (!body.email) {
+      return NextResponse.json(
+        { error: "Email is required." },
         { status: 400 }
       );
     }
@@ -15,27 +20,24 @@ export async function POST(req: Request) {
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
+    const { error } = await supabaseAdmin.auth.signInWithOtp({
+      email: body.email,
       options: {
         emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     });
 
     if (error) {
-      return Response.json(
-        { error: error.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
-      message: "Login link sent to your email.",
+      message: "Login link sent.",
     });
   } catch (error: any) {
-    return Response.json(
-      { error: error.message || "Server error" },
+    return NextResponse.json(
+      { error: error.message || "Server error." },
       { status: 500 }
     );
   }

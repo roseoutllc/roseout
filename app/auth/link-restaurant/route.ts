@@ -7,25 +7,57 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  try {
+    const body = await req.json();
 
-  if (!body.userId || !body.email) {
-    return NextResponse.json({ error: "Missing user info" }, { status: 400 });
+    if (!body.userId || !body.email) {
+      return NextResponse.json(
+        { error: "Missing user info." },
+        { status: 400 }
+      );
+    }
+
+    const email = body.email.toLowerCase();
+
+    const { data: restaurant } = await supabaseAdmin
+      .from("restaurants")
+      .select("id")
+      .ilike("email", email)
+      .maybeSingle();
+
+    if (!restaurant) {
+      return NextResponse.json(
+        { error: "No restaurant found for this email." },
+        { status: 404 }
+      );
+    }
+
+    const { error: updateRestaurantError } = await supabaseAdmin
+      .from("restaurants")
+      .update({
+        owner_user_id: body.userId,
+        owner_email: email,
+      })
+      .eq("id", restaurant.id);
+
+    if (updateRestaurantError) {
+      return NextResponse.json(
+        { error: updateRestaurantError.message },
+        { status: 500 }
+      );
+    }
+
+    await supabaseAdmin.auth.admin.updateUserById(body.userId, {
+      user_metadata: {
+        role: "restaurants",
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Server error." },
+      { status: 500 }
+    );
   }
-
-  await supabaseAdmin
-    .from("restaurants")
-    .update({
-      owner_user_id: body.userId,
-      owner_email: body.email,
-    })
-    .ilike("email", body.email);
-
-  await supabaseAdmin.auth.admin.updateUserById(body.userId, {
-    user_metadata: {
-      role: "restaurants",
-    },
-  });
-
-  return NextResponse.json({ success: true });
 }

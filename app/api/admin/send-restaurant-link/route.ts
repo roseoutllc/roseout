@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
@@ -5,32 +6,38 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
+    const body = await req.json();
 
-    if (!email) {
-      return Response.json({ error: "Email required." }, { status: 400 });
+    if (!body.email) {
+      return NextResponse.json(
+        { error: "Email is required." },
+        { status: 400 }
+      );
     }
 
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
 
     const { error } = await supabaseAdmin.auth.signInWithOtp({
-      email,
+      email: body.email,
       options: {
         emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     });
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return Response.json({ success: true });
-  } catch (err: any) {
-    return Response.json(
-      { error: err.message || "Server error" },
+    return NextResponse.json({
+      success: true,
+      message: "Restaurant login link sent.",
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Server error." },
       { status: 500 }
     );
   }
