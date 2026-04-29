@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import AdminTopBar from "@/app/admin/components/AdminTopBar";
 
+type ClaimStatus = "pending" | "rejected" | "unclaimed" | "claimed";
+
 export default function AdminRestaurantsPage() {
   const supabase = createClient();
 
   const [restaurants, setRestaurants] = useState<any[]>([]);
-  const [restaurantClaims, setRestaurantClaims] = useState<any[]>([]);
-  const [activityClaims, setActivityClaims] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
 
@@ -28,301 +28,215 @@ export default function AdminRestaurantsPage() {
         return;
       }
 
-      const [restaurantsRes, claimsRes] = await Promise.all([
-        fetch("/api/admin/restaurants"),
-        fetch("/api/admin/claims"),
-      ]);
-
-      const restaurantsJson = await restaurantsRes.json();
-      const claimsJson = await claimsRes.json();
-
-      setRestaurants(restaurantsJson.restaurants || []);
-      setRestaurantClaims(claimsJson.restaurantClaims || []);
-      setActivityClaims(claimsJson.activityClaims || []);
-      setLoading(false);
+      fetchRestaurants();
     };
 
     init();
   }, []);
 
-  const updateClaim = async (id: string, type: string, status: string) => {
-    await fetch("/api/admin/claims/update", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id, type, status }),
-    });
+  const fetchRestaurants = async () => {
+    setLoading(true);
 
-    if (type === "restaurant") {
-      setRestaurantClaims((prev) =>
-        prev.map((claim) =>
-          claim.id === id ? { ...claim, status } : claim
+    const { data, error } = await supabase
+      .from("restaurants")
+      .select(
+        `
+        *,
+        restaurant_claims (
+          id,
+          status,
+          owner_name,
+          owner_email,
+          owner_phone,
+          created_at
         )
-      );
+      `
+      )
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error loading restaurants:", error);
+    } else {
+      setRestaurants(data || []);
     }
 
-    if (type === "activity") {
-      setActivityClaims((prev) =>
-        prev.map((claim) =>
-          claim.id === id ? { ...claim, status } : claim
-        )
-      );
-    }
+    setLoading(false);
   };
 
- const getClaimStatus = (restaurantId: string) => {
-  const claims = restaurantClaims.filter(
-    (claim) => claim.restaurant_id === restaurantId
-  );
+  const getClaimStatus = (restaurant: any): ClaimStatus => {
+    const claims = restaurant.restaurant_claims || [];
 
-  if (claims.length === 0) return "unclaimed";
+    if (claims.some((claim: any) => claim.status === "pending")) {
+      return "pending";
+    }
 
-  if (claims.some((claim) => claim.status === "pending")) return "pending";
-  if (claims.some((claim) => claim.status === "approved")) return "claimed";
-  if (claims.some((claim) => claim.status === "rejected")) return "rejected";
+    if (claims.some((claim: any) => claim.status === "claimed")) {
+      return "claimed";
+    }
 
-  return "unclaimed";
-};
+    if (claims.some((claim: any) => claim.status === "rejected")) {
+      return "rejected";
+    }
+
+    return "unclaimed";
+  };
+
+  const getPendingClaim = (restaurant: any) => {
+    return restaurant.restaurant_claims?.find(
+      (claim: any) => claim.status === "pending"
+    );
+  };
+
+  const approveClaim = async (claimId: string) => {
+    const { error } = await supabase
+      .from("restaurant_claims")
+      .update({ status: "claimed" })
+      .eq("id", claimId);
+
+    if (error) {
+      alert("Error approving claim");
+      console.error(error);
+      return;
+    }
+
+    fetchRestaurants();
+  };
+
+  const rejectClaim = async (claimId: string) => {
+    const { error } = await supabase
+      .from("restaurant_claims")
+      .update({ status: "rejected" })
+      .eq("id", claimId);
+
+    if (error) {
+      alert("Error rejecting claim");
+      console.error(error);
+      return;
+    }
+
+    fetchRestaurants();
+  };
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-black p-6 text-white">
-        Loading...
-      </main>
+      <div className="min-h-screen bg-black text-white">
+        <AdminTopBar />
+        <div className="p-6">Loading restaurants...</div>
+      </div>
     );
   }
 
   if (unauthorized) {
     return (
-      <main className="min-h-screen bg-black p-6 text-white">
-        Not authorized
-      </main>
+      <div className="min-h-screen bg-black text-white">
+        <AdminTopBar />
+        <div className="p-6 text-red-400">
+          You are not authorized to view this page.
+        </div>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white">
       <AdminTopBar />
 
-      <div className="mx-auto max-w-6xl px-6 py-12">
-        <h1 className="text-4xl font-bold">Manage Restaurants</h1>
+      <main className="p-6">
+        <h1 className="mb-6 text-3xl font-bold">Manage Restaurants</h1>
 
-        {/* Restaurants */}
-        <section className="mt-10">
-          <h2 className="text-2xl font-bold">Restaurants</h2>
+        <div className="space-y-4">
+          {restaurants.map((restaurant) => {
+            const claimStatus = getClaimStatus(restaurant);
+            const pendingClaim = getPendingClaim(restaurant);
 
-          <div className="mt-4 grid gap-4">
-            {restaurants.length === 0 ? (
-              <p className="text-neutral-400">No restaurants found.</p>
-            ) : (
-              restaurants.map((r) => {
-                const claimStatus = getClaimStatus(r.id);
+            return (
+              <div
+                key={restaurant.id}
+                className="rounded-xl border border-white/10 bg-white/5 p-5"
+              >
+                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+                  <div>
+                    <h2 className="text-xl font-semibold">
+                      {restaurant.name}
+                    </h2>
 
-                return (
-                  <a
-                    key={r.id}
-                    href={`/admin/restaurants/${r.id}`}
-                    className="rounded-3xl bg-white p-6 text-black hover:bg-neutral-100"
-                  >
-                    <h3 className="text-2xl font-bold">
-                      {r.restaurant_name}
-                    </h3>
-
-                    <p className="mt-1 text-sm text-neutral-600">
-                      {r.address}, {r.city}, {r.state} {r.zip_code}
+                    <p className="mt-1 text-sm text-gray-400">
+                      {restaurant.address || "No address listed"}
                     </p>
 
-                    <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                      <span className="rounded-full bg-black px-3 py-1 text-white">
-                        {r.status}
-                      </span>
-
-                      {r.is_featured && (
-                        <span className="rounded-full bg-yellow-500 px-3 py-1 text-black">
-                          Featured
+                    <div className="mt-3">
+                      {claimStatus === "unclaimed" && (
+                        <span className="rounded-full bg-gray-700 px-3 py-1 text-sm text-white">
+                          Unclaimed
                         </span>
                       )}
 
                       {claimStatus === "pending" && (
-                        <span className="rounded-full bg-yellow-500 px-3 py-1 text-black">
+                        <span className="rounded-full bg-yellow-500 px-3 py-1 text-sm text-black">
                           Claim Pending
                         </span>
                       )}
 
-                      {claimStatus === "approved" && (
-                        <span className="rounded-full bg-blue-600 px-3 py-1 text-white">
-                          Claimed
-                        </span>
-                      )}
-
                       {claimStatus === "rejected" && (
-                        <span className="rounded-full bg-red-600 px-3 py-1 text-white">
+                        <span className="rounded-full bg-red-600 px-3 py-1 text-sm text-white">
                           Claim Rejected
                         </span>
                       )}
 
-                      {claimStatus === "none" && (
-                        <span className="rounded-full bg-neutral-600 px-3 py-1 text-white">
-                          Unclaimed
+                      {claimStatus === "claimed" && (
+                        <span className="rounded-full bg-blue-600 px-3 py-1 text-sm text-white">
+                          Claimed
                         </span>
                       )}
                     </div>
-                  </a>
-                );
-              })
-            )}
-          </div>
-        </section>
-
-        {/* Restaurant Claims */}
-        <section className="mt-14">
-          <h2 className="text-2xl font-bold">Restaurant Claims</h2>
-
-          <div className="mt-4 grid gap-4">
-            {restaurantClaims.length === 0 ? (
-              <p className="text-neutral-400">
-                No restaurant claims found.
-              </p>
-            ) : (
-              restaurantClaims.map((c) => (
-                <div
-                  key={c.id}
-                  className="rounded-2xl bg-white p-6 text-black"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-xl font-bold">
-                        {c.restaurant_name}
-                      </h3>
-
-                      <p className="mt-1 text-sm text-neutral-600">
-                        {c.owner_name} — {c.owner_email}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`rounded-full px-3 py-1 text-sm ${
-                        c.status === "pending"
-                          ? "bg-yellow-500 text-black"
-                          : c.status === "approved"
-                          ? "bg-blue-600 text-white"
-                          : c.status === "rejected"
-                          ? "bg-red-600 text-white"
-                          : "bg-neutral-600 text-white"
-                      }`}
-                    >
-                      {c.status || "unknown"}
-                    </span>
                   </div>
 
-                  {c.message && (
-                    <p className="mt-2 text-sm text-neutral-700">
-                      {c.message}
-                    </p>
-                  )}
+                  {pendingClaim && (
+                    <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 md:w-[320px]">
+                      <h3 className="mb-2 font-semibold text-yellow-300">
+                        Pending Claim
+                      </h3>
 
-                  {c.status === "pending" && (
-                    <div className="mt-4 flex gap-3">
-                      <button
-                        onClick={() =>
-                          updateClaim(c.id, "restaurant", "approved")
-                        }
-                        className="rounded-full bg-green-600 px-4 py-2 text-white"
-                      >
-                        Approve
-                      </button>
+                      <p className="text-sm">
+                        <strong>Name:</strong> {pendingClaim.owner_name}
+                      </p>
 
-                      <button
-                        onClick={() =>
-                          updateClaim(c.id, "restaurant", "rejected")
-                        }
-                        className="rounded-full bg-red-600 px-4 py-2 text-white"
-                      >
-                        Reject
-                      </button>
+                      <p className="text-sm">
+                        <strong>Email:</strong> {pendingClaim.owner_email}
+                      </p>
+
+                      <p className="text-sm">
+                        <strong>Phone:</strong>{" "}
+                        {pendingClaim.owner_phone || "Not provided"}
+                      </p>
+
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          onClick={() => approveClaim(pendingClaim.id)}
+                          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                        >
+                          Approve Claim
+                        </button>
+
+                        <button
+                          onClick={() => rejectClaim(pendingClaim.id)}
+                          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                        >
+                          Reject
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
-              ))
-            )}
-          </div>
-        </section>
+              </div>
+            );
+          })}
 
-        {/* Activity Claims */}
-        <section className="mt-14">
-          <h2 className="text-2xl font-bold">Activity Claims</h2>
-
-          <div className="mt-4 grid gap-4">
-            {activityClaims.length === 0 ? (
-              <p className="text-neutral-400">
-                No activity claims found.
-              </p>
-            ) : (
-              activityClaims.map((c) => (
-                <div
-                  key={c.id}
-                  className="rounded-2xl bg-white p-6 text-black"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-xl font-bold">
-                        {c.activity_name}
-                      </h3>
-
-                      <p className="mt-1 text-sm text-neutral-600">
-                        {c.owner_name} — {c.owner_email}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`rounded-full px-3 py-1 text-sm ${
-                        c.status === "pending"
-                          ? "bg-yellow-500 text-black"
-                          : c.status === "approved"
-                          ? "bg-blue-600 text-white"
-                          : c.status === "rejected"
-                          ? "bg-red-600 text-white"
-                          : "bg-neutral-600 text-white"
-                      }`}
-                    >
-                      {c.status || "unknown"}
-                    </span>
-                  </div>
-
-                  {c.message && (
-                    <p className="mt-2 text-sm text-neutral-700">
-                      {c.message}
-                    </p>
-                  )}
-
-                  {c.status === "pending" && (
-                    <div className="mt-4 flex gap-3">
-                      <button
-                        onClick={() =>
-                          updateClaim(c.id, "activity", "approved")
-                        }
-                        className="rounded-full bg-green-600 px-4 py-2 text-white"
-                      >
-                        Approve
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          updateClaim(c.id, "activity", "rejected")
-                        }
-                        className="rounded-full bg-red-600 px-4 py-2 text-white"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-      </div>
-    </main>
+          {restaurants.length === 0 && (
+            <p className="text-gray-400">No restaurants found.</p>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
