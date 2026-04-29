@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     await supabase.auth.signInWithOtp({
       email: body.email,
       options: {
-        emailRedirectTo: `${siteUrl}/restaurants/dashboard`,
+        emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     });
 
