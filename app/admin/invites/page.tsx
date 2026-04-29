@@ -53,25 +53,20 @@ export default function AdminInvitesPage() {
 
   useEffect(() => {
     const init = async () => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
+      const { data, error } = await supabase.auth.getUser();
 
-        if (error || !data.user) {
-          window.location.href = "/login";
-          return;
-        }
+      if (error || !data.user) {
+        window.location.href = "/login";
+        return;
+      }
 
-        if (data.user.user_metadata?.role !== "superuser") {
-          setUnauthorized(true);
-          setLoading(false);
-          return;
-        }
-
-        setLoading(false);
-      } catch {
+      if (data.user.user_metadata?.role !== "superuser") {
         setUnauthorized(true);
         setLoading(false);
+        return;
       }
+
+      setLoading(false);
     };
 
     init();
@@ -86,11 +81,10 @@ export default function AdminInvitesPage() {
   }
 
   return (
-  <main className="min-h-screen bg-black text-white">
-    <AdminTopBar />
+    <main className="min-h-screen bg-black text-white">
+      <AdminTopBar />
 
-    <div className="px-6 py-12">
-  
+      <div className="mx-auto max-w-2xl px-6 py-12">
         <h1 className="text-4xl font-bold">Create Restaurant QR Invite</h1>
 
         <p className="mt-3 text-neutral-400">
