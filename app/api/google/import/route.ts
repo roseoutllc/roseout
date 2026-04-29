@@ -1,40 +1,6 @@
 import { supabase } from "@/lib/supabase";
-function isValidPlace(place: any, type: string) {
-  // ❌ No name
-  if (!place.displayName?.text) return false;
+import QRCode from "qrcode";
 
-  // ❌ No rating
-  if (!place.rating || place.rating < 3.8) return false;
-
-  // ❌ Too few reviews (low quality)
-  if (!place.userRatingCount || place.userRatingCount < 20) return false;
-
-  // ❌ Missing address
-  if (!place.formattedAddress) return false;
-
-  // ❌ Exclude unwanted types
-  const badTypes = [
-    "gas_station",
-    "convenience_store",
-    "grocery_store",
-    "hardware_store",
-    "car_repair",
-    "school",
-    "hospital",
-    "church",
-  ];
-
-  if (place.types?.some((t: string) => badTypes.includes(t))) {
-    return false;
-  }
-
-  // 🎯 Restaurant-specific filter
-  if (type === "restaurant") {
-    if (!place.types?.includes("restaurant")) return false;
-  }
-
-  return true;
-}
 function buildTags(place: any) {
   const tags: string[] = [];
   const types = place.types || [];
@@ -57,13 +23,22 @@ function buildTags(place: any) {
     tags.push("Fun");
   }
 
-  if (types.includes("bar") || types.includes("night_club") || name.includes("lounge")) {
+  if (
+    types.includes("bar") ||
+    types.includes("night_club") ||
+    name.includes("lounge")
+  ) {
     tags.push("Nightlife");
   }
 
   if (name.includes("rooftop")) tags.push("Rooftop");
   if (name.includes("romantic")) tags.push("Romantic");
-  if (name.includes("luxury") || place.priceLevel === "PRICE_LEVEL_EXPENSIVE") {
+
+  if (
+    name.includes("luxury") ||
+    place.priceLevel === "PRICE_LEVEL_EXPENSIVE" ||
+    place.priceLevel === "PRICE_LEVEL_VERY_EXPENSIVE"
+  ) {
     tags.push("Upscale");
   }
 
@@ -74,24 +49,6 @@ function buildTags(place: any) {
   return [...new Set(tags)].slice(0, 3);
 }
 
-function getPrimaryTag(place: any) {
-  const type = getActivityType(place);
-
-  if (type === "Museum") return "Best for a Cultural Date";
-  if (type === "Art Gallery") return "Best for an Artsy Date";
-  if (type === "Bowling") return "Best for a Fun Night";
-  if (type === "Axe Throwing") return "Best for an Adventurous Date";
-  if (type === "Escape Room") return "Best for a Challenge Night";
-  if (type === "Karaoke") return "Best for a Playful Night";
-  if (type === "Rooftop") return "Best for a Scenic Night";
-  if (type === "Lounge") return "Best for a Chill Night";
-  if (type === "Comedy Club") return "Best for Laughs";
-  if (type === "Park") return "Best for a Relaxed Outing";
-
-  if (place.rating >= 4.5) return "Best for a Highly Rated Experience";
-
-  return "Popular Local Spot";
-}
 function getActivityType(place: any) {
   const types = place.types || [];
   const name = place.displayName?.text?.toLowerCase() || "";
@@ -118,6 +75,25 @@ function getActivityType(place: any) {
   return "Activity";
 }
 
+function getPrimaryTag(place: any) {
+  const type = getActivityType(place);
+
+  if (type === "Museum") return "Best for a Cultural Date";
+  if (type === "Art Gallery") return "Best for an Artsy Date";
+  if (type === "Bowling") return "Best for a Fun Night";
+  if (type === "Axe Throwing") return "Best for an Adventurous Date";
+  if (type === "Escape Room") return "Best for a Challenge Night";
+  if (type === "Karaoke") return "Best for a Playful Night";
+  if (type === "Rooftop") return "Best for a Scenic Night";
+  if (type === "Lounge") return "Best for a Chill Night";
+  if (type === "Comedy Club") return "Best for Laughs";
+  if (type === "Park") return "Best for a Relaxed Outing";
+
+  if (place.rating >= 4.5) return "Best for a Highly Rated Experience";
+
+  return "Popular Local Spot";
+}
+
 function getPhotoUrl(place: any) {
   const photoName = place.photos?.[0]?.name;
 
@@ -125,6 +101,7 @@ function getPhotoUrl(place: any) {
 
   return `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=800&key=${process.env.GOOGLE_PLACES_API_KEY}`;
 }
+
 function parseAddress(formattedAddress: string) {
   const parts = formattedAddress?.split(",").map((p) => p.trim()) || [];
 
@@ -144,17 +121,55 @@ function parseAddress(formattedAddress: string) {
     zip_code: stateZipMatch?.[2] || "",
   };
 }
+
+function isValidPlace(place: any, type: string) {
+  if (!place.displayName?.text) return false;
+  if (!place.rating || place.rating < 3.8) return false;
+  if (!place.userRatingCount || place.userRatingCount < 20) return false;
+  if (!place.formattedAddress) return false;
+
+  const badTypes = [
+    "gas_station",
+    "convenience_store",
+    "grocery_store",
+    "hardware_store",
+    "car_repair",
+    "school",
+    "hospital",
+    "church",
+  ];
+
+  if (place.types?.some((t: string) => badTypes.includes(t))) {
+    return false;
+  }
+
+  if (type === "restaurant") {
+    if (!place.types?.includes("restaurant")) return false;
+  }
+
+  return true;
+}
+
 function getQualityScore(place: any) {
   const rating = place.rating || 0;
-  return Math.round(rating * 20); // 4.5 rating = 90
+  return Math.round(rating * 20);
 }
 
 function getPopularityScore(place: any) {
   const reviews = place.userRatingCount || 0;
   return Math.round(Math.min(Math.log10(reviews + 1) * 25, 100));
 }
+
+async function generateQrCodeDataUrl(url: string) {
+  try {
+    return await QRCode.toDataURL(url);
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
-    const secret = req.headers.get("x-internal-import-secret");
+  const secret = req.headers.get("x-internal-import-secret");
 
   if (secret !== process.env.IMPORT_SECRET) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -167,7 +182,6 @@ export async function POST(req: Request) {
     const res = await fetch(
       "https://places.googleapis.com/v1/places:searchText",
       {
-        
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -191,41 +205,62 @@ export async function POST(req: Request) {
       );
     }
 
-const rows = (data.places || [])
-  .filter((place: any) => isValidPlace(place, type))
-  .map((place: any) => {
-    const parsedAddress = parseAddress(place.formattedAddress || "");
+    const rows = await Promise.all(
+      (data.places || [])
+        .filter((place: any) => isValidPlace(place, type))
+        .map(async (place: any) => {
+          const parsedAddress = parseAddress(place.formattedAddress || "");
 
-    return {
-      restaurant_name:
-        type === "restaurant" ? place.displayName?.text || "" : null,
+          const baseUrl =
+            process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-      activity_name:
-        type === "activity" ? place.displayName?.text || "" : null,
+          const detailUrl =
+            type === "restaurant"
+              ? `${baseUrl}/restaurants/${place.id}`
+              : `${baseUrl}/activities/${place.id}`;
 
-      activity_type: getActivityType(place),
+          const claimUrl =
+            type === "restaurant"
+              ? `${baseUrl}/claim/${place.id}`
+              : `${baseUrl}/claim-activity/${place.id}`;
 
-      address: parsedAddress.address || place.formattedAddress || "",
-city: parsedAddress.city,
-state: parsedAddress.state,
-zip_code: parsedAddress.zip_code,
+          const qrCodeDataUrl = await generateQrCodeDataUrl(claimUrl);
 
-      rating: place.rating || null,
-      review_count: place.userRatingCount || null,
+          return {
+            restaurant_name:
+              type === "restaurant" ? place.displayName?.text || "" : null,
 
-      quality_score: getQualityScore(place),
-  popularity_score: getPopularityScore(place),
+            activity_name:
+              type === "activity" ? place.displayName?.text || "" : null,
 
-      website: place.websiteUri || place.googleMapsUri || null,
-      image_url: getPhotoUrl(place),
+            activity_type: getActivityType(place),
 
-      google_place_id: place.id,
-      primary_tag: getPrimaryTag(place),
-      date_style_tags: buildTags(place),
+            address: parsedAddress.address || place.formattedAddress || "",
+            city: parsedAddress.city,
+            state: parsedAddress.state,
+            zip_code: parsedAddress.zip_code,
 
-      status: "approved",
-    };
-  });
+            rating: place.rating || null,
+            review_count: place.userRatingCount || null,
+
+            quality_score: getQualityScore(place),
+            popularity_score: getPopularityScore(place),
+
+            website: place.websiteUri || place.googleMapsUri || null,
+            image_url: getPhotoUrl(place),
+
+            google_place_id: place.id,
+            detail_url: detailUrl,
+            claim_url: claimUrl,
+            qr_code_data_url: qrCodeDataUrl,
+
+            primary_tag: getPrimaryTag(place),
+            date_style_tags: buildTags(place),
+
+            status: "approved",
+          };
+        })
+    );
 
     const table = type === "activity" ? "activities" : "restaurants";
 
@@ -240,14 +275,17 @@ zip_code: parsedAddress.zip_code,
             zip_code: r.zip_code,
             rating: r.rating,
             review_count: r.review_count,
+            quality_score: r.quality_score,
+            popularity_score: r.popularity_score,
             website: r.website,
             image_url: r.image_url,
             google_place_id: r.google_place_id,
+            detail_url: r.detail_url,
+            claim_url: r.claim_url,
+            qr_code_data_url: r.qr_code_data_url,
             primary_tag: r.primary_tag,
             date_style_tags: r.date_style_tags,
             status: r.status,
-            quality_score: r.quality_score,
-popularity_score: r.popularity_score,
           }))
         : rows.map((r: any) => ({
             restaurant_name: r.restaurant_name,
@@ -257,19 +295,22 @@ popularity_score: r.popularity_score,
             zip_code: r.zip_code,
             rating: r.rating,
             review_count: r.review_count,
+            quality_score: r.quality_score,
+            popularity_score: r.popularity_score,
             website: r.website,
             image_url: r.image_url,
             google_place_id: r.google_place_id,
+            detail_url: r.detail_url,
+            claim_url: r.claim_url,
+            qr_code_data_url: r.qr_code_data_url,
             primary_tag: r.primary_tag,
             date_style_tags: r.date_style_tags,
             status: r.status,
-            quality_score: r.quality_score,
-popularity_score: r.popularity_score,
           }));
 
     const { error } = await supabase.from(table).upsert(cleanRows, {
-  onConflict: "google_place_id",
-});
+      onConflict: "google_place_id",
+    });
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
