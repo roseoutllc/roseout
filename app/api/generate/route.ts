@@ -115,10 +115,21 @@ For first-time plan requests:
       max_output_tokens: 700,
     });
 
-    return Response.json({
-      result: response.output_text || "No response generated.",
-      rankedRestaurants: topRestaurants,
-    });
+ return Response.json({
+  result: response.output_text || "No response generated.",
+  restaurants: topRestaurants.map((r: any) => ({
+    id: r.id,
+    restaurant_name: r.restaurant_name,
+    address: r.address,
+    city: r.city,
+    state: r.state,
+    zip_code: r.zip_code,
+    roseout_score: r.roseout_score,
+    reservation_link: r.reservation_link,
+    website: r.website,
+    image_url: r.image_url || null,
+  })),
+});
   } catch (error: any) {
     console.error("GENERATE ERROR:", error);
 
