@@ -83,13 +83,7 @@ export default function CreatePage() {
     }
   };
 
-  const filters = [
-    "Quiet",
-    "Romantic",
-    "Budget-Friendly",
-    "Pizza",
-    "Upscale",
-  ];
+  const filters = ["Quiet", "Romantic", "Cheap", "Pizza", "Upscale"];
 
   return (
     <main className="min-h-screen bg-black px-6 py-16 text-white">
@@ -244,23 +238,6 @@ export default function CreatePage() {
           </div>
         )}
 
-        <div className="mt-6 flex flex-wrap gap-2">
-          {filters.map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() =>
-                setInput((prev) =>
-                  prev ? `${prev} ${filter}` : filter
-                )
-              }
-              className="rounded-full border border-neutral-600 px-4 py-2 text-sm text-white transition hover:bg-yellow-500 hover:text-black"
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
-
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -269,8 +246,23 @@ export default function CreatePage() {
               ? "Ask a follow-up question..."
               : "Example: Plan a pizza date in Queens that’s not too loud"
           }
-          className="mt-4 w-full rounded-2xl border border-neutral-700 bg-black px-4 py-4 text-white placeholder-neutral-500 focus:outline-none"
+          className="mt-6 w-full rounded-2xl border border-neutral-700 bg-black px-4 py-4 text-white placeholder-neutral-500 focus:outline-none"
         />
+
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
+          {filters.map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              onClick={() =>
+                setInput((prev) => (prev ? `${prev} ${filter}` : filter))
+              }
+              className="whitespace-nowrap rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-300 transition hover:border-yellow-500 hover:bg-yellow-500 hover:text-black"
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
 
         <button
           onClick={sendMessage}
