@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
@@ -7,18 +8,34 @@ const supabaseAdmin = createClient(
 );
 
 export async function GET(request: NextRequest) {
-  const url = new URL(request.url);
-  const code = url.searchParams.get("code");
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
+
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get("code");
 
   if (!code) {
     return NextResponse.redirect(`${siteUrl}/restaurants/apply`);
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  let response = NextResponse.redirect(`${siteUrl}/restaurants/dashboard`);
 
-  const supabase = createClient(supabaseUrl, anonKey);
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
 
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
@@ -29,7 +46,7 @@ export async function GET(request: NextRequest) {
   const user = data.user;
 
   if (user.user_metadata?.role === "superuser") {
-    return NextResponse.redirect(`${siteUrl}/admin`);
+    response = NextResponse.redirect(`${siteUrl}/admin`);
   }
 
   const email = user.email?.toLowerCase();
@@ -44,23 +61,27 @@ export async function GET(request: NextRequest) {
     .ilike("email", email)
     .maybeSingle();
 
-  if (!restaurant) {
+  if (!restaurant && user.user_metadata?.role !== "superuser") {
     return NextResponse.redirect(`${siteUrl}/restaurants/apply`);
   }
 
-  await supabaseAdmin
-    .from("restaurants")
-    .update({
-      owner_user_id: user.id,
-      owner_email: email,
-    })
-    .eq("id", restaurant.id);
+  if (restaurant) {
+    await supabaseAdmin
+      .from("restaurants")
+      .update({
+        owner_user_id: user.id,
+        owner_email: email,
+      })
+      .eq("id", restaurant.id);
 
-  await supabaseAdmin.auth.admin.updateUserById(user.id, {
-    user_metadata: {
-      role: "restaurants",
-    },
-  });
+    await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      user_metadata: {
+        role: "restaurants",
+      },
+    });
 
-  return NextResponse.redirect(`${siteUrl}/restaurants/dashboard`);
+    response = NextResponse.redirect(`${siteUrl}/restaurants/dashboard`);
+  }
+
+  return response;
 }
