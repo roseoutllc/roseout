@@ -124,7 +124,7 @@ Do not include raw URLs.
 `;
 
     const response = await openai.responses.create({
-      model: "gpt-5.3",
+      model: "gpt-5.4-mini",
       input: prompt,
     });
 
