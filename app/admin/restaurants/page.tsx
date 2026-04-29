@@ -71,19 +71,19 @@ export default function AdminRestaurantsPage() {
     }
   };
 
-  const getClaimStatus = (restaurantId: string) => {
-    const claims = restaurantClaims.filter(
-      (claim) => claim.restaurant_id === restaurantId
-    );
+ const getClaimStatus = (restaurantId: string) => {
+  const claims = restaurantClaims.filter(
+    (claim) => claim.restaurant_id === restaurantId
+  );
 
-    if (claims.length === 0) return "none";
+  if (claims.length === 0) return "unclaimed";
 
-    if (claims.some((claim) => claim.status === "pending")) return "pending";
-    if (claims.some((claim) => claim.status === "approved")) return "approved";
-    if (claims.some((claim) => claim.status === "rejected")) return "rejected";
+  if (claims.some((claim) => claim.status === "pending")) return "pending";
+  if (claims.some((claim) => claim.status === "approved")) return "claimed";
+  if (claims.some((claim) => claim.status === "rejected")) return "rejected";
 
-    return "none";
-  };
+  return "unclaimed";
+};
 
   if (loading) {
     return (
@@ -164,7 +164,7 @@ export default function AdminRestaurantsPage() {
 
                       {claimStatus === "none" && (
                         <span className="rounded-full bg-neutral-600 px-3 py-1 text-white">
-                          No Claims
+                          Unclaimed
                         </span>
                       )}
                     </div>
