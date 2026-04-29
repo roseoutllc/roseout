@@ -245,13 +245,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const aiRestaurantScores = shouldReturnRestaurants
-      ? await getAiFitScores()
-      : {};
-
-    const aiActivityScores = shouldReturnActivities
-      ? await getAiFitScores()
-      : {};
+   const aiRestaurantScores = {};
+const aiActivityScores = {};
 
 const rankedRestaurants = (restaurants || [])
   .map((restaurant: any) => {
