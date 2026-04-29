@@ -17,8 +17,21 @@ function scoreRestaurant(restaurant: any, input: string) {
   if (restaurant.noise_level && text.includes(restaurant.noise_level.toLowerCase())) score += 10;
   if (restaurant.price_range && text.includes(restaurant.price_range.toLowerCase())) score += 10;
 
-  if (restaurant.primary_tag && text.includes("romantic") && restaurant.primary_tag.toLowerCase().includes("romantic")) score += 25;
-  if (restaurant.date_style_tags?.some((tag: string) => text.includes(tag.toLowerCase()))) score += 20;
+  if (
+    restaurant.primary_tag &&
+    text.includes("romantic") &&
+    restaurant.primary_tag.toLowerCase().includes("romantic")
+  ) {
+    score += 25;
+  }
+
+  if (
+    restaurant.date_style_tags?.some((tag: string) =>
+      text.includes(tag.toLowerCase())
+    )
+  ) {
+    score += 20;
+  }
 
   if (text.includes("pizza") && restaurant.cuisine_type?.toLowerCase().includes("pizza")) score += 25;
   if (text.includes("romantic") && restaurant.atmosphere?.toLowerCase().includes("cozy")) score += 15;
@@ -37,8 +50,21 @@ function scoreActivity(activity: any, input: string) {
   if (activity.atmosphere && text.includes(activity.atmosphere.toLowerCase())) score += 15;
   if (activity.price_range && text.includes(activity.price_range.toLowerCase())) score += 10;
 
-  if (activity.primary_tag && text.includes("fun") && activity.primary_tag.toLowerCase().includes("fun")) score += 25;
-  if (activity.date_style_tags?.some((tag: string) => text.includes(tag.toLowerCase()))) score += 20;
+  if (
+    activity.primary_tag &&
+    text.includes("fun") &&
+    activity.primary_tag.toLowerCase().includes("fun")
+  ) {
+    score += 25;
+  }
+
+  if (
+    activity.date_style_tags?.some((tag: string) =>
+      text.includes(tag.toLowerCase())
+    )
+  ) {
+    score += 20;
+  }
 
   if (text.includes("bowling") && activity.activity_type?.toLowerCase().includes("bowling")) score += 35;
   if (text.includes("axe") && activity.activity_type?.toLowerCase().includes("axe")) score += 35;
@@ -53,6 +79,65 @@ function scoreActivity(activity: any, input: string) {
   if (text.includes("group") && activity.group_friendly === true) score += 20;
 
   return score;
+}
+
+async function getAiFitScores(
+  input: string,
+  items: any[],
+  type: "restaurant" | "activity"
+) {
+  if (!items.length) return {};
+
+  const compactItems = items.slice(0, 15).map((item) => ({
+    id: String(item.id),
+    name: type === "restaurant" ? item.restaurant_name : item.activity_name,
+    category: type === "restaurant" ? item.cuisine_type : item.activity_type,
+    city: item.city,
+    rating: item.rating,
+    review_count: item.review_count,
+    primary_tag: item.primary_tag,
+    date_style_tags: item.date_style_tags,
+    atmosphere: item.atmosphere,
+    price_range: item.price_range,
+    noise_level: item.noise_level,
+  }));
+
+  const response = await openai.responses.create({
+    model: "gpt-5-mini",
+    input: `
+You are ranking ${type}s for RoseOut.
+
+User request:
+"${input}"
+
+Items:
+${JSON.stringify(compactItems, null, 2)}
+
+Return ONLY valid JSON in this format:
+{
+  "scores": [
+    { "id": "item-id", "ai_score": 0 }
+  ]
+}
+
+Score each item from 0 to 50 based on how well it fits the user's request.
+Do not explain.
+`,
+    max_output_tokens: 700,
+  });
+
+  try {
+    const parsed = JSON.parse(response.output_text || "{}");
+
+    return Object.fromEntries(
+      (parsed.scores || []).map((s: any) => [
+        String(s.id),
+        Number(s.ai_score) || 0,
+      ])
+    );
+  } catch {
+    return {};
+  }
 }
 
 export async function POST(req: Request) {
@@ -98,8 +183,7 @@ export async function POST(req: Request) {
     const shouldReturnRestaurants =
       wantsDinner || wantsFullOuting || (!wantsDinner && !wantsActivity);
 
-    const shouldReturnActivities =
-      wantsActivity || wantsFullOuting;
+    const shouldReturnActivities = wantsActivity || wantsFullOuting;
 
     const { data: restaurants, error: restaurantError } = await supabase
       .from("restaurants")
@@ -119,18 +203,48 @@ export async function POST(req: Request) {
       return Response.json({ error: activityError.message }, { status: 500 });
     }
 
+    const aiRestaurantScores = shouldReturnRestaurants
+      ? await getAiFitScores(input, restaurants || [], "restaurant")
+      : {};
+
+    const aiActivityScores = shouldReturnActivities
+      ? await getAiFitScores(input, activities || [], "activity")
+      : {};
+
     const rankedRestaurants = (restaurants || [])
-      .map((restaurant: any) => ({
-        ...restaurant,
-        roseout_score: scoreRestaurant(restaurant, input),
-      }))
+      .map((restaurant: any) => {
+        const ruleScore = scoreRestaurant(restaurant, input);
+        const ratingBoost = restaurant.rating ? restaurant.rating * 5 : 0;
+        const reviewBoost = restaurant.review_count
+          ? Math.min(Math.log10(restaurant.review_count + 1) * 10, 25)
+          : 0;
+        const aiScore = aiRestaurantScores[String(restaurant.id)] || 0;
+
+        return {
+          ...restaurant,
+          roseout_score: Math.round(
+            ruleScore + ratingBoost + reviewBoost + aiScore
+          ),
+        };
+      })
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
     const rankedActivities = (activities || [])
-      .map((activity: any) => ({
-        ...activity,
-        roseout_score: scoreActivity(activity, input),
-      }))
+      .map((activity: any) => {
+        const ruleScore = scoreActivity(activity, input);
+        const ratingBoost = activity.rating ? activity.rating * 5 : 0;
+        const reviewBoost = activity.review_count
+          ? Math.min(Math.log10(activity.review_count + 1) * 10, 25)
+          : 0;
+        const aiScore = aiActivityScores[String(activity.id)] || 0;
+
+        return {
+          ...activity,
+          roseout_score: Math.round(
+            ruleScore + ratingBoost + reviewBoost + aiScore
+          ),
+        };
+      })
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
     const topRestaurants = shouldReturnRestaurants
@@ -150,7 +264,11 @@ export async function POST(req: Request) {
     const prompt = `
 You are RoseOut, a concise AI outing planner.
 
-${isFollowUp ? "This is a follow-up. Use the previous assistant plan as context and modify or answer only what the user asked. Do not restart the whole plan unless asked." : ""}
+${
+  isFollowUp
+    ? "This is a follow-up. Use the previous assistant plan as context and modify or answer only what the user asked. Do not restart the whole plan unless asked."
+    : ""
+}
 
 Conversation:
 ${conversation}
