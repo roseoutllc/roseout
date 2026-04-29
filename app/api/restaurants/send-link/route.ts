@@ -13,12 +13,12 @@ export async function POST(req: Request) {
     }
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${siteUrl}/restaurants/dashboard`,
+        emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     });
 
