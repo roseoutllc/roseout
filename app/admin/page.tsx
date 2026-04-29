@@ -58,7 +58,7 @@ export default function AdminDashboard() {
             </p>
           </a>
 
-          <a href="/admin/claims" className="rounded-3xl bg-yellow-500 p-6 text-black">
+          <a href="/admin/claims" className="rounded-3xl bg-white p-6 text-black">
             <h2 className="text-2xl font-bold">Claims</h2>
             <p className="mt-2 text-black/70">
               Review restaurant and activity ownership claims.
