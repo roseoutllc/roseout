@@ -122,20 +122,20 @@ export default function CreatePage() {
                     </p>
 
                     <p className="mt-1 text-sm font-medium text-neutral-500">
-                      Top Matches for You · {msg.restaurants.length} curated options
+                      Top Matches for You · {msg.restaurants.length} curated
+                      options
                     </p>
                   </div>
 
                   <div className="grid gap-5">
-                    {msg.restaurants.map((r, index) => {
+                    {msg.restaurants.map((r, restaurantIndex) => {
                       const restaurantId = String(r.id);
 
                       return (
                         <div
-                          key={restaurantId || index}
+                          key={restaurantId || restaurantIndex}
                           className="overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-lg"
                         >
-                          {/* IMAGE */}
                           {r.image_url ? (
                             <img
                               src={r.image_url}
@@ -148,20 +148,18 @@ export default function CreatePage() {
                             </div>
                           )}
 
-                          {/* CONTENT */}
                           <div className="p-5">
-                           <div>
-  <h3 className="text-2xl font-bold text-black">
-    {r.restaurant_name}
-  </h3>
+                            <div>
+                              <h3 className="text-2xl font-bold text-black">
+                                {r.restaurant_name}
+                              </h3>
 
-  <p className="mt-2 text-sm text-neutral-600">
-    {r.address}, {r.city}, {r.state} {r.zip_code}
-  </p>
-</div>
+                              <p className="mt-2 text-sm text-neutral-600">
+                                {r.address}, {r.city}, {r.state}{" "}
+                                {r.zip_code}
+                              </p>
                             </div>
 
-                            {/* ⭐ RATING BAR */}
                             <div className="mt-4">
                               <div className="mb-2 flex items-center justify-between">
                                 <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -177,13 +175,15 @@ export default function CreatePage() {
                                 <div
                                   className="h-full rounded-full bg-yellow-500 transition-all duration-500"
                                   style={{
-                                    width: `${Math.min(r.roseout_score, 100)}%`,
+                                    width: `${Math.min(
+                                      r.roseout_score,
+                                      100
+                                    )}%`,
                                   }}
                                 />
                               </div>
                             </div>
 
-                            {/* BUTTONS */}
                             <div className="mt-5 flex flex-wrap gap-3">
                               <a
                                 href={`/restaurants/${restaurantId}`}
