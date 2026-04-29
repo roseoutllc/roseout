@@ -18,6 +18,8 @@ export default function AdminInvitesPage() {
   const [qrCode, setQrCode] = useState("");
   const [qrLink, setQrLink] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+const [unauthorized, setUnauthorized] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -37,6 +39,22 @@ if (data.user.user_metadata?.role !== "superuser") {
 
     checkUser();
   }, []);
+  
+  if (loading) {
+  return (
+    <main className="min-h-screen bg-black p-6 text-white">
+      Loading...
+    </main>
+  );
+}
+
+if (unauthorized) {
+  return (
+    <main className="min-h-screen bg-black p-6 text-white">
+      Not authorized
+    </main>
+  );
+}
 
   const update = (key: string, value: string) => {
     setForm({ ...form, [key]: value });
