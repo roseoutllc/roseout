@@ -21,9 +21,17 @@ export default async function RestaurantPage({ params }: PageProps) {
     return (
       <main className="min-h-screen bg-black px-6 py-12 text-white">
         <div className="mx-auto max-w-3xl">
-          <Link href="/create" className="text-sm font-semibold text-yellow-500">
-            ← Back to RoseOut
-          </Link>
+         "use client";
+import { useRouter } from "next/navigation";
+
+const router = useRouter();
+
+<button
+  onClick={() => router.back()}
+  className="text-sm font-semibold text-yellow-500"
+>
+  ← Back to RoseOut
+</button>
 
           <div className="mt-8 rounded-3xl bg-white p-6 text-black">
             <h1 className="text-2xl font-bold">Restaurant Not Found</h1>
