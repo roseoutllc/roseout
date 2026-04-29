@@ -13,6 +13,7 @@ type RestaurantCard = {
   reservation_link?: string;
   website?: string;
   image_url?: string;
+  date_style_tags?: string[];
 };
 
 type ActivityCard = {
@@ -30,6 +31,7 @@ type ActivityCard = {
   reservation_link?: string;
   website?: string;
   image_url?: string;
+  date_style_tags?: string[];
 };
 
 type Message = {
@@ -194,6 +196,16 @@ export default function CreatePage() {
                                       {r.zip_code}
                                     </p>
                                   </div>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+  {r.date_style_tags?.slice(0, 3).map((tag, i) => (
+    <span
+      key={i}
+      className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700"
+    >
+      {tag}
+    </span>
+  ))}
+</div>
 
                                   <div className="mt-4">
                                     <div className="mb-2 flex items-center justify-between">
@@ -293,6 +305,16 @@ export default function CreatePage() {
                                       {a.address}, {a.city}, {a.state}{" "}
                                       {a.zip_code}
                                     </p>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+  {a.date_style_tags?.slice(0, 3).map((tag, i) => (
+    <span
+      key={i}
+      className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700"
+    >
+      {tag}
+    </span>
+  ))}
+</div>
 
                                     <div className="mt-3 flex flex-wrap gap-2">
                                       {a.price_range && (
