@@ -107,10 +107,14 @@ export default function CreatePage() {
               )}
 
               {msg.role === "assistant" && msg.restaurants?.length ? (
-                <>
-                  <p className="text-lg font-semibold text-black">
-                    Here’s what I’ve come up with:
-                  </p>
+  <>
+    <p className="text-lg font-semibold text-black">
+      ✨ Here’s what RoseOut found
+    </p>
+
+    <p className="mt-1 text-sm font-medium text-neutral-600">
+      Top Matches for You · {msg.restaurants.length} great options near you
+    </p>
 
                   <div className="mt-5 grid gap-4">
                     {msg.restaurants.map((r, restaurantIndex) => {
