@@ -9,6 +9,7 @@ export default function AdminRestaurantsPage() {
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
+  const [message, setMessage] = useState("");
 
   const loadRestaurants = async () => {
     const { data } = await supabase.auth.getUser();
@@ -24,27 +25,113 @@ export default function AdminRestaurantsPage() {
       return;
     }
 
-    const { data: restaurantData } = await supabase
-      .from("restaurants")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const res = await fetch("/api/admin/restaurants");
+    const dataJson = await res.json();
 
-    setRestaurants(restaurantData || []);
+    setRestaurants(dataJson.restaurants || []);
     setLoading(false);
   };
 
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from("restaurants").update({ status }).eq("id", id);
+    setMessage("");
+
+    const res = await fetch("/api/admin/restaurants", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setMessage(data.error || "Update failed.");
+      return;
+    }
+
+    setMessage("Restaurant updated.");
     loadRestaurants();
   };
 
   const toggleFeatured = async (id: string, current: boolean) => {
-    await supabase
-      .from("restaurants")
-      .update({ is_featured: !current })
-      .eq("id", id);
+    setMessage("");
 
+    const res = await fetch("/api/admin/restaurants", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id,
+        is_featured: !current,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setMessage(data.error || "Featured update failed.");
+      return;
+    }
+
+    setMessage("Featured status updated.");
     loadRestaurants();
+  };
+
+  const printLabel = (r: any) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${r.restaurant_name} RoseOut QR Label</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+            }
+            .label {
+              width: 320px;
+              border: 1px solid #ddd;
+              border-radius: 14px;
+              padding: 18px;
+              text-align: center;
+            }
+            img {
+              width: 160px;
+              height: 160px;
+            }
+            h2 {
+              font-size: 20px;
+              margin: 12px 0 6px;
+            }
+            p {
+              font-size: 14px;
+              margin: 3px 0;
+            }
+            .small {
+              margin-top: 12px;
+              font-size: 12px;
+              font-weight: bold;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="label">
+            <img src="${r.qr_code_data_url}" />
+            <h2>${r.restaurant_name || ""}</h2>
+            <p>${r.address || ""}</p>
+            <p>${r.city || ""}, ${r.state || ""} ${r.zip_code || ""}</p>
+            <p class="small">Scan to manage your RoseOut listing</p>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
   };
 
   useEffect(() => {
@@ -52,11 +139,19 @@ export default function AdminRestaurantsPage() {
   }, []);
 
   if (loading) {
-    return <main className="min-h-screen bg-black p-6 text-white">Loading...</main>;
+    return (
+      <main className="min-h-screen bg-black p-6 text-white">
+        Loading...
+      </main>
+    );
   }
 
   if (unauthorized) {
-    return <main className="min-h-screen bg-black p-6 text-white">Not authorized</main>;
+    return (
+      <main className="min-h-screen bg-black p-6 text-white">
+        Not authorized
+      </main>
+    );
   }
 
   return (
@@ -70,6 +165,12 @@ export default function AdminRestaurantsPage() {
 
         <h1 className="text-4xl font-bold">Manage Restaurants</h1>
 
+        {message && (
+          <p className="mt-4 rounded-xl bg-white p-3 text-black">
+            {message}
+          </p>
+        )}
+
         <div className="mt-8 space-y-6">
           {restaurants.map((r) => {
             const mapsLink = `https://www.google.com/maps/search/${encodeURIComponent(
@@ -78,7 +179,7 @@ export default function AdminRestaurantsPage() {
 
             return (
               <div key={r.id} className="rounded-3xl bg-white p-6 text-black">
-                <div className="grid gap-6 md:grid-cols-[1fr_220px]">
+                <div className="grid gap-6 md:grid-cols-[1fr_320px]">
                   <div>
                     <h2 className="text-2xl font-bold">{r.restaurant_name}</h2>
 
@@ -91,25 +192,13 @@ export default function AdminRestaurantsPage() {
                     </p>
 
                     <p className="mt-2">
-                      <strong>Featured:</strong> {r.is_featured ? "Yes" : "No"}
+                      <strong>Featured:</strong>{" "}
+                      {r.is_featured ? "Yes" : "No"}
                     </p>
 
                     {r.description && (
                       <p className="mt-4 leading-7">{r.description}</p>
                     )}
-
-                    <div className="mt-4 grid gap-2 text-sm text-neutral-700">
-                      {r.neighborhood && <p><strong>Neighborhood:</strong> {r.neighborhood}</p>}
-                      {r.cuisine_type && <p><strong>Cuisine:</strong> {r.cuisine_type}</p>}
-                      {r.price_range && <p><strong>Price:</strong> {r.price_range}</p>}
-                      {r.phone && <p><strong>Phone:</strong> {r.phone}</p>}
-                      {r.email && <p><strong>Email:</strong> {r.email}</p>}
-                      {r.hours_of_operation && <p><strong>Hours:</strong> {r.hours_of_operation}</p>}
-                      {r.kitchen_closing_time && <p><strong>Kitchen closes:</strong> {r.kitchen_closing_time}</p>}
-                      {r.lighting && <p><strong>Lighting:</strong> {r.lighting}</p>}
-                      {r.noise_level && <p><strong>Noise:</strong> {r.noise_level}</p>}
-                      {r.atmosphere && <p><strong>Atmosphere:</strong> {r.atmosphere}</p>}
-                    </div>
 
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button
@@ -158,52 +247,44 @@ export default function AdminRestaurantsPage() {
                           </button>
                         </a>
                       )}
-
-                      {r.instagram_url && (
-                        <a href={r.instagram_url} target="_blank">
-                          <button className="rounded-xl bg-black px-4 py-2 text-white">
-                            Instagram
-                          </button>
-                        </a>
-                      )}
-
-                      {r.tiktok_url && (
-                        <a href={r.tiktok_url} target="_blank">
-                          <button className="rounded-xl bg-black px-4 py-2 text-white">
-                            TikTok
-                          </button>
-                        </a>
-                      )}
-
-                      {r.x_url && (
-                        <a href={r.x_url} target="_blank">
-                          <button className="rounded-xl bg-black px-4 py-2 text-white">
-                            X
-                          </button>
-                        </a>
-                      )}
                     </div>
                   </div>
 
                   <div className="rounded-2xl border bg-neutral-50 p-4 text-center">
-                    <h3 className="font-bold">QR Code</h3>
+                    <h3 className="font-bold">Printable QR Label</h3>
 
                     {r.qr_code_data_url ? (
                       <>
-                        <img
-                          src={r.qr_code_data_url}
-                          alt={`${r.restaurant_name} QR`}
-                          className="mx-auto mt-3 h-40 w-40"
-                        />
+                        <div className="mx-auto mt-3 w-[260px] rounded-xl border bg-white p-4">
+                          <img
+                            src={r.qr_code_data_url}
+                            alt={`${r.restaurant_name} QR`}
+                            className="mx-auto h-40 w-40"
+                          />
 
-                        <a
-                          href={r.qr_code_data_url}
-                          download={`${r.restaurant_name}-roseout-qr.png`}
+                          <h4 className="mt-3 text-lg font-bold leading-tight">
+                            {r.restaurant_name}
+                          </h4>
+
+                          <p className="mt-1 text-sm leading-tight">
+                            {r.address}
+                          </p>
+
+                          <p className="text-sm leading-tight">
+                            {r.city}, {r.state} {r.zip_code}
+                          </p>
+
+                          <p className="mt-2 text-xs font-semibold">
+                            Scan to manage your RoseOut listing
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => printLabel(r)}
+                          className="mt-4 w-full rounded-xl bg-black px-4 py-2 text-white"
                         >
-                          <button className="mt-4 w-full rounded-xl bg-black px-4 py-2 text-white">
-                            Download QR
-                          </button>
-                        </a>
+                          Download / Print Label
+                        </button>
                       </>
                     ) : (
                       <p className="mt-4 text-sm text-neutral-500">
