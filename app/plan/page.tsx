@@ -31,6 +31,18 @@ export default function PlanPage() {
 
   const { restaurant, activity } = plan;
 
+  const planTitle =
+    restaurant && activity
+      ? `${restaurant.restaurant_name} + ${activity.activity_name}`
+      : restaurant
+      ? restaurant.restaurant_name
+      : activity?.activity_name || "Your Plan";
+
+  const planSubtitle =
+    restaurant?.primary_tag ||
+    activity?.primary_tag ||
+    "Curated by RoseOut";
+
   const restaurantMapsUrl = restaurant
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
         `${restaurant.restaurant_name} ${restaurant.address} ${restaurant.city}`
@@ -58,9 +70,7 @@ export default function PlanPage() {
             RoseOut
           </p>
 
-          <h1 className="text-4xl font-bold tracking-tight">
-            Your Plan
-          </h1>
+          <h1 className="text-4xl font-bold tracking-tight">Your Plan</h1>
 
           <p className="mt-3 text-neutral-400">
             A curated outing built from your selected matches.
@@ -74,12 +84,11 @@ export default function PlanPage() {
             </p>
 
             <h2 className="mt-2 text-2xl font-extrabold">
-              {restaurant?.restaurant_name || "Dinner"} +{" "}
-              {activity?.activity_name || "Activity"}
+              {planTitle}
             </h2>
 
             <p className="mt-2 text-sm text-neutral-300">
-              {restaurant?.primary_tag || activity?.primary_tag || "Curated by RoseOut"}
+              {planSubtitle}
             </p>
           </div>
 
@@ -257,7 +266,7 @@ export default function PlanPage() {
               }}
               className="rounded-full bg-yellow-500 px-5 py-3 text-sm font-extrabold text-black"
             >
-              Start New Plans
+              Start New Plan
             </button>
           </div>
         </div>
