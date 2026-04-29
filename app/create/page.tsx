@@ -127,14 +127,15 @@ export default function CreatePage() {
                   </div>
 
                   <div className="grid gap-5">
-                    {msg.restaurants.map((r, restaurantIndex) => {
+                    {msg.restaurants.map((r, index) => {
                       const restaurantId = String(r.id);
 
                       return (
                         <div
-                          key={restaurantId || restaurantIndex}
+                          key={restaurantId || index}
                           className="overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-lg"
                         >
+                          {/* IMAGE */}
                           {r.image_url ? (
                             <img
                               src={r.image_url}
@@ -147,6 +148,7 @@ export default function CreatePage() {
                             </div>
                           )}
 
+                          {/* CONTENT */}
                           <div className="p-5">
                             <div className="flex items-start justify-between gap-4">
                               <div>
@@ -165,6 +167,29 @@ export default function CreatePage() {
                               </div>
                             </div>
 
+                            {/* ⭐ RATING BAR */}
+                            <div className="mt-4">
+                              <div className="mb-2 flex items-center justify-between">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                  RoseOut Match
+                                </span>
+
+                                <span className="text-xs font-bold text-black">
+                                  {r.roseout_score}/100
+                                </span>
+                              </div>
+
+                              <div className="h-2 overflow-hidden rounded-full bg-neutral-200">
+                                <div
+                                  className="h-full rounded-full bg-yellow-500 transition-all duration-500"
+                                  style={{
+                                    width: `${Math.min(r.roseout_score, 100)}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* BUTTONS */}
                             <div className="mt-5 flex flex-wrap gap-3">
                               <a
                                 href={`/restaurants/${restaurantId}`}
@@ -184,10 +209,6 @@ export default function CreatePage() {
                                 </a>
                               )}
                             </div>
-
-                            <p className="mt-3 text-xs text-neutral-400">
-                              ID: {restaurantId}
-                            </p>
                           </div>
                         </div>
                       );
