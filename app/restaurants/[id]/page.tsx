@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -8,9 +8,12 @@ type PageProps = {
   };
 };
 
-export default async function RestaurantPage({ params }: PageProps) {
-  const supabase = await createClient();
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
+export default async function RestaurantPage({ params }: PageProps) {
   const { data: restaurant, error } = await supabase
     .from("restaurants")
     .select("*")
@@ -24,10 +27,7 @@ export default async function RestaurantPage({ params }: PageProps) {
   return (
     <main className="min-h-screen bg-black px-6 py-12 text-white">
       <div className="mx-auto max-w-3xl">
-        <Link
-          href="/create"
-          className="text-sm font-semibold text-yellow-500"
-        >
+        <Link href="/create" className="text-sm font-semibold text-yellow-500">
           ← Back to RoseOut
         </Link>
 
@@ -52,8 +52,8 @@ export default async function RestaurantPage({ params }: PageProps) {
                 </h1>
 
                 <p className="mt-2 text-neutral-600">
-                  {restaurant.address}, {restaurant.city},{" "}
-                  {restaurant.state} {restaurant.zip_code}
+                  {restaurant.address}, {restaurant.city}, {restaurant.state}{" "}
+                  {restaurant.zip_code}
                 </p>
               </div>
 
