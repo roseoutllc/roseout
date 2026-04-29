@@ -28,8 +28,22 @@ export default function AdminRestaurantsPage() {
     const res = await fetch("/api/admin/restaurants");
     const dataJson = await res.json();
 
-    setRestaurants(dataJson.restaurants || []);
+    try {
+  const res = await fetch("/api/admin/restaurants");
+  const dataJson = await res.json();
+
+  if (!res.ok) {
+    setMessage(dataJson.error || "Failed to load restaurants.");
     setLoading(false);
+    return;
+  }
+
+  setRestaurants(dataJson.restaurants || []);
+  setLoading(false);
+} catch (error) {
+  setMessage("Could not connect to admin restaurant API.");
+  setLoading(false);
+}
   };
 
   const updateStatus = async (id: string, status: string) => {
