@@ -15,69 +15,30 @@ export default function AuthCallbackPage() {
         await supabase.auth.exchangeCodeForSession(code);
       }
 
-      const { data: userData } = await supabase.auth.getUser();
+      const { data } = await supabase.auth.getUser();
 
-      if (!userData.user) {
+      if (!data.user) {
         window.location.href = "/restaurants/apply";
         return;
       }
 
-      if (userData.user.user_metadata?.role === "superuser") {
+      if (data.user.user_metadata?.role === "superuser") {
         window.location.href = "/admin";
         return;
       }
 
-      const userId = userData.user.id;
-      const userEmail = userData.user.email;
-
-      if (!userEmail) {
-        window.location.href = "/restaurants/apply";
-        return;
-      }
-
-      const { data: existingRestaurant } = await supabase
-        .from("restaurants")
-        .select("id, owner_user_id")
-        .eq("owner_user_id", userId)
-        .maybeSingle();
-
-      if (existingRestaurant) {
-        window.location.href = "/restaurants/dashboard";
-        return;
-      }
-
-      const { data: restaurantByEmail } = await supabase
-        .from("restaurants")
-        .select("id, email, owner_user_id")
-        .ilike("email", userEmail)
-        .maybeSingle();
-
-      if (restaurantByEmail) {
-        await supabase
-          .from("restaurants")
-          .update({
-            owner_user_id: userId,
-            owner_email: userEmail,
-          })
-          .eq("id", restaurantByEmail.id);
-
-        await supabase.auth.updateUser({
-          data: {
-            role: "restaurants",
-          },
-        });
-
-        window.location.href = "/restaurants/dashboard";
-        return;
-      }
-
-      await supabase.auth.updateUser({
-        data: {
-          role: "restaurants",
+      await fetch("/api/auth/link-restaurant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          userId: data.user.id,
+          email: data.user.email,
+        }),
       });
 
-      window.location.href = "/restaurants/apply";
+      window.location.href = "/restaurants/dashboard";
     };
 
     run();
