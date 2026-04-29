@@ -118,7 +118,7 @@ For first-time plan requests:
     return Response.json({
       reply: response.output_text || "No response generated.",
       restaurants: topRestaurants.map((r: any) => ({
-        id: r.id,
+        id: String(r.id),
         restaurant_name: r.restaurant_name,
         address: r.address,
         city: r.city,

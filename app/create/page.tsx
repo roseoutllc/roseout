@@ -3,8 +3,7 @@
 import { useState } from "react";
 
 type RestaurantCard = {
-  id?: string;
-  restaurant_id?: string;
+  id: string;
   restaurant_name: string;
   address: string;
   city: string;
@@ -129,14 +128,13 @@ export default function CreatePage() {
 
                   <div className="grid gap-5">
                     {msg.restaurants.map((r, restaurantIndex) => {
-                      const restaurantId = r.id || r.restaurant_id;
+                      const restaurantId = String(r.id);
 
                       return (
                         <div
                           key={restaurantId || restaurantIndex}
                           className="overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-lg"
                         >
-                          {/* IMAGE */}
                           {r.image_url ? (
                             <img
                               src={r.image_url}
@@ -149,9 +147,8 @@ export default function CreatePage() {
                             </div>
                           )}
 
-                          {/* CONTENT */}
                           <div className="p-5">
-                            <div className="flex items-start justify-between">
+                            <div className="flex items-start justify-between gap-4">
                               <div>
                                 <h3 className="text-2xl font-bold text-black">
                                   {r.restaurant_name}
@@ -168,16 +165,13 @@ export default function CreatePage() {
                               </div>
                             </div>
 
-                            {/* BUTTONS */}
-                            <div className="mt-5 flex gap-3">
-                              {restaurantId && (
-                                <a
-                                  href={`/restaurants/${restaurantId}`}
-                                  className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
-                                >
-                                  View Details
-                                </a>
-                              )}
+                            <div className="mt-5 flex flex-wrap gap-3">
+                              <a
+                                href={`/restaurants/${restaurantId}`}
+                                className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
+                              >
+                                View Details
+                              </a>
 
                               {r.reservation_link && (
                                 <a
@@ -190,6 +184,10 @@ export default function CreatePage() {
                                 </a>
                               )}
                             </div>
+
+                            <p className="mt-3 text-xs text-neutral-400">
+                              ID: {restaurantId}
+                            </p>
                           </div>
                         </div>
                       );
