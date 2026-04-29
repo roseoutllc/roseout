@@ -246,11 +246,11 @@ export async function POST(req: Request) {
     }
 
     const aiRestaurantScores = shouldReturnRestaurants
-      ? await getAiFitScores(input, restaurants || [], "restaurant")
+      ? await getAiFitScores()
       : {};
 
     const aiActivityScores = shouldReturnActivities
-      ? await getAiFitScores(input, filteredActivities || [], "activity")
+      ? await getAiFitScores()
       : {};
 
 const rankedRestaurants = (restaurants || [])
@@ -263,10 +263,9 @@ const rankedRestaurants = (restaurants || [])
     const aiScore = aiRestaurantScores[String(restaurant.id)] || 0;
 
     const finalScore =
-      ruleScore * 0.5 +
-      aiScore * 0.3 +
-      ratingBoost * 0.15 +
-      reviewBoost * 0.05;
+  ruleScore * 0.75 +
+  ratingBoost * 0.2 +
+  reviewBoost * 0.05;
 
     return {
       ...restaurant,
