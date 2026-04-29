@@ -253,41 +253,49 @@ export async function POST(req: Request) {
       ? await getAiFitScores(input, filteredActivities || [], "activity")
       : {};
 
-    const rankedRestaurants = (restaurants || [])
-      .map((restaurant: any) => {
-        const ruleScore = scoreRestaurant(restaurant, input);
-        const ratingBoost = restaurant.rating ? restaurant.rating * 5 : 0;
-        const reviewBoost = restaurant.review_count
-          ? Math.min(Math.log10(restaurant.review_count + 1) * 10, 25)
-          : 0;
-        const aiScore = aiRestaurantScores[String(restaurant.id)] || 0;
+const rankedRestaurants = (restaurants || [])
+  .map((restaurant: any) => {
+    const ruleScore = scoreRestaurant(restaurant, input);
+    const ratingBoost = restaurant.rating ? restaurant.rating * 5 : 0;
+    const reviewBoost = restaurant.review_count
+      ? Math.min(Math.log10(restaurant.review_count + 1) * 10, 25)
+      : 0;
+    const aiScore = aiRestaurantScores[String(restaurant.id)] || 0;
 
-        return {
-          ...restaurant,
-          roseout_score: Math.round(
-            ruleScore + ratingBoost + reviewBoost + aiScore
-          ),
-        };
-      })
-      .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
+    const finalScore =
+      ruleScore * 0.5 +
+      aiScore * 0.3 +
+      ratingBoost * 0.15 +
+      reviewBoost * 0.05;
+
+    return {
+      ...restaurant,
+      roseout_score: Math.round(Math.min(finalScore, 100)),
+    };
+  })
+  .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
     const rankedActivities = (filteredActivities || [])
-      .map((activity: any) => {
-        const ruleScore = scoreActivity(activity, input);
-        const ratingBoost = activity.rating ? activity.rating * 5 : 0;
-        const reviewBoost = activity.review_count
-          ? Math.min(Math.log10(activity.review_count + 1) * 10, 25)
-          : 0;
-        const aiScore = aiActivityScores[String(activity.id)] || 0;
+  .map((activity: any) => {
+    const ruleScore = scoreActivity(activity, input);
+    const ratingBoost = activity.rating ? activity.rating * 5 : 0;
+    const reviewBoost = activity.review_count
+      ? Math.min(Math.log10(activity.review_count + 1) * 10, 25)
+      : 0;
+    const aiScore = aiActivityScores[String(activity.id)] || 0;
 
-        return {
-          ...activity,
-          roseout_score: Math.round(
-            ruleScore + ratingBoost + reviewBoost + aiScore
-          ),
-        };
-      })
-      .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
+    const finalScore =
+      ruleScore * 0.5 +
+      aiScore * 0.3 +
+      ratingBoost * 0.15 +
+      reviewBoost * 0.05;
+
+    return {
+      ...activity,
+      roseout_score: Math.round(Math.min(finalScore, 100)),
+    };
+  })
+  .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
     const topRestaurants = shouldReturnRestaurants
       ? rankedRestaurants.slice(0, 5)
