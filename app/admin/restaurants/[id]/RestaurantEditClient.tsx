@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 
-export default function RestaurantEditClient({ restaurant }: any) {
+export default function RestaurantEditClient({
+  restaurant,
+  initialNotes,
+}: {
+  restaurant: any;
+  initialNotes: any[];
+}) {
   const supabase = createClient();
 
   const [form, setForm] = useState({
@@ -23,21 +29,21 @@ export default function RestaurantEditClient({ restaurant }: any) {
     rating: restaurant.rating || 0,
     review_count: restaurant.review_count || 0,
     roseout_score: restaurant.roseout_score || 0,
-
     owner_name: restaurant.owner_name || "",
     owner_email: restaurant.owner_email || "",
     owner_phone: restaurant.owner_phone || "",
+    claimed: restaurant.claimed || false,
   });
 
+  const [notes, setNotes] = useState(initialNotes || []);
+  const [newNote, setNewNote] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [addingNote, setAddingNote] = useState(false);
 
   const updateField = (field: string, value: any) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const saveRestaurant = async () => {
@@ -51,6 +57,9 @@ export default function RestaurantEditClient({ restaurant }: any) {
         rating: Number(form.rating || 0),
         review_count: Number(form.review_count || 0),
         roseout_score: Number(form.roseout_score || 0),
+        claimed_at: form.claimed
+          ? restaurant.claimed_at || new Date().toISOString()
+          : null,
       };
 
       const { error: updateError } = await supabase
@@ -68,6 +77,52 @@ export default function RestaurantEditClient({ restaurant }: any) {
     }
   };
 
+  const addNote = async () => {
+    if (!newNote.trim()) {
+      setError("Please enter a note.");
+      return;
+    }
+
+    setAddingNote(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const res = await fetch("/api/admin/restaurants/notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          restaurant_id: restaurant.id,
+          note: newNote,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Could not add note.");
+        return;
+      }
+
+      const note = {
+        id: crypto.randomUUID(),
+        note: newNote,
+        created_by: "You",
+        created_at: new Date().toISOString(),
+      };
+
+      setNotes((prev) => [note, ...prev]);
+      setNewNote("");
+      setMessage("Note added successfully.");
+    } catch (err: any) {
+      setError(err.message || "Could not add note.");
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
   const printQrLabel = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -77,76 +132,28 @@ export default function RestaurantEditClient({ restaurant }: any) {
         <head>
           <title>${restaurant.restaurant_name || "Restaurant"} QR Label</title>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 40px;
-              background: white;
-            }
-
-            .label {
-              width: 420px;
-              border: 1px solid #ddd;
-              border-radius: 18px;
-              padding: 24px;
-              text-align: center;
-            }
-
-            img {
-              width: 180px;
-              height: 180px;
-            }
-
-            h1 {
-              font-size: 24px;
-              margin: 18px 0 8px;
-            }
-
-            p {
-              margin: 4px 0;
-              font-size: 14px;
-            }
-
-            .scan {
-              margin-top: 14px;
-              font-weight: bold;
-            }
-
-            .brand {
-              margin-top: 16px;
-              font-size: 12px;
-              font-weight: bold;
-              color: #888;
-            }
-
-            @media print {
-              body {
-                padding: 0;
-              }
-            }
+            body { font-family: Arial, sans-serif; padding: 40px; background: white; }
+            .label { width: 420px; border: 1px solid #ddd; border-radius: 18px; padding: 24px; text-align: center; }
+            img { width: 180px; height: 180px; }
+            h1 { font-size: 24px; margin: 18px 0 8px; }
+            p { margin: 4px 0; font-size: 14px; }
+            .scan { margin-top: 14px; font-weight: bold; }
+            .brand { margin-top: 16px; font-size: 12px; font-weight: bold; color: #888; }
+            @media print { body { padding: 0; } }
           </style>
         </head>
-
         <body>
           <div class="label">
             <img src="${restaurant.qr_code_data_url || ""}" />
-
             <h1>${restaurant.restaurant_name || ""}</h1>
-
             <p>${restaurant.address || ""}</p>
             <p>${restaurant.city || ""}, ${restaurant.state || ""} ${
-              restaurant.zip_code || ""
-            }</p>
-
+      restaurant.zip_code || ""
+    }</p>
             <p class="scan">Scan to claim & manage</p>
-
             <p class="brand">Powered by RoseOut</p>
           </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
+          <script>window.onload = function() { window.print(); };</script>
         </body>
       </html>
     `);
@@ -163,17 +170,31 @@ export default function RestaurantEditClient({ restaurant }: any) {
         ← Back to Restaurants
       </a>
 
-      <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
-        RoseOut Admin
-      </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
+            RoseOut Admin
+          </p>
 
-      <h1 className="text-4xl font-extrabold tracking-tight">
-        Edit Restaurant
-      </h1>
+          <h1 className="text-4xl font-extrabold tracking-tight">
+            Edit Restaurant
+          </h1>
 
-      <p className="mt-3 text-neutral-400">
-        Update listing details, owner contact info, preview the listing, and print claim QR labels.
-      </p>
+          <p className="mt-3 text-neutral-400">
+            Update restaurant details, owner info, claim status, notes, and QR labels.
+          </p>
+        </div>
+
+        <span
+          className={`inline-flex rounded-full px-4 py-2 text-sm font-extrabold uppercase ${
+            form.claimed
+              ? "bg-green-100 text-green-700"
+              : "bg-neutral-100 text-neutral-700"
+          }`}
+        >
+          {form.claimed ? "Claimed" : "Unclaimed"}
+        </span>
+      </div>
 
       {message && (
         <div className="mt-6 rounded-2xl bg-green-100 p-4 text-green-700">
@@ -196,9 +217,7 @@ export default function RestaurantEditClient({ restaurant }: any) {
               <label className="text-sm font-bold">Restaurant Name</label>
               <input
                 value={form.restaurant_name}
-                onChange={(e) =>
-                  updateField("restaurant_name", e.target.value)
-                }
+                onChange={(e) => updateField("restaurant_name", e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
               />
             </div>
@@ -218,10 +237,31 @@ export default function RestaurantEditClient({ restaurant }: any) {
             </div>
 
             <div>
+              <label className="text-sm font-bold">Claim Status</label>
+              <select
+                value={form.claimed ? "claimed" : "unclaimed"}
+                onChange={(e) => updateField("claimed", e.target.value === "claimed")}
+                className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
+              >
+                <option value="unclaimed">Unclaimed</option>
+                <option value="claimed">Claimed</option>
+              </select>
+            </div>
+
+            <div>
               <label className="text-sm font-bold">Cuisine Type</label>
               <input
                 value={form.cuisine_type}
                 onChange={(e) => updateField("cuisine_type", e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-bold">Price Range</label>
+              <input
+                value={form.price_range}
+                onChange={(e) => updateField("price_range", e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
               />
             </div>
@@ -258,15 +298,6 @@ export default function RestaurantEditClient({ restaurant }: any) {
               <input
                 value={form.zip_code}
                 onChange={(e) => updateField("zip_code", e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-bold">Price Range</label>
-              <input
-                value={form.price_range}
-                onChange={(e) => updateField("price_range", e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
               />
             </div>
@@ -342,9 +373,7 @@ export default function RestaurantEditClient({ restaurant }: any) {
               <label className="text-sm font-bold">Reservation Link</label>
               <input
                 value={form.reservation_link}
-                onChange={(e) =>
-                  updateField("reservation_link", e.target.value)
-                }
+                onChange={(e) => updateField("reservation_link", e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
               />
             </div>
@@ -359,7 +388,6 @@ export default function RestaurantEditClient({ restaurant }: any) {
                 <input
                   value={form.owner_name}
                   onChange={(e) => updateField("owner_name", e.target.value)}
-                  placeholder="Example: John Smith"
                   className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
                 />
               </div>
@@ -370,7 +398,6 @@ export default function RestaurantEditClient({ restaurant }: any) {
                   type="email"
                   value={form.owner_email}
                   onChange={(e) => updateField("owner_email", e.target.value)}
-                  placeholder="owner@example.com"
                   className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
                 />
               </div>
@@ -380,7 +407,6 @@ export default function RestaurantEditClient({ restaurant }: any) {
                 <input
                   value={form.owner_phone}
                   onChange={(e) => updateField("owner_phone", e.target.value)}
-                  placeholder="(555) 555-5555"
                   className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
                 />
               </div>
@@ -401,25 +427,16 @@ export default function RestaurantEditClient({ restaurant }: any) {
           <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
             <h2 className="text-2xl font-extrabold">Owner / Manager</h2>
 
-            <p className="mt-2 text-sm text-neutral-500">
-              Contact details for the restaurant owner or manager.
-            </p>
-
             <div className="mt-5 space-y-4">
               <div>
-                <p className="text-xs font-bold uppercase text-neutral-500">
-                  Name
-                </p>
+                <p className="text-xs font-bold uppercase text-neutral-500">Name</p>
                 <p className="mt-1 text-lg font-extrabold">
                   {form.owner_name || "Not added"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs font-bold uppercase text-neutral-500">
-                  Email
-                </p>
-
+                <p className="text-xs font-bold uppercase text-neutral-500">Email</p>
                 {form.owner_email ? (
                   <a
                     href={`mailto:${form.owner_email}`}
@@ -433,21 +450,66 @@ export default function RestaurantEditClient({ restaurant }: any) {
               </div>
 
               <div>
-                <p className="text-xs font-bold uppercase text-neutral-500">
-                  Phone
-                </p>
-
+                <p className="text-xs font-bold uppercase text-neutral-500">Phone</p>
                 {form.owner_phone ? (
-                  <a
-                    href={`tel:${form.owner_phone}`}
-                    className="mt-1 block text-sm font-bold text-black"
-                  >
+                  <a href={`tel:${form.owner_phone}`} className="mt-1 block text-sm font-bold">
                     {form.owner_phone}
                   </a>
                 ) : (
                   <p className="mt-1 text-sm text-neutral-500">Not added</p>
                 )}
               </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase text-neutral-500">Claim Status</p>
+                <span
+                  className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                    form.claimed
+                      ? "bg-green-100 text-green-700"
+                      : "bg-neutral-100 text-neutral-600"
+                  }`}
+                >
+                  {form.claimed ? "Claimed" : "Unclaimed"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
+            <h2 className="text-2xl font-extrabold">Contact Notes</h2>
+
+            <textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="Add contact history, call notes, owner updates..."
+              className="mt-4 h-28 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
+            />
+
+            <button
+              type="button"
+              onClick={addNote}
+              disabled={addingNote}
+              className="mt-3 w-full rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black disabled:opacity-50"
+            >
+              {addingNote ? "Adding Note..." : "Add Note"}
+            </button>
+
+            <div className="mt-5 space-y-3">
+              {notes.length ? (
+                notes.map((note) => (
+                  <div key={note.id} className="rounded-2xl bg-neutral-100 p-4">
+                    <p className="text-sm text-neutral-700">{note.note}</p>
+                    <p className="mt-2 text-xs font-bold text-neutral-400">
+                      {note.created_by || "Unknown"} ·{" "}
+                      {note.created_at
+                        ? new Date(note.created_at).toLocaleString()
+                        : "N/A"}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-neutral-500">No notes yet.</p>
+              )}
             </div>
           </div>
 
@@ -481,8 +543,7 @@ export default function RestaurantEditClient({ restaurant }: any) {
                 </p>
 
                 <p className="mt-3 text-sm text-neutral-500">
-                  {form.cuisine_type || "Cuisine"} · Score:{" "}
-                  {form.roseout_score || 0}
+                  {form.cuisine_type || "Cuisine"} · Score: {form.roseout_score || 0}
                 </p>
               </div>
             </div>
@@ -498,10 +559,6 @@ export default function RestaurantEditClient({ restaurant }: any) {
 
           <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
             <h2 className="text-2xl font-extrabold">Claim QR Code</h2>
-
-            <p className="mt-2 text-sm text-neutral-500">
-              Restaurant owners can scan this code to claim and manage their listing.
-            </p>
 
             {restaurant.qr_code_data_url ? (
               <>
@@ -541,27 +598,21 @@ export default function RestaurantEditClient({ restaurant }: any) {
 
             <div className="mt-5 grid gap-3">
               <div className="rounded-2xl bg-neutral-100 p-4">
-                <p className="text-xs font-bold uppercase text-neutral-500">
-                  Views
-                </p>
+                <p className="text-xs font-bold uppercase text-neutral-500">Views</p>
                 <p className="mt-1 text-2xl font-extrabold">
                   {restaurant.view_count || 0}
                 </p>
               </div>
 
               <div className="rounded-2xl bg-neutral-100 p-4">
-                <p className="text-xs font-bold uppercase text-neutral-500">
-                  Clicks
-                </p>
+                <p className="text-xs font-bold uppercase text-neutral-500">Clicks</p>
                 <p className="mt-1 text-2xl font-extrabold">
                   {restaurant.click_count || 0}
                 </p>
               </div>
 
               <div className="rounded-2xl bg-neutral-100 p-4">
-                <p className="text-xs font-bold uppercase text-neutral-500">
-                  Rating
-                </p>
+                <p className="text-xs font-bold uppercase text-neutral-500">Rating</p>
                 <p className="mt-1 text-2xl font-extrabold">
                   ⭐ {restaurant.rating || 0}
                 </p>

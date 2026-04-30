@@ -17,6 +17,12 @@ export default async function AdminRestaurantEditPage({
     .eq("id", id)
     .single();
 
+  const { data: notes } = await supabase
+    .from("restaurant_contact_notes")
+    .select("id, note, created_by, created_at")
+    .eq("restaurant_id", id)
+    .order("created_at", { ascending: false });
+
   if (error || !restaurant) {
     return (
       <div className="rounded-[2rem] bg-white p-8 text-black">
@@ -25,5 +31,5 @@ export default async function AdminRestaurantEditPage({
     );
   }
 
-  return <RestaurantEditClient restaurant={restaurant} />;
+  return <RestaurantEditClient restaurant={restaurant} initialNotes={notes || []} />;
 }
