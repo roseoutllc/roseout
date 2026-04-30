@@ -347,29 +347,7 @@ export default function CreatePage() {
               activities, nearby matches, and premium detail pages.
             </p>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={requestUserLocation}
-                className={`rounded-full px-5 py-3 text-sm font-extrabold transition ${
-                  locationSaved
-                    ? "bg-green-500 text-black hover:bg-green-400"
-                    : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
-                }`}
-              >
-                {locationSaved ? "✓ Location Saved" : "Use My Location"}
-              </button>
-
-              <button
-                type="button"
-                onClick={resetSearch}
-                className="rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-white/15"
-              >
-                Start New Search
-              </button>
-            </div>
-
-            <p className="mt-3 text-xs text-neutral-400">
+            <p className="mt-4 text-xs text-neutral-400">
               Try: “romantic dinner near me within 10 miles” or “fun activity in
               Nassau.”
             </p>
@@ -423,6 +401,28 @@ export default function CreatePage() {
                 : messages.length
                 ? "Send"
                 : "Create Plan"}
+            </button>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={requestUserLocation}
+              className={`rounded-full px-4 py-3 text-xs font-extrabold transition sm:text-sm ${
+                locationSaved
+                  ? "bg-green-500 text-black hover:bg-green-400"
+                  : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
+              }`}
+            >
+              {locationSaved ? "✓ Location Saved" : "Use My Location"}
+            </button>
+
+            <button
+              type="button"
+              onClick={resetSearch}
+              className="rounded-full border border-white/15 bg-white/10 px-4 py-3 text-xs font-extrabold text-white transition hover:bg-white/15 sm:text-sm"
+            >
+              Start New Search
             </button>
           </div>
         </section>
