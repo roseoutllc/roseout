@@ -119,6 +119,70 @@ function normalizeQuery(input: string) {
     .replace(/\s+/g, " ");
 }
 
+function toArray(value: any): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function locationText(item: any) {
+  return [
+    item.restaurant_name,
+    item.activity_name,
+    item.description,
+    item.address,
+    item.city,
+    item.state,
+    item.zip_code,
+    item.neighborhood,
+    item.cuisine,
+    item.cuisine_type,
+    item.activity_type,
+    item.atmosphere,
+    item.lighting,
+    item.noise_level,
+    item.price_range,
+    item.primary_tag,
+    item.dress_code,
+    item.parking_info,
+    item.hours,
+    ...toArray(item.date_style_tags),
+    ...toArray(item.search_keywords),
+    ...toArray(item.best_for),
+    ...toArray(item.special_features),
+    ...toArray(item.signature_items),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function keywordBoost(item: any, input: string) {
+  const searchable = locationText(item);
+  const words = normalizeQuery(input)
+    .split(" ")
+    .filter((word) => word.length > 2);
+
+  let boost = 0;
+
+  words.forEach((word) => {
+    if (searchable.includes(word)) boost += 18;
+  });
+
+  const phrase = normalizeQuery(input);
+  if (phrase.length > 2 && searchable.includes(phrase)) {
+    boost += 35;
+  }
+
+  return boost;
+}
+
 function getRegion(input: string) {
   const text = normalizeQuery(input);
 
@@ -227,7 +291,12 @@ function scoreRestaurant(
   const text = input.toLowerCase();
   const region = getRegion(input);
   const zipCode = extractZipCode(input);
+  const searchable = locationText(restaurant);
+  const cuisine = restaurant.cuisine || restaurant.cuisine_type;
+
   let score = 0;
+
+  score += keywordBoost(restaurant, input);
 
   if (region && isRegionMatch(region, restaurant.city, restaurant.neighborhood)) {
     score += 35;
@@ -252,7 +321,7 @@ function scoreRestaurant(
 
   if (restaurant.city && text.includes(restaurant.city.toLowerCase())) score += 25;
   if (restaurant.neighborhood && text.includes(restaurant.neighborhood.toLowerCase())) score += 25;
-  if (restaurant.cuisine_type && text.includes(restaurant.cuisine_type.toLowerCase())) score += 15;
+  if (cuisine && text.includes(cuisine.toLowerCase())) score += 20;
   if (restaurant.atmosphere && text.includes(restaurant.atmosphere.toLowerCase())) score += 15;
   if (restaurant.lighting && text.includes(restaurant.lighting.toLowerCase())) score += 10;
   if (restaurant.noise_level && text.includes(restaurant.noise_level.toLowerCase())) score += 10;
@@ -267,14 +336,20 @@ function scoreRestaurant(
   }
 
   if (
-    restaurant.date_style_tags?.some((tag: string) =>
+    toArray(restaurant.date_style_tags).some((tag) =>
       text.includes(tag.toLowerCase())
     )
   ) {
     score += 20;
   }
 
-  if (text.includes("pizza") && restaurant.cuisine_type?.toLowerCase().includes("pizza")) score += 25;
+  if (text.includes("pizza") && cuisine?.toLowerCase().includes("pizza")) score += 25;
+  if (text.includes("wine") && searchable.includes("wine")) score += 60;
+  if (text.includes("cocktail") && searchable.includes("cocktail")) score += 50;
+  if (text.includes("cocktails") && searchable.includes("cocktail")) score += 50;
+  if (text.includes("drinks") && searchable.includes("drink")) score += 40;
+  if (text.includes("bar") && searchable.includes("bar")) score += 40;
+  if (text.includes("brunch") && searchable.includes("brunch")) score += 50;
   if (text.includes("romantic") && restaurant.atmosphere?.toLowerCase().includes("cozy")) score += 15;
   if (text.includes("quiet") && restaurant.noise_level?.toLowerCase().includes("quiet")) score += 15;
   if (text.includes("not too loud") && restaurant.noise_level?.toLowerCase() !== "loud") score += 15;
@@ -290,7 +365,11 @@ function scoreActivity(
   const text = input.toLowerCase();
   const region = getRegion(input);
   const zipCode = extractZipCode(input);
+  const searchable = locationText(activity);
+
   let score = 0;
+
+  score += keywordBoost(activity, input);
 
   if (region && isRegionMatch(region, activity.city, activity.neighborhood)) {
     score += 35;
@@ -320,7 +399,7 @@ function scoreActivity(
   if (activity.price_range && text.includes(activity.price_range.toLowerCase())) score += 10;
 
   if (
-    activity.date_style_tags?.some((tag: string) =>
+    toArray(activity.date_style_tags).some((tag) =>
       text.includes(tag.toLowerCase())
     )
   ) {
@@ -340,6 +419,10 @@ function scoreActivity(
   if (text.includes("quiet") && activity.atmosphere?.toLowerCase().includes("quiet")) score += 15;
   if (text.includes("fun") && activity.atmosphere?.toLowerCase().includes("fun")) score += 20;
   if (text.includes("group") && activity.group_friendly === true) score += 20;
+
+  if (text.includes("wine") && searchable.includes("wine")) score += 40;
+  if (text.includes("brunch") && searchable.includes("brunch")) score += 40;
+  if (text.includes("cocktail") && searchable.includes("cocktail")) score += 40;
 
   return score;
 }
@@ -397,7 +480,12 @@ export async function POST(req: Request) {
       text.includes("eat") ||
       text.includes("pizza") ||
       text.includes("lunch") ||
-      text.includes("brunch");
+      text.includes("brunch") ||
+      text.includes("wine") ||
+      text.includes("cocktail") ||
+      text.includes("cocktails") ||
+      text.includes("drinks") ||
+      text.includes("bar");
 
     const wantsMuseum = text.includes("museum");
     const wantsBowling = text.includes("bowling");
@@ -445,20 +533,28 @@ export async function POST(req: Request) {
         neighborhood,
         latitude,
         longitude,
+        description,
+        cuisine,
         cuisine_type,
         atmosphere,
         lighting,
         noise_level,
         price_range,
         reservation_link,
+        reservation_url,
         website,
         image_url,
         rating,
         review_count,
         primary_tag,
         date_style_tags,
+        search_keywords,
+        best_for,
+        special_features,
+        signature_items,
         quality_score,
-        popularity_score
+        popularity_score,
+        roseout_score
       `)
       .eq("status", "approved");
 
@@ -479,18 +575,25 @@ export async function POST(req: Request) {
         neighborhood,
         latitude,
         longitude,
+        description,
         price_range,
         atmosphere,
         group_friendly,
         reservation_link,
+        reservation_url,
         website,
         image_url,
         rating,
         review_count,
         primary_tag,
         date_style_tags,
+        search_keywords,
+        best_for,
+        special_features,
+        signature_items,
         quality_score,
-        popularity_score
+        popularity_score,
+        roseout_score
       `)
       .eq("status", "approved");
 
@@ -586,12 +689,16 @@ export async function POST(req: Request) {
     const rankedRestaurants = (filteredRestaurants || [])
       .map((restaurant: any) => {
         const ruleScore = scoreRestaurant(restaurant, input, userLocation);
+        const savedScore = restaurant.roseout_score || 0;
         const qualityScore = restaurant.quality_score || 0;
         const popularityScore = restaurant.popularity_score || 0;
 
         let distanceBoost = 0;
 
-        if (restaurant.distance_miles !== null && restaurant.distance_miles !== undefined) {
+        if (
+          restaurant.distance_miles !== null &&
+          restaurant.distance_miles !== undefined
+        ) {
           if (restaurant.distance_miles <= 3) distanceBoost = 15;
           else if (restaurant.distance_miles <= 7) distanceBoost = 10;
           else if (restaurant.distance_miles <= 15) distanceBoost = 5;
@@ -599,8 +706,9 @@ export async function POST(req: Request) {
 
         const finalScore =
           ruleScore * 0.65 +
-          qualityScore * 0.2 +
-          popularityScore * 0.1 +
+          savedScore * 0.15 +
+          qualityScore * 0.12 +
+          popularityScore * 0.08 +
           distanceBoost;
 
         return {
@@ -608,6 +716,7 @@ export async function POST(req: Request) {
           roseout_score: Math.round(Math.min(finalScore, 100)),
         };
       })
+      .filter((restaurant: any) => restaurant.roseout_score > 0)
       .sort((a: any, b: any) => {
         if (nearMe && userLocation) {
           return (a.distance_miles || 999) - (b.distance_miles || 999);
@@ -619,12 +728,16 @@ export async function POST(req: Request) {
     const rankedActivities = (filteredActivities || [])
       .map((activity: any) => {
         const ruleScore = scoreActivity(activity, input, userLocation);
+        const savedScore = activity.roseout_score || 0;
         const qualityScore = activity.quality_score || 0;
         const popularityScore = activity.popularity_score || 0;
 
         let distanceBoost = 0;
 
-        if (activity.distance_miles !== null && activity.distance_miles !== undefined) {
+        if (
+          activity.distance_miles !== null &&
+          activity.distance_miles !== undefined
+        ) {
           if (activity.distance_miles <= 3) distanceBoost = 15;
           else if (activity.distance_miles <= 7) distanceBoost = 10;
           else if (activity.distance_miles <= 15) distanceBoost = 5;
@@ -632,8 +745,9 @@ export async function POST(req: Request) {
 
         const finalScore =
           ruleScore * 0.65 +
-          qualityScore * 0.2 +
-          popularityScore * 0.1 +
+          savedScore * 0.15 +
+          qualityScore * 0.12 +
+          popularityScore * 0.08 +
           distanceBoost;
 
         return {
@@ -641,6 +755,7 @@ export async function POST(req: Request) {
           roseout_score: Math.round(Math.min(finalScore, 100)),
         };
       })
+      .filter((activity: any) => activity.roseout_score > 0)
       .sort((a: any, b: any) => {
         if (nearMe && userLocation) {
           return (a.distance_miles || 999) - (b.distance_miles || 999);
@@ -661,7 +776,7 @@ export async function POST(req: Request) {
       name: r.restaurant_name,
       city: r.city,
       neighborhood: r.neighborhood,
-      cuisine: r.cuisine_type,
+      cuisine: r.cuisine || r.cuisine_type,
       rating: r.rating,
       score: r.roseout_score,
       distance_miles: r.distance_miles
@@ -741,6 +856,7 @@ STRICT RULES:
         zip_code: r.zip_code,
         roseout_score: r.roseout_score,
         reservation_link: r.reservation_link,
+        reservation_url: r.reservation_url,
         website: r.website,
         image_url: r.image_url || null,
         rating: r.rating || null,
@@ -765,6 +881,7 @@ STRICT RULES:
         group_friendly: a.group_friendly,
         roseout_score: a.roseout_score,
         reservation_link: a.reservation_link,
+        reservation_url: a.reservation_url,
         website: a.website,
         image_url: a.image_url || null,
         rating: a.rating || null,
