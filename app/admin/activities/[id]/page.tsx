@@ -12,7 +12,7 @@ export default function AdminActivityDetailPage() {
 
   const [activity, setActivity] = useState<any>(null);
   const [form, setForm] = useState<any>({});
-  const [ownerEmail, setOwnerEmail] = useState(""); // ✅ NEW
+  const [ownerEmail, setOwnerEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
@@ -34,12 +34,7 @@ export default function AdminActivityDetailPage() {
 
     setActivity(data.activity);
     setForm(data.activity || {});
-
-    // ✅ LOAD OWNER EMAIL
-    setOwnerEmail(
-      data.activity?.activity_owners?.[0]?.email || ""
-    );
-
+    setOwnerEmail(data.activity?.activity_owners?.[0]?.email || "");
     setLoading(false);
   };
 
@@ -52,7 +47,7 @@ export default function AdminActivityDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
-        owner_email: ownerEmail, // ✅ SEND
+        owner_email: ownerEmail,
       }),
     });
 
@@ -66,11 +61,7 @@ export default function AdminActivityDetailPage() {
 
     setActivity(data.activity);
     setForm(data.activity);
-
-    setOwnerEmail(
-      data.activity?.activity_owners?.[0]?.email || ""
-    );
-
+    setOwnerEmail(data.activity?.activity_owners?.[0]?.email || "");
     setMessage("Saved successfully.");
     setSaving(false);
   };
@@ -83,7 +74,7 @@ export default function AdminActivityDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...updates,
-        owner_email: ownerEmail, // ✅ IMPORTANT
+        owner_email: ownerEmail,
       }),
     });
 
@@ -96,11 +87,7 @@ export default function AdminActivityDetailPage() {
 
     setActivity(data.activity);
     setForm(data.activity);
-
-    setOwnerEmail(
-      data.activity?.activity_owners?.[0]?.email || ""
-    );
-
+    setOwnerEmail(data.activity?.activity_owners?.[0]?.email || "");
     setMessage("Updated successfully.");
   };
 
@@ -193,8 +180,6 @@ export default function AdminActivityDetailPage() {
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
           <div className="space-y-6">
-
-            {/* ✅ NEW OWNER SECTION */}
             <section className="rounded-3xl bg-white p-6 text-black">
               <h2 className="text-2xl font-bold">Owner Access</h2>
 
@@ -212,4 +197,338 @@ export default function AdminActivityDetailPage() {
               </div>
             </section>
 
-            {/* 🔒 ALL YOUR ORIGINAL SECTIONS REMAIN UNCHANGED BELOW */}
+            <section className="rounded-3xl bg-white p-6 text-black">
+              <h2 className="text-2xl font-bold">Basic Information</h2>
+
+              <div className="mt-5 grid gap-4">
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.activity_name || ""}
+                  onChange={(e) => update("activity_name", e.target.value)}
+                  placeholder="Activity Name"
+                />
+
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.activity_type || ""}
+                  onChange={(e) => update("activity_type", e.target.value)}
+                  placeholder="Activity Type"
+                />
+
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.address || ""}
+                  onChange={(e) => update("address", e.target.value)}
+                  placeholder="Address"
+                />
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <input
+                    className="rounded-xl border px-4 py-3"
+                    value={form.city || ""}
+                    onChange={(e) => update("city", e.target.value)}
+                    placeholder="City"
+                  />
+
+                  <input
+                    className="rounded-xl border px-4 py-3"
+                    value={form.state || ""}
+                    onChange={(e) => update("state", e.target.value)}
+                    placeholder="State"
+                  />
+
+                  <input
+                    className="rounded-xl border px-4 py-3"
+                    value={form.zip_code || ""}
+                    onChange={(e) => update("zip_code", e.target.value)}
+                    placeholder="Zip Code"
+                  />
+                </div>
+
+                <textarea
+                  className="min-h-32 rounded-xl border px-4 py-3"
+                  value={form.description || ""}
+                  onChange={(e) => update("description", e.target.value)}
+                  placeholder="Description"
+                />
+              </div>
+            </section>
+
+            <section className="rounded-3xl bg-white p-6 text-black">
+              <h2 className="text-2xl font-bold">Listing Details</h2>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.price_range || ""}
+                  onChange={(e) => update("price_range", e.target.value)}
+                  placeholder="Price Range"
+                />
+
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.atmosphere || ""}
+                  onChange={(e) => update("atmosphere", e.target.value)}
+                  placeholder="Atmosphere"
+                />
+
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.primary_tag || ""}
+                  onChange={(e) => update("primary_tag", e.target.value)}
+                  placeholder="Primary Tag"
+                />
+
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.image_url || ""}
+                  onChange={(e) => update("image_url", e.target.value)}
+                  placeholder="Image URL"
+                />
+              </div>
+
+              <input
+                className="mt-4 w-full rounded-xl border px-4 py-3"
+                value={
+                  Array.isArray(form.date_style_tags)
+                    ? form.date_style_tags.join(", ")
+                    : form.date_style_tags || ""
+                }
+                onChange={(e) =>
+                  update(
+                    "date_style_tags",
+                    e.target.value
+                      .split(",")
+                      .map((tag) => tag.trim())
+                      .filter(Boolean)
+                  )
+                }
+                placeholder="Date Style Tags, separated by commas"
+              />
+            </section>
+
+            <section className="rounded-3xl bg-white p-6 text-black">
+              <h2 className="text-2xl font-bold">Links</h2>
+
+              <div className="mt-5 grid gap-4">
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.website || ""}
+                  onChange={(e) => update("website", e.target.value)}
+                  placeholder="Website"
+                />
+
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.reservation_link || ""}
+                  onChange={(e) => update("reservation_link", e.target.value)}
+                  placeholder="Booking Link"
+                />
+              </div>
+
+              {form.image_url && (
+                <img
+                  src={form.image_url}
+                  alt={form.activity_name || "Activity"}
+                  className="mt-5 max-h-72 w-full rounded-2xl object-cover"
+                />
+              )}
+            </section>
+          </div>
+
+          <aside className="space-y-6">
+            <section className="rounded-3xl bg-white p-6 text-black">
+              <h2 className="text-xl font-bold">Status</h2>
+
+              <div className="mt-4 grid gap-3">
+                <select
+                  className="rounded-xl border px-4 py-3"
+                  value={form.status || "approved"}
+                  onChange={(e) => update("status", e.target.value)}
+                >
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+
+                <select
+                  className="rounded-xl border px-4 py-3"
+                  value={form.claim_status || "unclaimed"}
+                  onChange={(e) => update("claim_status", e.target.value)}
+                >
+                  <option value="unclaimed">Unclaimed</option>
+                  <option value="pending">Pending Claim</option>
+                  <option value="approved">Claimed / Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+
+                <label className="flex items-center gap-3 rounded-xl border px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={!!form.is_featured}
+                    onChange={(e) => update("is_featured", e.target.checked)}
+                  />
+                  Featured
+                </label>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                  onClick={() => quickUpdate({ status: "approved" })}
+                  className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white"
+                >
+                  Approve
+                </button>
+
+                <button
+                  onClick={() => quickUpdate({ status: "rejected" })}
+                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white"
+                >
+                  Reject
+                </button>
+
+                <button
+                  onClick={() =>
+                    quickUpdate({ is_featured: !activity.is_featured })
+                  }
+                  className="rounded-full bg-yellow-500 px-4 py-2 text-sm font-bold text-black"
+                >
+                  Toggle Featured
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-3xl bg-white p-6 text-black">
+              <h2 className="text-xl font-bold">Claim & Owner</h2>
+
+              <div className="mt-4 space-y-2 text-sm">
+                <p>
+                  <strong>Claimed Email:</strong>{" "}
+                  {form.claimed_by_email || "—"}
+                </p>
+
+                <p>
+                  <strong>Claimed At:</strong> {form.claimed_at || "—"}
+                </p>
+
+                <p className="break-all">
+                  <strong>Claim URL:</strong> {form.claim_url || "—"}
+                </p>
+
+                <p className="break-all">
+                  <strong>Signup URL:</strong> {form.owner_signup_url || "—"}
+                </p>
+              </div>
+            </section>
+
+            <section className="rounded-3xl bg-white p-6 text-center text-black">
+              <h2 className="text-xl font-bold">QR Label</h2>
+
+              {form.qr_code_data_url ? (
+                <img
+                  src={form.qr_code_data_url}
+                  alt="QR Code"
+                  className="mx-auto mt-4 h-44 w-44"
+                />
+              ) : (
+                <p className="mt-4 text-sm text-neutral-500">
+                  No QR code available.
+                </p>
+              )}
+            </section>
+
+            <section className="rounded-3xl bg-white p-6 text-black">
+              <h2 className="text-xl font-bold">Scores</h2>
+
+              <div className="mt-4 grid gap-3">
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.rating || ""}
+                  onChange={(e) => update("rating", e.target.value)}
+                  placeholder="Rating"
+                />
+
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.review_count || ""}
+                  onChange={(e) => update("review_count", e.target.value)}
+                  placeholder="Review Count"
+                />
+
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.quality_score || ""}
+                  onChange={(e) => update("quality_score", e.target.value)}
+                  placeholder="Quality Score"
+                />
+
+                <input
+                  className="rounded-xl border px-4 py-3"
+                  value={form.popularity_score || ""}
+                  onChange={(e) => update("popularity_score", e.target.value)}
+                  placeholder="Popularity Score"
+                />
+              </div>
+            </section>
+
+            <section className="rounded-3xl bg-white p-6 text-black">
+              <h2 className="text-xl font-bold">External Actions</h2>
+
+              <div className="mt-4 grid gap-3">
+                <a
+                  href={mapsLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl bg-black px-4 py-3 text-center font-bold text-white"
+                >
+                  Open in Maps
+                </a>
+
+                {form.website && (
+                  <a
+                    href={form.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl border border-black px-4 py-3 text-center font-bold text-black"
+                  >
+                    Website
+                  </a>
+                )}
+
+                {form.claim_url && (
+                  <a
+                    href={form.claim_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl border border-black px-4 py-3 text-center font-bold text-black"
+                  >
+                    Open Claim Link
+                  </a>
+                )}
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        <div className="sticky bottom-0 mt-8 border-t border-white/10 bg-black/95 py-4 backdrop-blur">
+          <div className="flex gap-3">
+            <button
+              onClick={saveChanges}
+              disabled={saving}
+              className="w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save All Changes"}
+            </button>
+
+            <a
+              href="/admin"
+              className="rounded-full border border-white/20 px-6 py-4 text-center font-bold text-white"
+            >
+              Cancel
+            </a>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
