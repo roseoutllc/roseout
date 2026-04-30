@@ -553,7 +553,8 @@ export default function AdminActivityDetailPage() {
 }
 
 function AnalyticsCard({ form }: { form: any }) {
-  const roseoutScore = Number(form.roseout_score || 0);
+  const rawScore = Number(form.roseout_score || 0);
+  const starScore = Math.min((rawScore / 200) * 5, 5);
 
   return (
     <section className="rounded-3xl bg-white p-6 text-black">
@@ -571,11 +572,15 @@ function AnalyticsCard({ form }: { form: any }) {
 
       <div className="mt-6 rounded-3xl bg-black p-5 text-center text-white">
         <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
-          RoseOut Ranking Score
+          RoseOut Ranking
         </p>
 
-        <p className="mt-2 text-5xl font-black text-yellow-500">
-          {roseoutScore}
+        <div className="mt-3 flex justify-center">
+          <StarRating value={starScore} />
+        </div>
+
+        <p className="mt-2 text-sm font-bold text-yellow-500">
+          {starScore.toFixed(1)} / 5
         </p>
       </div>
 
@@ -588,6 +593,16 @@ function AnalyticsCard({ form }: { form: any }) {
         <Stat label="Popularity" value={form.popularity_score || 0} />
       </div>
     </section>
+  );
+}
+
+function StarRating({ value }: { value: number }) {
+  return (
+    <div className="flex gap-1 text-3xl text-yellow-500">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <span key={star}>{value >= star ? "★" : "☆"}</span>
+      ))}
+    </div>
   );
 }
 
