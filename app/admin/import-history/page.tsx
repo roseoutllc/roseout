@@ -7,28 +7,83 @@ type ImportLog = {
   created_at: string | null;
 };
 
+function getTodayDate() {
+  return new Date().toISOString().split("T")[0];
+}
+
 export default async function ImportHistoryPage() {
+  const today = getTodayDate();
+
   const { data: logs, error } = await supabase
     .from("import_logs")
     .select("id, job_name, run_date, created_at")
     .order("created_at", { ascending: false })
     .limit(100);
 
+  const lastRunToday = logs?.some((log) => log.run_date === today);
+
+  const latestRun = logs?.[0];
+
   return (
     <main className="min-h-screen bg-[#050505] px-6 py-10 text-white">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-8">
-          <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
-            RoseOut Admin
-          </p>
+        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
+              RoseOut Admin
+            </p>
 
-          <h1 className="text-4xl font-extrabold tracking-tight">
-            Import History
-          </h1>
+            <h1 className="text-4xl font-extrabold tracking-tight">
+              Import History
+            </h1>
 
-          <p className="mt-3 text-neutral-400">
-            View when your Google import cron job last ran.
-          </p>
+            <p className="mt-3 text-neutral-400">
+              View when your Google import cron job last ran.
+            </p>
+          </div>
+
+          <div
+            className={`rounded-2xl px-5 py-4 text-sm font-bold ${
+              lastRunToday
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+            }`}
+          >
+            {lastRunToday ? "✅ Last Run Today" : "⚠️ Not Run Today"}
+          </div>
+        </div>
+
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">
+              Today Status
+            </p>
+            <p
+              className={`mt-2 text-2xl font-extrabold ${
+                lastRunToday ? "text-green-400" : "text-red-400"
+              }`}
+            >
+              {lastRunToday ? "Completed" : "Pending"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">
+              Latest Run Date
+            </p>
+            <p className="mt-2 text-2xl font-extrabold">
+              {latestRun?.run_date || "N/A"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">
+              Total Logs
+            </p>
+            <p className="mt-2 text-2xl font-extrabold">
+              {logs?.length || 0}
+            </p>
+          </div>
         </div>
 
         {error && (
@@ -62,34 +117,42 @@ export default async function ImportHistoryPage() {
                 </thead>
 
                 <tbody>
-                  {(logs as ImportLog[]).map((log) => (
-                    <tr
-                      key={log.id}
-                      className="border-t border-neutral-200 hover:bg-neutral-50"
-                    >
-                      <td className="px-5 py-4 font-bold">
-                        {log.job_name || "Unknown Job"}
-                      </td>
+                  {(logs as ImportLog[]).map((log) => {
+                    const isToday = log.run_date === today;
 
-                      <td className="px-5 py-4">
-                        {log.run_date
-                          ? new Date(log.run_date).toLocaleDateString()
-                          : "N/A"}
-                      </td>
+                    return (
+                      <tr
+                        key={log.id}
+                        className="border-t border-neutral-200 hover:bg-neutral-50"
+                      >
+                        <td className="px-5 py-4 font-bold">
+                          {log.job_name || "Unknown Job"}
+                        </td>
 
-                      <td className="px-5 py-4">
-                        {log.created_at
-                          ? new Date(log.created_at).toLocaleString()
-                          : "N/A"}
-                      </td>
+                        <td className="px-5 py-4">
+                          {log.run_date || "N/A"}
+                        </td>
 
-                      <td className="px-5 py-4">
-                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold uppercase text-green-700">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-5 py-4">
+                          {log.created_at
+                            ? new Date(log.created_at).toLocaleString()
+                            : "N/A"}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                              isToday
+                                ? "bg-green-100 text-green-700"
+                                : "bg-neutral-100 text-neutral-600"
+                            }`}
+                          >
+                            {isToday ? "Today" : "Completed"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -98,7 +161,8 @@ export default async function ImportHistoryPage() {
 
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
           <p className="text-sm text-neutral-400">
-            Your import cron job should create a new row here each time it runs.
+            If the badge says “Last Run Today,” your Vercel cron/import route
+            has logged a run for today.
           </p>
         </div>
       </div>
