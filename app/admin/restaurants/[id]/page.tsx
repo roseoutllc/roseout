@@ -405,7 +405,6 @@ function AnalyticsCard({ form }: { form: any }) {
         <div className="grid grid-cols-2 gap-3">
           <Stat label="Views" value={form.view_count || 0} />
           <Stat label="Clicks" value={form.click_count || 0} />
-          <Stat label="Claims" value={form.claim_count || 0} />
           <Stat label="Reviews" value={form.review_count || 0} />
         </div>
 
