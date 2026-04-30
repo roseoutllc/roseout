@@ -33,6 +33,7 @@ type LocationItem = {
   reservation_link?: string;
   primary_tag?: string;
   date_style_tags?: string[];
+  created_at?: string;
 };
 
 export default function LocationsDashboardPage() {
@@ -147,7 +148,7 @@ export default function LocationsDashboardPage() {
 
       const qr = await QRCode.toDataURL(claimUrl, {
         margin: 2,
-        width: 280,
+        width: 320,
       });
 
       setQrDataUrl(qr);
@@ -178,10 +179,22 @@ export default function LocationsDashboardPage() {
 
   const unclaimedCount = locations.length - claimedCount;
 
+  const avgScore =
+    locations.length > 0
+      ? Math.round(
+          locations.reduce(
+            (sum, l) => sum + (l.roseout_score ?? l.quality_score ?? 0),
+            0
+          ) / locations.length
+        )
+      : 0;
+
   const isClaimed =
     selected?.claimed ||
     selected?.claim_status === "claimed" ||
     !!selected?.owner_email;
+
+  const selectedScore = selected?.roseout_score ?? selected?.quality_score ?? 0;
 
   const selectedAddress = selected
     ? [selected.address, selected.city, selected.state, selected.zip_code]
@@ -195,8 +208,13 @@ export default function LocationsDashboardPage() {
       }/claim?location=${selected.id}&type=${selected.location_type}`
     : "";
 
-  const selectedScore =
-    selected?.roseout_score ?? selected?.quality_score ?? 0;
+  const dateAdded = selected?.created_at
+    ? new Date(selected.created_at).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "Not listed";
 
   if (loading) {
     return (
@@ -209,202 +227,231 @@ export default function LocationsDashboardPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-black px-5 py-6 pb-20 text-white">
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
-              RoseOut
+    <main className="min-h-screen bg-[#030303] text-white">
+      {/* TOP NAV */}
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-black/95 px-6 py-4 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1500px] items-center justify-between">
+          <div className="flex items-center gap-3">
+            <p className="text-3xl font-black tracking-tight text-yellow-500">
+              ROSEOUT
             </p>
-
-            <h1 className="mt-2 text-4xl font-black tracking-tight">
+            <p className="hidden text-xs font-black uppercase tracking-[0.25em] text-white/80 sm:block">
               Locations Portal
-            </h1>
-
-            <p className="mt-2 text-sm text-neutral-400">
-              Manage claimed locations, review listing details, and print QR
-              claim codes.
             </p>
           </div>
+
+          <div className="flex items-center gap-3">
+            <button className="hidden rounded-xl border border-white/15 px-5 py-3 text-sm font-bold text-white/80 md:block">
+              ? Help Center
+            </button>
+
+            <div className="flex items-center gap-3 rounded-xl border border-white/15 px-4 py-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-500 font-black text-black">
+                {(user?.email || "U").charAt(0).toUpperCase()}
+              </span>
+              <span className="hidden text-sm font-bold md:block">
+                {user?.email?.split("@")[0] || "Account"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-[1500px] px-6 py-6">
+        {/* STATS */}
+        <section className="mb-6 grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+          <StatCard
+            icon="▦"
+            label="Total Locations"
+            value={locations.length}
+            sub="All restaurants & activities"
+          />
+
+          <StatCard
+            icon="✓"
+            label="Claimed"
+            value={claimedCount}
+            sub={`${locations.length ? Math.round((claimedCount / locations.length) * 100) : 0}% of all locations`}
+            green
+          />
+
+          <StatCard
+            icon="◷"
+            label="Unclaimed"
+            value={unclaimedCount}
+            sub={`${locations.length ? Math.round((unclaimedCount / locations.length) * 100) : 0}% of all locations`}
+          />
+
+          <StatCard
+            icon="★"
+            label="Avg. RoseOut Score"
+            value={`${avgScore} /100`}
+            sub="Across all locations"
+          />
 
           <button
             onClick={async () => {
               await supabase.auth.signOut();
               window.location.href = "/locations/signup";
             }}
-            className="rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-white/15"
+            className="rounded-xl bg-yellow-500 px-7 py-4 font-black text-black shadow-[0_0_35px_rgba(234,179,8,0.25)] transition hover:bg-yellow-400"
           >
-            Logout
+            ↪ Logout
           </button>
-        </header>
-
-        <section className="mb-6 grid gap-4 md:grid-cols-3">
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-400">
-              Total Locations
-            </p>
-            <p className="mt-2 text-3xl font-black">{locations.length}</p>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-400">
-              Claimed
-            </p>
-            <p className="mt-2 text-3xl font-black text-green-400">
-              {claimedCount}
-            </p>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-400">
-              Unclaimed
-            </p>
-            <p className="mt-2 text-3xl font-black text-yellow-500">
-              {unclaimedCount}
-            </p>
-          </div>
         </section>
 
-        <section className="mb-6 rounded-[1.75rem] border border-white/10 bg-black/70 p-4">
-          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, city, or address..."
-              className="rounded-full border border-white/10 bg-neutral-950 px-5 py-3 text-sm text-white placeholder-neutral-500 outline-none focus:border-yellow-500"
-            />
+        <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
+          {/* LEFT PANEL */}
+          <aside className="min-w-0">
+            <div className="mb-4 rounded-2xl border border-white/10 bg-[#080808] p-3 shadow-2xl">
+              <div className="grid gap-3 md:grid-cols-[1fr_120px_90px] lg:grid-cols-[1fr_115px_84px]">
+                <div className="relative">
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search locations..."
+                    className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 pr-10 text-sm text-white placeholder-white/40 outline-none focus:border-yellow-500"
+                  />
+                  <span className="absolute right-4 top-3 text-white/50">⌕</span>
+                </div>
 
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as any)}
-              className="rounded-full border border-white/10 bg-neutral-950 px-5 py-3 text-sm font-bold text-white outline-none"
-            >
-              <option value="all">All Locations</option>
-              <option value="restaurant">Restaurants</option>
-              <option value="activity">Activities</option>
-            </select>
-          </div>
-        </section>
-
-        <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <section className="max-h-none space-y-4 xl:max-h-[calc(100vh-220px)] xl:overflow-y-auto xl:pr-2">
-            {filteredLocations.map((location) => {
-              const active =
-                selected?.id === location.id &&
-                selected?.location_type === location.location_type;
-
-              const claimed =
-                location.claimed ||
-                location.claim_status === "claimed" ||
-                !!location.owner_email;
-
-              const score = location.roseout_score ?? location.quality_score ?? 0;
-
-              return (
-                <button
-                  key={`${location.location_type}-${location.id}`}
-                  type="button"
-                  onClick={() => setSelected(location)}
-                  className={`group w-full overflow-hidden rounded-[1.75rem] border text-left shadow-xl transition hover:-translate-y-1 ${
-                    active
-                      ? "border-yellow-500 bg-yellow-500 text-black"
-                      : "border-white/10 bg-white text-black"
-                  }`}
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as any)}
+                  className="rounded-xl border border-white/10 bg-black px-3 py-3 text-sm font-bold text-white outline-none"
                 >
-                  <div className="relative h-48">
-                    {location.image_url ? (
-                      <Image
-                        src={location.image_url}
-                        alt={location.display_name}
-                        fill
-                        className="object-cover transition duration-700 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center bg-neutral-200 text-neutral-500">
-                        No image
-                      </div>
-                    )}
+                  <option value="all">All Types</option>
+                  <option value="restaurant">Restaurants</option>
+                  <option value="activity">Activities</option>
+                </select>
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                <button className="rounded-xl border border-white/10 bg-black px-3 py-3 text-sm font-bold text-white">
+                  Filters
+                </button>
+              </div>
+            </div>
 
-                    <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-black/80 px-3 py-1 text-xs font-black uppercase text-white">
-                        {location.location_type}
-                      </span>
+            <div className="h-[calc(100vh-260px)] space-y-3 overflow-y-auto pr-2">
+              {filteredLocations.map((location) => {
+                const active =
+                  selected?.id === location.id &&
+                  selected?.location_type === location.location_type;
 
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-black uppercase ${
-                          claimed
-                            ? "bg-green-500 text-black"
-                            : "bg-white text-black"
-                        }`}
-                      >
-                        {claimed ? "Claimed" : "Unclaimed"}
-                      </span>
+                const claimed =
+                  location.claimed ||
+                  location.claim_status === "claimed" ||
+                  !!location.owner_email;
+
+                const score =
+                  location.roseout_score ?? location.quality_score ?? 0;
+
+                return (
+                  <button
+                    key={`${location.location_type}-${location.id}`}
+                    type="button"
+                    onClick={() => setSelected(location)}
+                    className={`group grid w-full grid-cols-[130px_1fr_54px] gap-3 rounded-2xl border p-2 text-left transition duration-300 hover:-translate-y-0.5 ${
+                      active
+                        ? "border-yellow-500 bg-[#151515] shadow-[0_0_0_1px_rgba(234,179,8,0.6)]"
+                        : "border-white/10 bg-[#101010] hover:border-white/25"
+                    }`}
+                  >
+                    <div className="relative h-24 overflow-hidden rounded-xl">
+                      {location.image_url ? (
+                        <Image
+                          src={location.image_url}
+                          alt={location.display_name}
+                          fill
+                          className="object-cover transition duration-700 group-hover:scale-110"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center bg-neutral-800 text-xs text-white/40">
+                          No image
+                        </div>
+                      )}
                     </div>
 
-                    {location.rating && (
-                      <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black">
-                        ⭐ {location.rating}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-5">
-                    <h2 className="text-xl font-black">
-                      {location.display_name}
-                    </h2>
-
-                    <p className="mt-2 text-sm opacity-70">
-                      {[location.address, location.city, location.state]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {location.status && (
-                        <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
-                          {location.status}
+                    <div className="min-w-0 py-1">
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-black px-2.5 py-1 text-[10px] font-black uppercase text-white">
+                          {location.location_type}
                         </span>
+
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${
+                            claimed
+                              ? "bg-green-500 text-black"
+                              : "bg-yellow-500 text-black"
+                          }`}
+                        >
+                          {claimed ? "Claimed" : "Unclaimed"}
+                        </span>
+                      </div>
+
+                      <h3 className="truncate text-lg font-black text-white">
+                        {location.display_name}
+                      </h3>
+
+                      <p className="mt-1 truncate text-xs text-white/60">
+                        {[location.address, location.city, location.state]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col items-end justify-between py-1">
+                      {location.rating && (
+                        <p className="text-xs font-black text-yellow-500">
+                          ★ {location.rating}
+                        </p>
                       )}
 
-                      <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
-                        {score}/100
-                      </span>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-yellow-500 bg-black text-[10px] font-black text-white">
+                        {score}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
 
-            {!filteredLocations.length && (
-              <div className="rounded-[2rem] border border-white/10 bg-white/10 p-6 text-center">
-                <p className="font-bold text-neutral-300">
-                  No locations found.
-                </p>
-              </div>
-            )}
-          </section>
+              {!filteredLocations.length && (
+                <div className="rounded-2xl border border-white/10 bg-white/10 p-6 text-center">
+                  <p className="font-bold text-white/60">No locations found.</p>
+                </div>
+              )}
+            </div>
+          </aside>
 
+          {/* RIGHT DETAIL */}
           <section className="min-w-0">
             {selected ? (
-              <div className="overflow-hidden rounded-[2rem] bg-white text-black shadow-2xl">
-                <div className="relative h-[360px]">
+              <div className="rounded-[2rem] border border-white/10 bg-[#0b0b0b] p-5 shadow-2xl">
+                {/* HERO IMAGE */}
+                <div className="group relative h-[350px] overflow-hidden rounded-[1.5rem] border border-white/10">
                   {selected.image_url ? (
                     <Image
                       src={selected.image_url}
                       alt={selected.display_name}
                       fill
-                      className="object-cover"
+                      className="object-cover transition duration-700 group-hover:scale-105 group-hover:blur-[1px]"
                       priority
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center bg-neutral-200 text-neutral-500">
+                    <div className="flex h-full items-center justify-center bg-neutral-800 text-white/50">
                       No image available
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+
+                  <div className="absolute right-5 top-5 flex gap-2">
+                    <button className="flex h-11 w-11 items-center justify-center rounded-full bg-black/75 text-white backdrop-blur">
+                      ✎
+                    </button>
+                    <button className="flex h-11 w-11 items-center justify-center rounded-full bg-black/75 text-white backdrop-blur">
+                      ⋮
+                    </button>
+                  </div>
 
                   <div className="absolute bottom-6 left-6 right-6">
                     <div className="mb-3 flex flex-wrap gap-2">
@@ -421,81 +468,88 @@ export default function LocationsDashboardPage() {
                       >
                         {isClaimed ? "Claimed" : "Unclaimed"}
                       </span>
-
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase text-black">
-                        {selectedScore}/100
-                      </span>
                     </div>
 
-                    <h2 className="text-4xl font-black text-white">
-                      {selected.display_name}
-                    </h2>
+                    <div className="flex items-end justify-between gap-4">
+                      <h2 className="text-4xl font-black text-white">
+                        {selected.display_name}
+                      </h2>
+
+                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-yellow-500 bg-black text-center text-lg font-black text-white">
+                        <span>
+                          {selectedScore}
+                          <br />
+                          <span className="text-xs">/100</span>
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid gap-5 p-6">
-                  <section>
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
-                      Location Details
+                {/* MAIN DETAILS GRID */}
+                <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_1fr]">
+                  <section className="rounded-[1.5rem] border border-white/10 bg-[#111] p-5">
+                    <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-white/50">
+                      ⌖ Location Details
                     </p>
 
-                    <p className="mt-3 text-sm text-neutral-600">
+                    <p className="text-sm text-white/70">
                       {selectedAddress || "No address listed."}
                     </p>
 
                     {selected.primary_tag && (
-                      <p className="mt-3 text-sm font-bold">
+                      <p className="mt-5 text-sm font-black text-white">
                         ✨ {selected.primary_tag}
                       </p>
                     )}
 
                     {selected.date_style_tags?.length ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="mt-4 flex flex-wrap gap-2">
                         {selected.date_style_tags.slice(0, 4).map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"
+                            className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-bold text-white/80"
                           >
                             {tag}
                           </span>
                         ))}
                       </div>
                     ) : null}
-                  </section>
 
-                  <section className="rounded-[1.5rem] bg-neutral-100 p-5">
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
-                      Owner Contact
-                    </p>
+                    <div className="mt-6 rounded-2xl border border-white/10 bg-black/40 p-4">
+                      <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/50">
+                        Owner Contact
+                      </p>
 
-                    <div className="mt-4 space-y-2 text-sm">
-                      <p>
-                        <span className="font-black">Name:</span>{" "}
-                        {selected.owner_name || "Not added"}
-                      </p>
-                      <p>
-                        <span className="font-black">Email:</span>{" "}
-                        {selected.owner_email || "Not added"}
-                      </p>
-                      <p>
-                        <span className="font-black">Phone:</span>{" "}
-                        {selected.owner_phone || "Not added"}
-                      </p>
+                      <div className="space-y-2 text-sm text-white/80">
+                        <p>
+                          <span className="font-black text-white">Name:</span>{" "}
+                          {selected.owner_name || "Not added"}
+                        </p>
+                        <p>
+                          <span className="font-black text-white">Email:</span>{" "}
+                          {selected.owner_email || "Not added"}
+                        </p>
+                        <p>
+                          <span className="font-black text-white">Phone:</span>{" "}
+                          {selected.owner_phone || "Not added"}
+                        </p>
+                      </div>
                     </div>
                   </section>
 
-                  <section className="rounded-[1.5rem] border border-neutral-200 p-5">
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
-                      QR Claim Panel
+                  <section className="rounded-[1.5rem] border border-white/10 bg-[#111] p-5">
+                    <p className="mb-3 text-xs font-black uppercase tracking-[0.25em] text-white/50">
+                      ▦ QR Claim Panel
                     </p>
 
-                    <p className="mt-2 text-sm text-neutral-600">
+                    <p className="text-sm text-white/65">
                       Print this QR code so a location owner can claim this
                       listing.
                     </p>
 
                     {qrDataUrl && (
-                      <div className="mt-5 flex justify-center rounded-[1.5rem] bg-white p-4 shadow-inner">
+                      <div className="mt-4 flex justify-center rounded-2xl border border-white/10 bg-white p-5">
                         <img
                           src={qrDataUrl}
                           alt="Location claim QR code"
@@ -504,7 +558,7 @@ export default function LocationsDashboardPage() {
                       </div>
                     )}
 
-                    <p className="mt-4 break-all rounded-2xl bg-neutral-100 p-3 text-xs text-neutral-600">
+                    <p className="mt-4 break-all rounded-xl bg-white/10 p-3 text-xs text-white/60">
                       {claimUrl}
                     </p>
 
@@ -513,53 +567,87 @@ export default function LocationsDashboardPage() {
                         href={claimUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
+                        className="rounded-xl bg-yellow-500 px-5 py-3 text-center text-sm font-black text-black"
                       >
-                        Open Claim Link
+                        Open Claim Link ↗
                       </a>
 
                       <button
                         type="button"
                         onClick={() => window.print()}
-                        className="rounded-full border border-black px-5 py-3 text-sm font-bold text-black"
+                        className="rounded-xl border border-white/20 px-5 py-3 text-sm font-black text-white"
                       >
                         Print QR
                       </button>
                     </div>
                   </section>
-
-                  <section className="grid gap-3 sm:grid-cols-2">
-                    {selected.website && (
-                      <a
-                        href={selected.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-full border border-black px-5 py-3 text-center text-sm font-bold text-black"
-                      >
-                        Website
-                      </a>
-                    )}
-
-                    {(selected.reservation_url ||
-                      selected.reservation_link) && (
-                      <a
-                        href={
-                          selected.reservation_url ||
-                          selected.reservation_link
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
-                      >
-                        Reservation
-                      </a>
-                    )}
-                  </section>
                 </div>
+
+                {/* META + QUICK ACTIONS */}
+                <section className="mt-5 rounded-[1.5rem] border border-white/10 bg-[#111] p-5">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <MetaItem label="Type" value={selected.location_type} />
+                    <MetaItem
+                      label="Status"
+                      value={isClaimed ? "Claimed" : "Unclaimed"}
+                    />
+                    <MetaItem label="Date Added" value={dateAdded} />
+                    <MetaItem
+                      label="RoseOut Score"
+                      value={`${selectedScore} / 100`}
+                    />
+                  </div>
+
+                  <div className="mt-5 border-t border-white/10 pt-5">
+                    <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-white/50">
+                      Quick Actions
+                    </p>
+
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                      <button className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/80">
+                        ✎ Edit Listing
+                      </button>
+
+                      <button className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/80">
+                        ◉ View Public Listing
+                      </button>
+
+                      {(selected.reservation_url ||
+                        selected.reservation_link) && (
+                        <a
+                          href={
+                            selected.reservation_url ||
+                            selected.reservation_link
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-xl border border-white/10 px-4 py-3 text-center text-sm font-bold text-white/80"
+                        >
+                          ▣ Reservation
+                        </a>
+                      )}
+
+                      {selected.website && (
+                        <a
+                          href={selected.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-xl border border-white/10 px-4 py-3 text-center text-sm font-bold text-white/80"
+                        >
+                          ◎ Website
+                        </a>
+                      )}
+
+                      <button className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/80">
+                        ⤴ Share
+                      </button>
+                    </div>
+                  </div>
+                </section>
               </div>
             ) : (
               <div className="rounded-[2rem] border border-white/10 bg-white/10 p-8 text-center">
-                <p className="font-bold text-neutral-300">
+                <p className="font-bold text-white/60">
                   Select a location to view details.
                 </p>
               </div>
@@ -568,5 +656,52 @@ export default function LocationsDashboardPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  sub,
+  green,
+}: {
+  icon: string;
+  label: string;
+  value: string | number;
+  sub: string;
+  green?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-5 shadow-2xl">
+      <div className="flex items-center gap-4">
+        <div
+          className={`flex h-14 w-14 items-center justify-center rounded-full text-2xl font-black ${
+            green
+              ? "bg-green-500/20 text-green-400"
+              : "bg-yellow-500/20 text-yellow-500"
+          }`}
+        >
+          {icon}
+        </div>
+
+        <div>
+          <p className="text-xs font-black text-white">{label}</p>
+          <p className="mt-1 text-3xl font-black">{value}</p>
+          <p className="text-xs text-white/50">{sub}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetaItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
+        {label}
+      </p>
+      <p className="mt-2 text-sm font-bold capitalize text-white">{value}</p>
+    </div>
   );
 }
