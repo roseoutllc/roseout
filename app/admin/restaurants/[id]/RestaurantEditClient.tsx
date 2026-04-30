@@ -240,7 +240,9 @@ export default function RestaurantEditClient({
               <label className="text-sm font-bold">Claim Status</label>
               <select
                 value={form.claimed ? "claimed" : "unclaimed"}
-                onChange={(e) => updateField("claimed", e.target.value === "claimed")}
+                onChange={(e) =>
+                  updateField("claimed", e.target.value === "claimed")
+                }
                 className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
               >
                 <option value="unclaimed">Unclaimed</option>
@@ -384,7 +386,9 @@ export default function RestaurantEditClient({
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="text-sm font-bold">Owner / Manager Name</label>
+                <label className="text-sm font-bold">
+                  Owner / Manager Name
+                </label>
                 <input
                   value={form.owner_name}
                   onChange={(e) => updateField("owner_name", e.target.value)}
@@ -425,18 +429,67 @@ export default function RestaurantEditClient({
 
         <aside className="space-y-6">
           <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
+            <h2 className="text-2xl font-extrabold">Preview</h2>
+
+            <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-neutral-200">
+              {form.image_url ? (
+                <img
+                  src={form.image_url}
+                  alt={form.restaurant_name}
+                  className="h-52 w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-52 items-center justify-center bg-neutral-200 text-neutral-500">
+                  No image
+                </div>
+              )}
+
+              <div className="p-5">
+                <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
+                  {form.status}
+                </span>
+
+                <h3 className="mt-4 text-2xl font-extrabold">
+                  {form.restaurant_name || "Restaurant Name"}
+                </h3>
+
+                <p className="mt-2 text-sm text-neutral-600">
+                  {form.city || "City"}, {form.state || "State"}
+                </p>
+
+                <p className="mt-3 text-sm text-neutral-500">
+                  {form.cuisine_type || "Cuisine"} · Score:{" "}
+                  {form.roseout_score || 0}
+                </p>
+              </div>
+            </div>
+
+            <a
+              href={`/restaurants/${restaurant.id}`}
+              target="_blank"
+              className="mt-5 block rounded-full bg-black px-5 py-3 text-center font-bold text-white"
+            >
+              View Public Page
+            </a>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
             <h2 className="text-2xl font-extrabold">Owner / Manager</h2>
 
             <div className="mt-5 space-y-4">
               <div>
-                <p className="text-xs font-bold uppercase text-neutral-500">Name</p>
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Name
+                </p>
                 <p className="mt-1 text-lg font-extrabold">
                   {form.owner_name || "Not added"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs font-bold uppercase text-neutral-500">Email</p>
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Email
+                </p>
                 {form.owner_email ? (
                   <a
                     href={`mailto:${form.owner_email}`}
@@ -450,9 +503,14 @@ export default function RestaurantEditClient({
               </div>
 
               <div>
-                <p className="text-xs font-bold uppercase text-neutral-500">Phone</p>
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Phone
+                </p>
                 {form.owner_phone ? (
-                  <a href={`tel:${form.owner_phone}`} className="mt-1 block text-sm font-bold">
+                  <a
+                    href={`tel:${form.owner_phone}`}
+                    className="mt-1 block text-sm font-bold"
+                  >
                     {form.owner_phone}
                   </a>
                 ) : (
@@ -461,7 +519,9 @@ export default function RestaurantEditClient({
               </div>
 
               <div>
-                <p className="text-xs font-bold uppercase text-neutral-500">Claim Status</p>
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Claim Status
+                </p>
                 <span
                   className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase ${
                     form.claimed
@@ -514,50 +574,6 @@ export default function RestaurantEditClient({
           </div>
 
           <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
-            <h2 className="text-2xl font-extrabold">Preview</h2>
-
-            <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-neutral-200">
-              {form.image_url ? (
-                <img
-                  src={form.image_url}
-                  alt={form.restaurant_name}
-                  className="h-52 w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-52 items-center justify-center bg-neutral-200 text-neutral-500">
-                  No image
-                </div>
-              )}
-
-              <div className="p-5">
-                <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
-                  {form.status}
-                </span>
-
-                <h3 className="mt-4 text-2xl font-extrabold">
-                  {form.restaurant_name || "Restaurant Name"}
-                </h3>
-
-                <p className="mt-2 text-sm text-neutral-600">
-                  {form.city || "City"}, {form.state || "State"}
-                </p>
-
-                <p className="mt-3 text-sm text-neutral-500">
-                  {form.cuisine_type || "Cuisine"} · Score: {form.roseout_score || 0}
-                </p>
-              </div>
-            </div>
-
-            <a
-              href={`/restaurants/${restaurant.id}`}
-              target="_blank"
-              className="mt-5 block rounded-full bg-black px-5 py-3 text-center font-bold text-white"
-            >
-              View Public Page
-            </a>
-          </div>
-
-          <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
             <h2 className="text-2xl font-extrabold">Claim QR Code</h2>
 
             {restaurant.qr_code_data_url ? (
@@ -598,21 +614,27 @@ export default function RestaurantEditClient({
 
             <div className="mt-5 grid gap-3">
               <div className="rounded-2xl bg-neutral-100 p-4">
-                <p className="text-xs font-bold uppercase text-neutral-500">Views</p>
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Views
+                </p>
                 <p className="mt-1 text-2xl font-extrabold">
                   {restaurant.view_count || 0}
                 </p>
               </div>
 
               <div className="rounded-2xl bg-neutral-100 p-4">
-                <p className="text-xs font-bold uppercase text-neutral-500">Clicks</p>
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Clicks
+                </p>
                 <p className="mt-1 text-2xl font-extrabold">
                   {restaurant.click_count || 0}
                 </p>
               </div>
 
               <div className="rounded-2xl bg-neutral-100 p-4">
-                <p className="text-xs font-bold uppercase text-neutral-500">Rating</p>
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Rating
+                </p>
                 <p className="mt-1 text-2xl font-extrabold">
                   ⭐ {restaurant.rating || 0}
                 </p>
