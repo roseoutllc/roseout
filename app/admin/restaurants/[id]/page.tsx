@@ -31,7 +31,53 @@ export default function AdminRestaurantDetailPage() {
       setLoading(false);
       return;
     }
+function ScoreSlider({
+  label,
+  value,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number | string;
+  max: number;
+  step: number;
+  onChange: (value: number) => void;
+}) {
+  const numericValue = Number(value) || 0;
+  const percent = Math.min((numericValue / max) * 100, 100);
 
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <label className="text-sm font-semibold text-neutral-700">
+          {label}
+        </label>
+
+        <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
+          {numericValue}
+        </span>
+      </div>
+
+      <div className="h-3 overflow-hidden rounded-full bg-neutral-200">
+        <div
+          className="h-full rounded-full bg-yellow-500"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={step}
+        value={numericValue}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="mt-3 w-full accent-yellow-500"
+      />
+    </div>
+  );
+}
     setRestaurant(data.restaurant);
     setForm(data.restaurant || {});
     setOwnerName(data.restaurant?.restaurant_owners?.[0]?.name || "");
@@ -493,57 +539,41 @@ export default function AdminRestaurantDetailPage() {
   <h2 className="text-xl font-bold">Scores</h2>
 
   <p className="mt-1 text-xs text-neutral-500">
-    These scores are used internally for ranking, recommendations, and listing quality.
+    Used internally for ranking, recommendations, and listing quality.
   </p>
 
-  <div className="mt-5 grid gap-4">
-    <div>
-      <label className="text-sm font-semibold text-neutral-600">
-        Rating
-      </label>
-      <input
-        className="mt-1 w-full rounded-xl border px-4 py-3"
-        value={form.rating || ""}
-        onChange={(e) => update("rating", e.target.value)}
-        placeholder="Example: 4.8"
-      />
-    </div>
+  <div className="mt-5 grid gap-5">
+    <ScoreSlider
+      label="Rating"
+      value={form.rating || 0}
+      max={5}
+      step={0.1}
+      onChange={(value) => update("rating", value)}
+    />
 
-    <div>
-      <label className="text-sm font-semibold text-neutral-600">
-        Review Count
-      </label>
-      <input
-        className="mt-1 w-full rounded-xl border px-4 py-3"
-        value={form.review_count || ""}
-        onChange={(e) => update("review_count", e.target.value)}
-        placeholder="Example: 125"
-      />
-    </div>
+    <ScoreSlider
+      label="Review Count"
+      value={form.review_count || 0}
+      max={500}
+      step={1}
+      onChange={(value) => update("review_count", value)}
+    />
 
-    <div>
-      <label className="text-sm font-semibold text-neutral-600">
-        Quality Score
-      </label>
-      <input
-        className="mt-1 w-full rounded-xl border px-4 py-3"
-        value={form.quality_score || ""}
-        onChange={(e) => update("quality_score", e.target.value)}
-        placeholder="Example: 90"
-      />
-    </div>
+    <ScoreSlider
+      label="Quality Score"
+      value={form.quality_score || 0}
+      max={100}
+      step={1}
+      onChange={(value) => update("quality_score", value)}
+    />
 
-    <div>
-      <label className="text-sm font-semibold text-neutral-600">
-        Popularity Score
-      </label>
-      <input
-        className="mt-1 w-full rounded-xl border px-4 py-3"
-        value={form.popularity_score || ""}
-        onChange={(e) => update("popularity_score", e.target.value)}
-        placeholder="Example: 85"
-      />
-    </div>
+    <ScoreSlider
+      label="Popularity Score"
+      value={form.popularity_score || 0}
+      max={100}
+      step={1}
+      onChange={(value) => update("popularity_score", value)}
+    />
   </div>
 </section>
           <section className="rounded-3xl bg-white p-6 text-black">
