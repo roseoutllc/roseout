@@ -23,10 +23,11 @@ export default async function AdminRestaurantsPage({
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  // Main filtered/paginated query
   let query = supabase
     .from("restaurants")
     .select(
-      "id, restaurant_name, city, state, status, cuisine_type, rating, view_count, click_count, roseout_score, image_url, created_at",
+      "id, restaurant_name, city, state, status, claimed, cuisine_type, rating, view_count, click_count, roseout_score, image_url, created_at",
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
@@ -43,6 +44,21 @@ export default async function AdminRestaurantsPage({
   }
 
   const { data: restaurants, error, count } = await query;
+
+  // Full database counts
+  const { count: totalRestaurants } = await supabase
+    .from("restaurants")
+    .select("id", { count: "exact", head: true });
+
+  const { count: claimedRestaurants } = await supabase
+    .from("restaurants")
+    .select("id", { count: "exact", head: true })
+    .eq("claimed", true);
+
+  const { count: unclaimedRestaurants } = await supabase
+    .from("restaurants")
+    .select("id", { count: "exact", head: true })
+    .or("claimed.eq.false,claimed.is.null");
 
   const totalPages = Math.max(1, Math.ceil((count || 0) / pageSize));
 
@@ -64,7 +80,8 @@ export default async function AdminRestaurantsPage({
         </h1>
 
         <p className="mt-3 text-neutral-400">
-          Manage large restaurant inventory with search, filters, stats, and fast editing.
+          Manage large restaurant inventory with search, filters, claim status,
+          stats, and fast editing.
         </p>
       </div>
 
@@ -74,37 +91,32 @@ export default async function AdminRestaurantsPage({
         </div>
       )}
 
-      <section className="mb-6 grid gap-4 md:grid-cols-4">
+      <section className="mb-6 grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl bg-white p-5 text-black">
           <p className="text-xs font-bold uppercase text-neutral-500">
-            Matching Results
-          </p>
-          <p className="mt-1 text-3xl font-extrabold">{count || 0}</p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-5 text-black">
-          <p className="text-xs font-bold uppercase text-neutral-500">
-            Current Page
+            Total Restaurants
           </p>
           <p className="mt-1 text-3xl font-extrabold">
-            {page} / {totalPages}
+            {totalRestaurants || 0}
           </p>
         </div>
 
         <div className="rounded-2xl bg-white p-5 text-black">
           <p className="text-xs font-bold uppercase text-neutral-500">
-            Showing
+            Claimed
           </p>
           <p className="mt-1 text-3xl font-extrabold">
-            {restaurants?.length || 0}
+            {claimedRestaurants || 0}
           </p>
         </div>
 
         <div className="rounded-2xl bg-white p-5 text-black">
           <p className="text-xs font-bold uppercase text-neutral-500">
-            Page Size
+            Unclaimed
           </p>
-          <p className="mt-1 text-3xl font-extrabold">{pageSize}</p>
+          <p className="mt-1 text-3xl font-extrabold">
+            {unclaimedRestaurants || 0}
+          </p>
         </div>
       </section>
 
@@ -166,7 +178,7 @@ export default async function AdminRestaurantsPage({
           </div>
 
           <div className="text-sm font-bold text-neutral-500">
-            {from + 1}-{Math.min(to + 1, count || 0)} of {count || 0}
+            Showing {from + 1}-{Math.min(to + 1, count || 0)} of {count || 0}
           </div>
         </div>
 
@@ -176,13 +188,14 @@ export default async function AdminRestaurantsPage({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1000px] text-left text-sm">
+            <table className="w-full min-w-[1100px] text-left text-sm">
               <thead className="bg-neutral-100 text-xs uppercase tracking-wide text-neutral-500">
                 <tr>
                   <th className="px-5 py-4">Restaurant</th>
                   <th className="px-5 py-4">City</th>
                   <th className="px-5 py-4">Cuisine</th>
                   <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4">Claim</th>
                   <th className="px-5 py-4">Rating</th>
                   <th className="px-5 py-4">Views</th>
                   <th className="px-5 py-4">Clicks</th>
@@ -236,6 +249,18 @@ export default async function AdminRestaurantsPage({
                     <td className="px-5 py-4">
                       <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
                         {restaurant.status || "unknown"}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                          restaurant.claimed
+                            ? "bg-green-100 text-green-700"
+                            : "bg-neutral-100 text-neutral-600"
+                        }`}
+                      >
+                        {restaurant.claimed ? "Claimed" : "Unclaimed"}
                       </span>
                     </td>
 
