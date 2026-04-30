@@ -1,31 +1,52 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
+import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase-browser";
 
 type LocationType = "restaurant" | "activity";
 
-export default function LocationsDashboard() {
+type LocationItem = {
+  id: string;
+  location_type: LocationType;
+  display_name: string;
+  restaurant_name?: string;
+  activity_name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  image_url?: string;
+  rating?: number;
+  review_count?: number;
+  roseout_score?: number;
+  status?: string;
+  claimed?: boolean;
+  claim_status?: string;
+  owner_name?: string;
+  owner_email?: string;
+  owner_phone?: string;
+  website?: string;
+  reservation_url?: string;
+  reservation_link?: string;
+  primary_tag?: string;
+  date_style_tags?: string[];
+};
+
+export default function LocationsDashboardPage() {
   const supabase = createClient();
 
   const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [locations, setLocations] = useState<any[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<any>(null);
-  const [form, setForm] = useState<any>({});
-  const [locationType, setLocationType] = useState<"all" | LocationType>("all");
+  const [locations, setLocations] = useState<LocationItem[]>([]);
+  const [selected, setSelected] = useState<LocationItem | null>(null);
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | LocationType>("all");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [qrDataUrl, setQrDataUrl] = useState("");
 
-  const update = (key: string, value: string) => {
-    setForm((prev: any) => ({ ...prev, [key]: value }));
-  };
-
-  // LOAD DATA
   useEffect(() => {
-    const loadData = async () => {
+    const loadDashboard = async () => {
       setLoading(true);
 
       const {
@@ -33,216 +54,503 @@ export default function LocationsDashboard() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        window.location.href = "/login";
+        window.location.href = "/locations/signup";
         return;
       }
 
       setUser(user);
 
-      const isSuper = user.user_metadata?.role === "superuser";
-      setIsAdmin(isSuper);
+      const isAdmin = user.user_metadata?.role === "superuser";
 
-      // ADMIN LOAD ALL
-      if (isSuper) {
-        const [restaurants, activities] = await Promise.all([
-          supabase.from("restaurants").select("*"),
-          supabase.from("activities").select("*"),
+      if (isAdmin) {
+        const [restaurantsRes, activitiesRes] = await Promise.all([
+          supabase.from("restaurants").select("*").order("created_at", {
+            ascending: false,
+          }),
+          supabase.from("activities").select("*").order("created_at", {
+            ascending: false,
+          }),
         ]);
 
-        const combined = [
-          ...(restaurants.data || []).map((r) => ({
+        const combined: LocationItem[] = [
+          ...(restaurantsRes.data || []).map((r: any) => ({
             ...r,
-            location_type: "restaurant",
-            display_name: r.restaurant_name,
+            location_type: "restaurant" as LocationType,
+            display_name: r.restaurant_name || "Restaurant",
           })),
-          ...(activities.data || []).map((a) => ({
+          ...(activitiesRes.data || []).map((a: any) => ({
             ...a,
-            location_type: "activity",
-            display_name: a.activity_name,
+            location_type: "activity" as LocationType,
+            display_name: a.activity_name || "Activity",
           })),
         ];
 
         setLocations(combined);
-        setSelectedLocation(combined[0]);
-        setForm(combined[0]);
+        setSelected(combined[0] || null);
         setLoading(false);
         return;
       }
 
-      // OWNER LOAD SINGLE
-      const { data: owner } = await supabase
+      const { data: ownerLinks } = await supabase
         .from("restaurant_owners")
-        .select("restaurant_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!owner) {
-        setMessage("No location linked yet.");
-        setLoading(false);
-        return;
-      }
-
-      const { data: restaurant } = await supabase
-        .from("restaurants")
         .select("*")
-        .eq("id", owner.restaurant_id)
-        .single();
+        .eq("user_id", user.id);
 
-      const location = {
-        ...restaurant,
-        location_type: "restaurant",
-        display_name: restaurant.restaurant_name,
-      };
+      const restaurantIds =
+        ownerLinks?.map((o: any) => o.restaurant_id).filter(Boolean) || [];
 
-      setLocations([location]);
-      setSelectedLocation(location);
-      setForm(location);
+      const activityIds =
+        ownerLinks?.map((o: any) => o.activity_id).filter(Boolean) || [];
+
+      const [restaurantsRes, activitiesRes] = await Promise.all([
+        restaurantIds.length
+          ? supabase.from("restaurants").select("*").in("id", restaurantIds)
+          : Promise.resolve({ data: [] as any[] }),
+        activityIds.length
+          ? supabase.from("activities").select("*").in("id", activityIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const combined: LocationItem[] = [
+        ...(restaurantsRes.data || []).map((r: any) => ({
+          ...r,
+          location_type: "restaurant" as LocationType,
+          display_name: r.restaurant_name || "Restaurant",
+        })),
+        ...(activitiesRes.data || []).map((a: any) => ({
+          ...a,
+          location_type: "activity" as LocationType,
+          display_name: a.activity_name || "Activity",
+        })),
+      ];
+
+      setLocations(combined);
+      setSelected(combined[0] || null);
       setLoading(false);
     };
 
-    loadData();
-  }, []);
+    loadDashboard();
+  }, [supabase]);
 
-  // FILTER
+  useEffect(() => {
+    const makeQr = async () => {
+      if (!selected) {
+        setQrDataUrl("");
+        return;
+      }
+
+      const baseUrl =
+        process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
+
+      const claimUrl = `${baseUrl}/claim?location=${selected.id}&type=${selected.location_type}`;
+
+      const qr = await QRCode.toDataURL(claimUrl, {
+        margin: 2,
+        width: 280,
+      });
+
+      setQrDataUrl(qr);
+    };
+
+    makeQr();
+  }, [selected]);
+
   const filteredLocations = useMemo(() => {
-    return locations.filter((l) => {
-      const q = search.toLowerCase();
+    const q = search.toLowerCase();
 
-      return (
-        (locationType === "all" || l.location_type === locationType) &&
-        (l.display_name?.toLowerCase().includes(q) ||
-          l.city?.toLowerCase().includes(q))
-      );
+    return locations.filter((location) => {
+      const matchesType =
+        typeFilter === "all" || location.location_type === typeFilter;
+
+      const matchesSearch =
+        location.display_name?.toLowerCase().includes(q) ||
+        location.city?.toLowerCase().includes(q) ||
+        location.address?.toLowerCase().includes(q);
+
+      return matchesType && matchesSearch;
     });
-  }, [locations, search, locationType]);
+  }, [locations, search, typeFilter]);
 
-  const selectLocation = (id: string) => {
-    const loc = locations.find((l) => l.id === id);
-    if (!loc) return;
-    setSelectedLocation(loc);
-    setForm(loc);
-  };
+  const claimedCount = locations.filter(
+    (l) => l.claimed || l.claim_status === "claimed" || l.owner_email
+  ).length;
+
+  const unclaimedCount = locations.length - claimedCount;
+
+  const isClaimed =
+    selected?.claimed || selected?.claim_status === "claimed" || selected?.owner_email;
+
+  const selectedAddress = selected
+    ? [selected.address, selected.city, selected.state, selected.zip_code]
+        .filter(Boolean)
+        .join(", ")
+    : "";
+
+  const claimUrl = selected
+    ? `${
+        process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app"
+      }/claim?location=${selected.id}&type=${selected.location_type}`
+    : "";
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-black text-white">
-        Loading Locations...
+      <main className="flex min-h-screen items-center justify-center bg-black px-5 text-white">
+        <p className="text-sm font-black uppercase tracking-[0.3em] text-yellow-500">
+          Loading Locations Portal...
+        </p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-black text-white px-5 py-6">
-      <div className="max-w-6xl mx-auto">
-
-        {/* HEADER */}
-        <div className="mb-6 flex justify-between items-center">
+    <main className="min-h-screen bg-black px-5 py-6 text-white">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Locations Portal</h1>
-            <p className="text-neutral-400 text-sm">
-              Manage your listings
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
+              RoseOut
+            </p>
+
+            <h1 className="mt-2 text-4xl font-black tracking-tight">
+              Locations Portal
+            </h1>
+
+            <p className="mt-2 text-sm text-neutral-400">
+              Manage claimed locations, review listing details, and print QR
+              claim codes.
             </p>
           </div>
 
           <button
-            onClick={() => supabase.auth.signOut()}
-            className="text-sm border px-4 py-2 rounded-full"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.href = "/locations/signup";
+            }}
+            className="rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-white/15"
           >
             Logout
           </button>
-        </div>
+        </header>
 
-        {/* SEARCH */}
-        <div className="mb-6 flex gap-3">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search locations..."
-            className="flex-1 rounded-full bg-neutral-900 px-4 py-3"
-          />
-
-          <select
-            value={locationType}
-            onChange={(e) => setLocationType(e.target.value as any)}
-            className="rounded-full bg-neutral-900 px-4"
-          >
-            <option value="all">All</option>
-            <option value="restaurant">Restaurants</option>
-            <option value="activity">Activities</option>
-          </select>
-        </div>
-
-        {/* GRID */}
-        <div className="grid md:grid-cols-3 gap-6">
-
-          {/* LIST */}
-          <div className="space-y-4">
-            {filteredLocations.map((loc) => (
-              <div
-                key={loc.id}
-                onClick={() => selectLocation(loc.id)}
-                className={`p-4 rounded-xl cursor-pointer transition ${
-                  selectedLocation?.id === loc.id
-                    ? "bg-yellow-500 text-black"
-                    : "bg-neutral-900"
-                }`}
-              >
-                <p className="font-bold">{loc.display_name}</p>
-                <p className="text-xs">{loc.city}</p>
-              </div>
-            ))}
+        <section className="mb-6 grid gap-4 md:grid-cols-3">
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-400">
+              Total Locations
+            </p>
+            <p className="mt-2 text-3xl font-black">{locations.length}</p>
           </div>
 
-          {/* DETAILS */}
-          <div className="md:col-span-2 bg-white text-black p-6 rounded-2xl shadow-xl">
-            {selectedLocation && (
-              <>
-                <h2 className="text-2xl font-bold mb-4">
-                  {selectedLocation.display_name}
-                </h2>
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-400">
+              Claimed
+            </p>
+            <p className="mt-2 text-3xl font-black text-green-400">
+              {claimedCount}
+            </p>
+          </div>
 
-                <input
-                  value={form.address || ""}
-                  onChange={(e) => update("address", e.target.value)}
-                  className="w-full mb-3 p-3 border rounded"
-                  placeholder="Address"
-                />
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-400">
+              Unclaimed
+            </p>
+            <p className="mt-2 text-3xl font-black text-yellow-500">
+              {unclaimedCount}
+            </p>
+          </div>
+        </section>
 
-                <input
-                  value={form.city || ""}
-                  onChange={(e) => update("city", e.target.value)}
-                  className="w-full mb-3 p-3 border rounded"
-                  placeholder="City"
-                />
+        <section className="mb-6 rounded-[1.75rem] border border-white/10 bg-black/70 p-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, city, or address..."
+              className="rounded-full border border-white/10 bg-neutral-950 px-5 py-3 text-sm text-white placeholder-neutral-500 outline-none focus:border-yellow-500"
+            />
 
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as any)}
+              className="rounded-full border border-white/10 bg-neutral-950 px-5 py-3 text-sm font-bold text-white outline-none"
+            >
+              <option value="all">All Locations</option>
+              <option value="restaurant">Restaurants</option>
+              <option value="activity">Activities</option>
+            </select>
+          </div>
+        </section>
+
+        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+          <section className="space-y-4">
+            {filteredLocations.map((location) => {
+              const active = selected?.id === location.id;
+              const claimed =
+                location.claimed ||
+                location.claim_status === "claimed" ||
+                location.owner_email;
+
+              return (
                 <button
-                  onClick={async () => {
-                    setSaving(true);
-
-                    const table =
-                      selectedLocation.location_type === "restaurant"
-                        ? "restaurants"
-                        : "activities";
-
-                    await supabase
-                      .from(table)
-                      .update(form)
-                      .eq("id", selectedLocation.id);
-
-                    setSaving(false);
-                    setMessage("Saved!");
-                  }}
-                  className="mt-4 w-full bg-black text-white py-3 rounded-full"
+                  key={`${location.location_type}-${location.id}`}
+                  type="button"
+                  onClick={() => setSelected(location)}
+                  className={`group w-full overflow-hidden rounded-[1.75rem] border text-left shadow-xl transition hover:-translate-y-1 ${
+                    active
+                      ? "border-yellow-500 bg-yellow-500 text-black"
+                      : "border-white/10 bg-white text-black"
+                  }`}
                 >
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
+                  <div className="relative h-48">
+                    {location.image_url ? (
+                      <Image
+                        src={location.image_url}
+                        alt={location.display_name}
+                        fill
+                        className="object-cover transition duration-700 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-neutral-200 text-neutral-500">
+                        No image
+                      </div>
+                    )}
 
-                {message && (
-                  <p className="mt-3 text-green-600 font-bold">{message}</p>
-                )}
-              </>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+
+                    <div className="absolute left-4 top-4 flex gap-2">
+                      <span className="rounded-full bg-black/80 px-3 py-1 text-xs font-black uppercase text-white">
+                        {location.location_type}
+                      </span>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-black uppercase ${
+                          claimed
+                            ? "bg-green-500 text-black"
+                            : "bg-white text-black"
+                        }`}
+                      >
+                        {claimed ? "Claimed" : "Unclaimed"}
+                      </span>
+                    </div>
+
+                    {location.rating && (
+                      <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black">
+                        ⭐ {location.rating}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-5">
+                    <h2 className="text-xl font-black">
+                      {location.display_name}
+                    </h2>
+
+                    <p className="mt-2 text-sm opacity-70">
+                      {[location.address, location.city, location.state]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {location.status && (
+                        <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
+                          {location.status}
+                        </span>
+                      )}
+
+                      {location.roseout_score !== undefined && (
+                        <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
+                          {location.roseout_score}/100
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+
+            {!filteredLocations.length && (
+              <div className="rounded-[2rem] border border-white/10 bg-white/10 p-6 text-center">
+                <p className="font-bold text-neutral-300">
+                  No locations found.
+                </p>
+              </div>
             )}
-          </div>
+          </section>
+
+          <aside className="lg:sticky lg:top-6 lg:self-start">
+            {selected ? (
+              <div className="overflow-hidden rounded-[2rem] bg-white text-black shadow-2xl">
+                <div className="relative h-72">
+                  {selected.image_url ? (
+                    <Image
+                      src={selected.image_url}
+                      alt={selected.display_name}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center bg-neutral-200 text-neutral-500">
+                      No image available
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+
+                  <div className="absolute bottom-5 left-5 right-5">
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-black/80 px-3 py-1 text-xs font-black uppercase text-white">
+                        {selected.location_type}
+                      </span>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-black uppercase ${
+                          isClaimed
+                            ? "bg-green-500 text-black"
+                            : "bg-yellow-500 text-black"
+                        }`}
+                      >
+                        {isClaimed ? "Claimed" : "Unclaimed"}
+                      </span>
+                    </div>
+
+                    <h2 className="text-3xl font-black text-white">
+                      {selected.display_name}
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="grid gap-5 p-6">
+                  <section>
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
+                      Location Details
+                    </p>
+
+                    <p className="mt-3 text-sm text-neutral-600">
+                      {selectedAddress || "No address listed."}
+                    </p>
+
+                    {selected.primary_tag && (
+                      <p className="mt-3 text-sm font-bold">
+                        ✨ {selected.primary_tag}
+                      </p>
+                    )}
+
+                    {selected.date_style_tags?.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {selected.date_style_tags.slice(0, 4).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+
+                  <section className="rounded-[1.5rem] bg-neutral-100 p-5">
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
+                      Owner Contact
+                    </p>
+
+                    <div className="mt-4 space-y-2 text-sm">
+                      <p>
+                        <span className="font-black">Name:</span>{" "}
+                        {selected.owner_name || "Not added"}
+                      </p>
+                      <p>
+                        <span className="font-black">Email:</span>{" "}
+                        {selected.owner_email || user?.email || "Not added"}
+                      </p>
+                      <p>
+                        <span className="font-black">Phone:</span>{" "}
+                        {selected.owner_phone || "Not added"}
+                      </p>
+                    </div>
+                  </section>
+
+                  <section className="rounded-[1.5rem] border border-neutral-200 p-5">
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
+                      QR Claim Panel
+                    </p>
+
+                    <p className="mt-2 text-sm text-neutral-600">
+                      Print this QR code so a location owner can claim this
+                      listing.
+                    </p>
+
+                    {qrDataUrl && (
+                      <div className="mt-5 flex justify-center rounded-[1.5rem] bg-white p-4 shadow-inner">
+                        <img
+                          src={qrDataUrl}
+                          alt="Location claim QR code"
+                          className="h-52 w-52"
+                        />
+                      </div>
+                    )}
+
+                    <p className="mt-4 break-all rounded-2xl bg-neutral-100 p-3 text-xs text-neutral-600">
+                      {claimUrl}
+                    </p>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <a
+                        href={claimUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
+                      >
+                        Open Claim Link
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="rounded-full border border-black px-5 py-3 text-sm font-bold text-black"
+                      >
+                        Print QR
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="grid gap-3 sm:grid-cols-2">
+                    {selected.website && (
+                      <a
+                        href={selected.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border border-black px-5 py-3 text-center text-sm font-bold text-black"
+                      >
+                        Website
+                      </a>
+                    )}
+
+                    {(selected.reservation_url ||
+                      selected.reservation_link) && (
+                      <a
+                        href={
+                          selected.reservation_url ||
+                          selected.reservation_link
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
+                      >
+                        Reservation
+                      </a>
+                    )}
+                  </section>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-[2rem] border border-white/10 bg-white/10 p-8 text-center">
+                <p className="font-bold text-neutral-300">
+                  Select a location to view details.
+                </p>
+              </div>
+            )}
+          </aside>
         </div>
       </div>
     </main>
