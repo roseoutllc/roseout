@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const currentValue = Number(item[field] || 0);
+  const currentValue = Number((item as Record<string, any>)[field] || 0);
 
   const { error } = await supabaseAdmin
     .from(table)
