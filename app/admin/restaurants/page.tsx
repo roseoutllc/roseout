@@ -4,8 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import AdminTopBar from "@/app/admin/components/AdminTopBar";
+import { requireAdminRole } from "@/lib/admin-auth";
 
-export default function AdminRestaurantsPage() {
+export default async function AdminRestaurantsPage() {
+  await requireAdminRole(["superuser", "admin", "editor", "viewer"]);
+
+  // rest of your page
+}
   const supabase = createClient();
 
   const [restaurants, setRestaurants] = useState<any[]>([]);

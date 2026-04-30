@@ -3,12 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
+import { requireAdminRole } from "@/lib/admin-auth";
 
 type LocationType = "all" | "restaurants" | "activities";
 type ClaimStatus = "pending" | "rejected" | "unclaimed" | "claimed";
 type ClaimFilter = "all" | ClaimStatus;
 
-export default function AdminPage() {
+export default async function AdminPage() 
+  await requireAdminRole([
+    "superuser",
+    "admin",
+    "editor",
+    "reviewer",
+    "viewer",
+  ]); {
   const supabase = createClient();
 
   const [restaurants, setRestaurants] = useState<any[]>([]);

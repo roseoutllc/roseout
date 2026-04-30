@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { requireAdminRole } from "@/lib/admin-auth";
 
 type ImportLog = {
   id: string;
@@ -12,6 +13,7 @@ function getTodayDate() {
 }
 
 export default async function ImportHistoryPage() {
+  await requireAdminRole(["superuser", "admin", "viewer"]);
   const today = getTodayDate();
 
   const { data: logs, error } = await supabase
