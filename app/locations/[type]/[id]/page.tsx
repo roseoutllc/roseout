@@ -33,7 +33,8 @@ export default async function LocationDetailsPage({
 
   const type = resolvedParams.type;
   const id = resolvedParams.id;
-  const from = resolvedSearchParams?.from || "/create";
+
+  const from = resolvedSearchParams?.from || "/locations/dashboard";
 
   const isActivity = type === "activities" || type === "activity";
   const table = isActivity ? "activities" : "restaurants";
@@ -62,7 +63,7 @@ export default async function LocationDetailsPage({
             href={from}
             className="mt-6 inline-block rounded-full bg-yellow-500 px-6 py-3 text-sm font-black text-black"
           >
-            Back to Results
+            Back
           </Link>
         </div>
       </main>
@@ -133,7 +134,9 @@ export default async function LocationDetailsPage({
           <div className="max-w-4xl pb-8">
             <div className="mb-4 flex flex-wrap gap-2">
               <span className="rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-black">
-                {isActivity ? location.activity_type || "Activity" : "Restaurant"}
+                {isActivity
+                  ? location.activity_type || "Activity"
+                  : "Restaurant"}
               </span>
 
               {location.price_range && (
@@ -282,9 +285,7 @@ export default async function LocationDetailsPage({
 
             {signatureItems.length > 0 && (
               <ListSection
-                title={
-                  isActivity ? "Experience Highlights" : "Signature Items"
-                }
+                title={isActivity ? "Experience Highlights" : "Signature Items"}
                 items={signatureItems}
                 empty="No highlights listed."
               />
@@ -306,15 +307,33 @@ export default async function LocationDetailsPage({
               </p>
 
               <div className="mt-5 space-y-4 text-sm">
-                <DetailRow label="Type" value={isActivity ? "Activity" : "Restaurant"} />
+                <DetailRow
+                  label="Type"
+                  value={isActivity ? "Activity" : "Restaurant"}
+                />
                 <DetailRow label="City" value={location.city || "Not listed"} />
-                <DetailRow label="Neighborhood" value={location.neighborhood || "Not listed"} />
-                <DetailRow label="Price" value={location.price_range || "Not listed"} />
-                <DetailRow label="Hours" value={location.hours || "Not listed"} />
-                <DetailRow label="Phone" value={location.phone || "Not listed"} />
+                <DetailRow
+                  label="Neighborhood"
+                  value={location.neighborhood || "Not listed"}
+                />
+                <DetailRow
+                  label="Price"
+                  value={location.price_range || "Not listed"}
+                />
+                <DetailRow
+                  label="Hours"
+                  value={location.hours || "Not listed"}
+                />
+                <DetailRow
+                  label="Phone"
+                  value={location.phone || "Not listed"}
+                />
 
                 {!isActivity && (
-                  <DetailRow label="Cuisine" value={location.cuisine || "Not listed"} />
+                  <DetailRow
+                    label="Cuisine"
+                    value={location.cuisine || "Not listed"}
+                  />
                 )}
 
                 {isActivity && (
@@ -334,7 +353,9 @@ export default async function LocationDetailsPage({
               <div className="mt-5 flex items-center justify-between">
                 <div>
                   <p className="text-5xl font-black">{score}</p>
-                  <p className="text-sm font-bold text-neutral-400">out of 100</p>
+                  <p className="text-sm font-bold text-neutral-400">
+                    out of 100
+                  </p>
                 </div>
 
                 <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-yellow-500 text-xl font-black">
@@ -385,6 +406,13 @@ export default async function LocationDetailsPage({
                 >
                   Get Directions
                 </a>
+
+                <Link
+                  href={from}
+                  className="rounded-full border border-black px-5 py-3 text-center text-sm font-black text-black"
+                >
+                  Back to Locations
+                </Link>
               </div>
             </section>
           </aside>
