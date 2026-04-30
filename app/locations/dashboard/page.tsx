@@ -272,6 +272,12 @@ export default function LocationsDashboardPage() {
       }/${selected.id}`
     : "#";
 
+  const publicUrl = selected
+    ? `/locations/${
+        selected.location_type === "activity" ? "activities" : "restaurants"
+      }/${selected.id}`
+    : "#";
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-5 text-white">
@@ -405,7 +411,8 @@ export default function LocationsDashboardPage() {
                   location.claim_status === "claimed" ||
                   !!location.owner_email;
 
-                const score = location.roseout_score ?? location.quality_score ?? 0;
+                const score =
+                  location.roseout_score ?? location.quality_score ?? 0;
 
                 return (
                   <button
@@ -674,9 +681,12 @@ export default function LocationsDashboardPage() {
                         ✎ Edit Listing
                       </Link>
 
-                      <button className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/80">
+                      <Link
+                        href={publicUrl}
+                        className="rounded-xl border border-white/10 px-4 py-3 text-center text-sm font-bold text-white/80 transition hover:border-yellow-500 hover:text-yellow-500"
+                      >
                         ◉ View Public Listing
-                      </button>
+                      </Link>
 
                       {(selected.reservation_url ||
                         selected.reservation_link) && (
