@@ -7,8 +7,7 @@ import AdminTopBar from "@/app/admin/components/AdminTopBar";
 export default function AdminClaimsPage() {
   const supabase = createClient();
 
-  const [restaurantClaims, setRestaurantClaims] = useState<any[]>([]);
-  const [activityClaims, setActivityClaims] = useState<any[]>([]);
+  const [claims, setClaims] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
 
@@ -27,138 +26,173 @@ export default function AdminClaimsPage() {
         return;
       }
 
-      const res = await fetch("/api/admin/claims");
-      const dataJson = await res.json();
-
-      setRestaurantClaims(dataJson.restaurantClaims || []);
-      setActivityClaims(dataJson.activityClaims || []);
-
-      setLoading(false);
+      fetchClaims();
     };
 
     init();
   }, []);
 
-const updateClaim = async (id: string, type: string, status: string) => {
-  const res = await fetch("/api/admin/claims/update", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ id, type, status }),
-  });
+  const fetchClaims = async () => {
+    setLoading(true);
 
-  const data = await res.json();
+    const { data, error } = await supabase
+      .from("restaurant_claims")
+      .select(
+        `
+        *,
+        restaurants (
+          id,
+          restaurant_name,
+          address
+        )
+      `
+      )
+      .order("created_at", { ascending: false });
 
-  if (status === "approved" && data.signup_url) {
-    await navigator.clipboard.writeText(data.signup_url);
-    alert("Approved. Signup link copied to clipboard.");
-  } else {
-    alert(`Claim ${status}.`);
-  }
+    if (error) {
+      console.error("Error loading claims:", error);
+    } else {
+      setClaims(data || []);
+    }
 
-  window.location.reload();
-};
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id, type, status }),
-    });
+    setLoading(false);
+  };
 
-    // Refresh after update
-    window.location.reload();
+  const updateClaimStatus = async (
+    id: string,
+    status: "claimed" | "rejected"
+  ) => {
+    try {
+      const res = await fetch("/api/admin/claims/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id, status }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update claim");
+      }
+
+      fetchClaims();
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    }
   };
 
   if (loading) {
-    return <main className="min-h-screen bg-black p-6 text-white">Loading...</main>;
+    return (
+      <div className="min-h-screen bg-black text-white">
+        <AdminTopBar />
+        <div className="p-6">Loading claims...</div>
+      </div>
+    );
   }
 
   if (unauthorized) {
-    return <main className="min-h-screen bg-black p-6 text-white">Not authorized</main>;
+    return (
+      <div className="min-h-screen bg-black text-white">
+        <AdminTopBar />
+        <div className="p-6 text-red-400">
+          You are not authorized to view this page.
+        </div>
+      </div>
+    );
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white">
       <AdminTopBar />
 
-      <div className="mx-auto max-w-5xl px-6 py-12">
-        <h1 className="text-4xl font-bold">Claims</h1>
+      <main className="p-6">
+        <h1 className="mb-6 text-3xl font-bold">Restaurant Claims</h1>
 
-        {/* Restaurant Claims */}
-        <h2 className="mt-10 text-2xl font-bold">Restaurant Claims</h2>
+        <div className="space-y-4">
+          {claims.map((claim) => (
+            <div
+              key={claim.id}
+              className="rounded-xl border border-white/10 bg-white/5 p-5"
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:justify-between">
+                {/* Restaurant Info */}
+                <div>
+                  <h2 className="text-xl font-semibold">
+                    {claim.restaurants?.restaurant_name ||
+                      "Unnamed Restaurant"}
+                  </h2>
 
-        <div className="mt-4 grid gap-4">
-          {restaurantClaims.map((c) => (
-            <div key={c.id} className="rounded-2xl bg-white p-6 text-black">
-              <h3 className="text-xl font-bold">{c.restaurant_name}</h3>
+                  <p className="text-sm text-gray-400">
+                    {claim.restaurants?.address || "No address"}
+                  </p>
 
-              <p className="mt-1 text-sm text-neutral-600">
-                {c.owner_name} — {c.owner_email}
-              </p>
+                  <div className="mt-3">
+                    {claim.status === "pending" && (
+                      <span className="rounded-full bg-yellow-500 px-3 py-1 text-sm text-black">
+                        Pending
+                      </span>
+                    )}
 
-              {c.message && (
-                <p className="mt-2 text-sm text-neutral-700">
-                  {c.message}
-                </p>
-              )}
+                    {claim.status === "claimed" && (
+                      <span className="rounded-full bg-blue-600 px-3 py-1 text-sm text-white">
+                        Claimed
+                      </span>
+                    )}
 
-              <div className="mt-4 flex gap-3">
-                <button
-                  onClick={() => updateClaim(c.id, "restaurant", "approved")}
-                  className="rounded-full bg-green-600 px-4 py-2 text-white"
-                >
-                  Approve
-                </button>
+                    {claim.status === "rejected" && (
+                      <span className="rounded-full bg-red-600 px-3 py-1 text-sm text-white">
+                        Rejected
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                <button
-                  onClick={() => updateClaim(c.id, "restaurant", "rejected")}
-                  className="rounded-full bg-red-600 px-4 py-2 text-white"
-                >
-                  Reject
-                </button>
+                {/* Owner Info */}
+                <div className="text-sm">
+                  <p>
+                    <strong>Name:</strong> {claim.owner_name}
+                  </p>
+                  <p>
+                    <strong>Email:</strong> {claim.owner_email}
+                  </p>
+                  <p>
+                    <strong>Phone:</strong>{" "}
+                    {claim.owner_phone || "Not provided"}
+                  </p>
+
+                  {/* Actions */}
+                  {claim.status === "pending" && (
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        onClick={() =>
+                          updateClaimStatus(claim.id, "claimed")
+                        }
+                        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                      >
+                        Approve
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          updateClaimStatus(claim.id, "rejected")
+                        }
+                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
+
+          {claims.length === 0 && (
+            <p className="text-gray-400">No claims found.</p>
+          )}
         </div>
-
-        {/* Activity Claims */}
-        <h2 className="mt-10 text-2xl font-bold">Activity Claims</h2>
-
-        <div className="mt-4 grid gap-4">
-          {activityClaims.map((c) => (
-            <div key={c.id} className="rounded-2xl bg-white p-6 text-black">
-              <h3 className="text-xl font-bold">{c.activity_name}</h3>
-
-              <p className="mt-1 text-sm text-neutral-600">
-                {c.owner_name} — {c.owner_email}
-              </p>
-
-              {c.message && (
-                <p className="mt-2 text-sm text-neutral-700">
-                  {c.message}
-                </p>
-              )}
-
-              <div className="mt-4 flex gap-3">
-                <button
-                  onClick={() => updateClaim(c.id, "activity", "approved")}
-                  className="rounded-full bg-green-600 px-4 py-2 text-white"
-                >
-                  Approve
-                </button>
-
-                <button
-                  onClick={() => updateClaim(c.id, "activity", "rejected")}
-                  className="rounded-full bg-red-600 px-4 py-2 text-white"
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
