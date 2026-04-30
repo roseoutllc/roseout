@@ -76,16 +76,13 @@ function TypingText({ text }: { text: string }) {
 
   useEffect(() => {
     setDisplay("");
-
     let index = 0;
 
     const interval = setInterval(() => {
       setDisplay(text.slice(0, index + 1));
       index++;
 
-      if (index >= text.length) {
-        clearInterval(interval);
-      }
+      if (index >= text.length) clearInterval(interval);
     }, 28);
 
     return () => clearInterval(interval);
@@ -117,7 +114,7 @@ function SkeletonCards() {
   }, []);
 
   return (
-    <div className="mb-6 animate-in fade-in duration-500 rounded-[2rem] border border-white/10 bg-[#f7f3ed] p-6 text-black shadow-2xl">
+    <div className="mb-6 rounded-[2rem] border border-black/10 bg-[#f7f3ed] p-6 text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
       <div className="mb-6 text-center">
         <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">
           RoseOut
@@ -296,7 +293,6 @@ export default function CreatePage() {
     setLocationSaved(!!getSavedUserLocation());
 
     const saved = sessionStorage.getItem(STORAGE_KEY);
-
     if (!saved) return;
 
     try {
@@ -337,7 +333,6 @@ export default function CreatePage() {
 
         if (!viewedItems.current.has(key)) {
           viewedItems.current.add(key);
-
           trackAnalytics({
             itemId: r.id,
             itemType: "restaurant",
@@ -351,7 +346,6 @@ export default function CreatePage() {
 
         if (!viewedItems.current.has(key)) {
           viewedItems.current.add(key);
-
           trackAnalytics({
             itemId: a.id,
             itemType: "activity",
@@ -465,7 +459,7 @@ export default function CreatePage() {
         "";
 
   const SearchBox = (
-    <section className="relative z-10 mb-8 rounded-[1.75rem] border border-white/10 bg-black/80 p-4 backdrop-blur-xl">
+    <section className="relative z-10 mb-8 rounded-[1.75rem] border border-white/10 bg-black/80 p-4 backdrop-blur-xl shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
       <div className="grid gap-3 md:grid-cols-[1fr_170px] md:items-end">
         <div>
           <textarea
@@ -491,11 +485,7 @@ export default function CreatePage() {
           disabled={loading}
           className="rounded-full bg-yellow-500 px-8 py-4 font-black text-black transition hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading
-            ? "Finding..."
-            : messages.length
-            ? "Send"
-            : "Create Plan"}
+          {loading ? "Finding..." : messages.length ? "Send" : "Create Plan"}
         </button>
       </div>
 
@@ -516,11 +506,13 @@ export default function CreatePage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#070707] px-5 py-6 pb-40 text-white">
-      <div className="mx-auto max-w-4xl">
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-black via-[#15110d] to-[#f3eadc] px-5 py-6 pb-40 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_35%),linear-gradient(to_bottom,rgba(0,0,0,0.15),rgba(243,234,220,0.22))]" />
+
+      <div className="relative z-10 mx-auto max-w-4xl">
         {messages.length === 0 && (
           <>
-            <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl md:p-8">
+            <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#111]/95 p-6 shadow-[0_18px_60px_rgba(0,0,0,0.28)] md:p-8">
               <p className="mb-2 text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
                 RoseOut
               </p>
@@ -549,7 +541,7 @@ export default function CreatePage() {
               <button
                 type="button"
                 onClick={resetSearch}
-                className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white"
+                className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white backdrop-blur"
               >
                 New Search
               </button>
@@ -561,7 +553,11 @@ export default function CreatePage() {
 
         {loading && <SkeletonCards />}
 
-        <section className={`space-y-5 transition-opacity duration-700 ${loading ? "opacity-40" : "opacity-100"}`}>
+        <section
+          className={`space-y-5 transition-opacity duration-700 ${
+            loading ? "opacity-40" : "opacity-100"
+          }`}
+        >
           {messages.map((msg, index) => {
             const hasRestaurants = !!msg.restaurants?.length;
             const hasActivities = !!msg.activities?.length;
@@ -571,8 +567,8 @@ export default function CreatePage() {
                 key={index}
                 className={`rounded-[2rem] p-5 transition-all duration-700 ${
                   msg.role === "user"
-                    ? "bg-yellow-500 text-black shadow-xl"
-                    : "animate-in fade-in slide-in-from-bottom-4 border border-white/10 bg-[#f7f3ed] text-black shadow-2xl"
+                    ? "bg-yellow-500 text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]"
+                    : "animate-in fade-in slide-in-from-bottom-4 border border-white/10 bg-[#f7f3ed] text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]"
                 }`}
               >
                 {msg.role === "user" && (

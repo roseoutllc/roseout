@@ -28,7 +28,7 @@ export default function PlanPage() {
 
   if (!loaded) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
+      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-black via-[#15110d] to-[#f3eadc] px-6 text-white">
         <p className="text-lg font-bold text-yellow-500">Loading plan...</p>
       </main>
     );
@@ -36,8 +36,10 @@ export default function PlanPage() {
 
   if (!plan) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
-        <div className="text-center">
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-black via-[#15110d] to-[#f3eadc] px-6 text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_35%),linear-gradient(to_bottom,rgba(0,0,0,0.15),rgba(243,234,220,0.22))]" />
+
+        <div className="relative z-10 text-center">
           <p className="text-2xl font-bold">No plan found</p>
 
           <button
@@ -80,8 +82,10 @@ export default function PlanPage() {
     : "#";
 
   return (
-    <main className="min-h-screen bg-[#050505] px-5 py-6 text-white">
-      <div className="mx-auto max-w-2xl">
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-black via-[#15110d] to-[#f3eadc] px-5 py-6 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_35%),linear-gradient(to_bottom,rgba(0,0,0,0.15),rgba(243,234,220,0.22))]" />
+
+      <div className="relative z-10 mx-auto max-w-2xl">
         <div className="mb-4 flex items-center justify-between gap-3">
           <button
             onClick={() => window.history.back()}
@@ -93,7 +97,7 @@ export default function PlanPage() {
           <button
             type="button"
             onClick={startNewSearch}
-            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white"
+            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white backdrop-blur"
           >
             New Search
           </button>
@@ -106,12 +110,12 @@ export default function PlanPage() {
 
           <h1 className="text-4xl font-bold tracking-tight">Your Plan</h1>
 
-          <p className="mt-3 text-neutral-400">
+          <p className="mt-3 text-neutral-300">
             A curated outing built from your selected matches.
           </p>
         </div>
 
-        <div className="rounded-[2rem] border border-white/10 bg-white p-5 text-black shadow-2xl">
+        <div className="rounded-[2rem] border border-white/10 bg-white p-5 text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
           <div className="mb-6 rounded-[1.5rem] bg-black p-5 text-white">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-500">
               Plan Overview
@@ -123,7 +127,7 @@ export default function PlanPage() {
           </div>
 
           {restaurant && (
-            <section className="overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-lg">
+            <section className="overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
               {restaurant.image_url ? (
                 <img
                   src={restaurant.image_url}
@@ -146,7 +150,12 @@ export default function PlanPage() {
                 </h2>
 
                 <p className="mt-2 text-sm text-neutral-600">
-                  {[restaurant.address, restaurant.city, restaurant.state, restaurant.zip_code]
+                  {[
+                    restaurant.address,
+                    restaurant.city,
+                    restaurant.state,
+                    restaurant.zip_code,
+                  ]
                     .filter(Boolean)
                     .join(", ")}
                 </p>
@@ -202,7 +211,7 @@ export default function PlanPage() {
           )}
 
           {activity && (
-            <section className="mt-6 overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-lg">
+            <section className="mt-6 overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
               {activity.image_url ? (
                 <img
                   src={activity.image_url}
@@ -225,7 +234,12 @@ export default function PlanPage() {
                 </h2>
 
                 <p className="mt-2 text-sm text-neutral-600">
-                  {[activity.address, activity.city, activity.state, activity.zip_code]
+                  {[
+                    activity.address,
+                    activity.city,
+                    activity.state,
+                    activity.zip_code,
+                  ]
                     .filter(Boolean)
                     .join(", ")}
                 </p>
@@ -254,7 +268,9 @@ export default function PlanPage() {
                 <div className="mt-5 grid gap-3">
                   {(activity.reservation_url || activity.reservation_link) && (
                     <a
-                      href={activity.reservation_url || activity.reservation_link}
+                      href={
+                        activity.reservation_url || activity.reservation_link
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
