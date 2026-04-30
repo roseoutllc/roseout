@@ -1,6 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import BackButton from "./BackButton";
-import { AnalyticsTracker, AnalyticsLink } from "./AnalyticsTracker";
+import {
+  RestaurantViewTracker,
+  AnalyticsLink,
+  ActivityImpressionTracker,
+} from "./AnalyticsTracker";
 
 type PageProps = {
   params: Promise<{
@@ -17,6 +21,12 @@ export default async function RestaurantPage({ params }: PageProps) {
     .eq("id", id)
     .eq("status", "approved")
     .maybeSingle();
+
+  const { data: activities } = await supabase
+    .from("activities")
+    .select("*")
+    .eq("status", "approved")
+    .limit(6);
 
   if (error || !restaurant) {
     return (
@@ -37,9 +47,10 @@ export default async function RestaurantPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-black px-6 py-12 text-white">
-      <AnalyticsTracker id={id} />
+      <RestaurantViewTracker id={id} />
+      <ActivityImpressionTracker activities={activities || []} />
 
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-5xl">
         <BackButton />
 
         <div className="mt-8 overflow-hidden rounded-3xl bg-white text-black shadow-xl">
@@ -75,6 +86,7 @@ export default async function RestaurantPage({ params }: PageProps) {
               {restaurant.reservation_link && (
                 <AnalyticsLink
                   id={id}
+                  type="restaurant"
                   href={restaurant.reservation_link}
                   className="rounded-xl bg-black px-5 py-3 text-sm font-bold text-white"
                 >
@@ -85,6 +97,7 @@ export default async function RestaurantPage({ params }: PageProps) {
               {restaurant.website && (
                 <AnalyticsLink
                   id={id}
+                  type="restaurant"
                   href={restaurant.website}
                   className="rounded-xl border border-black px-5 py-3 text-sm font-bold text-black"
                 >
@@ -94,6 +107,75 @@ export default async function RestaurantPage({ params }: PageProps) {
             </div>
           </div>
         </div>
+
+        {activities && activities.length > 0 && (
+          <section className="mt-10">
+            <h2 className="text-2xl font-bold">Nearby Activity Locations</h2>
+
+            <div className="mt-5 grid gap-5 md:grid-cols-3">
+              {activities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="overflow-hidden rounded-3xl bg-white text-black"
+                >
+                  {activity.image_url ? (
+                    <img
+                      src={activity.image_url}
+                      alt={activity.activity_name}
+                      className="h-40 w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-40 items-center justify-center bg-neutral-200 text-neutral-500">
+                      No image
+                    </div>
+                  )}
+
+                  <div className="p-5">
+                    <h3 className="text-lg font-bold">
+                      {activity.activity_name || "Activity Location"}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-neutral-500">
+                      {[activity.address, activity.city, activity.state]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+
+                    {activity.description && (
+                      <p className="mt-3 line-clamp-3 text-sm text-neutral-700">
+                        {activity.description}
+                      </p>
+                    )}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {activity.booking_link && (
+                        <AnalyticsLink
+                          id={activity.id}
+                          type="activity"
+                          href={activity.booking_link}
+                          className="rounded-xl bg-black px-4 py-2 text-sm font-bold text-white"
+                        >
+                          Book Activity
+                        </AnalyticsLink>
+                      )}
+
+                      {activity.website && (
+                        <AnalyticsLink
+                          id={activity.id}
+                          type="activity"
+                          href={activity.website}
+                          className="rounded-xl border border-black px-4 py-2 text-sm font-bold text-black"
+                        >
+                          Website
+                        </AnalyticsLink>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
