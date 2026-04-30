@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 type RestaurantCard = {
@@ -60,6 +61,8 @@ export default function CreatePage() {
     useState<ActivityCard | null>(null);
 
   const sendMessage = async () => {
+    if (loading) return;
+
     if (!input.trim()) {
       setError("Please enter what you’re looking for.");
       return;
@@ -86,7 +89,7 @@ export default function CreatePage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: nextMessages,
+          messages: nextMessages.slice(-6),
         }),
       });
 
@@ -97,8 +100,7 @@ export default function CreatePage() {
         return;
       }
 
-      const assistantReply =
-        data.reply || data.message || data.answer || "";
+      const assistantReply = data.reply || data.message || data.answer || "";
 
       setMessages((prev) => [
         ...prev,
@@ -202,10 +204,13 @@ export default function CreatePage() {
                                 }`}
                               >
                                 {r.image_url ? (
-                                  <img
+                                  <Image
                                     src={r.image_url}
                                     alt={r.restaurant_name}
+                                    width={700}
+                                    height={350}
                                     className="h-56 w-full object-cover"
+                                    priority={restaurantIndex === 0}
                                   />
                                 ) : (
                                   <div className="flex h-56 items-center justify-center bg-neutral-200 text-neutral-500">
@@ -277,21 +282,25 @@ export default function CreatePage() {
                                   </div>
 
                                   <div className="mt-5 flex flex-wrap gap-3">
-                                <button
-  type="button"
-  onClick={() =>
-    setSelectedRestaurant(
-      selectedRestaurant?.id === r.id ? null : r
-    )
-  }
-  className={`rounded-full px-5 py-2.5 text-sm font-bold ${
-    isSelected
-      ? "bg-yellow-500 text-black"
-      : "border border-black text-black"
-  }`}
->
-  {isSelected ? "Unselect" : "Select Restaurant"}
-</button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedRestaurant(
+                                          selectedRestaurant?.id === r.id
+                                            ? null
+                                            : r
+                                        )
+                                      }
+                                      className={`rounded-full px-5 py-2.5 text-sm font-bold ${
+                                        isSelected
+                                          ? "bg-yellow-500 text-black"
+                                          : "border border-black text-black"
+                                      }`}
+                                    >
+                                      {isSelected
+                                        ? "Unselect"
+                                        : "Select Restaurant"}
+                                    </button>
 
                                     <a
                                       href={`/restaurants/${restaurantId}`}
@@ -340,10 +349,13 @@ export default function CreatePage() {
                                 }`}
                               >
                                 {a.image_url ? (
-                                  <img
+                                  <Image
                                     src={a.image_url}
                                     alt={a.activity_name}
+                                    width={700}
+                                    height={350}
                                     className="h-56 w-full object-cover"
+                                    priority={activityIndex === 0}
                                   />
                                 ) : (
                                   <div className="flex h-56 items-center justify-center bg-neutral-200 text-neutral-500">
@@ -422,20 +434,25 @@ export default function CreatePage() {
 
                                   <div className="mt-5 flex flex-wrap gap-3">
                                     <button
-  type="button"
-  onClick={() =>
-    setSelectedActivity(
-      selectedActivity?.id === a.id ? null : a
-    )
-  }
-  className={`rounded-full px-5 py-2.5 text-sm font-bold ${
-    isSelected
-      ? "bg-yellow-500 text-black"
-      : "border border-black text-black"
-  }`}
->
-  {isSelected ? "Unselect" : "Select Activity"}
-</button>
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedActivity(
+                                          selectedActivity?.id === a.id
+                                            ? null
+                                            : a
+                                        )
+                                      }
+                                      className={`rounded-full px-5 py-2.5 text-sm font-bold ${
+                                        isSelected
+                                          ? "bg-yellow-500 text-black"
+                                          : "border border-black text-black"
+                                      }`}
+                                    >
+                                      {isSelected
+                                        ? "Unselect"
+                                        : "Select Activity"}
+                                    </button>
+
                                     {a.website && (
                                       <a
                                         href={a.website}
@@ -479,7 +496,22 @@ export default function CreatePage() {
         </div>
 
         {loading && (
-          <p className="mt-6 text-center text-neutral-400">Thinking...</p>
+          <div className="mt-6 space-y-4">
+            <div className="animate-pulse rounded-[2rem] bg-white/10 p-5">
+              <div className="mb-4 h-5 w-40 rounded bg-white/20" />
+              <div className="h-56 rounded-[1.5rem] bg-white/20" />
+              <div className="mt-4 h-4 w-3/4 rounded bg-white/20" />
+              <div className="mt-3 h-4 w-1/2 rounded bg-white/20" />
+              <div className="mt-5 flex gap-3">
+                <div className="h-10 w-36 rounded-full bg-white/20" />
+                <div className="h-10 w-28 rounded-full bg-white/20" />
+              </div>
+            </div>
+
+            <p className="text-center text-sm text-neutral-400">
+              RoseOut is finding your best matches...
+            </p>
+          </div>
         )}
 
         {error && (
@@ -502,9 +534,9 @@ export default function CreatePage() {
         <button
           onClick={sendMessage}
           disabled={loading}
-          className="mt-4 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black disabled:opacity-50"
+          className="mt-4 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "Thinking..." : messages.length ? "Send" : "Create Plan"}
+          {loading ? "Finding matches..." : messages.length ? "Send" : "Create Plan"}
         </button>
       </div>
 
@@ -512,7 +544,7 @@ export default function CreatePage() {
         <div className="fixed bottom-0 left-0 right-0 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
           <div className="mx-auto max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-500">
-              Building your plans
+              Building your plan
             </p>
 
             <p className="mt-1 text-sm font-bold">{selectedPlanText}</p>
