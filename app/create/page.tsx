@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 
@@ -353,15 +354,15 @@ export default function CreatePage() {
                                         : "Select Restaurant"}
                                     </button>
 
-                                    <a
-                                      href={`/restaurants/${restaurantId}`}
+                                    <Link
+                                      href={`/locations/restaurants/${restaurantId}`}
                                       onClick={() =>
                                         trackRestaurantClick(restaurantId)
                                       }
                                       className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
                                     >
                                       View Details
-                                    </a>
+                                    </Link>
 
                                     {r.reservation_link && (
                                       <a
@@ -511,15 +512,15 @@ export default function CreatePage() {
                                         : "Select Activity"}
                                     </button>
 
-                                    <a
-                                      href={`/activities/${activityId}`}
+                                    <Link
+                                      href={`/locations/activities/${activityId}`}
                                       onClick={() =>
                                         trackActivityClick(activityId)
                                       }
                                       className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
                                     >
                                       View Details
-                                    </a>
+                                    </Link>
 
                                     {a.website && (
                                       <a
