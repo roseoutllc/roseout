@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
@@ -5,91 +6,44 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+export async function POST(req: NextRequest) {
+  const body = await req.json();
 
-    const {
-      user_id,
-      restaurant_id,
-      restaurant_name,
-      address,
-      city,
-      state,
-      zip_code,
-      phone,
-      website,
-      instagram_url,
-facebook_url,
-tiktok_url,
-      reservation_link,
-      description,
-      cuisine_type,
-      price_range,
-      atmosphere,
-      noise_level,
-      image_url,
-    } = body;
+  const { user_id, restaurant_id, is_admin, ...updates } = body;
 
-    if (!user_id || !restaurant_id) {
-      return Response.json(
-        { error: "Missing user or restaurant." },
-        { status: 400 }
-      );
-    }
+  if (!user_id || !restaurant_id) {
+    return NextResponse.json(
+      { error: "Missing user or restaurant." },
+      { status: 400 }
+    );
+  }
 
+  if (!is_admin) {
     const { data: ownerRecord, error: ownerError } = await supabaseAdmin
       .from("restaurant_owners")
-      .select("id")
+      .select("restaurant_id")
       .eq("user_id", user_id)
       .eq("restaurant_id", restaurant_id)
       .maybeSingle();
 
     if (ownerError || !ownerRecord) {
-      return Response.json(
-        { error: "You are not authorized to update this restaurant." },
+      return NextResponse.json(
+        { error: "You do not have permission to update this restaurant." },
         { status: 403 }
       );
     }
-
-    const { data: updatedRestaurant, error: updateError } = await supabaseAdmin
-      .from("restaurants")
-      .update({
-        restaurant_name,
-        address,
-        city,
-        state,
-        zip_code,
-        phone,
-        website,
-        instagram_url,
-facebook_url,
-tiktok_url,
-        reservation_link,
-        description,
-        cuisine_type,
-        price_range,
-        atmosphere,
-        noise_level,
-        image_url,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", restaurant_id)
-      .select()
-      .single();
-
-    if (updateError) {
-      return Response.json({ error: updateError.message }, { status: 500 });
-    }
-
-    return Response.json({
-      success: true,
-      restaurant: updatedRestaurant,
-    });
-  } catch (error: any) {
-    return Response.json(
-      { error: error.message || "Server error" },
-      { status: 500 }
-    );
   }
+
+  const { data: restaurant, error } = await supabaseAdmin
+    .from("restaurants")
+    .update(updates)
+    .eq("id", restaurant_id)
+    .select("*")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ restaurant });
 }
