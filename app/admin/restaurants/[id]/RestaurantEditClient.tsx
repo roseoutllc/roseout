@@ -64,6 +64,92 @@ export default function RestaurantEditClient({ restaurant }: any) {
     }
   };
 
+  const printQrLabel = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${restaurant.restaurant_name || "Restaurant"} QR Label</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 40px;
+              background: white;
+            }
+
+            .label {
+              width: 420px;
+              border: 1px solid #ddd;
+              border-radius: 18px;
+              padding: 24px;
+              text-align: center;
+            }
+
+            img {
+              width: 180px;
+              height: 180px;
+            }
+
+            h1 {
+              font-size: 24px;
+              margin: 18px 0 8px;
+            }
+
+            p {
+              margin: 4px 0;
+              font-size: 14px;
+            }
+
+            .scan {
+              margin-top: 14px;
+              font-weight: bold;
+            }
+
+            .brand {
+              margin-top: 16px;
+              font-size: 12px;
+              font-weight: bold;
+              color: #888;
+            }
+
+            @media print {
+              body {
+                padding: 0;
+              }
+            }
+          </style>
+        </head>
+
+        <body>
+          <div class="label">
+            <img src="${restaurant.qr_code_data_url || ""}" />
+
+            <h1>${restaurant.restaurant_name || ""}</h1>
+
+            <p>${restaurant.address || ""}</p>
+            <p>${restaurant.city || ""}, ${restaurant.state || ""} ${
+              restaurant.zip_code || ""
+            }</p>
+
+            <p class="scan">Scan to claim & manage</p>
+
+            <p class="brand">Powered by RoseOut</p>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+  };
+
   return (
     <div>
       <a
@@ -82,7 +168,7 @@ export default function RestaurantEditClient({ restaurant }: any) {
       </h1>
 
       <p className="mt-3 text-neutral-400">
-        Update listing details, images, links, and scoring.
+        Update listing details, preview the listing, and print claim QR labels.
       </p>
 
       {message && (
@@ -97,7 +183,7 @@ export default function RestaurantEditClient({ restaurant }: any) {
         </div>
       )}
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
           <h2 className="text-2xl font-extrabold">Restaurant Details</h2>
 
@@ -270,50 +356,123 @@ export default function RestaurantEditClient({ restaurant }: any) {
           </button>
         </div>
 
-        <aside className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
-          <h2 className="text-2xl font-extrabold">Preview</h2>
+        <aside className="space-y-6">
+          <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
+            <h2 className="text-2xl font-extrabold">Preview</h2>
 
-          <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-neutral-200">
-            {form.image_url ? (
-              <img
-                src={form.image_url}
-                alt={form.restaurant_name}
-                className="h-52 w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-52 items-center justify-center bg-neutral-200 text-neutral-500">
-                No image
+            <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-neutral-200">
+              {form.image_url ? (
+                <img
+                  src={form.image_url}
+                  alt={form.restaurant_name}
+                  className="h-52 w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-52 items-center justify-center bg-neutral-200 text-neutral-500">
+                  No image
+                </div>
+              )}
+
+              <div className="p-5">
+                <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
+                  {form.status}
+                </span>
+
+                <h3 className="mt-4 text-2xl font-extrabold">
+                  {form.restaurant_name || "Restaurant Name"}
+                </h3>
+
+                <p className="mt-2 text-sm text-neutral-600">
+                  {form.city || "City"}, {form.state || "State"}
+                </p>
+
+                <p className="mt-3 text-sm text-neutral-500">
+                  {form.cuisine_type || "Cuisine"} · Score:{" "}
+                  {form.roseout_score || 0}
+                </p>
               </div>
-            )}
-
-            <div className="p-5">
-              <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
-                {form.status}
-              </span>
-
-              <h3 className="mt-4 text-2xl font-extrabold">
-                {form.restaurant_name || "Restaurant Name"}
-              </h3>
-
-              <p className="mt-2 text-sm text-neutral-600">
-                {form.city || "City"}, {form.state || "State"}
-              </p>
-
-              <p className="mt-3 text-sm text-neutral-500">
-                {form.cuisine_type || "Cuisine"} · Score:{" "}
-                {form.roseout_score || 0}
-              </p>
             </div>
-          </div>
 
-          <div className="mt-5 grid gap-3">
             <a
               href={`/restaurants/${restaurant.id}`}
               target="_blank"
-              className="rounded-full bg-black px-5 py-3 text-center font-bold text-white"
+              className="mt-5 block rounded-full bg-black px-5 py-3 text-center font-bold text-white"
             >
               View Public Page
             </a>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
+            <h2 className="text-2xl font-extrabold">Claim QR Code</h2>
+
+            <p className="mt-2 text-sm text-neutral-500">
+              Restaurant owners can scan this code to claim and manage their listing.
+            </p>
+
+            {restaurant.qr_code_data_url ? (
+              <>
+                <div className="mt-5 rounded-[1.5rem] border border-neutral-200 p-5 text-center">
+                  <img
+                    src={restaurant.qr_code_data_url}
+                    alt={`${restaurant.restaurant_name} QR Code`}
+                    className="mx-auto h-44 w-44"
+                  />
+
+                  <p className="mt-3 text-sm font-semibold text-neutral-600">
+                    Scan to claim & manage
+                  </p>
+
+                  <p className="mt-1 text-xs font-bold uppercase text-neutral-400">
+                    Powered by RoseOut
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={printQrLabel}
+                  className="mt-4 w-full rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black"
+                >
+                  Print QR Label
+                </button>
+              </>
+            ) : (
+              <div className="mt-5 rounded-[1.5rem] border border-neutral-200 p-5 text-center text-neutral-500">
+                No QR code found for this restaurant.
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
+            <h2 className="text-2xl font-extrabold">Analytics</h2>
+
+            <div className="mt-5 grid gap-3">
+              <div className="rounded-2xl bg-neutral-100 p-4">
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Views
+                </p>
+                <p className="mt-1 text-2xl font-extrabold">
+                  {restaurant.view_count || 0}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-neutral-100 p-4">
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Clicks
+                </p>
+                <p className="mt-1 text-2xl font-extrabold">
+                  {restaurant.click_count || 0}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-neutral-100 p-4">
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Rating
+                </p>
+                <p className="mt-1 text-2xl font-extrabold">
+                  ⭐ {restaurant.rating || 0}
+                </p>
+              </div>
+            </div>
           </div>
         </aside>
       </section>
