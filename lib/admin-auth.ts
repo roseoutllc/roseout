@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/app/lib/supabase-server";
+import { createClient } from "@/lib/supabase-server";
 
 export type AdminRole =
   | "superuser"
@@ -8,14 +8,9 @@ export type AdminRole =
   | "reviewer"
   | "viewer";
 
-const roleAccess: Record<AdminRole, AdminRole[]> = {
-  superuser: ["superuser", "admin", "editor", "reviewer", "viewer"],
-  admin: ["admin", "editor", "reviewer", "viewer"],
-  editor: ["editor", "viewer"],
-  reviewer: ["reviewer", "viewer"],
-  viewer: ["viewer"],
-};
-
+/**
+ * Get current logged-in admin user
+ */
 export async function getCurrentAdmin() {
   const supabase = createClient();
 
@@ -40,6 +35,9 @@ export async function getCurrentAdmin() {
   return adminUser;
 }
 
+/**
+ * Protect pages by role
+ */
 export async function requireAdminRole(allowedRoles: AdminRole[]) {
   const adminUser = await getCurrentAdmin();
 
@@ -50,6 +48,12 @@ export async function requireAdminRole(allowedRoles: AdminRole[]) {
   return adminUser;
 }
 
-export function canAccess(userRole: AdminRole, requiredRole: AdminRole) {
-  return roleAccess[userRole]?.includes(requiredRole) || false;
+/**
+ * Optional helper (for UI logic)
+ */
+export function canAccess(
+  userRole: AdminRole,
+  allowedRoles: AdminRole[]
+) {
+  return allowedRoles.includes(userRole);
 }
