@@ -21,6 +21,7 @@ type LocationItem = {
   rating?: number;
   review_count?: number;
   roseout_score?: number;
+  quality_score?: number;
   status?: string;
   claimed?: boolean;
   claim_status?: string;
@@ -178,7 +179,9 @@ export default function LocationsDashboardPage() {
   const unclaimedCount = locations.length - claimedCount;
 
   const isClaimed =
-    selected?.claimed || selected?.claim_status === "claimed" || selected?.owner_email;
+    selected?.claimed ||
+    selected?.claim_status === "claimed" ||
+    !!selected?.owner_email;
 
   const selectedAddress = selected
     ? [selected.address, selected.city, selected.state, selected.zip_code]
@@ -192,6 +195,9 @@ export default function LocationsDashboardPage() {
       }/claim?location=${selected.id}&type=${selected.location_type}`
     : "";
 
+  const selectedScore =
+    selected?.roseout_score ?? selected?.quality_score ?? 0;
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-5 text-white">
@@ -203,7 +209,7 @@ export default function LocationsDashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black px-5 py-6 text-white">
+    <main className="min-h-screen overflow-x-hidden bg-black px-5 py-6 pb-20 text-white">
       <div className="mx-auto max-w-7xl">
         <header className="mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl md:flex-row md:items-center md:justify-between">
           <div>
@@ -280,14 +286,19 @@ export default function LocationsDashboardPage() {
           </div>
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-          <section className="space-y-4">
+        <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+          <section className="max-h-none space-y-4 xl:max-h-[calc(100vh-220px)] xl:overflow-y-auto xl:pr-2">
             {filteredLocations.map((location) => {
-              const active = selected?.id === location.id;
+              const active =
+                selected?.id === location.id &&
+                selected?.location_type === location.location_type;
+
               const claimed =
                 location.claimed ||
                 location.claim_status === "claimed" ||
-                location.owner_email;
+                !!location.owner_email;
+
+              const score = location.roseout_score ?? location.quality_score ?? 0;
 
               return (
                 <button
@@ -316,7 +327,7 @@ export default function LocationsDashboardPage() {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
 
-                    <div className="absolute left-4 top-4 flex gap-2">
+                    <div className="absolute left-4 top-4 flex flex-wrap gap-2">
                       <span className="rounded-full bg-black/80 px-3 py-1 text-xs font-black uppercase text-white">
                         {location.location_type}
                       </span>
@@ -357,11 +368,9 @@ export default function LocationsDashboardPage() {
                         </span>
                       )}
 
-                      {location.roseout_score !== undefined && (
-                        <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
-                          {location.roseout_score}/100
-                        </span>
-                      )}
+                      <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
+                        {score}/100
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -377,16 +386,17 @@ export default function LocationsDashboardPage() {
             )}
           </section>
 
-          <aside className="lg:sticky lg:top-6 lg:self-start">
+          <section className="min-w-0">
             {selected ? (
               <div className="overflow-hidden rounded-[2rem] bg-white text-black shadow-2xl">
-                <div className="relative h-72">
+                <div className="relative h-[360px]">
                   {selected.image_url ? (
                     <Image
                       src={selected.image_url}
                       alt={selected.display_name}
                       fill
                       className="object-cover"
+                      priority
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center bg-neutral-200 text-neutral-500">
@@ -394,9 +404,9 @@ export default function LocationsDashboardPage() {
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-                  <div className="absolute bottom-5 left-5 right-5">
+                  <div className="absolute bottom-6 left-6 right-6">
                     <div className="mb-3 flex flex-wrap gap-2">
                       <span className="rounded-full bg-black/80 px-3 py-1 text-xs font-black uppercase text-white">
                         {selected.location_type}
@@ -411,9 +421,13 @@ export default function LocationsDashboardPage() {
                       >
                         {isClaimed ? "Claimed" : "Unclaimed"}
                       </span>
+
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase text-black">
+                        {selectedScore}/100
+                      </span>
                     </div>
 
-                    <h2 className="text-3xl font-black text-white">
+                    <h2 className="text-4xl font-black text-white">
                       {selected.display_name}
                     </h2>
                   </div>
@@ -461,7 +475,7 @@ export default function LocationsDashboardPage() {
                       </p>
                       <p>
                         <span className="font-black">Email:</span>{" "}
-                        {selected.owner_email || user?.email || "Not added"}
+                        {selected.owner_email || "Not added"}
                       </p>
                       <p>
                         <span className="font-black">Phone:</span>{" "}
@@ -550,7 +564,7 @@ export default function LocationsDashboardPage() {
                 </p>
               </div>
             )}
-          </aside>
+          </section>
         </div>
       </div>
     </main>
