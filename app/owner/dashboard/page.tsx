@@ -1,40 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
+
+type LocationType = "restaurant" | "activity";
 
 export default function OwnerDashboard() {
   const supabase = createClient();
 
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [restaurants, setRestaurants] = useState<any[]>([]);
-  const [restaurant, setRestaurant] = useState<any>(null);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<any>(null);
   const [form, setForm] = useState<any>({});
+  const [locationType, setLocationType] = useState<"all" | LocationType>("all");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   const update = (key: string, value: string) => {
     setForm((prev: any) => ({ ...prev, [key]: value }));
-  };
-
-  const loadRestaurantById = async (restaurantId: string) => {
-    setMessage("");
-
-    const { data, error } = await supabase
-      .from("restaurants")
-      .select("*")
-      .eq("id", restaurantId)
-      .maybeSingle();
-
-    if (error || !data) {
-      setMessage("Could not load this restaurant listing.");
-      return;
-    }
-
-    setRestaurant(data);
-    setForm(data);
   };
 
   useEffect(() => {
@@ -44,10 +30,10 @@ export default function OwnerDashboard() {
 
       const {
         data: { user },
-        error: userError,
+        error,
       } = await supabase.auth.getUser();
 
-      if (userError || !user) {
+      if (error || !user) {
         window.location.href = "/login";
         return;
       }
@@ -58,74 +44,125 @@ export default function OwnerDashboard() {
       setIsAdmin(adminUser);
 
       if (adminUser) {
-        const { data, error } = await supabase
-          .from("restaurants")
-          .select("*")
-          .order("restaurant_name", { ascending: true });
+        const [restaurantResult, activityResult] = await Promise.all([
+          supabase.from("restaurants").select("*").order("restaurant_name"),
+          supabase.from("activities").select("*").order("activity_name"),
+        ]);
 
-        if (error || !data || data.length === 0) {
-          setMessage("No restaurants found.");
-          setLoading(false);
-          return;
-        }
+        const restaurantLocations =
+          restaurantResult.data?.map((r) => ({
+            ...r,
+            location_type: "restaurant",
+            display_name:
+              r.restaurant_name || r.name || "Unnamed Restaurant",
+          })) || [];
 
-        setRestaurants(data);
-        setRestaurant(data[0]);
-        setForm(data[0]);
+        const activityLocations =
+          activityResult.data?.map((a) => ({
+            ...a,
+            location_type: "activity",
+            display_name: a.activity_name || a.name || "Unnamed Activity",
+          })) || [];
+
+        const all = [...restaurantLocations, ...activityLocations];
+
+        setLocations(all);
+        setSelectedLocation(all[0] || null);
+        setForm(all[0] || {});
         setLoading(false);
         return;
       }
 
-      const { data: ownerRecord, error: ownerError } = await supabase
+      const { data: ownerRecord } = await supabase
         .from("restaurant_owners")
         .select("restaurant_id")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (ownerError || !ownerRecord) {
-        setMessage("No restaurant is linked to this account yet.");
+      if (!ownerRecord) {
+        setMessage("No location is linked to this account yet.");
         setLoading(false);
         return;
       }
 
-      const { data: restaurantData, error: restaurantError } = await supabase
+      const { data: restaurantData } = await supabase
         .from("restaurants")
         .select("*")
         .eq("id", ownerRecord.restaurant_id)
         .maybeSingle();
 
-      if (restaurantError || !restaurantData) {
-        setMessage("Could not load your restaurant listing.");
+      if (!restaurantData) {
+        setMessage("Could not load your listing.");
         setLoading(false);
         return;
       }
 
-      setRestaurant(restaurantData);
-      setForm(restaurantData);
+      const location = {
+        ...restaurantData,
+        location_type: "restaurant",
+        display_name:
+          restaurantData.restaurant_name || "Unnamed Restaurant",
+      };
+
+      setLocations([location]);
+      setSelectedLocation(location);
+      setForm(location);
       setLoading(false);
     };
 
     loadData();
   }, []);
 
+  const filteredLocations = useMemo(() => {
+    return locations.filter((location) => {
+      const query = search.toLowerCase();
+
+      const matchesType =
+        locationType === "all" || location.location_type === locationType;
+
+      const matchesSearch =
+        location.display_name?.toLowerCase().includes(query) ||
+        location.address?.toLowerCase().includes(query) ||
+        location.city?.toLowerCase().includes(query);
+
+      return matchesType && matchesSearch;
+    });
+  }, [locations, search, locationType]);
+
+  const selectLocation = (id: string) => {
+    const location = locations.find((item) => item.id === id);
+    if (!location) return;
+
+    setSelectedLocation(location);
+    setForm(location);
+    setMessage("");
+  };
+
   const saveChanges = async () => {
     setSaving(true);
     setMessage("");
 
-    if (!user || !restaurant?.id) {
+    if (!user || !selectedLocation?.id) {
       setMessage("You must be logged in to update this listing.");
       setSaving(false);
       return;
     }
 
-    const res = await fetch("/api/owner/restaurant/update", {
+    const endpoint =
+      selectedLocation.location_type === "restaurant"
+        ? "/api/owner/restaurant/update"
+        : "/api/owner/activity/update";
+
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         user_id: user.id,
-        restaurant_id: restaurant.id,
+        location_id: selectedLocation.id,
+        restaurant_id: selectedLocation.id,
+        activity_id: selectedLocation.id,
         is_admin: isAdmin,
         ...form,
       }),
@@ -139,8 +176,27 @@ export default function OwnerDashboard() {
       return;
     }
 
-    setRestaurant(data.restaurant);
-    setForm(data.restaurant);
+    const updatedLocation = {
+      ...(data.restaurant || data.activity),
+      location_type: selectedLocation.location_type,
+      display_name:
+        data.restaurant?.restaurant_name ||
+        data.activity?.activity_name ||
+        form.display_name,
+    };
+
+    setSelectedLocation(updatedLocation);
+    setForm(updatedLocation);
+
+    setLocations((prev) =>
+      prev.map((item) =>
+        item.id === updatedLocation.id &&
+        item.location_type === updatedLocation.location_type
+          ? updatedLocation
+          : item
+      )
+    );
+
     setMessage("Saved successfully!");
     setSaving(false);
   };
@@ -148,18 +204,22 @@ export default function OwnerDashboard() {
   if (loading) {
     return (
       <main className="min-h-screen bg-black p-6 text-white">
-        Loading your listing...
+        Loading your listings...
       </main>
     );
   }
 
-  if (!restaurant) {
+  if (!selectedLocation) {
     return (
       <main className="min-h-screen bg-black p-6 text-white">
-        {message || "No restaurant linked to your account."}
+        {message || "No location linked to your account."}
       </main>
     );
   }
+
+  const isRestaurant = selectedLocation.location_type === "restaurant";
+
+  const nameField = isRestaurant ? "restaurant_name" : "activity_name";
 
   const fullAddress = [form.address, form.city, form.state, form.zip_code]
     .filter(Boolean)
@@ -173,7 +233,7 @@ export default function OwnerDashboard() {
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-yellow-500">
               RoseOut Owner Portal
             </p>
-            <h1 className="mt-1 text-2xl font-black">Listing CMS</h1>
+            <h1 className="mt-1 text-2xl font-black">Location CMS</h1>
           </div>
 
           <button
@@ -190,12 +250,13 @@ export default function OwnerDashboard() {
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <h2 className="text-4xl font-bold">
-              {form.restaurant_name || "Unnamed Restaurant"}
+              {form[nameField] || "Unnamed Location"}
             </h2>
+
             <p className="mt-2 text-neutral-400">
               {isAdmin
-                ? "Admin access: manage any restaurant listing."
-                : "Manage your public RoseOut restaurant listing."}
+                ? "Admin access: manage restaurants and activity locations."
+                : "Manage your public RoseOut listing."}
             </p>
           </div>
 
@@ -204,24 +265,43 @@ export default function OwnerDashboard() {
           </div>
         </div>
 
-        {isAdmin && restaurants.length > 0 && (
+        {isAdmin && (
           <section className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
-            <label className="text-sm font-bold text-neutral-300">
-              Select Restaurant Location
-            </label>
+            <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto]">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search restaurants or activity locations..."
+                className="rounded-2xl border border-white/10 bg-black px-5 py-4 text-white outline-none placeholder:text-neutral-500"
+              />
 
-            <select
-              value={restaurant.id}
-              onChange={(e) => loadRestaurantById(e.target.value)}
-              className="mt-3 w-full rounded-2xl border border-white/10 bg-black px-5 py-4 text-white"
-            >
-              {restaurants.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.restaurant_name || "Unnamed Restaurant"} —{" "}
-                  {[r.address, r.city, r.state].filter(Boolean).join(", ")}
-                </option>
-              ))}
-            </select>
+              <select
+                value={locationType}
+                onChange={(e) =>
+                  setLocationType(e.target.value as "all" | LocationType)
+                }
+                className="rounded-2xl border border-white/10 bg-black px-5 py-4 text-white"
+              >
+                <option value="all">All Locations</option>
+                <option value="restaurant">Restaurants</option>
+                <option value="activity">Activity Locations</option>
+              </select>
+
+              <select
+                value={selectedLocation.id}
+                onChange={(e) => selectLocation(e.target.value)}
+                className="rounded-2xl border border-white/10 bg-black px-5 py-4 text-white"
+              >
+                {filteredLocations.map((location) => (
+                  <option key={`${location.location_type}-${location.id}`} value={location.id}>
+                    {location.location_type === "restaurant"
+                      ? "Restaurant"
+                      : "Activity"}{" "}
+                    — {location.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </section>
         )}
 
@@ -239,9 +319,9 @@ export default function OwnerDashboard() {
               <div className="mt-5 grid gap-4">
                 <input
                   className="rounded-xl border px-4 py-3"
-                  value={form.restaurant_name || ""}
-                  onChange={(e) => update("restaurant_name", e.target.value)}
-                  placeholder="Restaurant Name"
+                  value={form[nameField] || ""}
+                  onChange={(e) => update(nameField, e.target.value)}
+                  placeholder={isRestaurant ? "Restaurant Name" : "Activity Name"}
                 />
 
                 <input
@@ -291,35 +371,64 @@ export default function OwnerDashboard() {
             </section>
 
             <section className="rounded-3xl bg-white p-6 text-black">
-              <h3 className="text-2xl font-bold">Listing Details</h3>
+              <h3 className="text-2xl font-bold">
+                {isRestaurant ? "Restaurant Details" : "Activity Details"}
+              </h3>
 
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <input
-                  className="rounded-xl border px-4 py-3"
-                  value={form.cuisine_type || ""}
-                  onChange={(e) => update("cuisine_type", e.target.value)}
-                  placeholder="Cuisine Type"
-                />
+                {isRestaurant ? (
+                  <>
+                    <input
+                      className="rounded-xl border px-4 py-3"
+                      value={form.cuisine_type || ""}
+                      onChange={(e) => update("cuisine_type", e.target.value)}
+                      placeholder="Cuisine Type"
+                    />
+
+                    <input
+                      className="rounded-xl border px-4 py-3"
+                      value={form.atmosphere || ""}
+                      onChange={(e) => update("atmosphere", e.target.value)}
+                      placeholder="Atmosphere"
+                    />
+
+                    <input
+                      className="rounded-xl border px-4 py-3"
+                      value={form.noise_level || ""}
+                      onChange={(e) => update("noise_level", e.target.value)}
+                      placeholder="Noise Level"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <input
+                      className="rounded-xl border px-4 py-3"
+                      value={form.activity_type || ""}
+                      onChange={(e) => update("activity_type", e.target.value)}
+                      placeholder="Activity Type"
+                    />
+
+                    <input
+                      className="rounded-xl border px-4 py-3"
+                      value={form.best_for || ""}
+                      onChange={(e) => update("best_for", e.target.value)}
+                      placeholder="Best For"
+                    />
+
+                    <input
+                      className="rounded-xl border px-4 py-3"
+                      value={form.duration || ""}
+                      onChange={(e) => update("duration", e.target.value)}
+                      placeholder="Duration"
+                    />
+                  </>
+                )}
 
                 <input
                   className="rounded-xl border px-4 py-3"
                   value={form.price_range || ""}
                   onChange={(e) => update("price_range", e.target.value)}
                   placeholder="Price Range"
-                />
-
-                <input
-                  className="rounded-xl border px-4 py-3"
-                  value={form.atmosphere || ""}
-                  onChange={(e) => update("atmosphere", e.target.value)}
-                  placeholder="Atmosphere"
-                />
-
-                <input
-                  className="rounded-xl border px-4 py-3"
-                  value={form.noise_level || ""}
-                  onChange={(e) => update("noise_level", e.target.value)}
-                  placeholder="Noise Level"
                 />
               </div>
             </section>
@@ -337,9 +446,11 @@ export default function OwnerDashboard() {
 
                 <input
                   className="rounded-xl border px-4 py-3"
-                  value={form.reservation_link || ""}
-                  onChange={(e) => update("reservation_link", e.target.value)}
-                  placeholder="Reservation Link"
+                  value={form.reservation_link || form.booking_link || ""}
+                  onChange={(e) =>
+                    update(isRestaurant ? "reservation_link" : "booking_link", e.target.value)
+                  }
+                  placeholder={isRestaurant ? "Reservation Link" : "Booking Link"}
                 />
 
                 <input
@@ -380,7 +491,7 @@ export default function OwnerDashboard() {
               {form.image_url ? (
                 <img
                   src={form.image_url}
-                  alt={form.restaurant_name || "Restaurant"}
+                  alt={form[nameField] || "Location"}
                   className="mt-4 h-52 w-full rounded-2xl object-cover"
                 />
               ) : (
@@ -390,7 +501,7 @@ export default function OwnerDashboard() {
               )}
 
               <h4 className="mt-4 text-2xl font-black">
-                {form.restaurant_name || "Unnamed Restaurant"}
+                {form[nameField] || "Unnamed Location"}
               </h4>
 
               <p className="mt-1 text-sm text-neutral-600">
@@ -403,12 +514,14 @@ export default function OwnerDashboard() {
 
               <div className="mt-4 space-y-2 text-sm">
                 <p>
+                  <strong>Type:</strong>{" "}
+                  {isRestaurant ? "Restaurant" : "Activity Location"}
+                </p>
+
+                <p>
                   <strong>Status:</strong> {form.status || "approved"}
                 </p>
-                <p>
-                  <strong>Claim Status:</strong>{" "}
-                  {form.claim_status || "claimed"}
-                </p>
+
                 <p>
                   <strong>Featured:</strong>{" "}
                   {form.is_featured ? "Yes" : "No"}
