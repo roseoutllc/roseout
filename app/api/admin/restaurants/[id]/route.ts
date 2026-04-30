@@ -32,14 +32,16 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  const { error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("restaurants")
     .update(body)
-    .eq("id", id);
+    .eq("id", id)
+    .select("*")
+    .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ restaurant: data });
 }
