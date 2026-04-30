@@ -9,7 +9,6 @@ export default function AdminUsersClient() {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("editor");
-
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,13 +38,11 @@ export default function AdminUsersClient() {
         return;
       }
 
-      const { error: insertError } = await supabase
-        .from("admin_users")
-        .insert({
-          email: normalizedEmail,
-          full_name: fullName.trim() || null,
-          role,
-        });
+      const { error: insertError } = await supabase.from("admin_users").insert({
+        email: normalizedEmail,
+        full_name: fullName.trim() || null,
+        role,
+      });
 
       if (insertError) throw insertError;
 
