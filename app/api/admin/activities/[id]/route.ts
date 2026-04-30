@@ -14,7 +14,16 @@ export async function GET(
 
   const { data, error } = await supabaseAdmin
     .from("activities")
-    .select("*")
+    .select(
+      `
+      *,
+      activity_owners (
+        id,
+        user_id,
+        email
+      )
+    `
+    )
     .eq("id", id)
     .single();
 
@@ -32,16 +41,62 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  const { data, error } = await supabaseAdmin
+  const { owner_email, activity_owners, ...updates } = body;
+
+  const { data: activity, error } = await supabaseAdmin
     .from("activities")
-    .update(body)
+    .update(updates)
     .eq("id", id)
-    .select("*")
+    .select(
+      `
+      *,
+      activity_owners (
+        id,
+        user_id,
+        email
+      )
+    `
+    )
     .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ activity: data });
+  if (owner_email !== undefined) {
+    const { data: existingOwner } = await supabaseAdmin
+      .from("activity_owners")
+      .select("id")
+      .eq("activity_id", id)
+      .maybeSingle();
+
+    if (existingOwner) {
+      await supabaseAdmin
+        .from("activity_owners")
+        .update({ email: owner_email })
+        .eq("activity_id", id);
+    } else if (owner_email) {
+      await supabaseAdmin.from("activity_owners").insert({
+        activity_id: id,
+        email: owner_email,
+      });
+    }
+  }
+
+  const { data: updatedActivity } = await supabaseAdmin
+    .from("activities")
+    .select(
+      `
+      *,
+      activity_owners (
+        id,
+        user_id,
+        email
+      )
+    `
+    )
+    .eq("id", id)
+    .single();
+
+  return NextResponse.json({ activity: updatedActivity || activity });
 }
