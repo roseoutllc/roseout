@@ -28,7 +28,7 @@ export default function PlanPage() {
 
   if (!loaded) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-black via-[#15110d] to-[#f3eadc] px-6 text-white">
+      <main className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
         <p className="text-lg font-bold text-yellow-500">Loading plan...</p>
       </main>
     );
@@ -36,8 +36,8 @@ export default function PlanPage() {
 
   if (!plan) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-black via-[#15110d] to-[#f3eadc] px-6 text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_35%),linear-gradient(to_bottom,rgba(0,0,0,0.15),rgba(243,234,220,0.22))]" />
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-black via-[#15110d] to-[#d8c5a8] px-6 text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_35%),linear-gradient(to_bottom,rgba(0,0,0,0.12),rgba(216,197,168,0.18))]" />
 
         <div className="relative z-10 text-center">
           <p className="text-2xl font-bold">No plan found</p>
@@ -82,10 +82,8 @@ export default function PlanPage() {
     : "#";
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-black via-[#15110d] to-[#f3eadc] px-5 py-6 text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_35%),linear-gradient(to_bottom,rgba(0,0,0,0.15),rgba(243,234,220,0.22))]" />
-
-      <div className="relative z-10 mx-auto max-w-2xl">
+    <main className="min-h-screen bg-black px-5 py-6 text-white">
+      <div className="mx-auto max-w-2xl">
         <div className="mb-4 flex items-center justify-between gap-3">
           <button
             onClick={() => window.history.back()}
@@ -114,202 +112,210 @@ export default function PlanPage() {
             A curated outing built from your selected matches.
           </p>
         </div>
+      </div>
 
-        <div className="rounded-[2rem] border border-white/10 bg-white p-5 text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
-          <div className="mb-6 rounded-[1.5rem] bg-black p-5 text-white">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-500">
-              Plan Overview
-            </p>
+      <div className="relative -mx-5 min-h-screen overflow-hidden bg-gradient-to-b from-black via-[#15110d] to-[#d8c5a8] px-5 pt-6 pb-20">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_35%),linear-gradient(to_bottom,rgba(0,0,0,0.12),rgba(216,197,168,0.18))]" />
 
-            <h2 className="mt-2 text-2xl font-extrabold">{planTitle}</h2>
+        <div className="relative z-10 mx-auto max-w-2xl">
+          <div className="rounded-[2rem] border border-white/10 bg-white p-5 text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+            <div className="mb-6 rounded-[1.5rem] bg-black p-5 text-white">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-500">
+                Plan Overview
+              </p>
 
-            <p className="mt-2 text-sm text-neutral-300">{planSubtitle}</p>
-          </div>
+              <h2 className="mt-2 text-2xl font-extrabold">{planTitle}</h2>
 
-          {restaurant && (
-            <section className="overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
-              {restaurant.image_url ? (
-                <img
-                  src={restaurant.image_url}
-                  alt={restaurant.restaurant_name || "Restaurant"}
-                  className="h-60 w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-60 items-center justify-center bg-neutral-200 text-neutral-500">
-                  No image available
-                </div>
-              )}
+              <p className="mt-2 text-sm text-neutral-300">{planSubtitle}</p>
+            </div>
 
-              <div className="p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">
-                  Dinner
-                </p>
-
-                <h2 className="mt-2 text-2xl font-bold">
-                  {restaurant.restaurant_name}
-                </h2>
-
-                <p className="mt-2 text-sm text-neutral-600">
-                  {[
-                    restaurant.address,
-                    restaurant.city,
-                    restaurant.state,
-                    restaurant.zip_code,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </p>
-
-                {restaurant.rating && (
-                  <p className="mt-2 text-sm font-semibold text-neutral-700">
-                    ⭐ {restaurant.rating}
-                    {restaurant.review_count
-                      ? ` (${restaurant.review_count} reviews)`
-                      : ""}
-                  </p>
+            {restaurant && (
+              <section className="overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
+                {restaurant.image_url ? (
+                  <img
+                    src={restaurant.image_url}
+                    alt={restaurant.restaurant_name || "Restaurant"}
+                    className="h-60 w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-60 items-center justify-center bg-neutral-200 text-neutral-500">
+                    No image available
+                  </div>
                 )}
 
-                {restaurant.primary_tag && (
-                  <p className="mt-3 text-sm font-bold">
-                    ✨ {restaurant.primary_tag}
+                <div className="p-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">
+                    Dinner
                   </p>
-                )}
 
-                {restaurant.date_style_tags?.length ? (
-                  <p className="mt-1 text-sm text-neutral-500">
-                    {restaurant.date_style_tags.slice(0, 3).join(" · ")}
+                  <h2 className="mt-2 text-2xl font-bold">
+                    {restaurant.restaurant_name}
+                  </h2>
+
+                  <p className="mt-2 text-sm text-neutral-600">
+                    {[
+                      restaurant.address,
+                      restaurant.city,
+                      restaurant.state,
+                      restaurant.zip_code,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
                   </p>
-                ) : null}
 
-                <div className="mt-5 grid gap-3">
-                  {(restaurant.reservation_url ||
-                    restaurant.reservation_link) && (
-                    <a
-                      href={
-                        restaurant.reservation_url ||
-                        restaurant.reservation_link
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
-                    >
-                      Reserve Dinner
-                    </a>
+                  {restaurant.rating && (
+                    <p className="mt-2 text-sm font-semibold text-neutral-700">
+                      ⭐ {restaurant.rating}
+                      {restaurant.review_count
+                        ? ` (${restaurant.review_count} reviews)`
+                        : ""}
+                    </p>
                   )}
 
-                  <a
-                    href={restaurantMapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full border border-black px-5 py-3 text-center text-sm font-bold text-black"
-                  >
-                    Get Dinner Directions
-                  </a>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {activity && (
-            <section className="mt-6 overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
-              {activity.image_url ? (
-                <img
-                  src={activity.image_url}
-                  alt={activity.activity_name || "Activity"}
-                  className="h-60 w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-60 items-center justify-center bg-neutral-200 text-neutral-500">
-                  No image available
-                </div>
-              )}
-
-              <div className="p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">
-                  {activity.activity_type || "Activity"}
-                </p>
-
-                <h2 className="mt-2 text-2xl font-bold">
-                  {activity.activity_name}
-                </h2>
-
-                <p className="mt-2 text-sm text-neutral-600">
-                  {[
-                    activity.address,
-                    activity.city,
-                    activity.state,
-                    activity.zip_code,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </p>
-
-                {activity.rating && (
-                  <p className="mt-2 text-sm font-semibold text-neutral-700">
-                    ⭐ {activity.rating}
-                    {activity.review_count
-                      ? ` (${activity.review_count} reviews)`
-                      : ""}
-                  </p>
-                )}
-
-                {activity.primary_tag && (
-                  <p className="mt-3 text-sm font-bold">
-                    ✨ {activity.primary_tag}
-                  </p>
-                )}
-
-                {activity.date_style_tags?.length ? (
-                  <p className="mt-1 text-sm text-neutral-500">
-                    {activity.date_style_tags.slice(0, 3).join(" · ")}
-                  </p>
-                ) : null}
-
-                <div className="mt-5 grid gap-3">
-                  {(activity.reservation_url || activity.reservation_link) && (
-                    <a
-                      href={
-                        activity.reservation_url || activity.reservation_link
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
-                    >
-                      Book Activity
-                    </a>
+                  {restaurant.primary_tag && (
+                    <p className="mt-3 text-sm font-bold">
+                      ✨ {restaurant.primary_tag}
+                    </p>
                   )}
 
-                  {activity.website && (
+                  {restaurant.date_style_tags?.length ? (
+                    <p className="mt-1 text-sm text-neutral-500">
+                      {restaurant.date_style_tags.slice(0, 3).join(" · ")}
+                    </p>
+                  ) : null}
+
+                  <div className="mt-5 grid gap-3">
+                    {(restaurant.reservation_url ||
+                      restaurant.reservation_link) && (
+                      <a
+                        href={
+                          restaurant.reservation_url ||
+                          restaurant.reservation_link
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
+                      >
+                        Reserve Dinner
+                      </a>
+                    )}
+
                     <a
-                      href={activity.website}
+                      href={restaurantMapsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="rounded-full border border-black px-5 py-3 text-center text-sm font-bold text-black"
                     >
-                      View Activity Website
+                      Get Dinner Directions
                     </a>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {activity && (
+              <section className="mt-6 overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
+                {activity.image_url ? (
+                  <img
+                    src={activity.image_url}
+                    alt={activity.activity_name || "Activity"}
+                    className="h-60 w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-60 items-center justify-center bg-neutral-200 text-neutral-500">
+                    No image available
+                  </div>
+                )}
+
+                <div className="p-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">
+                    {activity.activity_type || "Activity"}
+                  </p>
+
+                  <h2 className="mt-2 text-2xl font-bold">
+                    {activity.activity_name}
+                  </h2>
+
+                  <p className="mt-2 text-sm text-neutral-600">
+                    {[
+                      activity.address,
+                      activity.city,
+                      activity.state,
+                      activity.zip_code,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
+
+                  {activity.rating && (
+                    <p className="mt-2 text-sm font-semibold text-neutral-700">
+                      ⭐ {activity.rating}
+                      {activity.review_count
+                        ? ` (${activity.review_count} reviews)`
+                        : ""}
+                    </p>
                   )}
 
-                  <a
-                    href={activityMapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full border border-black px-5 py-3 text-center text-sm font-bold text-black"
-                  >
-                    Get Activity Directions
-                  </a>
-                </div>
-              </div>
-            </section>
-          )}
+                  {activity.primary_tag && (
+                    <p className="mt-3 text-sm font-bold">
+                      ✨ {activity.primary_tag}
+                    </p>
+                  )}
 
-          <div className="mt-6">
-            <button
-              onClick={() => window.history.back()}
-              className="w-full rounded-full border border-black px-5 py-3 text-sm font-bold text-black"
-            >
-              Back to Results
-            </button>
+                  {activity.date_style_tags?.length ? (
+                    <p className="mt-1 text-sm text-neutral-500">
+                      {activity.date_style_tags.slice(0, 3).join(" · ")}
+                    </p>
+                  ) : null}
+
+                  <div className="mt-5 grid gap-3">
+                    {(activity.reservation_url ||
+                      activity.reservation_link) && (
+                      <a
+                        href={
+                          activity.reservation_url ||
+                          activity.reservation_link
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
+                      >
+                        Book Activity
+                      </a>
+                    )}
+
+                    {activity.website && (
+                      <a
+                        href={activity.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border border-black px-5 py-3 text-center text-sm font-bold text-black"
+                      >
+                        View Activity Website
+                      </a>
+                    )}
+
+                    <a
+                      href={activityMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-black px-5 py-3 text-center text-sm font-bold text-black"
+                    >
+                      Get Activity Directions
+                    </a>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            <div className="mt-6">
+              <button
+                onClick={() => window.history.back()}
+                className="w-full rounded-full border border-black px-5 py-3 text-sm font-bold text-black"
+              >
+                Back to Results
+              </button>
+            </div>
           </div>
         </div>
       </div>
