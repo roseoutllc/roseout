@@ -255,56 +255,17 @@ export default function AdminRestaurantDetailPage() {
             <h2 className="text-2xl font-bold">Listing Details</h2>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.cuisine_type || ""}
-                onChange={(e) => update("cuisine_type", e.target.value)}
-                placeholder="Cuisine Type"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.price_range || ""}
-                onChange={(e) => update("price_range", e.target.value)}
-                placeholder="Price Range"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.atmosphere || ""}
-                onChange={(e) => update("atmosphere", e.target.value)}
-                placeholder="Atmosphere"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.noise_level || ""}
-                onChange={(e) => update("noise_level", e.target.value)}
-                placeholder="Noise Level"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.lighting || ""}
-                onChange={(e) => update("lighting", e.target.value)}
-                placeholder="Lighting"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.primary_tag || ""}
-                onChange={(e) => update("primary_tag", e.target.value)}
-                placeholder="Primary Tag"
-              />
+              <input className="rounded-xl border px-4 py-3" value={form.cuisine_type || ""} onChange={(e) => update("cuisine_type", e.target.value)} placeholder="Cuisine Type" />
+              <input className="rounded-xl border px-4 py-3" value={form.price_range || ""} onChange={(e) => update("price_range", e.target.value)} placeholder="Price Range" />
+              <input className="rounded-xl border px-4 py-3" value={form.atmosphere || ""} onChange={(e) => update("atmosphere", e.target.value)} placeholder="Atmosphere" />
+              <input className="rounded-xl border px-4 py-3" value={form.noise_level || ""} onChange={(e) => update("noise_level", e.target.value)} placeholder="Noise Level" />
+              <input className="rounded-xl border px-4 py-3" value={form.lighting || ""} onChange={(e) => update("lighting", e.target.value)} placeholder="Lighting" />
+              <input className="rounded-xl border px-4 py-3" value={form.primary_tag || ""} onChange={(e) => update("primary_tag", e.target.value)} placeholder="Primary Tag" />
             </div>
 
             <input
               className="mt-4 w-full rounded-xl border px-4 py-3"
-              value={
-                Array.isArray(form.date_style_tags)
-                  ? form.date_style_tags.join(", ")
-                  : form.date_style_tags || ""
-              }
+              value={Array.isArray(form.date_style_tags) ? form.date_style_tags.join(", ") : form.date_style_tags || ""}
               onChange={(e) =>
                 update(
                   "date_style_tags",
@@ -322,47 +283,12 @@ export default function AdminRestaurantDetailPage() {
             <h2 className="text-2xl font-bold">Links & Media</h2>
 
             <div className="mt-5 grid gap-4">
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.website || ""}
-                onChange={(e) => update("website", e.target.value)}
-                placeholder="Website"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.reservation_link || ""}
-                onChange={(e) => update("reservation_link", e.target.value)}
-                placeholder="Reservation Link"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.image_url || ""}
-                onChange={(e) => update("image_url", e.target.value)}
-                placeholder="Image URL"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.instagram_url || ""}
-                onChange={(e) => update("instagram_url", e.target.value)}
-                placeholder="Instagram URL"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.facebook_url || ""}
-                onChange={(e) => update("facebook_url", e.target.value)}
-                placeholder="Facebook URL"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.tiktok_url || ""}
-                onChange={(e) => update("tiktok_url", e.target.value)}
-                placeholder="TikTok URL"
-              />
+              <input className="rounded-xl border px-4 py-3" value={form.website || ""} onChange={(e) => update("website", e.target.value)} placeholder="Website" />
+              <input className="rounded-xl border px-4 py-3" value={form.reservation_link || ""} onChange={(e) => update("reservation_link", e.target.value)} placeholder="Reservation Link" />
+              <input className="rounded-xl border px-4 py-3" value={form.image_url || ""} onChange={(e) => update("image_url", e.target.value)} placeholder="Image URL" />
+              <input className="rounded-xl border px-4 py-3" value={form.instagram_url || ""} onChange={(e) => update("instagram_url", e.target.value)} placeholder="Instagram URL" />
+              <input className="rounded-xl border px-4 py-3" value={form.facebook_url || ""} onChange={(e) => update("facebook_url", e.target.value)} placeholder="Facebook URL" />
+              <input className="rounded-xl border px-4 py-3" value={form.tiktok_url || ""} onChange={(e) => update("tiktok_url", e.target.value)} placeholder="TikTok URL" />
             </div>
 
             {form.image_url && (
@@ -380,21 +306,13 @@ export default function AdminRestaurantDetailPage() {
             <h2 className="text-xl font-bold">Status</h2>
 
             <div className="mt-4 grid gap-3">
-              <select
-                className="rounded-xl border px-4 py-3"
-                value={form.status || "approved"}
-                onChange={(e) => update("status", e.target.value)}
-              >
+              <select className="rounded-xl border px-4 py-3" value={form.status || "approved"} onChange={(e) => update("status", e.target.value)}>
                 <option value="approved">Approved</option>
                 <option value="pending">Pending</option>
                 <option value="rejected">Rejected</option>
               </select>
 
-              <select
-                className="rounded-xl border px-4 py-3"
-                value={form.claim_status || "unclaimed"}
-                onChange={(e) => update("claim_status", e.target.value)}
-              >
+              <select className="rounded-xl border px-4 py-3" value={form.claim_status || "unclaimed"} onChange={(e) => update("claim_status", e.target.value)}>
                 <option value="unclaimed">Unclaimed</option>
                 <option value="pending">Pending Claim</option>
                 <option value="approved">Claimed / Approved</option>
@@ -402,38 +320,15 @@ export default function AdminRestaurantDetailPage() {
               </select>
 
               <label className="flex items-center gap-3 rounded-xl border px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={!!form.is_featured}
-                  onChange={(e) => update("is_featured", e.target.checked)}
-                />
+                <input type="checkbox" checked={!!form.is_featured} onChange={(e) => update("is_featured", e.target.checked)} />
                 Featured
               </label>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <button
-                onClick={() => quickUpdate({ status: "approved" })}
-                className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white"
-              >
-                Approve
-              </button>
-
-              <button
-                onClick={() => quickUpdate({ status: "rejected" })}
-                className="rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white"
-              >
-                Reject
-              </button>
-
-              <button
-                onClick={() =>
-                  quickUpdate({ is_featured: !restaurant.is_featured })
-                }
-                className="rounded-full bg-yellow-500 px-4 py-2 text-sm font-bold text-black"
-              >
-                Toggle Featured
-              </button>
+              <button onClick={() => quickUpdate({ status: "approved" })} className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white">Approve</button>
+              <button onClick={() => quickUpdate({ status: "rejected" })} className="rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white">Reject</button>
+              <button onClick={() => quickUpdate({ is_featured: !restaurant.is_featured })} className="rounded-full bg-yellow-500 px-4 py-2 text-sm font-bold text-black">Toggle Featured</button>
             </div>
           </section>
 
@@ -441,26 +336,11 @@ export default function AdminRestaurantDetailPage() {
             <h2 className="text-xl font-bold">Claim & Owner</h2>
 
             <div className="mt-4 space-y-2 text-sm">
-              <p>
-                <strong>Owner / Manager:</strong> {ownerName || "—"}
-              </p>
-
-              <p>
-                <strong>Owner Email:</strong>{" "}
-                {ownerEmail || form.claimed_by_email || "—"}
-              </p>
-
-              <p>
-                <strong>Claimed At:</strong> {form.claimed_at || "—"}
-              </p>
-
-              <p className="break-all">
-                <strong>Claim URL:</strong> {form.claim_url || "—"}
-              </p>
-
-              <p className="break-all">
-                <strong>Signup URL:</strong> {form.owner_signup_url || "—"}
-              </p>
+              <p><strong>Owner / Manager:</strong> {ownerName || "—"}</p>
+              <p><strong>Owner Email:</strong> {ownerEmail || form.claimed_by_email || "—"}</p>
+              <p><strong>Claimed At:</strong> {form.claimed_at || "—"}</p>
+              <p className="break-all"><strong>Claim URL:</strong> {form.claim_url || "—"}</p>
+              <p className="break-all"><strong>Signup URL:</strong> {form.owner_signup_url || "—"}</p>
             </div>
           </section>
 
@@ -469,130 +349,28 @@ export default function AdminRestaurantDetailPage() {
 
             {form.qr_code_data_url ? (
               <>
-                <img
-                  src={form.qr_code_data_url}
-                  alt="QR Code"
-                  className="mx-auto mt-4 h-44 w-44"
-                />
-
-                <button
-                  onClick={printLabel}
-                  className="mt-4 w-full rounded-xl bg-black px-4 py-3 font-bold text-white"
-                >
-                  Print Label
-                </button>
+                <img src={form.qr_code_data_url} alt="QR Code" className="mx-auto mt-4 h-44 w-44" />
+                <button onClick={printLabel} className="mt-4 w-full rounded-xl bg-black px-4 py-3 font-bold text-white">Print Label</button>
               </>
             ) : (
-              <p className="mt-4 text-sm text-neutral-500">
-                No QR code available.
-              </p>
+              <p className="mt-4 text-sm text-neutral-500">No QR code available.</p>
             )}
           </section>
 
-          <section className="rounded-3xl bg-white p-6 text-black">
-            <h2 className="text-xl font-bold">Analytics & Scores</h2>
-
-            <p className="mt-1 text-xs text-neutral-500">
-              Used internally for ranking, recommendations, and listing quality.
-            </p>
-
-            <div className="mt-4 grid gap-4">
-              <ScoreSlider
-                label="Rating"
-                value={form.rating || 0}
-                max={5}
-                step={0.1}
-                onChange={(v) => update("rating", v)}
-              />
-
-              <ScoreSlider
-                label="Reviews"
-                value={form.review_count || 0}
-                max={1000}
-                step={1}
-                onChange={(v) => update("review_count", v)}
-              />
-
-              <ScoreSlider
-                label="Quality"
-                value={form.quality_score || 0}
-                max={100}
-                step={1}
-                onChange={(v) => update("quality_score", v)}
-              />
-
-              <ScoreSlider
-                label="Popularity"
-                value={form.popularity_score || 0}
-                max={100}
-                step={1}
-                onChange={(v) => update("popularity_score", v)}
-              />
-
-              <div className="rounded-2xl bg-neutral-100 p-3">
-                <p className="text-xs font-bold uppercase text-neutral-500">
-                  RoseOut Score
-                </p>
-                <p className="mt-1 text-3xl font-black text-yellow-600">
-                  {Number(form.roseout_score || 0)}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-neutral-100 p-3">
-                  <p className="text-xs font-bold uppercase text-neutral-500">
-                    Views
-                  </p>
-                  <p className="mt-1 text-xl font-black">
-                    {form.view_count || 0}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-neutral-100 p-3">
-                  <p className="text-xs font-bold uppercase text-neutral-500">
-                    Clicks
-                  </p>
-                  <p className="mt-1 text-xl font-black">
-                    {form.click_count || 0}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
+          <AnalyticsCard form={form} />
 
           <section className="rounded-3xl bg-white p-6 text-black">
             <h2 className="text-xl font-bold">External Actions</h2>
 
             <div className="mt-4 grid gap-3">
-              <a
-                href={mapsLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-xl bg-black px-4 py-3 text-center font-bold text-white"
-              >
-                Open in Maps
-              </a>
+              <a href={mapsLink} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-black px-4 py-3 text-center font-bold text-white">Open in Maps</a>
 
               {form.website && (
-                <a
-                  href={form.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border border-black px-4 py-3 text-center font-bold text-black"
-                >
-                  Website
-                </a>
+                <a href={form.website} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-black px-4 py-3 text-center font-bold text-black">Website</a>
               )}
 
               {form.claim_url && (
-                <a
-                  href={form.claim_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border border-black px-4 py-3 text-center font-bold text-black"
-                >
-                  Open Claim Link
-                </a>
+                <a href={form.claim_url} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-black px-4 py-3 text-center font-bold text-black">Open Claim Link</a>
               )}
             </div>
           </section>
@@ -601,18 +379,11 @@ export default function AdminRestaurantDetailPage() {
 
       <div className="sticky bottom-0 mt-8 border-t border-white/10 bg-black/95 py-4 backdrop-blur">
         <div className="flex gap-3">
-          <button
-            onClick={saveChanges}
-            disabled={saving}
-            className="w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black disabled:opacity-50"
-          >
+          <button onClick={saveChanges} disabled={saving} className="w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black disabled:opacity-50">
             {saving ? "Saving..." : "Save All Changes"}
           </button>
 
-          <a
-            href="/admin"
-            className="rounded-full border border-white/20 px-6 py-4 text-center font-bold text-white"
-          >
+          <a href="/admin" className="rounded-full border border-white/20 px-6 py-4 text-center font-bold text-white">
             Cancel
           </a>
         </div>
@@ -621,53 +392,47 @@ export default function AdminRestaurantDetailPage() {
   );
 }
 
-function ScoreSlider({
-  label,
-  value,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number | string;
-  max: number;
-  step: number;
-  onChange: (value: number) => void;
-}) {
-  const numericValue = Number(value) || 0;
-  const percent = Math.min((numericValue / max) * 100, 100);
-
+function AnalyticsCard({ form }: { form: any }) {
   return (
-    <div>
-      <div className="mb-1 flex items-center justify-between">
-        <label className="text-xs font-bold uppercase tracking-wide text-neutral-600">
-          {label}
-        </label>
+    <section className="rounded-3xl bg-white p-6 text-black">
+      <h2 className="text-xl font-bold">Analytics & Ranking</h2>
 
-        <input
-          type="number"
-          value={numericValue}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="w-20 rounded-lg border px-2 py-1 text-right text-sm font-bold"
-        />
+      <p className="mt-1 text-xs text-neutral-500">
+        These values are automatically calculated and cannot be edited.
+      </p>
+
+      <div className="mt-5 grid gap-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Stat label="Views" value={form.view_count || 0} />
+          <Stat label="Clicks" value={form.click_count || 0} />
+          <Stat label="Claims" value={form.claim_count || 0} />
+          <Stat label="Reviews" value={form.review_count || 0} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Stat label="Rating" value={form.rating || 0} />
+          <Stat label="Quality" value={form.quality_score || 0} />
+          <Stat label="Popularity" value={form.popularity_score || 0} />
+        </div>
+
+        <div className="rounded-2xl bg-neutral-100 p-4 text-center">
+          <p className="text-xs font-bold uppercase text-neutral-500">
+            RoseOut Ranking Score
+          </p>
+          <p className="mt-2 text-4xl font-black text-yellow-600">
+            {Number(form.roseout_score || 0)}
+          </p>
+        </div>
       </div>
+    </section>
+  );
+}
 
-      <div className="h-2 overflow-hidden rounded-full bg-neutral-200">
-        <div
-          className="h-full rounded-full bg-yellow-500"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-
-      <input
-        type="range"
-        min={0}
-        max={max}
-        step={step}
-        value={numericValue}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-1 w-full accent-yellow-500"
-      />
+function Stat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-xl bg-neutral-100 p-3">
+      <p className="text-xs font-bold uppercase text-neutral-500">{label}</p>
+      <p className="mt-1 text-lg font-black">{value}</p>
     </div>
   );
 }
