@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
-import AdminTopBar from "@/app/admin/components/AdminTopBar";
 
 type LocationType = "all" | "restaurants" | "activities";
 type ClaimStatus = "pending" | "rejected" | "unclaimed" | "claimed";
@@ -180,7 +179,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white">
-        <AdminTopBar />
+        
         <div className="p-6">Loading admin dashboard...</div>
       </div>
     );
