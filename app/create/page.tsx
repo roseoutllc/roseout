@@ -71,6 +71,58 @@ type SavedCreateState = {
 const STORAGE_KEY = "roseout_create_state";
 const LOCATION_KEY = "roseout_user_location";
 
+function SkeletonCards() {
+  return (
+    <div className="mb-6 rounded-[2rem] border border-white/10 bg-[#f7f3ed] p-5 text-black shadow-2xl">
+      <div className="mb-6">
+        <div className="h-4 w-40 animate-pulse rounded-full bg-neutral-300" />
+        <div className="mt-3 h-8 w-72 animate-pulse rounded-full bg-neutral-300" />
+        <div className="mt-3 h-4 w-56 animate-pulse rounded-full bg-neutral-200" />
+      </div>
+
+      <div className="grid gap-6">
+        {[1, 2, 3].map((item) => (
+          <div
+            key={item}
+            className="overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white shadow-xl"
+          >
+            <div className="relative h-72 w-full overflow-hidden bg-neutral-200">
+              <div className="absolute inset-0 animate-pulse bg-neutral-300" />
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+            </div>
+
+            <div className="p-5">
+              <div className="h-3 w-24 animate-pulse rounded-full bg-neutral-300" />
+              <div className="mt-4 h-8 w-64 animate-pulse rounded-full bg-neutral-300" />
+              <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-neutral-200" />
+              <div className="mt-2 h-4 w-2/3 animate-pulse rounded-full bg-neutral-200" />
+
+              <div className="mt-5 flex gap-2">
+                <div className="h-8 w-20 animate-pulse rounded-full bg-neutral-200" />
+                <div className="h-8 w-24 animate-pulse rounded-full bg-neutral-200" />
+                <div className="h-8 w-20 animate-pulse rounded-full bg-neutral-200" />
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <div className="h-11 w-24 animate-pulse rounded-full bg-neutral-300" />
+                <div className="h-11 w-32 animate-pulse rounded-full bg-neutral-900" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <style jsx>{`
+        @keyframes shimmer {
+          100% {
+            transform: translateX(100%);
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 export default function CreatePage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -398,11 +450,6 @@ export default function CreatePage() {
                 Search in full sentences. RoseOut finds curated restaurants,
                 activities, nearby matches, and premium detail pages.
               </p>
-
-              <p className="mt-4 text-xs text-neutral-400">
-                Try: “romantic dinner near me within 10 miles” or “fun activity
-                in Nassau.”
-              </p>
             </section>
 
             {SearchBox}
@@ -410,29 +457,26 @@ export default function CreatePage() {
         )}
 
         {messages.length > 0 && (
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
-              RoseOut
-            </p>
+          <>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
+                RoseOut
+              </p>
 
-            <button
-              type="button"
-              onClick={resetSearch}
-              className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white"
-            >
-              New Search
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={resetSearch}
+                className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white"
+              >
+                New Search
+              </button>
+            </div>
+
+            {SearchBox}
+          </>
         )}
 
-        {loading && (
-          <div className="mb-6 rounded-[2rem] border border-white/10 bg-white/10 p-5">
-            <div className="h-72 animate-pulse rounded-[1.5rem] bg-white/15" />
-            <p className="mt-4 text-center text-sm font-bold text-neutral-400">
-              RoseOut is finding your best matches...
-            </p>
-          </div>
-        )}
+        {loading && <SkeletonCards />}
 
         <section className="space-y-5">
           {messages.map((msg, index) => {
@@ -828,8 +872,6 @@ export default function CreatePage() {
             );
           })}
         </section>
-
-        {messages.length > 0 && <div className="mt-8">{SearchBox}</div>}
       </div>
 
       {(selectedRestaurant || selectedActivity) && (
