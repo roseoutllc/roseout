@@ -1,3 +1,5 @@
+"use client"
+
 import { requireAdminRole } from "@/lib/admin-auth";
 import AdminUsersClient from "./AdminUsersClient";
 
