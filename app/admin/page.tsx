@@ -62,8 +62,17 @@ export default function AdminPage() {
 
   const getClaimStatus = (claims: any[] = []): ClaimStatus => {
     if (claims.some((c) => c.status === "pending")) return "pending";
-    if (claims.some((c) => ["claimed", "approved", "completed"].includes(c.status))) return "claimed";
+
+    if (
+      claims.some((c) =>
+        ["claimed", "approved", "completed"].includes(c.status)
+      )
+    ) {
+      return "claimed";
+    }
+
     if (claims.some((c) => c.status === "rejected")) return "rejected";
+
     return "unclaimed";
   };
 
@@ -113,15 +122,26 @@ export default function AdminPage() {
 
   const stats = {
     total: allLocations.length,
-    restaurants: allLocations.filter((l) => l.location_type === "restaurants").length,
-    activities: allLocations.filter((l) => l.location_type === "activities").length,
-    pending: allLocations.filter((l) => getClaimStatus(l.claims) === "pending").length,
-    claimed: allLocations.filter((l) => getClaimStatus(l.claims) === "claimed").length,
-    unclaimed: allLocations.filter((l) => getClaimStatus(l.claims) === "unclaimed").length,
+    restaurants: allLocations.filter((l) => l.location_type === "restaurants")
+      .length,
+    activities: allLocations.filter((l) => l.location_type === "activities")
+      .length,
+    pending: allLocations.filter((l) => getClaimStatus(l.claims) === "pending")
+      .length,
+    claimed: allLocations.filter((l) => getClaimStatus(l.claims) === "claimed")
+      .length,
+    unclaimed: allLocations.filter(
+      (l) => getClaimStatus(l.claims) === "unclaimed"
+    ).length,
   };
 
-  if (loading) return <div className="p-6">Loading admin dashboard...</div>;
-  if (unauthorized) return <div className="p-6 text-red-400">Not authorized</div>;
+  if (loading) {
+    return <div className="p-6">Loading admin dashboard...</div>;
+  }
+
+  if (unauthorized) {
+    return <div className="p-6 text-red-400">Not authorized</div>;
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10 text-white">
@@ -132,7 +152,8 @@ export default function AdminPage() {
       <h1 className="mt-2 text-4xl font-bold">All Locations</h1>
 
       <p className="mt-2 text-neutral-400">
-        Manage restaurants, activity locations, ownership claims, and listing content in one place.
+        Manage restaurants, activity locations, ownership claims, and listing
+        content in one place.
       </p>
 
       <div className="mt-8 grid gap-4 md:grid-cols-6">
@@ -209,11 +230,20 @@ export default function AdminPage() {
               </div>
 
               <div className="col-span-4">
-                <p className="font-black">{location.display_name}</p>
-                <p className="text-sm text-neutral-500">{location.display_address}</p>
+                <Link
+                  href={location.edit_path}
+                  className="font-black hover:underline"
+                >
+                  {location.display_name}
+                </Link>
+
+                <p className="text-sm text-neutral-500">
+                  {location.display_address}
+                </p>
               </div>
 
               <div className="col-span-2">{location.display_type}</div>
+
               <div className="col-span-2 capitalize">{status}</div>
 
               <div className="col-span-2 flex justify-end gap-2">
@@ -227,6 +257,7 @@ export default function AdminPage() {
                 <a
                   href={location.claim_url}
                   target="_blank"
+                  rel="noopener noreferrer"
                   className="rounded-full border border-black px-4 py-2 text-sm font-bold"
                 >
                   Claim
@@ -235,6 +266,12 @@ export default function AdminPage() {
             </div>
           );
         })}
+
+        {filteredLocations.length === 0 && (
+          <div className="border-t px-5 py-12 text-center text-neutral-500">
+            No locations found.
+          </div>
+        )}
       </section>
     </main>
   );
