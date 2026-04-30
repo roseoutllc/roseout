@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 
 export default function LoginPage() {
@@ -29,6 +30,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // 🔐 Login with Supabase
       const { data, error: loginError } =
         await supabase.auth.signInWithPassword({
           email: email.trim().toLowerCase(),
@@ -45,6 +47,7 @@ export default function LoginPage() {
         return;
       }
 
+      // 🔒 Check admin access
       const { data: adminUser, error: adminError } = await supabase
         .from("admin_users")
         .select("id, role")
@@ -64,8 +67,10 @@ export default function LoginPage() {
 
       setMessage("Login successful. Redirecting...");
 
-      router.replace("/admin");
-      router.refresh();
+      // ✅ Safe redirect (no reload loop)
+      setTimeout(() => {
+        router.replace("/admin");
+      }, 500);
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
     } finally {
@@ -79,6 +84,7 @@ export default function LoginPage() {
         onSubmit={handleLogin}
         className="w-full max-w-md rounded-[2rem] bg-white p-8 text-black shadow-2xl"
       >
+        {/* Header */}
         <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-600">
           RoseOut Admin
         </p>
@@ -89,18 +95,21 @@ export default function LoginPage() {
           Sign in to access your dashboard.
         </p>
 
+        {/* Error */}
         {error && (
           <div className="mt-5 rounded-2xl bg-red-100 p-4 text-sm font-semibold text-red-700">
             {error}
           </div>
         )}
 
+        {/* Success */}
         {message && (
           <div className="mt-5 rounded-2xl bg-green-100 p-4 text-sm font-semibold text-green-700">
             {message}
           </div>
         )}
 
+        {/* Email */}
         <label className="mt-6 block text-sm font-bold">Email</label>
         <input
           type="email"
@@ -110,6 +119,7 @@ export default function LoginPage() {
           className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
         />
 
+        {/* Password */}
         <label className="mt-5 block text-sm font-bold">Password</label>
         <input
           type="password"
@@ -119,6 +129,7 @@ export default function LoginPage() {
           className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
         />
 
+        {/* Login Button */}
         <button
           type="submit"
           disabled={loading}
@@ -126,6 +137,14 @@ export default function LoginPage() {
         >
           {loading ? "Signing in..." : "Login"}
         </button>
+
+        {/* Forgot Password */}
+        <Link
+          href="/forgot-password"
+          className="mt-5 block text-center text-sm font-bold text-neutral-600 hover:text-black"
+        >
+          Forgot password?
+        </Link>
       </form>
     </main>
   );
