@@ -49,75 +49,6 @@ export default function AdminRestaurantDetailPage() {
     loadRestaurant();
   };
 
-  const sendLoginLink = async () => {
-    if (!restaurant?.email) {
-      setMessage("No email found.");
-      return;
-    }
-
-    setMessage("Sending login link...");
-
-    const res = await fetch("/api/admin/send-restaurant-link", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email: restaurant.email }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      setMessage(data.error || "Failed to send.");
-      return;
-    }
-
-    setMessage("Login link sent.");
-  };
-
-  const printLabel = () => {
-    if (!restaurant) return;
-
-    const win = window.open("", "_blank");
-    if (!win) return;
-
-    const html = `
-      <html>
-        <head>
-          <title>${restaurant.restaurant_name}</title>
-          <style>
-            body { font-family: Arial; padding: 20px; }
-            .label {
-              width: 420px;
-              display: flex;
-              gap: 16px;
-              align-items: center;
-              border: 1px solid #ddd;
-              border-radius: 12px;
-              padding: 16px;
-            }
-            img { width: 120px; height: 120px; }
-          </style>
-        </head>
-        <body>
-          <div class="label">
-            <img src="${restaurant.qr_code_data_url || ""}" />
-            <div>
-              <h2>${restaurant.restaurant_name}</h2>
-              <p>${restaurant.address || ""}</p>
-              <p>${restaurant.city || ""}, ${restaurant.state || ""} ${restaurant.zip_code || ""}</p>
-              <p><strong>Scan to manage listing</strong></p>
-            </div>
-          </div>
-          <script>window.onload = () => window.print();</script>
-        </body>
-      </html>
-    `;
-
-    win.document.write(html);
-    win.document.close();
-  };
-
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getUser();
@@ -139,68 +70,100 @@ export default function AdminRestaurantDetailPage() {
     init();
   }, []);
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-black text-white">
-        <AdminTopBar />
-        <div className="p-6">Loading...</div>
-      </main>
-    );
-  }
-
-  if (unauthorized) {
-    return (
-      <main className="min-h-screen bg-black text-white">
-        <AdminTopBar />
-        <div className="p-6">Not authorized</div>
-      </main>
-    );
-  }
-
-  if (!restaurant) {
-    return (
-      <main className="min-h-screen bg-black text-white">
-        <AdminTopBar />
-        <div className="p-6">{message}</div>
-      </main>
-    );
-  }
-
-  const mapsLink = `https://www.google.com/maps/search/${encodeURIComponent(
-    `${restaurant.address || ""} ${restaurant.city || ""}`
-  )}`;
+  if (loading) return <div className="p-6 text-white">Loading...</div>;
+  if (unauthorized) return <div className="p-6 text-white">Not authorized</div>;
+  if (!restaurant) return <div className="p-6 text-white">{message}</div>;
 
   return (
     <main className="min-h-screen bg-black text-white">
       <AdminTopBar />
 
-      <div className="mx-auto max-w-5xl px-6 py-12">
+      <div className="mx-auto max-w-6xl px-6 py-12">
         <a href="/admin/restaurants" className="underline">
           ← Back
         </a>
 
-        <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">
-          
-          {/* LEFT */}
+        <div className="mt-6 grid gap-6 md:grid-cols-2">
+
+          {/* MAIN DETAILS */}
           <div className="rounded-3xl bg-white p-6 text-black">
             <h1 className="text-3xl font-bold">
-              {restaurant.restaurant_name}
+              {restaurant.restaurant_name || "Unnamed Restaurant"}
             </h1>
 
             <p className="mt-2 text-neutral-600">
-              {restaurant.address}, {restaurant.city}, {restaurant.state}
+              {restaurant.address}, {restaurant.city}, {restaurant.state} {restaurant.zip_code}
             </p>
 
-            <p className="mt-4">
-              <strong>Status:</strong> {restaurant.status}
-            </p>
+            <div className="mt-6 space-y-2 text-sm">
+              <p><strong>Status:</strong> {restaurant.status}</p>
+              <p><strong>Claim Status:</strong> {restaurant.claim_status}</p>
+              <p><strong>Owner Email:</strong> {restaurant.claimed_by_email || "—"}</p>
+              <p><strong>Phone:</strong> {restaurant.phone || "—"}</p>
+              <p><strong>Website:</strong> {restaurant.website || "—"}</p>
+              <p><strong>Reservation Link:</strong> {restaurant.reservation_link || "—"}</p>
+              <p><strong>Price Range:</strong> {restaurant.price_range || "—"}</p>
+              <p><strong>Cuisine:</strong> {restaurant.cuisine_type || "—"}</p>
+              <p><strong>Atmosphere:</strong> {restaurant.atmosphere || "—"}</p>
+              <p><strong>Noise Level:</strong> {restaurant.noise_level || "—"}</p>
+            </div>
 
-            <p className="mt-2">
-              <strong>Featured:</strong>{" "}
-              {restaurant.is_featured ? "Yes" : "No"}
-            </p>
+            <div className="mt-6">
+              <p className="font-bold">Description</p>
+              <p className="mt-2 text-sm text-neutral-700">
+                {restaurant.description || "No description provided"}
+              </p>
+            </div>
+          </div>
 
-            <div className="mt-6 flex flex-wrap gap-3">
+          {/* SOCIAL + SCORES */}
+          <div className="rounded-3xl bg-white p-6 text-black">
+            <h2 className="text-xl font-bold">Social Media</h2>
+
+            <div className="mt-4 space-y-2 text-sm">
+              <p>Instagram: {restaurant.instagram_url || "—"}</p>
+              <p>Facebook: {restaurant.facebook_url || "—"}</p>
+              <p>TikTok: {restaurant.tiktok_url || "—"}</p>
+            </div>
+
+            <h2 className="mt-6 text-xl font-bold">Scores</h2>
+
+            <div className="mt-4 space-y-2 text-sm">
+              <p>Rating: {restaurant.rating || "—"}</p>
+              <p>Reviews: {restaurant.review_count || "—"}</p>
+              <p>Quality Score: {restaurant.quality_score || "—"}</p>
+              <p>Popularity Score: {restaurant.popularity_score || "—"}</p>
+            </div>
+
+            {restaurant.image_url && (
+              <img
+                src={restaurant.image_url}
+                className="mt-6 rounded-xl"
+              />
+            )}
+          </div>
+
+          {/* QR */}
+          <div className="rounded-3xl bg-white p-6 text-black text-center col-span-2">
+            <h2 className="text-xl font-bold">QR Code</h2>
+
+            {restaurant.qr_code_data_url && (
+              <img
+                src={restaurant.qr_code_data_url}
+                className="mx-auto mt-4 h-48 w-48"
+              />
+            )}
+
+            <p className="mt-3 text-xs break-all">
+              {restaurant.claim_url}
+            </p>
+          </div>
+
+          {/* ACTIONS */}
+          <div className="rounded-3xl bg-white p-6 text-black col-span-2">
+            <h2 className="text-xl font-bold">Actions</h2>
+
+            <div className="mt-4 flex flex-wrap gap-3">
               <button onClick={() => updateRestaurant({ status: "approved" })} className="bg-green-600 px-4 py-2 rounded text-white">
                 Approve
               </button>
@@ -212,43 +175,12 @@ export default function AdminRestaurantDetailPage() {
               <button onClick={() => updateRestaurant({ is_featured: !restaurant.is_featured })} className="bg-yellow-500 px-4 py-2 rounded text-black">
                 Toggle Featured
               </button>
-
-              <button onClick={sendLoginLink} className="bg-blue-600 px-4 py-2 rounded text-white">
-                Send Login Link
-              </button>
-
-              <a href={mapsLink} target="_blank">
-                <button className="bg-black px-4 py-2 rounded text-white">
-                  Maps
-                </button>
-              </a>
             </div>
 
             {message && (
               <p className="mt-4 bg-neutral-100 p-3 rounded">
                 {message}
               </p>
-            )}
-          </div>
-
-          {/* QR */}
-          <div className="rounded-3xl bg-white p-6 text-black text-center">
-            <h2 className="text-xl font-bold">QR Label</h2>
-
-            {restaurant.qr_code_data_url && (
-              <>
-                <img
-                  src={restaurant.qr_code_data_url}
-                  className="mx-auto mt-4 h-40 w-40"
-                />
-
-                <button
-                  onClick={printLabel}
-                  className="mt-4 w-full bg-black text-white px-4 py-2 rounded"
-                >
-                  Print Label
-                </button>
-              </>
             )}
           </div>
 
