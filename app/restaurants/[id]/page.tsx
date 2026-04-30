@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import BackButton from "./BackButton";
+import { AnalyticsTracker, AnalyticsLink } from "./AnalyticsTracker";
 
 type PageProps = {
   params: Promise<{
@@ -36,6 +37,8 @@ export default async function RestaurantPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-black px-6 py-12 text-white">
+      <AnalyticsTracker id={id} />
+
       <div className="mx-auto max-w-3xl">
         <BackButton />
 
@@ -70,25 +73,23 @@ export default async function RestaurantPage({ params }: PageProps) {
 
             <div className="mt-8 flex flex-wrap gap-3">
               {restaurant.reservation_link && (
-                <a
+                <AnalyticsLink
+                  id={id}
                   href={restaurant.reservation_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="rounded-xl bg-black px-5 py-3 text-sm font-bold text-white"
                 >
                   Reserve Table
-                </a>
+                </AnalyticsLink>
               )}
 
               {restaurant.website && (
-                <a
+                <AnalyticsLink
+                  id={id}
                   href={restaurant.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="rounded-xl border border-black px-5 py-3 text-sm font-bold text-black"
                 >
                   Visit Website
-                </a>
+                </AnalyticsLink>
               )}
             </div>
           </div>
