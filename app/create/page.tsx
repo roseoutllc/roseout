@@ -89,7 +89,7 @@ export default function CreatePage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: nextMessages.slice(-6),
+          messages: nextMessages.slice(-4),
         }),
       });
 

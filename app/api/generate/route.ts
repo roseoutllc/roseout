@@ -5,6 +5,17 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
+const AI_MODEL = "gpt-4o-mini";
+const CACHE_HOURS = 6;
+
+function normalizeQuery(input: string) {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, " ");
+}
+
 function scoreRestaurant(restaurant: any, input: string) {
   const text = input.toLowerCase();
   let score = 0;
@@ -75,70 +86,6 @@ function scoreActivity(activity: any, input: string) {
   return score;
 }
 
-async function getAiFitScores(
-  input: string,
-  items: any[],
-  type: "restaurant" | "activity"
-) {
-  if (!items.length) return {};
-
-  const compactItems = items.slice(0, 15).map((item) => ({
-    id: String(item.id),
-    name: type === "restaurant" ? item.restaurant_name : item.activity_name,
-    category: type === "restaurant" ? item.cuisine_type : item.activity_type,
-    city: item.city,
-    rating: item.rating,
-    review_count: item.review_count,
-    primary_tag: item.primary_tag,
-    date_style_tags: item.date_style_tags,
-    atmosphere: item.atmosphere,
-    price_range: item.price_range,
-    noise_level: item.noise_level,
-  }));
-
-  const response = await openai.responses.create({
-    model: "gpt-5-mini",
-    input: `
-You are ranking ${type}s for RoseOut.
-
-User request:
-"${input}"
-
-Items:
-${JSON.stringify(compactItems, null, 2)}
-
-Return ONLY valid JSON in this format:
-{
-  "scores": [
-    { "id": "item-id", "ai_score": 0 }
-  ]
-}
-
-Score each item from 0 to 50 based on how well it fits the user's request.
-
-Important:
-- If the user explicitly asks for a museum, museum items should score highest.
-- If the user explicitly asks for bowling, bowling items should score highest.
-- If the user explicitly asks for a specific activity type, unrelated activity types should get very low scores.
-- Do not explain.
-`,
-    max_output_tokens: 700,
-  });
-
-  try {
-    const parsed = JSON.parse(response.output_text || "{}");
-
-    return Object.fromEntries(
-      (parsed.scores || []).map((s: any) => [
-        String(s.id),
-        Number(s.ai_score) || 0,
-      ])
-    );
-  } catch {
-    return {};
-  }
-}
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -151,6 +98,22 @@ export async function POST(req: Request) {
     }
 
     const text = input.toLowerCase();
+    const cacheKey = normalizeQuery(input);
+
+    const { data: cached } = await supabase
+      .from("ai_response_cache")
+      .select("response, created_at")
+      .eq("cache_key", cacheKey)
+      .maybeSingle();
+
+    if (cached?.response) {
+      const cacheAge = Date.now() - new Date(cached.created_at).getTime();
+      const cacheLimit = 1000 * 60 * 60 * CACHE_HOURS;
+
+      if (cacheAge < cacheLimit) {
+        return Response.json(cached.response);
+      }
+    }
 
     const wantsDinner =
       text.includes("dinner") ||
@@ -197,7 +160,29 @@ export async function POST(req: Request) {
 
     const { data: restaurants, error: restaurantError } = await supabase
       .from("restaurants")
-      .select("*")
+      .select(`
+        id,
+        restaurant_name,
+        address,
+        city,
+        state,
+        zip_code,
+        neighborhood,
+        cuisine_type,
+        atmosphere,
+        lighting,
+        noise_level,
+        price_range,
+        reservation_link,
+        website,
+        image_url,
+        rating,
+        review_count,
+        primary_tag,
+        date_style_tags,
+        quality_score,
+        popularity_score
+      `)
       .eq("status", "approved");
 
     if (restaurantError) {
@@ -206,7 +191,27 @@ export async function POST(req: Request) {
 
     const { data: activities, error: activityError } = await supabase
       .from("activities")
-      .select("*")
+      .select(`
+        id,
+        activity_name,
+        activity_type,
+        address,
+        city,
+        state,
+        zip_code,
+        price_range,
+        atmosphere,
+        group_friendly,
+        reservation_link,
+        website,
+        image_url,
+        rating,
+        review_count,
+        primary_tag,
+        date_style_tags,
+        quality_score,
+        popularity_score
+      `)
       .eq("status", "approved");
 
     if (activityError) {
@@ -245,43 +250,41 @@ export async function POST(req: Request) {
       );
     }
 
-   const aiRestaurantScores = {};
-const aiActivityScores = {};
+    const rankedRestaurants = (restaurants || [])
+      .map((restaurant: any) => {
+        const ruleScore = scoreRestaurant(restaurant, input);
+        const qualityScore = restaurant.quality_score || 0;
+        const popularityScore = restaurant.popularity_score || 0;
 
-const rankedRestaurants = (restaurants || [])
-  .map((restaurant: any) => {
-    const ruleScore = scoreRestaurant(restaurant, input);
-    const qualityScore = restaurant.quality_score || 0;
-const popularityScore = restaurant.popularity_score || 0;
+        const finalScore =
+          ruleScore * 0.7 +
+          qualityScore * 0.2 +
+          popularityScore * 0.1;
 
-const finalScore =
-  ruleScore * 0.7 +
-  qualityScore * 0.2 +
-  popularityScore * 0.1;
-
-    return {
-      ...restaurant,
-      roseout_score: Math.round(Math.min(finalScore, 100)),
-    };
-  })
-  .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
+        return {
+          ...restaurant,
+          roseout_score: Math.round(Math.min(finalScore, 100)),
+        };
+      })
+      .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
     const rankedActivities = (filteredActivities || [])
-  .map((activity: any) => {
-    const ruleScore = scoreActivity(activity, input);
-    const qualityScore = activity.quality_score || 0;
-const popularityScore = activity.popularity_score || 0;
+      .map((activity: any) => {
+        const ruleScore = scoreActivity(activity, input);
+        const qualityScore = activity.quality_score || 0;
+        const popularityScore = activity.popularity_score || 0;
 
-const finalScore =
-  ruleScore * 0.7 +
-  qualityScore * 0.2 +
-  popularityScore * 0.1;
-    return {
-      ...activity,
-      roseout_score: Math.round(Math.min(finalScore, 100)),
-    };
-  })
-  .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
+        const finalScore =
+          ruleScore * 0.7 +
+          qualityScore * 0.2 +
+          popularityScore * 0.1;
+
+        return {
+          ...activity,
+          roseout_score: Math.round(Math.min(finalScore, 100)),
+        };
+      })
+      .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
     const topRestaurants = shouldReturnRestaurants
       ? rankedRestaurants.slice(0, 5)
@@ -291,7 +294,26 @@ const finalScore =
       ? rankedActivities.slice(0, 5)
       : [];
 
-    const conversation = messages
+    const slimRestaurants = topRestaurants.map((r: any) => ({
+      name: r.restaurant_name,
+      city: r.city,
+      cuisine: r.cuisine_type,
+      rating: r.rating,
+      score: r.roseout_score,
+      tag: r.primary_tag,
+    }));
+
+    const slimActivities = topActivities.map((a: any) => ({
+      name: a.activity_name,
+      city: a.city,
+      type: a.activity_type,
+      rating: a.rating,
+      score: a.roseout_score,
+      tag: a.primary_tag,
+    }));
+
+    const shortConversation = messages
+      .slice(-4)
       .map((m: any) => `${m.role}: ${m.content}`)
       .join("\n");
 
@@ -300,46 +322,39 @@ const finalScore =
     const prompt = `
 You are RoseOut, a concise AI outing planner.
 
-${
-  isFollowUp
-    ? "This is a follow-up. Use the previous assistant plan as context and modify or answer only what the user asked. Do not restart the whole plan unless asked."
-    : ""
-}
+${isFollowUp ? "This is a follow-up. Answer only the latest user request." : ""}
 
 Conversation:
-${conversation}
+${shortConversation}
 
 Latest user request:
 "${input}"
 
-Available restaurants:
-${JSON.stringify(topRestaurants, null, 2)}
+Restaurants:
+${JSON.stringify(slimRestaurants)}
 
-Available activities:
-${JSON.stringify(topActivities, null, 2)}
+Activities:
+${JSON.stringify(slimActivities)}
 
 STRICT RULES:
-- For follow-ups, answer ONLY the latest request.
-- Do NOT repeat the full plan unless the user asks.
-- Do NOT add times unless the user asks for timing.
+- Keep the answer short and direct.
+- Do NOT add times unless asked.
 - Do NOT add dessert, drinks, walks, or extra stops unless asked.
-- Do NOT use filler like “take your time,” “enjoy the meal,” or “chat.”
-- Use ONLY restaurants and activities from the lists.
+- Do NOT say “take your time,” “enjoy the meal,” or “chat.”
+- Use ONLY the listed restaurants and activities.
 - Do NOT invent business details.
-- Keep it short and direct.
-- If the user asks for dinner only, recommend restaurants only.
-- If the user asks for an activity only, recommend activities only.
-- If the user asks for a specific activity type, recommend only that activity type.
-- If the user asks for a full outing/date night, recommend one restaurant and one activity.
+- If dinner only, recommend restaurants only.
+- If activity only, recommend activities only.
+- If full outing/date night, recommend one restaurant and one activity.
 `;
 
     const response = await openai.responses.create({
-      model: "gpt-5-mini",
+      model: AI_MODEL,
       input: prompt,
-      max_output_tokens: 700,
+      max_output_tokens: 350,
     });
 
-    return Response.json({
+    const responsePayload = {
       reply: response.output_text || "No response generated.",
 
       restaurants: topRestaurants.map((r: any) => ({
@@ -379,7 +394,15 @@ STRICT RULES:
         primary_tag: a.primary_tag || null,
         date_style_tags: a.date_style_tags || [],
       })),
+    };
+
+    await supabase.from("ai_response_cache").upsert({
+      cache_key: cacheKey,
+      user_query: input,
+      response: responsePayload,
     });
+
+    return Response.json(responsePayload);
   } catch (error: any) {
     console.error("GENERATE ERROR:", error);
 
