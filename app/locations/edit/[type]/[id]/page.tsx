@@ -6,6 +6,32 @@ import { createClient } from "@/lib/supabase-browser";
 
 type LocationType = "restaurants" | "activities";
 
+function calculateUpdatedScore(location: any) {
+  let score = 40;
+
+  const has = (value: any) => {
+    if (Array.isArray(value)) return value.length > 0;
+    return value !== null && value !== undefined && String(value).trim() !== "";
+  };
+
+  if (has(location.description)) score += 8;
+  if (has(location.image_url)) score += 8;
+  if (has(location.website)) score += 4;
+  if (has(location.reservation_url) || has(location.reservation_link)) score += 5;
+  if (has(location.price_range)) score += 4;
+  if (has(location.atmosphere)) score += 6;
+  if (has(location.primary_tag)) score += 5;
+  if (has(location.date_style_tags)) score += 5;
+  if (has(location.best_for)) score += 5;
+  if (has(location.special_features)) score += 5;
+  if (has(location.search_keywords)) score += 5;
+  if (has(location.latitude) && has(location.longitude)) score += 5;
+  if (location.claim_status === "claimed" || location.claimed) score += 8;
+  if (location.rating) score += Math.min(Number(location.rating) * 2, 10);
+
+  return Math.min(Math.round(score), 100);
+}
+
 export default function EditLocationPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -233,8 +259,6 @@ export default function EditLocationPage() {
       owner_email: form.owner_email,
       owner_phone: form.owner_phone,
       claim_status: form.claim_status,
-      roseout_score:
-        form.roseout_score === "" ? null : Number(form.roseout_score),
       latitude: form.latitude === "" ? null : Number(form.latitude),
       longitude: form.longitude === "" ? null : Number(form.longitude),
     };
@@ -247,6 +271,9 @@ export default function EditLocationPage() {
       payload.activity_type = form.activity_type;
     }
 
+    const calculatedScore = calculateUpdatedScore(payload);
+    payload.roseout_score = calculatedScore;
+
     const { error } = await supabase.from(table).update(payload).eq("id", id);
 
     if (error) {
@@ -255,7 +282,12 @@ export default function EditLocationPage() {
       return;
     }
 
-    setMessage("Location updated successfully.");
+    setForm((prev: any) => ({
+      ...prev,
+      roseout_score: calculatedScore,
+    }));
+
+    setMessage(`Location updated successfully. RoseOut Score: ${calculatedScore}/100`);
     setSaving(false);
   };
 
@@ -493,6 +525,7 @@ export default function EditLocationPage() {
                   label="RoseOut Score"
                   value={String(form.roseout_score)}
                   onChange={(v) => update("roseout_score", v)}
+                  helper="This updates automatically when you save."
                 />
 
                 <Field
@@ -571,7 +604,8 @@ export default function EditLocationPage() {
               <p
                 className={`rounded-2xl p-4 text-sm font-bold ${
                   message.includes("success") ||
-                  message.includes("applied")
+                  message.includes("applied") ||
+                  message.includes("Score")
                     ? "bg-green-100 text-green-700"
                     : "bg-red-100 text-red-700"
                 }`}
