@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
+import { redirect } from "next/navigation";
+
+export default function OwnerDashboardRedirectPage() {
+  redirect("/locations/dashboard");
+}
 
 type LocationType = "restaurant" | "activity";
 
