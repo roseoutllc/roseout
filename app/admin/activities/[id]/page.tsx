@@ -46,11 +46,7 @@ export default function AdminActivityDetailPage() {
     const res = await fetch(`/api/admin/activities/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        owner_name: ownerName,
-        owner_email: ownerEmail,
-      }),
+      body: JSON.stringify(form),
     });
 
     const data = await res.json();
@@ -63,8 +59,6 @@ export default function AdminActivityDetailPage() {
 
     setActivity(data.activity);
     setForm(data.activity);
-    setOwnerName(data.activity?.activity_owners?.[0]?.name || "");
-    setOwnerEmail(data.activity?.activity_owners?.[0]?.email || "");
     setMessage("Saved successfully.");
     setSaving(false);
   };
@@ -75,11 +69,7 @@ export default function AdminActivityDetailPage() {
     const res = await fetch(`/api/admin/activities/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...updates,
-        owner_name: ownerName,
-        owner_email: ownerEmail,
-      }),
+      body: JSON.stringify(updates),
     });
 
     const data = await res.json();
@@ -91,8 +81,6 @@ export default function AdminActivityDetailPage() {
 
     setActivity(data.activity);
     setForm(data.activity);
-    setOwnerName(data.activity?.activity_owners?.[0]?.name || "");
-    setOwnerEmail(data.activity?.activity_owners?.[0]?.email || "");
     setMessage("Updated successfully.");
   };
 
@@ -164,14 +152,8 @@ export default function AdminActivityDetailPage() {
     init();
   }, []);
 
-  if (loading) {
-    return <div className="p-6">Loading...</div>;
-  }
-
-  if (unauthorized) {
-    return <div className="p-6">Not authorized</div>;
-  }
-
+  if (loading) return <div className="p-6">Loading...</div>;
+  if (unauthorized) return <div className="p-6">Not authorized</div>;
   if (!activity) {
     return <div className="p-6">{message || "Activity not found."}</div>;
   }
@@ -214,26 +196,6 @@ export default function AdminActivityDetailPage() {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
-          <section className="rounded-3xl bg-white p-6 text-black">
-            <h2 className="text-2xl font-bold">Owner / Manager</h2>
-
-            <div className="mt-5 grid gap-4">
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={ownerName}
-                onChange={(e) => setOwnerName(e.target.value)}
-                placeholder="Owner / Manager Name"
-              />
-
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={ownerEmail}
-                onChange={(e) => setOwnerEmail(e.target.value)}
-                placeholder="Owner / Manager Email"
-              />
-            </div>
-          </section>
-
           <section className="rounded-3xl bg-white p-6 text-black">
             <h2 className="text-2xl font-bold">Basic Information</h2>
 
