@@ -19,6 +19,7 @@ export default function EditLocationPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [message, setMessage] = useState("");
 
   const [form, setForm] = useState<any>({
@@ -139,6 +140,67 @@ export default function EditLocationPage() {
       : [];
   };
 
+  const optimizeWithAI = async () => {
+    setOptimizing(true);
+    setMessage("");
+
+    try {
+      const res = await fetch("/api/locations/optimize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type,
+          name: form.name,
+          description: form.description,
+          city: form.city,
+          neighborhood: form.neighborhood,
+          cuisine: form.cuisine,
+          activity_type: form.activity_type,
+          atmosphere: form.atmosphere,
+          best_for: form.best_for,
+          special_features: form.special_features,
+          signature_items: form.signature_items,
+          primary_tag: form.primary_tag,
+          date_style_tags: form.date_style_tags,
+          search_keywords: form.search_keywords,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.error || "AI optimization failed.");
+        return;
+      }
+
+      setForm((prev: any) => ({
+        ...prev,
+        description: data.description || prev.description,
+        primary_tag: data.primary_tag || prev.primary_tag,
+        date_style_tags: Array.isArray(data.date_style_tags)
+          ? data.date_style_tags.join(", ")
+          : prev.date_style_tags,
+        best_for: Array.isArray(data.best_for)
+          ? data.best_for.join(", ")
+          : prev.best_for,
+        special_features: Array.isArray(data.special_features)
+          ? data.special_features.join(", ")
+          : prev.special_features,
+        search_keywords: Array.isArray(data.search_keywords)
+          ? data.search_keywords.join(", ")
+          : prev.search_keywords,
+      }));
+
+      setMessage("AI optimization applied. Review and save changes.");
+    } catch {
+      setMessage("AI optimization failed.");
+    } finally {
+      setOptimizing(false);
+    }
+  };
+
   const saveLocation = async () => {
     setSaving(true);
     setMessage("");
@@ -210,7 +272,7 @@ export default function EditLocationPage() {
   return (
     <main className="min-h-screen bg-black px-5 py-6 text-white">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <button
             onClick={() => router.push("/locations/dashboard")}
             className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold"
@@ -218,13 +280,24 @@ export default function EditLocationPage() {
             ← Back to Dashboard
           </button>
 
-          <button
-            onClick={saveLocation}
-            disabled={saving}
-            className="rounded-full bg-yellow-500 px-6 py-3 text-sm font-black text-black disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={optimizeWithAI}
+              disabled={optimizing || saving}
+              className="rounded-full border border-yellow-500 px-6 py-3 text-sm font-black text-yellow-500 transition hover:bg-yellow-500 hover:text-black disabled:opacity-50"
+            >
+              {optimizing ? "Optimizing..." : "✨ Improve With AI"}
+            </button>
+
+            <button
+              onClick={saveLocation}
+              disabled={saving || optimizing}
+              className="rounded-full bg-yellow-500 px-6 py-3 text-sm font-black text-black disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </div>
 
         <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl">
@@ -497,7 +570,8 @@ export default function EditLocationPage() {
             {message && (
               <p
                 className={`rounded-2xl p-4 text-sm font-bold ${
-                  message.includes("success")
+                  message.includes("success") ||
+                  message.includes("applied")
                     ? "bg-green-100 text-green-700"
                     : "bg-red-100 text-red-700"
                 }`}
@@ -508,7 +582,7 @@ export default function EditLocationPage() {
 
             <button
               onClick={saveLocation}
-              disabled={saving}
+              disabled={saving || optimizing}
               className="w-full rounded-full bg-yellow-500 px-5 py-4 font-black text-black disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save All Changes"}
