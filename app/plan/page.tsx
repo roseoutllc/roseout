@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function PlanPage() {
@@ -21,6 +20,12 @@ export default function PlanPage() {
     setLoaded(true);
   }, []);
 
+  const startNewSearch = () => {
+    localStorage.removeItem("roseout_plan");
+    sessionStorage.removeItem("roseout_create_state");
+    window.location.href = "/create";
+  };
+
   if (!loaded) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
@@ -35,12 +40,12 @@ export default function PlanPage() {
         <div className="text-center">
           <p className="text-2xl font-bold">No plan found</p>
 
-          <Link
-            href="/create"
-            className="mt-4 inline-block rounded-full bg-yellow-500 px-6 py-3 font-bold text-black"
+          <button
+            onClick={startNewSearch}
+            className="mt-4 rounded-full bg-yellow-500 px-6 py-3 font-bold text-black"
           >
             Create a Plan
-          </Link>
+          </button>
         </div>
       </main>
     );
@@ -56,12 +61,7 @@ export default function PlanPage() {
       : activity?.activity_name || "Your Plan";
 
   const planSubtitle =
-    restaurant?.primary_tag ||
-    activity?.primary_tag ||
-    "Curated by RoseOut";
-
-  const getRestaurantId = restaurant?.id || restaurant?.google_place_id;
-  const getActivityId = activity?.id || activity?.google_place_id;
+    restaurant?.primary_tag || activity?.primary_tag || "Curated by RoseOut";
 
   const restaurantMapsUrl = restaurant
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -80,14 +80,24 @@ export default function PlanPage() {
     : "#";
 
   return (
-    <main className="min-h-screen bg-[#050505] px-5 py-10 text-white">
-      <div className="mx-auto max-w-3xl">
-        <button
-          onClick={() => window.history.back()}
-          className="mb-6 text-sm font-semibold text-yellow-500"
-        >
-          ← Back to results
-        </button>
+    <main className="min-h-screen bg-[#050505] px-5 py-6 text-white">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <button
+            onClick={() => window.history.back()}
+            className="text-sm font-semibold text-yellow-500"
+          >
+            ← Back to results
+          </button>
+
+          <button
+            type="button"
+            onClick={startNewSearch}
+            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white"
+          >
+            New Search
+          </button>
+        </div>
 
         <div className="mb-8">
           <p className="mb-2 text-sm font-semibold uppercase tracking-[0.25em] text-yellow-500">
@@ -132,7 +142,7 @@ export default function PlanPage() {
                 </p>
 
                 <h2 className="mt-2 text-2xl font-bold">
-                  {restaurant.restaurant_name || "Restaurant"}
+                  {restaurant.restaurant_name}
                 </h2>
 
                 <p className="mt-2 text-sm text-neutral-600">
@@ -163,18 +173,13 @@ export default function PlanPage() {
                 ) : null}
 
                 <div className="mt-5 grid gap-3">
-                  {getRestaurantId && (
-                    <Link
-                      href={`/locations/restaurants/${getRestaurantId}`}
-                      className="rounded-full bg-yellow-500 px-5 py-3 text-center text-sm font-extrabold text-black"
-                    >
-                      View Dinner Details
-                    </Link>
-                  )}
-
-                  {(restaurant.reservation_url || restaurant.reservation_link) && (
+                  {(restaurant.reservation_url ||
+                    restaurant.reservation_link) && (
                     <a
-                      href={restaurant.reservation_url || restaurant.reservation_link}
+                      href={
+                        restaurant.reservation_url ||
+                        restaurant.reservation_link
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
@@ -216,7 +221,7 @@ export default function PlanPage() {
                 </p>
 
                 <h2 className="mt-2 text-2xl font-bold">
-                  {activity.activity_name || "Activity"}
+                  {activity.activity_name}
                 </h2>
 
                 <p className="mt-2 text-sm text-neutral-600">
@@ -247,15 +252,6 @@ export default function PlanPage() {
                 ) : null}
 
                 <div className="mt-5 grid gap-3">
-                  {getActivityId && (
-                    <Link
-                      href={`/locations/activities/${getActivityId}`}
-                      className="rounded-full bg-yellow-500 px-5 py-3 text-center text-sm font-extrabold text-black"
-                    >
-                      View Activity Details
-                    </Link>
-                  )}
-
                   {(activity.reservation_url || activity.reservation_link) && (
                     <a
                       href={activity.reservation_url || activity.reservation_link}
@@ -291,22 +287,12 @@ export default function PlanPage() {
             </section>
           )}
 
-          <div className="mt-6 grid gap-3">
+          <div className="mt-6">
             <button
               onClick={() => window.history.back()}
-              className="rounded-full border border-black px-5 py-3 text-sm font-bold text-black"
+              className="w-full rounded-full border border-black px-5 py-3 text-sm font-bold text-black"
             >
               Back to Results
-            </button>
-
-            <button
-              onClick={() => {
-                localStorage.removeItem("roseout_plan");
-                window.location.href = "/create";
-              }}
-              className="rounded-full bg-yellow-500 px-5 py-3 text-sm font-extrabold text-black"
-            >
-              Start New Plan
             </button>
           </div>
         </div>
