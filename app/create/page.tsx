@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 
 type RestaurantCard = {
@@ -66,25 +66,6 @@ type SavedCreateState = {
   selectedRestaurant: RestaurantCard | null;
   selectedActivity: ActivityCard | null;
   scrollY: number;
-  viewMode: "list" | "map";
-  priceFilter: string;
-  vibeFilter: string;
-  distanceFilter: string;
-};
-
-type MapItem = {
-  id: string;
-  type: "restaurant" | "activity";
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  zip_code: string;
-  image_url?: string | null;
-  rating?: number | null;
-  distance_miles?: number | null;
-  score: number;
-  tag?: string | null;
 };
 
 const STORAGE_KEY = "roseout_create_state";
@@ -96,12 +77,6 @@ export default function CreatePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [locationSaved, setLocationSaved] = useState(false);
-
-  const [viewMode, setViewMode] = useState<"list" | "map">("list");
-  const [priceFilter, setPriceFilter] = useState("any");
-  const [vibeFilter, setVibeFilter] = useState("any");
-  const [distanceFilter, setDistanceFilter] = useState("any");
-  const [activeMapItem, setActiveMapItem] = useState<MapItem | null>(null);
 
   const viewedItems = useRef<Set<string>>(new Set());
 
@@ -147,7 +122,6 @@ export default function CreatePage() {
         };
 
         localStorage.setItem(LOCATION_KEY, JSON.stringify(userLocation));
-
         setLocationSaved(true);
         setError("");
       },
@@ -165,10 +139,6 @@ export default function CreatePage() {
       selectedRestaurant,
       selectedActivity,
       scrollY: window.scrollY,
-      viewMode,
-      priceFilter,
-      vibeFilter,
-      distanceFilter,
     };
 
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -183,11 +153,6 @@ export default function CreatePage() {
     setSelectedRestaurant(null);
     setSelectedActivity(null);
     setError("");
-    setViewMode("list");
-    setPriceFilter("any");
-    setVibeFilter("any");
-    setDistanceFilter("any");
-    setActiveMapItem(null);
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -206,10 +171,6 @@ export default function CreatePage() {
       setMessages(parsed.messages || []);
       setSelectedRestaurant(parsed.selectedRestaurant || null);
       setSelectedActivity(parsed.selectedActivity || null);
-      setViewMode(parsed.viewMode || "list");
-      setPriceFilter(parsed.priceFilter || "any");
-      setVibeFilter(parsed.vibeFilter || "any");
-      setDistanceFilter(parsed.distanceFilter || "any");
 
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -303,7 +264,6 @@ export default function CreatePage() {
     setLoading(true);
     setSelectedRestaurant(null);
     setSelectedActivity(null);
-    setActiveMapItem(null);
 
     try {
       const res = await fetch("/api/generate", {
@@ -346,10 +306,6 @@ export default function CreatePage() {
           selectedRestaurant: null,
           selectedActivity: null,
           scrollY: window.scrollY,
-          viewMode,
-          priceFilter,
-          vibeFilter,
-          distanceFilter,
         })
       );
     } catch {
@@ -373,151 +329,53 @@ export default function CreatePage() {
         selectedActivity?.activity_name ||
         "";
 
-  const latestAssistant = [...messages]
-    .reverse()
-    .find((msg) => msg.role === "assistant");
-
-  const filterByDistance = (distance?: number | null) => {
-    if (distanceFilter === "any") return true;
-    if (distance === null || distance === undefined) return false;
-
-    if (distanceFilter === "5") return distance <= 5;
-    if (distanceFilter === "10") return distance <= 10;
-    if (distanceFilter === "20") return distance <= 20;
-
-    return true;
-  };
-
-  const filterByVibe = (tags?: string[], primary?: string | null) => {
-    if (vibeFilter === "any") return true;
-
-    const text = [...(tags || []), primary || ""].join(" ").toLowerCase();
-
-    return text.includes(vibeFilter.toLowerCase());
-  };
-
-  const filterByPrice = (price?: string | null) => {
-    if (priceFilter === "any") return true;
-    if (!price) return priceFilter === "unknown";
-
-    return price.toLowerCase().includes(priceFilter.toLowerCase());
-  };
-
-  const filteredRestaurants = useMemo(() => {
-    return (latestAssistant?.restaurants || []).filter((r) => {
-      return (
-        filterByDistance(r.distance_miles) &&
-        filterByVibe(r.date_style_tags, r.primary_tag) &&
-        filterByPrice(r.price_range || null)
-      );
-    });
-  }, [latestAssistant, distanceFilter, vibeFilter, priceFilter]);
-
-  const filteredActivities = useMemo(() => {
-    return (latestAssistant?.activities || []).filter((a) => {
-      return (
-        filterByDistance(a.distance_miles) &&
-        filterByVibe(a.date_style_tags, a.primary_tag || a.atmosphere || null) &&
-        filterByPrice(a.price_range || null)
-      );
-    });
-  }, [latestAssistant, distanceFilter, vibeFilter, priceFilter]);
-
-  const mapItems: MapItem[] = useMemo(() => {
-    const restaurantItems: MapItem[] = filteredRestaurants.map((r) => ({
-      id: r.id,
-      type: "restaurant",
-      name: r.restaurant_name,
-      address: r.address,
-      city: r.city,
-      state: r.state,
-      zip_code: r.zip_code,
-      image_url: r.image_url,
-      rating: r.rating,
-      distance_miles: r.distance_miles,
-      score: r.roseout_score,
-      tag: r.primary_tag,
-    }));
-
-    const activityItems: MapItem[] = filteredActivities.map((a) => ({
-      id: a.id,
-      type: "activity",
-      name: a.activity_name,
-      address: a.address,
-      city: a.city,
-      state: a.state,
-      zip_code: a.zip_code,
-      image_url: a.image_url,
-      rating: a.rating,
-      distance_miles: a.distance_miles,
-      score: a.roseout_score,
-      tag: a.primary_tag,
-    }));
-
-    return [...restaurantItems, ...activityItems];
-  }, [filteredRestaurants, filteredActivities]);
-
-  useEffect(() => {
-    if (!activeMapItem && mapItems.length) {
-      setActiveMapItem(mapItems[0]);
-    }
-  }, [activeMapItem, mapItems]);
-
-  const mapQuery = activeMapItem
-    ? encodeURIComponent(
-        `${activeMapItem.name} ${activeMapItem.address} ${activeMapItem.city} ${activeMapItem.state} ${activeMapItem.zip_code}`
-      )
-    : "";
-
   return (
     <main className="min-h-screen bg-[#070707] px-5 py-6 pb-40 text-white">
-      <div className="mx-auto max-w-6xl">
-        <section className="mb-6 overflow-hidden rounded-[2rem] border border-white/10 bg-[#111] shadow-2xl">
-          <div className="p-6 md:p-8">
-            <p className="mb-2 text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
-              RoseOut
-            </p>
+      <div className="mx-auto max-w-4xl">
+        <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl md:p-8">
+          <p className="mb-2 text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
+            RoseOut
+          </p>
 
-            <h1 className="max-w-2xl text-4xl font-black tracking-tight md:text-6xl">
-              Find a better night out.
-            </h1>
+          <h1 className="max-w-2xl text-4xl font-black tracking-tight md:text-6xl">
+            Find a better night out.
+          </h1>
 
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-300 md:text-base">
-              Search in full sentences. RoseOut finds curated restaurants,
-              activities, distance-aware matches, and premium detail pages.
-            </p>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-300 md:text-base">
+            Search in full sentences. RoseOut finds curated restaurants,
+            activities, nearby matches, and premium detail pages.
+          </p>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={requestUserLocation}
-                className={`rounded-full px-5 py-3 text-sm font-extrabold transition ${
-                  locationSaved
-                    ? "bg-green-500 text-black hover:bg-green-400"
-                    : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
-                }`}
-              >
-                {locationSaved ? "✓ Location Saved" : "Use My Location"}
-              </button>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={requestUserLocation}
+              className={`rounded-full px-5 py-3 text-sm font-extrabold transition ${
+                locationSaved
+                  ? "bg-green-500 text-black hover:bg-green-400"
+                  : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
+              }`}
+            >
+              {locationSaved ? "✓ Location Saved" : "Use My Location"}
+            </button>
 
-              <button
-                type="button"
-                onClick={resetSearch}
-                className="rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-white/15"
-              >
-                Start New Search
-              </button>
-            </div>
-
-            <p className="mt-3 text-xs text-neutral-400">
-              Try: “romantic dinner near me within 10 miles” or “fun activity in
-              Nassau.”
-            </p>
+            <button
+              type="button"
+              onClick={resetSearch}
+              className="rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-white/15"
+            >
+              Start New Search
+            </button>
           </div>
+
+          <p className="mt-3 text-xs text-neutral-400">
+            Try: “romantic dinner near me within 10 miles” or “fun activity in
+            Nassau.”
+          </p>
         </section>
 
-        <section className="relative z-10 mb-8 rounded-[1.75rem] border border-white/10 bg-black/80 p-4 backdrop-blur-xl lg:sticky lg:top-4">
-          <div className="grid gap-3 lg:grid-cols-[1fr_180px] lg:items-end">
+        <section className="relative z-10 mb-8 rounded-[1.75rem] border border-white/10 bg-black/80 p-4 backdrop-blur-xl">
+          <div className="grid gap-3 md:grid-cols-[1fr_170px] md:items-end">
             <div>
               <textarea
                 value={input}
@@ -549,68 +407,6 @@ export default function CreatePage() {
                 : "Create Plan"}
             </button>
           </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <select
-              value={priceFilter}
-              onChange={(e) => setPriceFilter(e.target.value)}
-              className="rounded-full border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-bold text-white"
-            >
-              <option value="any">Any price</option>
-              <option value="$">$</option>
-              <option value="$$">$$</option>
-              <option value="$$$">$$$</option>
-              <option value="unknown">No price listed</option>
-            </select>
-
-            <select
-              value={vibeFilter}
-              onChange={(e) => setVibeFilter(e.target.value)}
-              className="rounded-full border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-bold text-white"
-            >
-              <option value="any">Any vibe</option>
-              <option value="romantic">Romantic</option>
-              <option value="fun">Fun</option>
-              <option value="quiet">Quiet</option>
-              <option value="cozy">Cozy</option>
-              <option value="group">Group</option>
-            </select>
-
-            <select
-              value={distanceFilter}
-              onChange={(e) => setDistanceFilter(e.target.value)}
-              className="rounded-full border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-bold text-white"
-            >
-              <option value="any">Any distance</option>
-              <option value="5">Within 5 mi</option>
-              <option value="10">Within 10 mi</option>
-              <option value="20">Within 20 mi</option>
-            </select>
-
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`rounded-full px-4 py-3 text-sm font-black transition ${
-                viewMode === "list"
-                  ? "bg-white text-black"
-                  : "border border-white/10 bg-neutral-950 text-white"
-              }`}
-            >
-              List View
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setViewMode("map")}
-              className={`rounded-full px-4 py-3 text-sm font-black transition ${
-                viewMode === "map"
-                  ? "bg-white text-black"
-                  : "border border-white/10 bg-neutral-950 text-white"
-              }`}
-            >
-              Map View
-            </button>
-          </div>
         </section>
 
         {loading && (
@@ -622,487 +418,405 @@ export default function CreatePage() {
           </div>
         )}
 
-        {viewMode === "map" && mapItems.length > 0 ? (
-          <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
-            <div className="space-y-3">
-              {mapItems.map((item) => {
-                const isActive =
-                  activeMapItem?.id === item.id &&
-                  activeMapItem?.type === item.type;
+        <section className="space-y-5">
+          {messages.map((msg, index) => {
+            const hasRestaurants = !!msg.restaurants?.length;
+            const hasActivities = !!msg.activities?.length;
 
-                return (
-                  <button
-                    key={`${item.type}-${item.id}`}
-                    type="button"
-                    onClick={() => setActiveMapItem(item)}
-                    className={`w-full rounded-[1.5rem] border p-4 text-left transition ${
-                      isActive
-                        ? "border-yellow-500 bg-yellow-500 text-black"
-                        : "border-white/10 bg-white text-black hover:-translate-y-0.5"
-                    }`}
-                  >
-                    <p className="text-xs font-black uppercase tracking-[0.25em] opacity-70">
-                      {item.type === "restaurant" ? "Restaurant" : "Activity"}
-                    </p>
+            return (
+              <div
+                key={index}
+                className={`rounded-[2rem] p-5 ${
+                  msg.role === "user"
+                    ? "bg-yellow-500 text-black shadow-xl"
+                    : "border border-white/10 bg-[#f7f3ed] text-black shadow-2xl"
+                }`}
+              >
+                {msg.role === "user" && (
+                  <p className="whitespace-pre-wrap font-black">
+                    {msg.content}
+                  </p>
+                )}
 
-                    <h3 className="mt-2 text-xl font-black">{item.name}</h3>
+                {msg.role === "assistant" &&
+                (hasRestaurants || hasActivities) ? (
+                  <>
+                    <div className="mb-6">
+                      <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">
+                        Curated Results
+                      </p>
 
-                    <p className="mt-2 text-sm opacity-70">
-                      {[item.address, item.city, item.state, item.zip_code]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
+                      <h2 className="mt-2 text-2xl font-black text-black">
+                        Here’s what RoseOut found
+                      </h2>
 
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
-                      <span className="rounded-full bg-black px-3 py-1 text-white">
-                        {item.score}/100
-                      </span>
-
-                      {item.rating && (
-                        <span className="rounded-full bg-black px-3 py-1 text-white">
-                          ⭐ {item.rating}
-                        </span>
-                      )}
-
-                      {item.distance_miles !== null &&
-                        item.distance_miles !== undefined && (
-                          <span className="rounded-full bg-black px-3 py-1 text-white">
-                            {item.distance_miles} mi
-                          </span>
-                        )}
+                      <p className="mt-1 text-sm font-medium text-neutral-500">
+                        Select your favorites or view full details.
+                      </p>
                     </div>
-                  </button>
-                );
-              })}
-            </div>
 
-            <div className="h-[520px] overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl lg:sticky lg:top-32">
-              {activeMapItem ? (
-                <iframe
-                  title="RoseOut map"
-                  src={`https://www.google.com/maps?q=${mapQuery}&output=embed`}
-                  className="h-full w-full"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-black">
-                  Select a result to view on map.
-                </div>
-              )}
-            </div>
-          </section>
-        ) : (
-          <section className="space-y-5">
-            {messages.map((msg, index) => {
-              const isLatestAssistant =
-                msg.role === "assistant" && msg === latestAssistant;
+                    {hasRestaurants && (
+                      <div className="mb-10">
+                        <div className="mb-4 flex items-center justify-between">
+                          <h2 className="text-sm font-black uppercase tracking-[0.25em] text-neutral-500">
+                            Restaurants
+                          </h2>
 
-              const restaurantsToShow = isLatestAssistant
-                ? filteredRestaurants
-                : msg.restaurants || [];
+                          <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
+                            Dinner picks
+                          </span>
+                        </div>
 
-              const activitiesToShow = isLatestAssistant
-                ? filteredActivities
-                : msg.activities || [];
+                        <div className="grid gap-6">
+                          {msg.restaurants?.map((r, restaurantIndex) => {
+                            const restaurantId = String(r.id);
+                            const isSelected =
+                              selectedRestaurant?.id === r.id;
 
-              const hasRestaurants = !!restaurantsToShow.length;
-              const hasActivities = !!activitiesToShow.length;
+                            const reservationUrl =
+                              r.reservation_url || r.reservation_link;
 
-              return (
-                <div
-                  key={index}
-                  className={`rounded-[2rem] p-5 ${
-                    msg.role === "user"
-                      ? "bg-yellow-500 text-black shadow-xl"
-                      : "border border-white/10 bg-[#f7f3ed] text-black shadow-2xl"
-                  }`}
-                >
-                  {msg.role === "user" && (
-                    <p className="whitespace-pre-wrap font-black">
-                      {msg.content}
-                    </p>
-                  )}
+                            return (
+                              <div
+                                key={restaurantId || restaurantIndex}
+                                className={`group overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+                                  isSelected
+                                    ? "border-yellow-500 ring-2 ring-yellow-500"
+                                    : "border-neutral-200"
+                                }`}
+                              >
+                                <div className="relative">
+                                  {r.image_url ? (
+                                    <Image
+                                      src={r.image_url}
+                                      alt={r.restaurant_name}
+                                      width={900}
+                                      height={520}
+                                      className="h-72 w-full object-cover transition duration-700 group-hover:scale-105"
+                                      priority={restaurantIndex === 0}
+                                    />
+                                  ) : (
+                                    <div className="flex h-72 items-center justify-center bg-neutral-200 text-neutral-500">
+                                      No image available
+                                    </div>
+                                  )}
 
-                  {msg.role === "assistant" &&
-                  (hasRestaurants || hasActivities) ? (
-                    <>
-                      <div className="mb-6">
-                        <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">
-                          Curated Results
-                        </p>
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
-                        <h2 className="mt-2 text-2xl font-black text-black">
-                          Here’s what RoseOut found
-                        </h2>
+                                  <div className="absolute left-4 top-4 rounded-full bg-black/80 px-3 py-1 text-xs font-bold text-white backdrop-blur">
+                                    {r.roseout_score}/100 Match
+                                  </div>
 
-                        <p className="mt-1 text-sm font-medium text-neutral-500">
-                          Select your favorites, view details, or switch to map
-                          view.
-                        </p>
+                                  {r.distance_miles !== null &&
+                                    r.distance_miles !== undefined && (
+                                      <div className="absolute left-4 bottom-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
+                                        {r.distance_miles} mi away
+                                      </div>
+                                    )}
+
+                                  {r.roseout_score >= 80 && (
+                                    <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
+                                      Top Pick
+                                    </div>
+                                  )}
+
+                                  {r.rating && (
+                                    <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
+                                      ⭐ {r.rating}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="p-5">
+                                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">
+                                    Restaurant
+                                  </p>
+
+                                  <h3 className="mt-1 text-2xl font-black tracking-tight text-black">
+                                    {r.restaurant_name}
+                                  </h3>
+
+                                  <p className="mt-3 text-sm leading-6 text-neutral-600">
+                                    {[r.address, r.city, r.state, r.zip_code]
+                                      .filter(Boolean)
+                                      .join(", ")}
+                                  </p>
+
+                                  {r.review_count ? (
+                                    <p className="mt-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
+                                      {r.review_count} reviews
+                                    </p>
+                                  ) : null}
+
+                                  {r.primary_tag && (
+                                    <p className="mt-4 text-sm font-black text-black">
+                                      ✨ {r.primary_tag}
+                                    </p>
+                                  )}
+
+                                  {r.date_style_tags?.length ? (
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                      {r.date_style_tags
+                                        .slice(0, 3)
+                                        .map((tag) => (
+                                          <span
+                                            key={tag}
+                                            className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                    </div>
+                                  ) : null}
+
+                                  <div className="mt-5 flex flex-wrap gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedRestaurant(
+                                          selectedRestaurant?.id === r.id
+                                            ? null
+                                            : r
+                                        )
+                                      }
+                                      className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
+                                        isSelected
+                                          ? "bg-yellow-500 text-black"
+                                          : "border border-black text-black hover:bg-black hover:text-white"
+                                      }`}
+                                    >
+                                      {isSelected ? "Selected" : "Select"}
+                                    </button>
+
+                                    <Link
+                                      href={`/locations/restaurants/${restaurantId}?from=/create`}
+                                      onClick={() => {
+                                        saveCreateState();
+                                        trackRestaurantClick(restaurantId);
+                                      }}
+                                      className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
+                                    >
+                                      View Details
+                                    </Link>
+
+                                    {reservationUrl && (
+                                      <a
+                                        href={reservationUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() =>
+                                          trackRestaurantClick(restaurantId)
+                                        }
+                                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
+                                      >
+                                        Reserve
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-
-                      {hasRestaurants && (
-                        <div className="mb-10">
-                          <div className="mb-4 flex items-center justify-between">
-                            <h2 className="text-sm font-black uppercase tracking-[0.25em] text-neutral-500">
-                              Restaurants
-                            </h2>
-
-                            <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
-                              Dinner picks
-                            </span>
-                          </div>
-
-                          <div className="grid gap-6">
-                            {restaurantsToShow.map((r, restaurantIndex) => {
-                              const restaurantId = String(r.id);
-                              const isSelected =
-                                selectedRestaurant?.id === r.id;
-
-                              const reservationUrl =
-                                r.reservation_url || r.reservation_link;
-
-                              return (
-                                <div
-                                  key={restaurantId || restaurantIndex}
-                                  className={`group overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${
-                                    isSelected
-                                      ? "border-yellow-500 ring-2 ring-yellow-500"
-                                      : "border-neutral-200"
-                                  }`}
-                                >
-                                  <div className="relative">
-                                    {r.image_url ? (
-                                      <Image
-                                        src={r.image_url}
-                                        alt={r.restaurant_name}
-                                        width={900}
-                                        height={520}
-                                        className="h-72 w-full object-cover transition duration-700 group-hover:scale-105"
-                                        priority={restaurantIndex === 0}
-                                      />
-                                    ) : (
-                                      <div className="flex h-72 items-center justify-center bg-neutral-200 text-neutral-500">
-                                        No image available
-                                      </div>
-                                    )}
-
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
-
-                                    <div className="absolute left-4 top-4 rounded-full bg-black/80 px-3 py-1 text-xs font-bold text-white backdrop-blur">
-                                      {r.roseout_score}/100 Match
-                                    </div>
-
-                                    {r.distance_miles !== null &&
-                                      r.distance_miles !== undefined && (
-                                        <div className="absolute left-4 bottom-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
-                                          {r.distance_miles} mi away
-                                        </div>
-                                      )}
-
-                                    {r.roseout_score >= 80 && (
-                                      <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
-                                        Top Pick
-                                      </div>
-                                    )}
-
-                                    {r.rating && (
-                                      <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
-                                        ⭐ {r.rating}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="p-5">
-                                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">
-                                      Restaurant
-                                    </p>
-
-                                    <h3 className="mt-1 text-2xl font-black tracking-tight text-black">
-                                      {r.restaurant_name}
-                                    </h3>
-
-                                    <p className="mt-3 text-sm leading-6 text-neutral-600">
-                                      {[r.address, r.city, r.state, r.zip_code]
-                                        .filter(Boolean)
-                                        .join(", ")}
-                                    </p>
-
-                                    {r.review_count ? (
-                                      <p className="mt-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
-                                        {r.review_count} reviews
-                                      </p>
-                                    ) : null}
-
-                                    {r.primary_tag && (
-                                      <p className="mt-4 text-sm font-black text-black">
-                                        ✨ {r.primary_tag}
-                                      </p>
-                                    )}
-
-                                    {r.date_style_tags?.length ? (
-                                      <div className="mt-4 flex flex-wrap gap-2">
-                                        {r.date_style_tags
-                                          .slice(0, 3)
-                                          .map((tag) => (
-                                            <span
-                                              key={tag}
-                                              className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"
-                                            >
-                                              {tag}
-                                            </span>
-                                          ))}
-                                      </div>
-                                    ) : null}
-
-                                    <div className="mt-5 flex flex-wrap gap-3">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setSelectedRestaurant(
-                                            selectedRestaurant?.id === r.id
-                                              ? null
-                                              : r
-                                          )
-                                        }
-                                        className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
-                                          isSelected
-                                            ? "bg-yellow-500 text-black"
-                                            : "border border-black text-black hover:bg-black hover:text-white"
-                                        }`}
-                                      >
-                                        {isSelected ? "Selected" : "Select"}
-                                      </button>
-
-                                      <Link
-                                        href={`/locations/restaurants/${restaurantId}?from=/create`}
-                                        onClick={() => {
-                                          saveCreateState();
-                                          trackRestaurantClick(restaurantId);
-                                        }}
-                                        className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
-                                      >
-                                        View Details
-                                      </Link>
-
-                                      {reservationUrl && (
-                                        <a
-                                          href={reservationUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          onClick={() =>
-                                            trackRestaurantClick(restaurantId)
-                                          }
-                                          className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
-                                        >
-                                          Reserve
-                                        </a>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {hasActivities && (
-                        <div>
-                          <div className="mb-4 flex items-center justify-between">
-                            <h2 className="text-sm font-black uppercase tracking-[0.25em] text-neutral-500">
-                              Activities
-                            </h2>
-
-                            <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
-                              Experience picks
-                            </span>
-                          </div>
-
-                          <div className="grid gap-6">
-                            {activitiesToShow.map((a, activityIndex) => {
-                              const activityId = String(a.id);
-                              const isSelected = selectedActivity?.id === a.id;
-
-                              const reservationUrl =
-                                a.reservation_url || a.reservation_link;
-
-                              return (
-                                <div
-                                  key={activityId || activityIndex}
-                                  className={`group overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${
-                                    isSelected
-                                      ? "border-yellow-500 ring-2 ring-yellow-500"
-                                      : "border-neutral-200"
-                                  }`}
-                                >
-                                  <div className="relative">
-                                    {a.image_url ? (
-                                      <Image
-                                        src={a.image_url}
-                                        alt={a.activity_name}
-                                        width={900}
-                                        height={520}
-                                        className="h-72 w-full object-cover transition duration-700 group-hover:scale-105"
-                                        priority={activityIndex === 0}
-                                      />
-                                    ) : (
-                                      <div className="flex h-72 items-center justify-center bg-neutral-200 text-neutral-500">
-                                        No image available
-                                      </div>
-                                    )}
-
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
-
-                                    <div className="absolute left-4 top-4 rounded-full bg-black/80 px-3 py-1 text-xs font-bold text-white backdrop-blur">
-                                      {a.roseout_score}/100 Match
-                                    </div>
-
-                                    {a.distance_miles !== null &&
-                                      a.distance_miles !== undefined && (
-                                        <div className="absolute left-4 bottom-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
-                                          {a.distance_miles} mi away
-                                        </div>
-                                      )}
-
-                                    {a.roseout_score >= 80 && (
-                                      <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
-                                        Top Pick
-                                      </div>
-                                    )}
-
-                                    {a.rating && (
-                                      <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
-                                        ⭐ {a.rating}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="p-5">
-                                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">
-                                      {a.activity_type || "Activity"}
-                                    </p>
-
-                                    <h3 className="mt-1 text-2xl font-black tracking-tight text-black">
-                                      {a.activity_name}
-                                    </h3>
-
-                                    <p className="mt-3 text-sm leading-6 text-neutral-600">
-                                      {[a.address, a.city, a.state, a.zip_code]
-                                        .filter(Boolean)
-                                        .join(", ")}
-                                    </p>
-
-                                    {a.review_count ? (
-                                      <p className="mt-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
-                                        {a.review_count} reviews
-                                      </p>
-                                    ) : null}
-
-                                    {a.primary_tag && (
-                                      <p className="mt-4 text-sm font-black text-black">
-                                        ✨ {a.primary_tag}
-                                      </p>
-                                    )}
-
-                                    {a.date_style_tags?.length ? (
-                                      <div className="mt-4 flex flex-wrap gap-2">
-                                        {a.date_style_tags
-                                          .slice(0, 3)
-                                          .map((tag) => (
-                                            <span
-                                              key={tag}
-                                              className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"
-                                            >
-                                              {tag}
-                                            </span>
-                                          ))}
-                                      </div>
-                                    ) : null}
-
-                                    <div className="mt-5 flex flex-wrap gap-3">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setSelectedActivity(
-                                            selectedActivity?.id === a.id
-                                              ? null
-                                              : a
-                                          )
-                                        }
-                                        className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
-                                          isSelected
-                                            ? "bg-yellow-500 text-black"
-                                            : "border border-black text-black hover:bg-black hover:text-white"
-                                        }`}
-                                      >
-                                        {isSelected ? "Selected" : "Select"}
-                                      </button>
-
-                                      <Link
-                                        href={`/locations/activities/${activityId}?from=/create`}
-                                        onClick={() => {
-                                          saveCreateState();
-                                          trackActivityClick(activityId);
-                                        }}
-                                        className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
-                                      >
-                                        View Details
-                                      </Link>
-
-                                      {a.website && (
-                                        <a
-                                          href={a.website}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          onClick={() =>
-                                            trackActivityClick(activityId)
-                                          }
-                                          className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
-                                        >
-                                          Website
-                                        </a>
-                                      )}
-
-                                      {reservationUrl && (
-                                        <a
-                                          href={reservationUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          onClick={() =>
-                                            trackActivityClick(activityId)
-                                          }
-                                          className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
-                                        >
-                                          Book
-                                        </a>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  ) : null}
-
-                  {msg.role === "assistant" &&
-                    !hasRestaurants &&
-                    !hasActivities && (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
                     )}
-                </div>
-              );
-            })}
-          </section>
-        )}
+
+                    {hasActivities && (
+                      <div>
+                        <div className="mb-4 flex items-center justify-between">
+                          <h2 className="text-sm font-black uppercase tracking-[0.25em] text-neutral-500">
+                            Activities
+                          </h2>
+
+                          <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
+                            Experience picks
+                          </span>
+                        </div>
+
+                        <div className="grid gap-6">
+                          {msg.activities?.map((a, activityIndex) => {
+                            const activityId = String(a.id);
+                            const isSelected =
+                              selectedActivity?.id === a.id;
+
+                            const reservationUrl =
+                              a.reservation_url || a.reservation_link;
+
+                            return (
+                              <div
+                                key={activityId || activityIndex}
+                                className={`group overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+                                  isSelected
+                                    ? "border-yellow-500 ring-2 ring-yellow-500"
+                                    : "border-neutral-200"
+                                }`}
+                              >
+                                <div className="relative">
+                                  {a.image_url ? (
+                                    <Image
+                                      src={a.image_url}
+                                      alt={a.activity_name}
+                                      width={900}
+                                      height={520}
+                                      className="h-72 w-full object-cover transition duration-700 group-hover:scale-105"
+                                      priority={activityIndex === 0}
+                                    />
+                                  ) : (
+                                    <div className="flex h-72 items-center justify-center bg-neutral-200 text-neutral-500">
+                                      No image available
+                                    </div>
+                                  )}
+
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
+
+                                  <div className="absolute left-4 top-4 rounded-full bg-black/80 px-3 py-1 text-xs font-bold text-white backdrop-blur">
+                                    {a.roseout_score}/100 Match
+                                  </div>
+
+                                  {a.distance_miles !== null &&
+                                    a.distance_miles !== undefined && (
+                                      <div className="absolute left-4 bottom-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
+                                        {a.distance_miles} mi away
+                                      </div>
+                                    )}
+
+                                  {a.roseout_score >= 80 && (
+                                    <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
+                                      Top Pick
+                                    </div>
+                                  )}
+
+                                  {a.rating && (
+                                    <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
+                                      ⭐ {a.rating}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="p-5">
+                                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">
+                                    {a.activity_type || "Activity"}
+                                  </p>
+
+                                  <h3 className="mt-1 text-2xl font-black tracking-tight text-black">
+                                    {a.activity_name}
+                                  </h3>
+
+                                  <p className="mt-3 text-sm leading-6 text-neutral-600">
+                                    {[a.address, a.city, a.state, a.zip_code]
+                                      .filter(Boolean)
+                                      .join(", ")}
+                                  </p>
+
+                                  {a.review_count ? (
+                                    <p className="mt-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
+                                      {a.review_count} reviews
+                                    </p>
+                                  ) : null}
+
+                                  {a.primary_tag && (
+                                    <p className="mt-4 text-sm font-black text-black">
+                                      ✨ {a.primary_tag}
+                                    </p>
+                                  )}
+
+                                  {a.date_style_tags?.length ? (
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                      {a.date_style_tags
+                                        .slice(0, 3)
+                                        .map((tag) => (
+                                          <span
+                                            key={tag}
+                                            className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                    </div>
+                                  ) : null}
+
+                                  <div className="mt-5 flex flex-wrap gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedActivity(
+                                          selectedActivity?.id === a.id
+                                            ? null
+                                            : a
+                                        )
+                                      }
+                                      className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
+                                        isSelected
+                                          ? "bg-yellow-500 text-black"
+                                          : "border border-black text-black hover:bg-black hover:text-white"
+                                      }`}
+                                    >
+                                      {isSelected ? "Selected" : "Select"}
+                                    </button>
+
+                                    <Link
+                                      href={`/locations/activities/${activityId}?from=/create`}
+                                      onClick={() => {
+                                        saveCreateState();
+                                        trackActivityClick(activityId);
+                                      }}
+                                      className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
+                                    >
+                                      View Details
+                                    </Link>
+
+                                    {a.website && (
+                                      <a
+                                        href={a.website}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() =>
+                                          trackActivityClick(activityId)
+                                        }
+                                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
+                                      >
+                                        Website
+                                      </a>
+                                    )}
+
+                                    {reservationUrl && (
+                                      <a
+                                        href={reservationUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() =>
+                                          trackActivityClick(activityId)
+                                        }
+                                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
+                                      >
+                                        Book
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : null}
+
+                {msg.role === "assistant" &&
+                  !hasRestaurants &&
+                  !hasActivities && (
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  )}
+              </div>
+            );
+          })}
+        </section>
       </div>
 
       {(selectedRestaurant || selectedActivity) && (
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-4xl">
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-yellow-500">
               Building your plan
             </p>
