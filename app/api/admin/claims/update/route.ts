@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
@@ -12,11 +13,15 @@ export async function POST(req: Request) {
     }
 
     if (!["approved", "rejected"].includes(status)) {
-      return Response.json(
-        { error: "Invalid status." },
-        { status: 400 }
-      );
+      return Response.json({ error: "Invalid status." }, { status: 400 });
     }
+
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
+
+    const signupToken = status === "approved" ? crypto.randomUUID() : null;
+    const signupUrl =
+      status === "approved" ? `${siteUrl}/owner/signup?token=${signupToken}` : null;
 
     if (type === "restaurant") {
       const { data: claim, error: claimLookupError } = await supabase
@@ -34,7 +39,11 @@ export async function POST(req: Request) {
 
       const { error: claimUpdateError } = await supabase
         .from("restaurant_claims")
-        .update({ status })
+        .update({
+          status,
+          owner_signup_token: signupToken,
+          owner_signup_url: signupUrl,
+        })
         .eq("id", id);
 
       if (claimUpdateError) {
@@ -50,6 +59,8 @@ export async function POST(req: Request) {
           claim_status: status,
           claimed_by_email: status === "approved" ? claim.owner_email : null,
           claimed_at: status === "approved" ? new Date().toISOString() : null,
+          owner_signup_token: signupToken,
+          owner_signup_url: signupUrl,
         })
         .eq("id", claim.restaurant_id);
 
@@ -60,7 +71,10 @@ export async function POST(req: Request) {
         );
       }
 
-      return Response.json({ success: true });
+      return Response.json({
+        success: true,
+        signup_url: signupUrl,
+      });
     }
 
     if (type === "activity") {
@@ -79,7 +93,11 @@ export async function POST(req: Request) {
 
       const { error: claimUpdateError } = await supabase
         .from("activity_claims")
-        .update({ status })
+        .update({
+          status,
+          owner_signup_token: signupToken,
+          owner_signup_url: signupUrl,
+        })
         .eq("id", id);
 
       if (claimUpdateError) {
@@ -95,6 +113,8 @@ export async function POST(req: Request) {
           claim_status: status,
           claimed_by_email: status === "approved" ? claim.owner_email : null,
           claimed_at: status === "approved" ? new Date().toISOString() : null,
+          owner_signup_token: signupToken,
+          owner_signup_url: signupUrl,
         })
         .eq("id", claim.activity_id);
 
@@ -105,7 +125,10 @@ export async function POST(req: Request) {
         );
       }
 
-      return Response.json({ success: true });
+      return Response.json({
+        success: true,
+        signup_url: signupUrl,
+      });
     }
 
     return Response.json({ error: "Invalid claim type." }, { status: 400 });

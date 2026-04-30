@@ -39,8 +39,26 @@ export default function AdminClaimsPage() {
     init();
   }, []);
 
-  const updateClaim = async (id: string, type: string, status: string) => {
-    await fetch("/api/admin/claims/update", {
+const updateClaim = async (id: string, type: string, status: string) => {
+  const res = await fetch("/api/admin/claims/update", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ id, type, status }),
+  });
+
+  const data = await res.json();
+
+  if (status === "approved" && data.signup_url) {
+    await navigator.clipboard.writeText(data.signup_url);
+    alert("Approved. Signup link copied to clipboard.");
+  } else {
+    alert(`Claim ${status}.`);
+  }
+
+  window.location.reload();
+};
       method: "POST",
       headers: {
         "Content-Type": "application/json",
