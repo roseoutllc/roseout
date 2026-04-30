@@ -126,16 +126,33 @@ export default function RestaurantsAdminClient({
 
       if (updateError) throw updateError;
 
-      setRestaurants((prev) =>
-        prev.map((r) =>
-          r.id === id
-            ? {
-                ...r,
-                ...updatePayload,
-              }
-            : r
-        )
-      );
+setRestaurants((prev): Restaurant[] =>
+  prev.map((r): Restaurant =>
+    r.id === id
+      ? {
+          ...r,
+          restaurant_name: form.restaurant_name ?? r.restaurant_name,
+          address: form.address ?? r.address,
+          city: form.city ?? r.city,
+          state: form.state ?? r.state,
+          zip_code: form.zip_code ?? r.zip_code,
+          status: form.status ?? r.status,
+          phone: form.phone ?? r.phone,
+          website: form.website ?? r.website,
+          reservation_url: form.reservation_url ?? r.reservation_url,
+          cuisine: form.cuisine ?? r.cuisine,
+          description: form.description ?? r.description,
+          image_url: form.image_url ?? r.image_url,
+          roseout_score:
+            form.roseout_score === undefined
+              ? r.roseout_score
+              : Number(form.roseout_score),
+          view_count: r.view_count,
+          click_count: r.click_count,
+        }
+      : r
+  )
+);
 
       setEditingId(null);
       setForm({});
