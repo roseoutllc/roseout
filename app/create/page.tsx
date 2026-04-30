@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { trackAnalytics } from "@/lib/trackAnalytics";
 
 type RestaurantCard = {
   id: string;
@@ -54,11 +55,61 @@ export default function CreatePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const viewedItems = useRef<Set<string>>(new Set());
+
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<RestaurantCard | null>(null);
 
   const [selectedActivity, setSelectedActivity] =
     useState<ActivityCard | null>(null);
+
+  useEffect(() => {
+    messages.forEach((msg) => {
+      msg.restaurants?.forEach((r) => {
+        const key = `restaurant-${r.id}`;
+
+        if (!viewedItems.current.has(key)) {
+          viewedItems.current.add(key);
+
+          trackAnalytics({
+            itemId: r.id,
+            itemType: "restaurant",
+            eventType: "view",
+          });
+        }
+      });
+
+      msg.activities?.forEach((a) => {
+        const key = `activity-${a.id}`;
+
+        if (!viewedItems.current.has(key)) {
+          viewedItems.current.add(key);
+
+          trackAnalytics({
+            itemId: a.id,
+            itemType: "activity",
+            eventType: "view",
+          });
+        }
+      });
+    });
+  }, [messages]);
+
+  const trackRestaurantClick = (id: string) => {
+    trackAnalytics({
+      itemId: id,
+      itemType: "restaurant",
+      eventType: "click",
+    });
+  };
+
+  const trackActivityClick = (id: string) => {
+    trackAnalytics({
+      itemId: id,
+      itemType: "activity",
+      eventType: "click",
+    });
+  };
 
   const sendMessage = async () => {
     if (loading) return;
@@ -304,6 +355,9 @@ export default function CreatePage() {
 
                                     <a
                                       href={`/restaurants/${restaurantId}`}
+                                      onClick={() =>
+                                        trackRestaurantClick(restaurantId)
+                                      }
                                       className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
                                     >
                                       View Details
@@ -314,6 +368,9 @@ export default function CreatePage() {
                                         href={r.reservation_link}
                                         target="_blank"
                                         rel="noopener noreferrer"
+                                        onClick={() =>
+                                          trackRestaurantClick(restaurantId)
+                                        }
                                         className="rounded-full border border-black px-5 py-2.5 text-sm font-bold text-black"
                                       >
                                         Reserve
@@ -336,12 +393,13 @@ export default function CreatePage() {
 
                         <div className="grid gap-5">
                           {msg.activities?.map((a, activityIndex) => {
+                            const activityId = String(a.id);
                             const isSelected =
                               selectedActivity?.id === a.id;
 
                             return (
                               <div
-                                key={a.id || activityIndex}
+                                key={activityId || activityIndex}
                                 className={`overflow-hidden rounded-[1.75rem] border bg-white shadow-lg transition ${
                                   isSelected
                                     ? "border-yellow-500 ring-2 ring-yellow-500"
@@ -453,11 +511,24 @@ export default function CreatePage() {
                                         : "Select Activity"}
                                     </button>
 
+                                    <a
+                                      href={`/activities/${activityId}`}
+                                      onClick={() =>
+                                        trackActivityClick(activityId)
+                                      }
+                                      className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
+                                    >
+                                      View Details
+                                    </a>
+
                                     {a.website && (
                                       <a
                                         href={a.website}
                                         target="_blank"
                                         rel="noopener noreferrer"
+                                        onClick={() =>
+                                          trackActivityClick(activityId)
+                                        }
                                         className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
                                       >
                                         View Website
@@ -469,6 +540,9 @@ export default function CreatePage() {
                                         href={a.reservation_link}
                                         target="_blank"
                                         rel="noopener noreferrer"
+                                        onClick={() =>
+                                          trackActivityClick(activityId)
+                                        }
                                         className="rounded-full border border-black px-5 py-2.5 text-sm font-bold text-black"
                                       >
                                         Book
@@ -502,10 +576,6 @@ export default function CreatePage() {
               <div className="h-56 rounded-[1.5rem] bg-white/20" />
               <div className="mt-4 h-4 w-3/4 rounded bg-white/20" />
               <div className="mt-3 h-4 w-1/2 rounded bg-white/20" />
-              <div className="mt-5 flex gap-3">
-                <div className="h-10 w-36 rounded-full bg-white/20" />
-                <div className="h-10 w-28 rounded-full bg-white/20" />
-              </div>
             </div>
 
             <p className="text-center text-sm text-neutral-400">
