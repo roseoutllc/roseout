@@ -15,7 +15,7 @@ export default async function AdminDashboardPage() {
         </h1>
 
         <p className="mt-3 max-w-2xl text-neutral-400">
-          Manage your platform, listings, analytics, imports, claims, and admin access.
+          Manage listings, analytics, claim QR labels, imports, and admin access.
         </p>
 
         <section className="mt-10 grid gap-6 md:grid-cols-3">
@@ -24,15 +24,11 @@ export default async function AdminDashboardPage() {
             className="rounded-[2rem] bg-white p-6 text-black shadow-xl transition hover:-translate-y-1"
           >
             <span className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
-              Restaurant Dashboard
+              Restaurants
             </span>
-
-            <h2 className="mt-5 text-2xl font-extrabold">
-              Restaurants Admin
-            </h2>
-
+            <h2 className="mt-5 text-2xl font-extrabold">Restaurants Admin</h2>
             <p className="mt-3 text-sm text-neutral-600">
-              View, edit, approve, and manage restaurant listings.
+              View, search, edit, and manage restaurant listings.
             </p>
           </a>
 
@@ -41,15 +37,24 @@ export default async function AdminDashboardPage() {
             className="rounded-[2rem] bg-white p-6 text-black shadow-xl transition hover:-translate-y-1"
           >
             <span className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
-              Activities Dashboard
+              Activities
             </span>
-
-            <h2 className="mt-5 text-2xl font-extrabold">
-              Activities Admin
-            </h2>
-
+            <h2 className="mt-5 text-2xl font-extrabold">Activities Admin</h2>
             <p className="mt-3 text-sm text-neutral-600">
-              View, edit, approve, and manage activity listings.
+              View, edit, and manage activity listings.
+            </p>
+          </a>
+
+          <a
+            href="/admin/labels"
+            className="rounded-[2rem] bg-white p-6 text-black shadow-xl transition hover:-translate-y-1"
+          >
+            <span className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
+              QR Claims
+            </span>
+            <h2 className="mt-5 text-2xl font-extrabold">Claim QR Labels</h2>
+            <p className="mt-3 text-sm text-neutral-600">
+              Select restaurants and print QR labels for owners to claim and manage listings.
             </p>
           </a>
 
@@ -60,11 +65,9 @@ export default async function AdminDashboardPage() {
             <span className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
               Analytics
             </span>
-
             <h2 className="mt-5 text-2xl font-extrabold">
               Analytics Dashboard
             </h2>
-
             <p className="mt-3 text-sm text-neutral-600">
               View views, clicks, top listings, and recent events.
             </p>
@@ -77,13 +80,9 @@ export default async function AdminDashboardPage() {
             <span className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
               Claims
             </span>
-
-            <h2 className="mt-5 text-2xl font-extrabold">
-              Claims Review
-            </h2>
-
+            <h2 className="mt-5 text-2xl font-extrabold">Claims Review</h2>
             <p className="mt-3 text-sm text-neutral-600">
-              Review restaurant owner claims and approvals.
+              Review restaurant owner claim requests.
             </p>
           </a>
 
@@ -94,11 +93,7 @@ export default async function AdminDashboardPage() {
             <span className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
               Imports
             </span>
-
-            <h2 className="mt-5 text-2xl font-extrabold">
-              Import History
-            </h2>
-
+            <h2 className="mt-5 text-2xl font-extrabold">Import History</h2>
             <p className="mt-3 text-sm text-neutral-600">
               View Google import runs and cron job history.
             </p>
@@ -111,13 +106,9 @@ export default async function AdminDashboardPage() {
             <span className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
               Users
             </span>
-
-            <h2 className="mt-5 text-2xl font-extrabold">
-              Admin Users
-            </h2>
-
+            <h2 className="mt-5 text-2xl font-extrabold">Admin Users</h2>
             <p className="mt-3 text-sm text-neutral-600">
-              Add users, assign roles, and manage admin access.
+              Add users, assign roles, and manage access.
             </p>
           </a>
         </section>
