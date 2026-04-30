@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/google/import-batch-cron",
-      "schedule": "0 5 * * *"
+      "path": "/api/google/import-batch",
+      "schedule": "0 10 * * *"
     }
   ]
 }

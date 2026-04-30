@@ -1,3 +1,5 @@
+import { supabase } from "@/lib/supabase";
+
 const GOOGLE_IMPORT_QUERIES = [
   { query: "restaurants in Queens NY", type: "restaurant" },
   { query: "date night restaurants in Queens NY", type: "restaurant" },
@@ -30,25 +32,60 @@ const GOOGLE_IMPORT_QUERIES = [
   { query: "things to do in Suffolk County NY", type: "activity" },
   { query: "fun activities in Suffolk County NY", type: "activity" },
 ];
-export async function GET() {
-  return Response.json({
-    message: "Use POST to trigger import",
+
+const BATCH_SIZE = 5;
+
+async function alreadyRanToday() {
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data } = await supabase
+    .from("import_logs")
+    .select("*")
+    .eq("job_name", "google_import")
+    .eq("run_date", today)
+    .maybeSingle();
+
+  return !!data;
+}
+
+async function logRun() {
+  const today = new Date().toISOString().split("T")[0];
+
+  await supabase.from("import_logs").insert({
+    job_name: "google_import",
+    run_date: today,
   });
 }
-export async function POST(req: Request) {
-  try {
-    const body = await req.json().catch(() => ({}));
 
-    const limit = Math.min(body.limit || 5, 10);
-    const start = body.start || 0;
+async function runBatchImport(body: any = {}) {
+  const force = body.force || false;
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  if (!force) {
+    const alreadyRan = await alreadyRanToday();
+    if (alreadyRan) {
+      return Response.json({
+        success: false,
+        message: "Import already ran today",
+      });
+    }
+  }
 
-    const selectedQueries = GOOGLE_IMPORT_QUERIES.slice(start, start + limit);
+  const today = new Date().getDate();
 
-    const results = [];
+  // rotate queries daily
+  const start = (today * BATCH_SIZE) % GOOGLE_IMPORT_QUERIES.length;
+  const selectedQueries = GOOGLE_IMPORT_QUERIES.slice(
+    start,
+    start + BATCH_SIZE
+  );
 
-    for (const item of selectedQueries) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
+
+  const results = [];
+
+  for (const item of selectedQueries) {
+    try {
       const res = await fetch(`${baseUrl}/api/google/import`, {
         method: "POST",
         headers: {
@@ -66,20 +103,38 @@ export async function POST(req: Request) {
         status: res.status,
         result: data,
       });
+    } catch (err: any) {
+      results.push({
+        query: item.query,
+        type: item.type,
+        status: 500,
+        error: err.message,
+      });
     }
-
-    return Response.json({
-      success: true,
-      start,
-      limit,
-      nextStart: start + limit,
-      importedGroups: results.length,
-      results,
-    });
-  } catch (error: any) {
-    return Response.json(
-      { error: error.message || "Batch import failed" },
-      { status: 500 }
-    );
   }
+
+  await logRun();
+
+  return Response.json({
+    success: true,
+    start,
+    batchSize: BATCH_SIZE,
+    importedGroups: results.length,
+    results,
+  });
+}
+
+export async function GET(req: Request) {
+  const authHeader = req.headers.get("authorization");
+
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  return runBatchImport();
+}
+
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => ({}));
+  return runBatchImport(body);
 }
