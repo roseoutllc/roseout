@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import AdminTopBar from "@/components/AdminTopBar";
+import AdminTopBar from "app/components/AdminTopBar";
 import { createClient } from "@/lib/supabase-browser";
 
 export default function AdminUsersPage() {
