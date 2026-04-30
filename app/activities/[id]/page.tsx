@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import BackButton from "./BackButton";
 import { ActivityViewTracker, AnalyticsLink } from "./AnalyticsTracker";
+import BackButton from "@/components/BackButton";
 
 type PageProps = {
   params: Promise<{
