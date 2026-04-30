@@ -90,6 +90,7 @@ export default function AdminPage() {
         "No address listed",
       claim_key: "restaurant_claims",
       edit_path: `/admin/restaurants/${r.id}`,
+      claim_url: r.claim_url || `/claim-restaurant/${r.id}`,
       claims: r.restaurant_claims || [],
     }));
 
@@ -105,6 +106,7 @@ export default function AdminPage() {
         "No address listed",
       claim_key: "activity_claims",
       edit_path: `/admin/activities/${a.id}`,
+      claim_url: a.claim_url || `/claim-activities/${a.id}`,
       claims: a.activity_claims || [],
     }));
 
