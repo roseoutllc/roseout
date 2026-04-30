@@ -332,47 +332,65 @@ export default function CreatePage() {
   return (
     <main className="min-h-screen bg-[#070707] px-5 py-6 pb-40 text-white">
       <div className="mx-auto max-w-4xl">
-        <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl md:p-8">
-          <p className="mb-2 text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
-            RoseOut
-          </p>
+        {messages.length === 0 && (
+          <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl md:p-8">
+            <p className="mb-2 text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
+              RoseOut
+            </p>
 
-          <h1 className="max-w-2xl text-4xl font-black tracking-tight md:text-6xl">
-            Find a better night out.
-          </h1>
+            <h1 className="max-w-2xl text-4xl font-black tracking-tight md:text-6xl">
+              Find a better night out.
+            </h1>
 
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-300 md:text-base">
-            Search in full sentences. RoseOut finds curated restaurants,
-            activities, nearby matches, and premium detail pages.
-          </p>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-300 md:text-base">
+              Search in full sentences. RoseOut finds curated restaurants,
+              activities, nearby matches, and premium detail pages.
+            </p>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={requestUserLocation}
-              className={`rounded-full px-5 py-3 text-sm font-extrabold transition ${
-                locationSaved
-                  ? "bg-green-500 text-black hover:bg-green-400"
-                  : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
-              }`}
-            >
-              {locationSaved ? "✓ Location Saved" : "Use My Location"}
-            </button>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={requestUserLocation}
+                className={`rounded-full px-5 py-3 text-sm font-extrabold transition ${
+                  locationSaved
+                    ? "bg-green-500 text-black hover:bg-green-400"
+                    : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
+                }`}
+              >
+                {locationSaved ? "✓ Location Saved" : "Use My Location"}
+              </button>
+
+              <button
+                type="button"
+                onClick={resetSearch}
+                className="rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-white/15"
+              >
+                Start New Search
+              </button>
+            </div>
+
+            <p className="mt-3 text-xs text-neutral-400">
+              Try: “romantic dinner near me within 10 miles” or “fun activity in
+              Nassau.”
+            </p>
+          </section>
+        )}
+
+        {messages.length > 0 && (
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
+              RoseOut
+            </p>
 
             <button
               type="button"
               onClick={resetSearch}
-              className="rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-white/15"
+              className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white"
             >
-              Start New Search
+              New Search
             </button>
           </div>
-
-          <p className="mt-3 text-xs text-neutral-400">
-            Try: “romantic dinner near me within 10 miles” or “fun activity in
-            Nassau.”
-          </p>
-        </section>
+        )}
 
         <section className="relative z-10 mb-8 rounded-[1.75rem] border border-white/10 bg-black/80 p-4 backdrop-blur-xl">
           <div className="grid gap-3 md:grid-cols-[1fr_170px] md:items-end">
