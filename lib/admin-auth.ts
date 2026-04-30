@@ -8,11 +8,8 @@ export type AdminRole =
   | "reviewer"
   | "viewer";
 
-/**
- * Get current logged-in admin user
- */
 export async function getCurrentAdmin() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
@@ -22,22 +19,19 @@ export async function getCurrentAdmin() {
     redirect("/login");
   }
 
-  const { data: adminUser, error } = await supabase
+  const { data: adminUser } = await supabase
     .from("admin_users")
     .select("id, email, full_name, role")
     .eq("email", user.email.toLowerCase())
     .maybeSingle();
 
-  if (error || !adminUser) {
+  if (!adminUser) {
     redirect("/login");
   }
 
   return adminUser;
 }
 
-/**
- * Protect pages by role
- */
 export async function requireAdminRole(allowedRoles: AdminRole[]) {
   const adminUser = await getCurrentAdmin();
 
@@ -46,14 +40,4 @@ export async function requireAdminRole(allowedRoles: AdminRole[]) {
   }
 
   return adminUser;
-}
-
-/**
- * Optional helper (for UI logic)
- */
-export function canAccess(
-  userRole: AdminRole,
-  allowedRoles: AdminRole[]
-) {
-  return allowedRoles.includes(userRole);
 }
