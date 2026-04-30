@@ -393,35 +393,39 @@ export default function AdminRestaurantDetailPage() {
 }
 
 function AnalyticsCard({ form }: { form: any }) {
+  const roseoutScore = Number(form.roseout_score || 0);
+
   return (
     <section className="rounded-3xl bg-white p-6 text-black">
-      <h2 className="text-xl font-bold">Analytics & Ranking</h2>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">
+          Performance
+        </p>
 
-      <p className="mt-1 text-xs text-neutral-500">
-        These values are automatically calculated and cannot be edited.
-      </p>
+        <h2 className="mt-1 text-2xl font-black">Analytics & Ranking</h2>
 
-      <div className="mt-5 grid gap-4">
-        <div className="grid grid-cols-2 gap-3">
-          <Stat label="Views" value={form.view_count || 0} />
-          <Stat label="Clicks" value={form.click_count || 0} />
-          <Stat label="Reviews" value={form.review_count || 0} />
-        </div>
+        <p className="mt-2 text-sm text-neutral-500">
+          Automatically calculated from engagement and listing quality.
+        </p>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Stat label="Rating" value={form.rating || 0} />
-          <Stat label="Quality" value={form.quality_score || 0} />
-          <Stat label="Popularity" value={form.popularity_score || 0} />
-        </div>
+      <div className="mt-6 rounded-3xl bg-black p-5 text-center text-white">
+        <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
+          RoseOut Ranking Score
+        </p>
 
-        <div className="rounded-2xl bg-neutral-100 p-4 text-center">
-          <p className="text-xs font-bold uppercase text-neutral-500">
-            RoseOut Ranking Score
-          </p>
-          <p className="mt-2 text-4xl font-black text-yellow-600">
-            {Number(form.roseout_score || 0)}
-          </p>
-        </div>
+        <p className="mt-2 text-5xl font-black text-yellow-500">
+          {roseoutScore}
+        </p>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <Stat label="Views" value={form.view_count || 0} />
+        <Stat label="Clicks" value={form.click_count || 0} />
+        <Stat label="Reviews" value={form.review_count || 0} />
+        <Stat label="Rating" value={form.rating || 0} />
+        <Stat label="Quality" value={form.quality_score || 0} />
+        <Stat label="Popularity" value={form.popularity_score || 0} />
       </div>
     </section>
   );
@@ -429,9 +433,12 @@ function AnalyticsCard({ form }: { form: any }) {
 
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-xl bg-neutral-100 p-3">
-      <p className="text-xs font-bold uppercase text-neutral-500">{label}</p>
-      <p className="mt-1 text-lg font-black">{value}</p>
+    <div className="rounded-2xl bg-neutral-100 p-4">
+      <p className="text-[11px] font-black uppercase tracking-wide text-neutral-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-black text-black">{value}</p>
     </div>
   );
 }
