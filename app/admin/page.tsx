@@ -84,7 +84,10 @@ export default function AdminPage() {
       display_type: "Restaurant",
       display_name:
         r.restaurant_name || r.name || r.business_name || "Unnamed Restaurant",
-      display_address: r.address || r.location || "No address listed",
+      display_address:
+        [r.address, r.city, r.state, r.zip_code].filter(Boolean).join(", ") ||
+        r.location ||
+        "No address listed",
       claim_key: "restaurant_claims",
       edit_path: `/admin/restaurants/${r.id}`,
       claims: r.restaurant_claims || [],
@@ -96,7 +99,10 @@ export default function AdminPage() {
       display_type: "Activity Location",
       display_name:
         a.activity_name || a.name || a.business_name || "Unnamed Activity",
-      display_address: a.address || a.location || "No address listed",
+      display_address:
+        [a.address, a.city, a.state, a.zip_code].filter(Boolean).join(", ") ||
+        a.location ||
+        "No address listed",
       claim_key: "activity_claims",
       edit_path: `/admin/activities/${a.id}`,
       claims: a.activity_claims || [],
@@ -343,20 +349,6 @@ export default function AdminPage() {
                     <p className="mt-1 text-sm text-neutral-500">
                       {location.display_address}
                     </p>
-
-                    <div className="mt-3 flex gap-2 md:hidden">
-                      <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
-                        {location.display_type}
-                      </span>
-
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${badgeClass(
-                          status
-                        )}`}
-                      >
-                        {status}
-                      </span>
-                    </div>
                   </div>
 
                   <div className="col-span-2 hidden md:block">
