@@ -8,6 +8,109 @@ const openai = new OpenAI({
 const AI_MODEL = "gpt-4o-mini";
 const CACHE_HOURS = 6;
 
+const QUEENS_CITIES = [
+  "Queens",
+  "Astoria",
+  "Flushing",
+  "Jamaica",
+  "Long Island City",
+  "Forest Hills",
+  "Bayside",
+  "Queens Village",
+  "Jackson Heights",
+  "Corona",
+  "Elmhurst",
+  "Ridgewood",
+  "Woodside",
+  "Sunnyside",
+  "Kew Gardens",
+  "Rego Park",
+  "Fresh Meadows",
+  "College Point",
+  "Whitestone",
+  "Howard Beach",
+  "Ozone Park",
+  "South Ozone Park",
+  "Far Rockaway",
+  "Rockaway Beach",
+  "Laurelton",
+  "Rosedale",
+  "Springfield Gardens",
+  "Cambria Heights",
+  "St. Albans",
+  "Maspeth",
+  "Middle Village",
+  "Glendale",
+  "Bellerose",
+  "Little Neck",
+  "Douglaston",
+];
+
+const NASSAU_CITIES = [
+  "Hempstead",
+  "Freeport",
+  "Garden City",
+  "Mineola",
+  "Uniondale",
+  "Westbury",
+  "Rockville Centre",
+  "Oceanside",
+  "Levittown",
+  "East Meadow",
+  "Plainview",
+  "Syosset",
+  "Jericho",
+  "Bethpage",
+  "Massapequa",
+  "Massapequa Park",
+  "Bellmore",
+  "Wantagh",
+  "Merrick",
+  "Great Neck",
+  "Port Washington",
+  "New Hyde Park",
+  "Floral Park",
+  "Long Beach",
+  "Baldwin",
+  "Glen Cove",
+  "Roslyn",
+  "Woodbury",
+  "Carle Place",
+];
+
+const SUFFOLK_CITIES = [
+  "Huntington",
+  "Huntington Station",
+  "Melville",
+  "Smithtown",
+  "Kings Park",
+  "Commack",
+  "Stony Brook",
+  "Port Jefferson",
+  "Patchogue",
+  "Medford",
+  "Ronkonkoma",
+  "Lake Grove",
+  "Centereach",
+  "Selden",
+  "Farmingville",
+  "Holbrook",
+  "Islip",
+  "East Islip",
+  "West Islip",
+  "Bay Shore",
+  "Brentwood",
+  "Deer Park",
+  "Babylon",
+  "Lindenhurst",
+  "Amityville",
+  "Sayville",
+  "Riverhead",
+  "Southampton",
+  "East Hampton",
+  "Montauk",
+];
+
 function normalizeQuery(input: string) {
   return input
     .toLowerCase()
@@ -16,9 +119,136 @@ function normalizeQuery(input: string) {
     .replace(/\s+/g, " ");
 }
 
-function scoreRestaurant(restaurant: any, input: string) {
+function getRegion(input: string) {
+  const text = normalizeQuery(input);
+
+  if (text.includes("queens")) return "queens";
+  if (text.includes("nassau")) return "nassau";
+  if (text.includes("suffolk")) return "suffolk";
+
+  if (
+    text.includes("long island") ||
+    text.includes("long island ny") ||
+    text.includes("li ny")
+  ) {
+    return "long_island";
+  }
+
+  return null;
+}
+
+function getRegionCities(region: string | null) {
+  if (region === "queens") return QUEENS_CITIES;
+  if (region === "nassau") return NASSAU_CITIES;
+  if (region === "suffolk") return SUFFOLK_CITIES;
+  if (region === "long_island") return [...NASSAU_CITIES, ...SUFFOLK_CITIES];
+
+  return [];
+}
+
+function isRegionMatch(
+  region: string | null,
+  city?: string | null,
+  neighborhood?: string | null
+) {
+  const cityText = city?.toLowerCase().trim() || "";
+  const neighborhoodText = neighborhood?.toLowerCase().trim() || "";
+  const places = getRegionCities(region);
+
+  return places.some((place) => {
+    const normalized = place.toLowerCase();
+
+    return cityText === normalized || neighborhoodText === normalized;
+  });
+}
+
+function extractZipCode(input: string) {
+  const match = input.match(/\b\d{5}\b/);
+  return match ? match[0] : null;
+}
+
+function wantsNearMe(input: string) {
+  const text = normalizeQuery(input);
+
+  return (
+    text.includes("near me") ||
+    text.includes("nearby") ||
+    text.includes("close to me") ||
+    text.includes("around me") ||
+    text.includes("my location")
+  );
+}
+
+function extractRadiusMiles(input: string) {
   const text = input.toLowerCase();
+
+  const match =
+    text.match(/within\s+(\d+)\s*miles?/) ||
+    text.match(/(\d+)\s*miles?\s*(away|radius|from me|near me)?/);
+
+  if (!match) return 15;
+
+  const miles = Number(match[1]);
+
+  if (!Number.isFinite(miles) || miles <= 0) return 15;
+
+  return Math.min(miles, 50);
+}
+
+function distanceMiles(
+  lat1: number,
+  lon1: number,
+  lat2?: number | null,
+  lon2?: number | null
+) {
+  if (!lat2 || !lon2) return null;
+
+  const R = 3958.8;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+function scoreRestaurant(
+  restaurant: any,
+  input: string,
+  userLocation?: { latitude: number; longitude: number } | null
+) {
+  const text = input.toLowerCase();
+  const region = getRegion(input);
+  const zipCode = extractZipCode(input);
   let score = 0;
+
+  if (region && isRegionMatch(region, restaurant.city, restaurant.neighborhood)) {
+    score += 35;
+  }
+
+  if (zipCode && restaurant.zip_code === zipCode) score += 45;
+
+  if (userLocation && wantsNearMe(input)) {
+    const distance = distanceMiles(
+      userLocation.latitude,
+      userLocation.longitude,
+      restaurant.latitude,
+      restaurant.longitude
+    );
+
+    if (distance !== null) {
+      if (distance <= 3) score += 45;
+      else if (distance <= 7) score += 35;
+      else if (distance <= 15) score += 20;
+    }
+  }
 
   if (restaurant.city && text.includes(restaurant.city.toLowerCase())) score += 25;
   if (restaurant.neighborhood && text.includes(restaurant.neighborhood.toLowerCase())) score += 25;
@@ -52,11 +282,39 @@ function scoreRestaurant(restaurant: any, input: string) {
   return score;
 }
 
-function scoreActivity(activity: any, input: string) {
+function scoreActivity(
+  activity: any,
+  input: string,
+  userLocation?: { latitude: number; longitude: number } | null
+) {
   const text = input.toLowerCase();
+  const region = getRegion(input);
+  const zipCode = extractZipCode(input);
   let score = 0;
 
+  if (region && isRegionMatch(region, activity.city, activity.neighborhood)) {
+    score += 35;
+  }
+
+  if (zipCode && activity.zip_code === zipCode) score += 45;
+
+  if (userLocation && wantsNearMe(input)) {
+    const distance = distanceMiles(
+      userLocation.latitude,
+      userLocation.longitude,
+      activity.latitude,
+      activity.longitude
+    );
+
+    if (distance !== null) {
+      if (distance <= 3) score += 45;
+      else if (distance <= 7) score += 35;
+      else if (distance <= 15) score += 20;
+    }
+  }
+
   if (activity.city && text.includes(activity.city.toLowerCase())) score += 25;
+  if (activity.neighborhood && text.includes(activity.neighborhood.toLowerCase())) score += 25;
   if (activity.activity_type && text.includes(activity.activity_type.toLowerCase())) score += 30;
   if (activity.atmosphere && text.includes(activity.atmosphere.toLowerCase())) score += 15;
   if (activity.price_range && text.includes(activity.price_range.toLowerCase())) score += 10;
@@ -93,12 +351,29 @@ export async function POST(req: Request) {
     const messages = body.messages || [];
     const input = body.input || messages[messages.length - 1]?.content || "";
 
+    const userLocation =
+      body.userLocation?.latitude && body.userLocation?.longitude
+        ? {
+            latitude: Number(body.userLocation.latitude),
+            longitude: Number(body.userLocation.longitude),
+          }
+        : null;
+
     if (!input) {
       return Response.json({ error: "Missing input" }, { status: 400 });
     }
 
     const text = input.toLowerCase();
-    const cacheKey = normalizeQuery(input);
+    const region = getRegion(input);
+    const zipCode = extractZipCode(input);
+    const nearMe = wantsNearMe(input);
+    const radiusMiles = extractRadiusMiles(input);
+
+    const cacheKey = normalizeQuery(
+      `${input} ${region || ""} ${zipCode || ""} ${
+        userLocation ? `${userLocation.latitude},${userLocation.longitude}` : ""
+      } ${radiusMiles}`
+    );
 
     const { data: cached } = await supabase
       .from("ai_response_cache")
@@ -168,6 +443,8 @@ export async function POST(req: Request) {
         state,
         zip_code,
         neighborhood,
+        latitude,
+        longitude,
         cuisine_type,
         atmosphere,
         lighting,
@@ -199,6 +476,9 @@ export async function POST(req: Request) {
         city,
         state,
         zip_code,
+        neighborhood,
+        latitude,
+        longitude,
         price_range,
         atmosphere,
         group_friendly,
@@ -218,7 +498,60 @@ export async function POST(req: Request) {
       return Response.json({ error: activityError.message }, { status: 500 });
     }
 
+    let filteredRestaurants = restaurants || [];
     let filteredActivities = activities || [];
+
+    if (region) {
+      filteredRestaurants = filteredRestaurants.filter((r: any) =>
+        isRegionMatch(region, r.city, r.neighborhood)
+      );
+
+      filteredActivities = filteredActivities.filter((a: any) =>
+        isRegionMatch(region, a.city, a.neighborhood)
+      );
+    }
+
+    if (zipCode) {
+      filteredRestaurants = filteredRestaurants.filter(
+        (r: any) => r.zip_code === zipCode
+      );
+
+      filteredActivities = filteredActivities.filter(
+        (a: any) => a.zip_code === zipCode
+      );
+    }
+
+    if (nearMe && userLocation) {
+      filteredRestaurants = filteredRestaurants
+        .map((r: any) => ({
+          ...r,
+          distance_miles: distanceMiles(
+            userLocation.latitude,
+            userLocation.longitude,
+            r.latitude,
+            r.longitude
+          ),
+        }))
+        .filter(
+          (r: any) =>
+            r.distance_miles !== null && r.distance_miles <= radiusMiles
+        );
+
+      filteredActivities = filteredActivities
+        .map((a: any) => ({
+          ...a,
+          distance_miles: distanceMiles(
+            userLocation.latitude,
+            userLocation.longitude,
+            a.latitude,
+            a.longitude
+          ),
+        }))
+        .filter(
+          (a: any) =>
+            a.distance_miles !== null && a.distance_miles <= radiusMiles
+        );
+    }
 
     if (wantsMuseum) {
       filteredActivities = filteredActivities.filter((a: any) =>
@@ -250,41 +583,71 @@ export async function POST(req: Request) {
       );
     }
 
-    const rankedRestaurants = (restaurants || [])
+    const rankedRestaurants = (filteredRestaurants || [])
       .map((restaurant: any) => {
-        const ruleScore = scoreRestaurant(restaurant, input);
+        const ruleScore = scoreRestaurant(restaurant, input, userLocation);
         const qualityScore = restaurant.quality_score || 0;
         const popularityScore = restaurant.popularity_score || 0;
 
+        let distanceBoost = 0;
+
+        if (restaurant.distance_miles !== null && restaurant.distance_miles !== undefined) {
+          if (restaurant.distance_miles <= 3) distanceBoost = 15;
+          else if (restaurant.distance_miles <= 7) distanceBoost = 10;
+          else if (restaurant.distance_miles <= 15) distanceBoost = 5;
+        }
+
         const finalScore =
-          ruleScore * 0.7 +
+          ruleScore * 0.65 +
           qualityScore * 0.2 +
-          popularityScore * 0.1;
+          popularityScore * 0.1 +
+          distanceBoost;
 
         return {
           ...restaurant,
           roseout_score: Math.round(Math.min(finalScore, 100)),
         };
       })
-      .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
+      .sort((a: any, b: any) => {
+        if (nearMe && userLocation) {
+          return (a.distance_miles || 999) - (b.distance_miles || 999);
+        }
+
+        return b.roseout_score - a.roseout_score;
+      });
 
     const rankedActivities = (filteredActivities || [])
       .map((activity: any) => {
-        const ruleScore = scoreActivity(activity, input);
+        const ruleScore = scoreActivity(activity, input, userLocation);
         const qualityScore = activity.quality_score || 0;
         const popularityScore = activity.popularity_score || 0;
 
+        let distanceBoost = 0;
+
+        if (activity.distance_miles !== null && activity.distance_miles !== undefined) {
+          if (activity.distance_miles <= 3) distanceBoost = 15;
+          else if (activity.distance_miles <= 7) distanceBoost = 10;
+          else if (activity.distance_miles <= 15) distanceBoost = 5;
+        }
+
         const finalScore =
-          ruleScore * 0.7 +
+          ruleScore * 0.65 +
           qualityScore * 0.2 +
-          popularityScore * 0.1;
+          popularityScore * 0.1 +
+          distanceBoost;
 
         return {
           ...activity,
           roseout_score: Math.round(Math.min(finalScore, 100)),
         };
       })
-      .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
+      .sort((a: any, b: any) => {
+        if (nearMe && userLocation) {
+          return (a.distance_miles || 999) - (b.distance_miles || 999);
+        }
+
+        return b.roseout_score - a.roseout_score;
+      });
 
     const topRestaurants = shouldReturnRestaurants
       ? rankedRestaurants.slice(0, 5)
@@ -297,18 +660,26 @@ export async function POST(req: Request) {
     const slimRestaurants = topRestaurants.map((r: any) => ({
       name: r.restaurant_name,
       city: r.city,
+      neighborhood: r.neighborhood,
       cuisine: r.cuisine_type,
       rating: r.rating,
       score: r.roseout_score,
+      distance_miles: r.distance_miles
+        ? Number(r.distance_miles.toFixed(1))
+        : null,
       tag: r.primary_tag,
     }));
 
     const slimActivities = topActivities.map((a: any) => ({
       name: a.activity_name,
       city: a.city,
+      neighborhood: a.neighborhood,
       type: a.activity_type,
       rating: a.rating,
       score: a.roseout_score,
+      distance_miles: a.distance_miles
+        ? Number(a.distance_miles.toFixed(1))
+        : null,
       tag: a.primary_tag,
     }));
 
@@ -346,6 +717,7 @@ STRICT RULES:
 - If dinner only, recommend restaurants only.
 - If activity only, recommend activities only.
 - If full outing/date night, recommend one restaurant and one activity.
+- If distance_miles exists, you may mention it briefly.
 `;
 
     const response = await openai.responses.create({
@@ -355,7 +727,10 @@ STRICT RULES:
     });
 
     const responsePayload = {
-      reply: response.output_text || "No response generated.",
+      reply:
+        nearMe && !userLocation
+          ? "To show nearby results, please allow location access or search by zip code."
+          : response.output_text || "No response generated.",
 
       restaurants: topRestaurants.map((r: any) => ({
         id: String(r.id),
@@ -372,6 +747,9 @@ STRICT RULES:
         review_count: r.review_count || null,
         primary_tag: r.primary_tag || null,
         date_style_tags: r.date_style_tags || [],
+        distance_miles: r.distance_miles
+          ? Number(r.distance_miles.toFixed(1))
+          : null,
       })),
 
       activities: topActivities.map((a: any) => ({
@@ -393,6 +771,9 @@ STRICT RULES:
         review_count: a.review_count || null,
         primary_tag: a.primary_tag || null,
         date_style_tags: a.date_style_tags || [],
+        distance_miles: a.distance_miles
+          ? Number(a.distance_miles.toFixed(1))
+          : null,
       })),
     };
 

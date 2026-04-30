@@ -21,6 +21,7 @@ type RestaurantCard = {
   review_count?: number | null;
   primary_tag?: string | null;
   date_style_tags?: string[];
+  distance_miles?: number | null;
 };
 
 type ActivityCard = {
@@ -43,6 +44,7 @@ type ActivityCard = {
   review_count?: number | null;
   primary_tag?: string | null;
   date_style_tags?: string[];
+  distance_miles?: number | null;
 };
 
 type Message = {
@@ -50,6 +52,11 @@ type Message = {
   content: string;
   restaurants?: RestaurantCard[];
   activities?: ActivityCard[];
+};
+
+type UserLocation = {
+  latitude: number;
+  longitude: number;
 };
 
 type SavedCreateState = {
@@ -61,12 +68,14 @@ type SavedCreateState = {
 };
 
 const STORAGE_KEY = "roseout_create_state";
+const LOCATION_KEY = "roseout_user_location";
 
 export default function CreatePage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [locationSaved, setLocationSaved] = useState(false);
 
   const viewedItems = useRef<Set<string>>(new Set());
 
@@ -75,6 +84,53 @@ export default function CreatePage() {
 
   const [selectedActivity, setSelectedActivity] =
     useState<ActivityCard | null>(null);
+
+  const getSavedUserLocation = (): UserLocation | null => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const saved = localStorage.getItem(LOCATION_KEY);
+      if (!saved) return null;
+
+      const parsed = JSON.parse(saved);
+
+      if (
+        typeof parsed.latitude === "number" &&
+        typeof parsed.longitude === "number"
+      ) {
+        return parsed;
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const requestUserLocation = () => {
+    if (!navigator.geolocation) {
+      setError("Location is not supported on this device.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLocation: UserLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+
+        localStorage.setItem(LOCATION_KEY, JSON.stringify(userLocation));
+
+        setLocationSaved(true);
+        setError("");
+      },
+      () => {
+        setLocationSaved(false);
+        setError("Please allow location access or search by zip code.");
+      }
+    );
+  };
 
   const saveCreateState = () => {
     const state: SavedCreateState = {
@@ -89,6 +145,8 @@ export default function CreatePage() {
   };
 
   useEffect(() => {
+    setLocationSaved(!!getSavedUserLocation());
+
     const saved = sessionStorage.getItem(STORAGE_KEY);
 
     if (!saved) return;
@@ -202,6 +260,7 @@ export default function CreatePage() {
         },
         body: JSON.stringify({
           messages: nextMessages.slice(-4),
+          userLocation: getSavedUserLocation(),
         }),
       });
 
@@ -272,6 +331,25 @@ export default function CreatePage() {
           <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-300">
             Tell RoseOut what kind of experience you want, and get curated
             restaurants and activities with a polished date-night feel.
+          </p>
+
+          <button
+            type="button"
+            onClick={requestUserLocation}
+            className={`mt-5 rounded-full px-5 py-3 text-sm font-extrabold transition ${
+              locationSaved
+                ? "bg-green-500 text-black hover:bg-green-400"
+                : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
+            }`}
+          >
+            {locationSaved
+              ? "Location Saved for Near Me Searches"
+              : "Use My Location for Near Me Searches"}
+          </button>
+
+          <p className="mt-2 text-xs text-neutral-400">
+            You can also search by zip code, like “romantic dinner near 11530”
+            or “bowling within 10 miles.”
           </p>
         </div>
 
@@ -364,6 +442,13 @@ export default function CreatePage() {
                                     {r.roseout_score}/100 Match
                                   </div>
 
+                                  {r.distance_miles !== null &&
+                                    r.distance_miles !== undefined && (
+                                      <div className="absolute left-4 bottom-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
+                                        {r.distance_miles} mi away
+                                      </div>
+                                    )}
+
                                   {r.roseout_score >= 80 && (
                                     <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
                                       Top Pick
@@ -378,17 +463,13 @@ export default function CreatePage() {
                                 </div>
 
                                 <div className="p-5">
-                                  <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                      <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">
-                                        Restaurant
-                                      </p>
+                                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">
+                                    Restaurant
+                                  </p>
 
-                                      <h3 className="mt-1 text-2xl font-black tracking-tight text-black">
-                                        {r.restaurant_name}
-                                      </h3>
-                                    </div>
-                                  </div>
+                                  <h3 className="mt-1 text-2xl font-black tracking-tight text-black">
+                                    {r.restaurant_name}
+                                  </h3>
 
                                   <p className="mt-3 text-sm leading-6 text-neutral-600">
                                     {[r.address, r.city, r.state, r.zip_code]
@@ -526,6 +607,13 @@ export default function CreatePage() {
                                   <div className="absolute left-4 top-4 rounded-full bg-black/80 px-3 py-1 text-xs font-bold text-white backdrop-blur">
                                     {a.roseout_score}/100 Match
                                   </div>
+
+                                  {a.distance_miles !== null &&
+                                    a.distance_miles !== undefined && (
+                                      <div className="absolute left-4 bottom-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
+                                        {a.distance_miles} mi away
+                                      </div>
+                                    )}
 
                                   {a.roseout_score >= 80 && (
                                     <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
@@ -687,7 +775,7 @@ export default function CreatePage() {
           placeholder={
             messages.length
               ? "Ask a follow-up question..."
-              : "Example: Plan a romantic dinner in Queens"
+              : "Example: Romantic dinner near me within 10 miles"
           }
           className="mt-6 w-full rounded-[1.5rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
         />
