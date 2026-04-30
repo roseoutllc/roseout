@@ -19,7 +19,6 @@ export default function AdminTopBar() {
     loadUser();
   }, []);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: any) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -54,19 +53,16 @@ export default function AdminTopBar() {
           onClick={() => setOpen(!open)}
           className="flex items-center gap-3 rounded-full bg-white/10 px-4 py-2 hover:bg-white/20"
         >
-          {/* Avatar */}
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500 font-bold text-black">
             {name.charAt(0)}
           </div>
 
-          {/* Name + Email */}
           <div className="hidden text-left md:block">
             <p className="text-sm font-semibold">{name}</p>
             <p className="text-xs text-neutral-400">{email}</p>
           </div>
         </button>
 
-        {/* Dropdown */}
         {open && (
           <div className="absolute right-0 mt-3 w-56 rounded-2xl bg-white p-2 text-black shadow-xl">
             <div className="px-3 py-2">
@@ -104,6 +100,17 @@ export default function AdminTopBar() {
               className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-neutral-100"
             >
               Activities
+            </button>
+
+            {/* ✅ NEW PAGE LINK */}
+            <button
+              onClick={() => {
+                setOpen(false);
+                window.location.href = "/admin/import-history";
+              }}
+              className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-neutral-100"
+            >
+              Import History
             </button>
 
             <div className="my-2 border-t" />
