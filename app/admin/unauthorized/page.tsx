@@ -1,3 +1,5 @@
+"use client"
+
 export default function UnauthorizedPage() {
   return (
     <main className="min-h-screen bg-[#050505] px-6 py-20 text-white">
