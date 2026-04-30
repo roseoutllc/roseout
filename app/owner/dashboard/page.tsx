@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase-browser";
 export default function OwnerDashboard() {
   const supabase = createClient();
 
+  const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [restaurants, setRestaurants] = useState<any[]>([]);
   const [restaurant, setRestaurant] = useState<any>(null);
   const [form, setForm] = useState<any>({});
   const [loading, setLoading] = useState(true);
@@ -14,6 +17,24 @@ export default function OwnerDashboard() {
 
   const update = (key: string, value: string) => {
     setForm((prev: any) => ({ ...prev, [key]: value }));
+  };
+
+  const loadRestaurantById = async (restaurantId: string) => {
+    setMessage("");
+
+    const { data, error } = await supabase
+      .from("restaurants")
+      .select("*")
+      .eq("id", restaurantId)
+      .maybeSingle();
+
+    if (error || !data) {
+      setMessage("Could not load this restaurant listing.");
+      return;
+    }
+
+    setRestaurant(data);
+    setForm(data);
   };
 
   useEffect(() => {
@@ -28,6 +49,30 @@ export default function OwnerDashboard() {
 
       if (userError || !user) {
         window.location.href = "/login";
+        return;
+      }
+
+      setUser(user);
+
+      const adminUser = user.user_metadata?.role === "superuser";
+      setIsAdmin(adminUser);
+
+      if (adminUser) {
+        const { data, error } = await supabase
+          .from("restaurants")
+          .select("*")
+          .order("restaurant_name", { ascending: true });
+
+        if (error || !data || data.length === 0) {
+          setMessage("No restaurants found.");
+          setLoading(false);
+          return;
+        }
+
+        setRestaurants(data);
+        setRestaurant(data[0]);
+        setForm(data[0]);
+        setLoading(false);
         return;
       }
 
@@ -67,12 +112,7 @@ export default function OwnerDashboard() {
     setSaving(true);
     setMessage("");
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user || !restaurant?.id) {
+    if (!user || !restaurant?.id) {
       setMessage("You must be logged in to update this listing.");
       setSaving(false);
       return;
@@ -86,6 +126,7 @@ export default function OwnerDashboard() {
       body: JSON.stringify({
         user_id: user.id,
         restaurant_id: restaurant.id,
+        is_admin: isAdmin,
         ...form,
       }),
     });
@@ -152,14 +193,37 @@ export default function OwnerDashboard() {
               {form.restaurant_name || "Unnamed Restaurant"}
             </h2>
             <p className="mt-2 text-neutral-400">
-              Manage your public RoseOut restaurant listing.
+              {isAdmin
+                ? "Admin access: manage any restaurant listing."
+                : "Manage your public RoseOut restaurant listing."}
             </p>
           </div>
 
           <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold">
-            Owner Access
+            {isAdmin ? "Admin Full Access" : "Owner Access"}
           </div>
         </div>
+
+        {isAdmin && restaurants.length > 0 && (
+          <section className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
+            <label className="text-sm font-bold text-neutral-300">
+              Select Restaurant Location
+            </label>
+
+            <select
+              value={restaurant.id}
+              onChange={(e) => loadRestaurantById(e.target.value)}
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-black px-5 py-4 text-white"
+            >
+              {restaurants.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.restaurant_name || "Unnamed Restaurant"} —{" "}
+                  {[r.address, r.city, r.state].filter(Boolean).join(", ")}
+                </option>
+              ))}
+            </select>
+          </section>
+        )}
 
         {message && (
           <div className="mt-6 rounded-2xl bg-white p-4 font-semibold text-black">
@@ -332,20 +396,6 @@ export default function OwnerDashboard() {
               <p className="mt-1 text-sm text-neutral-600">
                 {fullAddress || "No address listed"}
               </p>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {form.cuisine_type && (
-                  <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
-                    {form.cuisine_type}
-                  </span>
-                )}
-
-                {form.price_range && (
-                  <span className="rounded-full bg-yellow-500 px-3 py-1 text-xs font-bold text-black">
-                    {form.price_range}
-                  </span>
-                )}
-              </div>
             </section>
 
             <section className="rounded-3xl bg-white p-6 text-black">
@@ -372,16 +422,6 @@ export default function OwnerDashboard() {
               >
                 {saving ? "Saving..." : "Save Listing"}
               </button>
-            </section>
-
-            <section className="rounded-3xl bg-white p-6 text-black">
-              <h3 className="text-xl font-bold">Quick Tips</h3>
-
-              <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-neutral-700">
-                <li>Use a clear, high-quality image.</li>
-                <li>Keep your phone number and reservation link updated.</li>
-                <li>Add a strong description to improve recommendations.</li>
-              </ul>
             </section>
           </aside>
         </div>
