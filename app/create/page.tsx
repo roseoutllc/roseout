@@ -329,29 +329,84 @@ export default function CreatePage() {
         selectedActivity?.activity_name ||
         "";
 
+  const SearchBox = (
+    <section className="relative z-10 mb-8 rounded-[1.75rem] border border-white/10 bg-black/80 p-4 backdrop-blur-xl">
+      <div className="grid gap-3 md:grid-cols-[1fr_170px] md:items-end">
+        <div>
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={
+              messages.length
+                ? "Ask a follow-up question..."
+                : "Example: Romantic dinner near me within 10 miles"
+            }
+            className="min-h-[96px] w-full resize-none rounded-[1.35rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
+          />
+
+          {error && (
+            <p className="mt-3 rounded-2xl bg-red-100 p-3 text-sm font-bold text-red-700">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <button
+          onClick={sendMessage}
+          disabled={loading}
+          className="rounded-full bg-yellow-500 px-8 py-4 font-black text-black transition hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading
+            ? "Finding..."
+            : messages.length
+            ? "Send"
+            : "Create Plan"}
+        </button>
+      </div>
+
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={requestUserLocation}
+          className={`w-full rounded-full px-4 py-3 text-xs font-extrabold transition sm:text-sm ${
+            locationSaved
+              ? "bg-green-500 text-black hover:bg-green-400"
+              : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
+          }`}
+        >
+          {locationSaved ? "✓ Location Saved" : "Use My Location"}
+        </button>
+      </div>
+    </section>
+  );
+
   return (
     <main className="min-h-screen bg-[#070707] px-5 py-6 pb-40 text-white">
       <div className="mx-auto max-w-4xl">
         {messages.length === 0 && (
-          <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl md:p-8">
-            <p className="mb-2 text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
-              RoseOut
-            </p>
+          <>
+            <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl md:p-8">
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
+                RoseOut
+              </p>
 
-            <h1 className="max-w-2xl text-4xl font-black tracking-tight md:text-6xl">
-              Find a better night out.
-            </h1>
+              <h1 className="max-w-2xl text-4xl font-black tracking-tight md:text-6xl">
+                Find a better night out.
+              </h1>
 
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-300 md:text-base">
-              Search in full sentences. RoseOut finds curated restaurants,
-              activities, nearby matches, and premium detail pages.
-            </p>
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-300 md:text-base">
+                Search in full sentences. RoseOut finds curated restaurants,
+                activities, nearby matches, and premium detail pages.
+              </p>
 
-            <p className="mt-4 text-xs text-neutral-400">
-              Try: “romantic dinner near me within 10 miles” or “fun activity in
-              Nassau.”
-            </p>
-          </section>
+              <p className="mt-4 text-xs text-neutral-400">
+                Try: “romantic dinner near me within 10 miles” or “fun activity
+                in Nassau.”
+              </p>
+            </section>
+
+            {SearchBox}
+          </>
         )}
 
         {messages.length > 0 && (
@@ -369,63 +424,6 @@ export default function CreatePage() {
             </button>
           </div>
         )}
-
-        <section className="relative z-10 mb-8 rounded-[1.75rem] border border-white/10 bg-black/80 p-4 backdrop-blur-xl">
-          <div className="grid gap-3 md:grid-cols-[1fr_170px] md:items-end">
-            <div>
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  messages.length
-                    ? "Ask a follow-up question..."
-                    : "Example: Romantic dinner near me within 10 miles"
-                }
-                className="min-h-[96px] w-full resize-none rounded-[1.35rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
-              />
-
-              {error && (
-                <p className="mt-3 rounded-2xl bg-red-100 p-3 text-sm font-bold text-red-700">
-                  {error}
-                </p>
-              )}
-            </div>
-
-            <button
-              onClick={sendMessage}
-              disabled={loading}
-              className="rounded-full bg-yellow-500 px-8 py-4 font-black text-black transition hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading
-                ? "Finding..."
-                : messages.length
-                ? "Send"
-                : "Create Plan"}
-            </button>
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={requestUserLocation}
-              className={`rounded-full px-4 py-3 text-xs font-extrabold transition sm:text-sm ${
-                locationSaved
-                  ? "bg-green-500 text-black hover:bg-green-400"
-                  : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
-              }`}
-            >
-              {locationSaved ? "✓ Location Saved" : "Use My Location"}
-            </button>
-
-            <button
-              type="button"
-              onClick={resetSearch}
-              className="rounded-full border border-white/15 bg-white/10 px-4 py-3 text-xs font-extrabold text-white transition hover:bg-white/15 sm:text-sm"
-            >
-              Start New Search
-            </button>
-          </div>
-        </section>
 
         {loading && (
           <div className="mb-6 rounded-[2rem] border border-white/10 bg-white/10 p-5">
@@ -830,6 +828,8 @@ export default function CreatePage() {
             );
           })}
         </section>
+
+        {messages.length > 0 && <div className="mt-8">{SearchBox}</div>}
       </div>
 
       {(selectedRestaurant || selectedActivity) && (
