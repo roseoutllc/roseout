@@ -14,6 +14,7 @@ type RestaurantCard = {
   zip_code: string;
   roseout_score: number;
   reservation_link?: string;
+  reservation_url?: string;
   website?: string;
   image_url?: string;
   rating?: number | null;
@@ -35,6 +36,7 @@ type ActivityCard = {
   group_friendly?: boolean;
   roseout_score: number;
   reservation_link?: string;
+  reservation_url?: string;
   website?: string;
   image_url?: string;
   rating?: number | null;
@@ -246,6 +248,9 @@ export default function CreatePage() {
                             const isSelected =
                               selectedRestaurant?.id === r.id;
 
+                            const reservationUrl =
+                              r.reservation_url || r.reservation_link;
+
                             return (
                               <div
                                 key={restaurantId || restaurantIndex}
@@ -282,8 +287,9 @@ export default function CreatePage() {
                                   </h3>
 
                                   <p className="mt-2 text-sm text-neutral-600">
-                                    {r.address}, {r.city}, {r.state}{" "}
-                                    {r.zip_code}
+                                    {[r.address, r.city, r.state, r.zip_code]
+                                      .filter(Boolean)
+                                      .join(", ")}
                                   </p>
 
                                   {r.rating && (
@@ -364,9 +370,9 @@ export default function CreatePage() {
                                       View Details
                                     </Link>
 
-                                    {r.reservation_link && (
+                                    {reservationUrl && (
                                       <a
-                                        href={r.reservation_link}
+                                        href={reservationUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={() =>
@@ -397,6 +403,9 @@ export default function CreatePage() {
                             const activityId = String(a.id);
                             const isSelected =
                               selectedActivity?.id === a.id;
+
+                            const reservationUrl =
+                              a.reservation_url || a.reservation_link;
 
                             return (
                               <div
@@ -440,8 +449,9 @@ export default function CreatePage() {
                                   </h3>
 
                                   <p className="mt-2 text-sm text-neutral-600">
-                                    {a.address}, {a.city}, {a.state}{" "}
-                                    {a.zip_code}
+                                    {[a.address, a.city, a.state, a.zip_code]
+                                      .filter(Boolean)
+                                      .join(", ")}
                                   </p>
 
                                   {a.rating && (
@@ -536,9 +546,9 @@ export default function CreatePage() {
                                       </a>
                                     )}
 
-                                    {a.reservation_link && (
+                                    {reservationUrl && (
                                       <a
-                                        href={a.reservation_link}
+                                        href={reservationUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={() =>
@@ -607,7 +617,11 @@ export default function CreatePage() {
           disabled={loading}
           className="mt-4 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "Finding matches..." : messages.length ? "Send" : "Create Plan"}
+          {loading
+            ? "Finding matches..."
+            : messages.length
+            ? "Send"
+            : "Create Plan"}
         </button>
       </div>
 

@@ -1,7 +1,7 @@
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import BackButton from "./BackButton";
 
 type PageProps = {
   params: Promise<{
@@ -39,18 +39,9 @@ export default async function LocationDetailPage({ params }: PageProps) {
     item.primary_tag ||
     "Curated Experience";
 
-  const image =
-    item.image_url ||
-    item.photo_url ||
-    item.image ||
-    "";
+  const image = item.image_url || item.photo_url || item.image || "";
 
-  const address = [
-    item.address,
-    item.city,
-    item.state,
-    item.zip_code,
-  ]
+  const address = [item.address, item.city, item.state, item.zip_code]
     .filter(Boolean)
     .join(", ");
 
@@ -60,10 +51,7 @@ export default async function LocationDetailPage({ params }: PageProps) {
   const score = Math.min(Number(item.roseout_score || 0), 100);
 
   const reservationUrl =
-    item.reservation_url ||
-    item.reservation_link ||
-    item.booking_url ||
-    "";
+    item.reservation_url || item.reservation_link || item.booking_url || "";
 
   const website = item.website || item.website_url || "";
 
@@ -75,13 +63,7 @@ export default async function LocationDetailPage({ params }: PageProps) {
     <main className="min-h-screen bg-[#050505] text-white">
       <section className="relative min-h-[70vh] overflow-hidden">
         {image ? (
-          <Image
-            src={image}
-            alt={name}
-            fill
-            priority
-            className="object-cover"
-          />
+          <Image src={image} alt={name} fill priority className="object-cover" />
         ) : (
           <div className="absolute inset-0 bg-neutral-900" />
         )}
@@ -89,12 +71,7 @@ export default async function LocationDetailPage({ params }: PageProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/20" />
 
         <div className="relative z-10 mx-auto flex min-h-[70vh] max-w-6xl flex-col justify-between px-5 py-8">
-          <Link
-            href="/create"
-            className="w-fit rounded-full bg-white/15 px-5 py-2 text-sm font-bold text-white backdrop-blur hover:bg-white/25"
-          >
-            ← Back
-          </Link>
+          <BackButton />
 
           <div className="max-w-3xl pb-8">
             <div className="mb-4 flex flex-wrap gap-2">
@@ -181,6 +158,15 @@ export default async function LocationDetailPage({ params }: PageProps) {
                 </div>
               )}
 
+              {item.price_range && (
+                <div className="rounded-2xl bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-wide text-neutral-500">
+                    Price Range
+                  </p>
+                  <p className="mt-1 font-bold">{item.price_range}</p>
+                </div>
+              )}
+
               {item.phone && (
                 <div className="rounded-2xl bg-white/5 p-4">
                   <p className="text-xs uppercase tracking-wide text-neutral-500">
@@ -191,7 +177,7 @@ export default async function LocationDetailPage({ params }: PageProps) {
               )}
 
               {address && (
-                <div className="rounded-2xl bg-white/5 p-4">
+                <div className="rounded-2xl bg-white/5 p-4 sm:col-span-2">
                   <p className="text-xs uppercase tracking-wide text-neutral-500">
                     Address
                   </p>
@@ -251,13 +237,6 @@ export default async function LocationDetailPage({ params }: PageProps) {
               >
                 Get Directions
               </a>
-
-              <Link
-                href="/create"
-                className="rounded-full bg-yellow-500 px-5 py-3 text-center text-sm font-extrabold text-black"
-              >
-                Find More Matches
-              </Link>
             </div>
           </div>
         </aside>
