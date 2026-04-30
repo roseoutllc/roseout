@@ -1,29 +1,20 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-type BackButtonProps = {
-  fallback?: string;
-};
-
-export default function BackButton({ fallback = "/create" }: BackButtonProps) {
+export default function BackButton() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  function handleBack() {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push(fallback);
-    }
-  }
+  const from = searchParams.get("from") || "/create";
 
   return (
     <button
       type="button"
-      onClick={handleBack}
-      className="mb-6 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white/20"
+      onClick={() => router.push(from)}
+      className="w-full rounded-full bg-white/20 px-5 py-3 text-left text-sm font-bold text-white backdrop-blur transition hover:bg-white/30"
     >
-      ← Back
+      ← Back to results
     </button>
   );
 }

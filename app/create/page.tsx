@@ -52,6 +52,16 @@ type Message = {
   activities?: ActivityCard[];
 };
 
+type SavedCreateState = {
+  input: string;
+  messages: Message[];
+  selectedRestaurant: RestaurantCard | null;
+  selectedActivity: ActivityCard | null;
+  scrollY: number;
+};
+
+const STORAGE_KEY = "roseout_create_state";
+
 export default function CreatePage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,12 +69,63 @@ export default function CreatePage() {
   const [error, setError] = useState("");
 
   const viewedItems = useRef<Set<string>>(new Set());
+  const restoredScroll = useRef(false);
 
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<RestaurantCard | null>(null);
 
   const [selectedActivity, setSelectedActivity] =
     useState<ActivityCard | null>(null);
+
+  const saveCreateState = () => {
+    const state: SavedCreateState = {
+      input,
+      messages,
+      selectedRestaurant,
+      selectedActivity,
+      scrollY: window.scrollY,
+    };
+
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  };
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved) as SavedCreateState;
+
+      setInput(parsed.input || "");
+      setMessages(parsed.messages || []);
+      setSelectedRestaurant(parsed.selectedRestaurant || null);
+      setSelectedActivity(parsed.selectedActivity || null);
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo({
+            top: parsed.scrollY || 0,
+            behavior: "instant" as ScrollBehavior,
+          });
+
+          restoredScroll.current = true;
+        });
+      });
+    } catch {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => saveCreateState();
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  });
 
   useEffect(() => {
     messages.forEach((msg) => {
@@ -156,15 +217,28 @@ export default function CreatePage() {
 
       const assistantReply = data.reply || data.message || data.answer || "";
 
-      setMessages((prev) => [
-        ...prev,
+      const updatedMessages: Message[] = [
+        ...nextMessages,
         {
           role: "assistant",
           content: assistantReply,
           restaurants: data.restaurants || [],
           activities: data.activities || [],
         },
-      ]);
+      ];
+
+      setMessages(updatedMessages);
+
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          input: "",
+          messages: updatedMessages,
+          selectedRestaurant: null,
+          selectedActivity: null,
+          scrollY: window.scrollY,
+        })
+      );
     } catch {
       setError("Could not create response. Please try again.");
     } finally {
@@ -361,10 +435,11 @@ export default function CreatePage() {
                                     </button>
 
                                     <Link
-                                      href={`/locations/restaurants/${restaurantId}`}
-                                      onClick={() =>
-                                        trackRestaurantClick(restaurantId)
-                                      }
+                                      href={`/locations/restaurants/${restaurantId}?from=/create`}
+                                      onClick={() => {
+                                        saveCreateState();
+                                        trackRestaurantClick(restaurantId);
+                                      }}
                                       className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
                                     >
                                       View Details
@@ -523,10 +598,11 @@ export default function CreatePage() {
                                     </button>
 
                                     <Link
-                                      href={`/locations/activities/${activityId}`}
-                                      onClick={() =>
-                                        trackActivityClick(activityId)
-                                      }
+                                      href={`/locations/activities/${activityId}?from=/create`}
+                                      onClick={() => {
+                                        saveCreateState();
+                                        trackActivityClick(activityId);
+                                      }}
                                       className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white"
                                     >
                                       View Details
