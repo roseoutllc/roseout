@@ -23,6 +23,10 @@ export default function RestaurantEditClient({ restaurant }: any) {
     rating: restaurant.rating || 0,
     review_count: restaurant.review_count || 0,
     roseout_score: restaurant.roseout_score || 0,
+
+    owner_name: restaurant.owner_name || "",
+    owner_email: restaurant.owner_email || "",
+    owner_phone: restaurant.owner_phone || "",
   });
 
   const [message, setMessage] = useState("");
@@ -168,7 +172,7 @@ export default function RestaurantEditClient({ restaurant }: any) {
       </h1>
 
       <p className="mt-3 text-neutral-400">
-        Update listing details, preview the listing, and print claim QR labels.
+        Update listing details, owner contact info, preview the listing, and print claim QR labels.
       </p>
 
       {message && (
@@ -346,6 +350,43 @@ export default function RestaurantEditClient({ restaurant }: any) {
             </div>
           </div>
 
+          <div className="mt-8 border-t border-neutral-200 pt-6">
+            <h2 className="text-2xl font-extrabold">Owner / Manager Info</h2>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="text-sm font-bold">Owner / Manager Name</label>
+                <input
+                  value={form.owner_name}
+                  onChange={(e) => updateField("owner_name", e.target.value)}
+                  placeholder="Example: John Smith"
+                  className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-bold">Email Address</label>
+                <input
+                  type="email"
+                  value={form.owner_email}
+                  onChange={(e) => updateField("owner_email", e.target.value)}
+                  placeholder="owner@example.com"
+                  className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-bold">Phone Number</label>
+                <input
+                  value={form.owner_phone}
+                  onChange={(e) => updateField("owner_phone", e.target.value)}
+                  placeholder="(555) 555-5555"
+                  className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
+                />
+              </div>
+            </div>
+          </div>
+
           <button
             type="button"
             onClick={saveRestaurant}
@@ -357,6 +398,59 @@ export default function RestaurantEditClient({ restaurant }: any) {
         </div>
 
         <aside className="space-y-6">
+          <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
+            <h2 className="text-2xl font-extrabold">Owner / Manager</h2>
+
+            <p className="mt-2 text-sm text-neutral-500">
+              Contact details for the restaurant owner or manager.
+            </p>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Name
+                </p>
+                <p className="mt-1 text-lg font-extrabold">
+                  {form.owner_name || "Not added"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Email
+                </p>
+
+                {form.owner_email ? (
+                  <a
+                    href={`mailto:${form.owner_email}`}
+                    className="mt-1 block break-all text-sm font-bold text-blue-600 underline"
+                  >
+                    {form.owner_email}
+                  </a>
+                ) : (
+                  <p className="mt-1 text-sm text-neutral-500">Not added</p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase text-neutral-500">
+                  Phone
+                </p>
+
+                {form.owner_phone ? (
+                  <a
+                    href={`tel:${form.owner_phone}`}
+                    className="mt-1 block text-sm font-bold text-black"
+                  >
+                    {form.owner_phone}
+                  </a>
+                ) : (
+                  <p className="mt-1 text-sm text-neutral-500">Not added</p>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
             <h2 className="text-2xl font-extrabold">Preview</h2>
 
