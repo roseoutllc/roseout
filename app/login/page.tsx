@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase-browser";
 
 export default function LoginPage() {
@@ -8,56 +8,146 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  const login = async () => {
+  // ✅ Auto redirect if already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user?.email) {
+        window.location.href = "/admin";
+      }
+    };
+
+    checkSession();
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setError("");
     setMessage("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setMessage(error.message);
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter your email and password.");
       return;
     }
 
-    window.location.href = "/admin/restaurants";
+    setLoading(true);
+
+    try {
+      const { data, error: loginError } =
+        await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+
+      if (loginError) {
+        setError(loginError.message);
+        return;
+      }
+
+      if (!data.user?.email) {
+        setError("Login failed. Please try again.");
+        return;
+      }
+
+      // ✅ Check admin access
+      const { data: adminUser, error: adminError } = await supabase
+        .from("admin_users")
+        .select("id, role")
+        .eq("email", data.user.email.toLowerCase())
+        .maybeSingle();
+
+      if (adminError) {
+        setError(adminError.message);
+        return;
+      }
+
+      if (!adminUser) {
+        await supabase.auth.signOut();
+        setError("You are not authorized for the admin dashboard.");
+        return;
+      }
+
+      setMessage("Login successful. Redirecting...");
+
+      setTimeout(() => {
+        window.location.href = "/admin";
+      }, 800);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <main className="min-h-screen bg-black px-6 py-12 text-white">
-      <div className="mx-auto max-w-md">
-        <h1 className="text-4xl font-bold">RoseOut Admin Login</h1>
+    <main className="flex min-h-screen items-center justify-center bg-[#050505] px-6 text-white">
+      <form
+        onSubmit={handleLogin}
+        className="w-full max-w-md rounded-[2rem] bg-white p-8 text-black shadow-2xl"
+      >
+        {/* Header */}
+        <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-600">
+          RoseOut Admin
+        </p>
 
-        <div className="mt-8 space-y-4 rounded-3xl bg-white p-6 text-black">
-          <input
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+        <h1 className="text-3xl font-extrabold">Admin Login</h1>
 
-          <input
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+        <p className="mt-2 text-sm text-neutral-500">
+          Sign in to access your dashboard.
+        </p>
 
-          <button
-            onClick={login}
-            className="w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold text-black"
-          >
-            Login
-          </button>
+        {/* Error */}
+        {error && (
+          <div className="mt-5 rounded-2xl bg-red-100 p-4 text-sm font-semibold text-red-700">
+            {error}
+          </div>
+        )}
 
-          {message && <p className="text-center font-semibold">{message}</p>}
-        </div>
-      </div>
+        {/* Success */}
+        {message && (
+          <div className="mt-5 rounded-2xl bg-green-100 p-4 text-sm font-semibold text-green-700">
+            {message}
+          </div>
+        )}
+
+        {/* Email */}
+        <label className="mt-6 block text-sm font-bold">Email</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
+        />
+
+        {/* Password */}
+        <label className="mt-5 block text-sm font-bold">Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter password"
+          className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
+        />
+
+        {/* Button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-6 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? "Signing in..." : "Login"}
+        </button>
+      </form>
     </main>
   );
 }
