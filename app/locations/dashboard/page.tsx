@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase-browser";
@@ -36,6 +37,53 @@ type LocationItem = {
   created_at?: string;
 };
 
+function StatCard({
+  icon,
+  label,
+  value,
+  sub,
+  green,
+}: {
+  icon: string;
+  label: string;
+  value: string | number;
+  sub: string;
+  green?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-5 shadow-2xl">
+      <div className="flex items-center gap-4">
+        <div
+          className={`flex h-14 w-14 items-center justify-center rounded-full text-2xl font-black ${
+            green
+              ? "bg-green-500/20 text-green-400"
+              : "bg-yellow-500/20 text-yellow-500"
+          }`}
+        >
+          {icon}
+        </div>
+
+        <div>
+          <p className="text-xs font-black text-white">{label}</p>
+          <p className="mt-1 text-3xl font-black">{value}</p>
+          <p className="text-xs text-white/50">{sub}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetaItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
+        {label}
+      </p>
+      <p className="mt-2 text-sm font-bold capitalize text-white">{value}</p>
+    </div>
+  );
+}
+
 export default function LocationsDashboardPage() {
   const supabase = createClient();
 
@@ -66,12 +114,14 @@ export default function LocationsDashboardPage() {
 
       if (isAdmin) {
         const [restaurantsRes, activitiesRes] = await Promise.all([
-          supabase.from("restaurants").select("*").order("created_at", {
-            ascending: false,
-          }),
-          supabase.from("activities").select("*").order("created_at", {
-            ascending: false,
-          }),
+          supabase
+            .from("restaurants")
+            .select("*")
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("activities")
+            .select("*")
+            .order("created_at", { ascending: false }),
         ]);
 
         const combined: LocationItem[] = [
@@ -216,6 +266,12 @@ export default function LocationsDashboardPage() {
       })
     : "Not listed";
 
+  const editUrl = selected
+    ? `/locations/edit/${
+        selected.location_type === "activity" ? "activities" : "restaurants"
+      }/${selected.id}`
+    : "#";
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-5 text-white">
@@ -228,7 +284,6 @@ export default function LocationsDashboardPage() {
 
   return (
     <main className="min-h-screen bg-[#030303] text-white">
-      {/* TOP NAV */}
       <header className="sticky top-0 z-40 border-b border-white/10 bg-black/95 px-6 py-4 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between">
           <div className="flex items-center gap-3">
@@ -258,7 +313,6 @@ export default function LocationsDashboardPage() {
       </header>
 
       <div className="mx-auto max-w-[1500px] px-6 py-6">
-        {/* STATS */}
         <section className="mb-6 grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
           <StatCard
             icon="▦"
@@ -271,7 +325,11 @@ export default function LocationsDashboardPage() {
             icon="✓"
             label="Claimed"
             value={claimedCount}
-            sub={`${locations.length ? Math.round((claimedCount / locations.length) * 100) : 0}% of all locations`}
+            sub={`${
+              locations.length
+                ? Math.round((claimedCount / locations.length) * 100)
+                : 0
+            }% of all locations`}
             green
           />
 
@@ -279,7 +337,11 @@ export default function LocationsDashboardPage() {
             icon="◷"
             label="Unclaimed"
             value={unclaimedCount}
-            sub={`${locations.length ? Math.round((unclaimedCount / locations.length) * 100) : 0}% of all locations`}
+            sub={`${
+              locations.length
+                ? Math.round((unclaimedCount / locations.length) * 100)
+                : 0
+            }% of all locations`}
           />
 
           <StatCard
@@ -301,7 +363,6 @@ export default function LocationsDashboardPage() {
         </section>
 
         <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
-          {/* LEFT PANEL */}
           <aside className="min-w-0">
             <div className="mb-4 rounded-2xl border border-white/10 bg-[#080808] p-3 shadow-2xl">
               <div className="grid gap-3 md:grid-cols-[1fr_120px_90px] lg:grid-cols-[1fr_115px_84px]">
@@ -312,7 +373,9 @@ export default function LocationsDashboardPage() {
                     placeholder="Search locations..."
                     className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 pr-10 text-sm text-white placeholder-white/40 outline-none focus:border-yellow-500"
                   />
-                  <span className="absolute right-4 top-3 text-white/50">⌕</span>
+                  <span className="absolute right-4 top-3 text-white/50">
+                    ⌕
+                  </span>
                 </div>
 
                 <select
@@ -342,8 +405,7 @@ export default function LocationsDashboardPage() {
                   location.claim_status === "claimed" ||
                   !!location.owner_email;
 
-                const score =
-                  location.roseout_score ?? location.quality_score ?? 0;
+                const score = location.roseout_score ?? location.quality_score ?? 0;
 
                 return (
                   <button
@@ -422,11 +484,9 @@ export default function LocationsDashboardPage() {
             </div>
           </aside>
 
-          {/* RIGHT DETAIL */}
           <section className="min-w-0">
             {selected ? (
               <div className="rounded-[2rem] border border-white/10 bg-[#0b0b0b] p-5 shadow-2xl">
-                {/* HERO IMAGE */}
                 <div className="group relative h-[350px] overflow-hidden rounded-[1.5rem] border border-white/10">
                   {selected.image_url ? (
                     <Image
@@ -445,9 +505,14 @@ export default function LocationsDashboardPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
 
                   <div className="absolute right-5 top-5 flex gap-2">
-                    <button className="flex h-11 w-11 items-center justify-center rounded-full bg-black/75 text-white backdrop-blur">
+                    <Link
+                      href={editUrl}
+                      className="flex h-11 w-11 items-center justify-center rounded-full bg-black/75 text-white backdrop-blur transition hover:bg-yellow-500 hover:text-black"
+                      title="Edit Listing"
+                    >
                       ✎
-                    </button>
+                    </Link>
+
                     <button className="flex h-11 w-11 items-center justify-center rounded-full bg-black/75 text-white backdrop-blur">
                       ⋮
                     </button>
@@ -486,7 +551,6 @@ export default function LocationsDashboardPage() {
                   </div>
                 </div>
 
-                {/* MAIN DETAILS GRID */}
                 <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_1fr]">
                   <section className="rounded-[1.5rem] border border-white/10 bg-[#111] p-5">
                     <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-white/50">
@@ -583,7 +647,6 @@ export default function LocationsDashboardPage() {
                   </section>
                 </div>
 
-                {/* META + QUICK ACTIONS */}
                 <section className="mt-5 rounded-[1.5rem] border border-white/10 bg-[#111] p-5">
                   <div className="grid gap-4 md:grid-cols-4">
                     <MetaItem label="Type" value={selected.location_type} />
@@ -604,9 +667,12 @@ export default function LocationsDashboardPage() {
                     </p>
 
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                      <button className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/80">
+                      <Link
+                        href={editUrl}
+                        className="rounded-xl border border-white/10 px-4 py-3 text-center text-sm font-bold text-white/80 transition hover:border-yellow-500 hover:text-yellow-500"
+                      >
                         ✎ Edit Listing
-                      </button>
+                      </Link>
 
                       <button className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/80">
                         ◉ View Public Listing
@@ -656,52 +722,5 @@ export default function LocationsDashboardPage() {
         </div>
       </div>
     </main>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  sub,
-  green,
-}: {
-  icon: string;
-  label: string;
-  value: string | number;
-  sub: string;
-  green?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-5 shadow-2xl">
-      <div className="flex items-center gap-4">
-        <div
-          className={`flex h-14 w-14 items-center justify-center rounded-full text-2xl font-black ${
-            green
-              ? "bg-green-500/20 text-green-400"
-              : "bg-yellow-500/20 text-yellow-500"
-          }`}
-        >
-          {icon}
-        </div>
-
-        <div>
-          <p className="text-xs font-black text-white">{label}</p>
-          <p className="mt-1 text-3xl font-black">{value}</p>
-          <p className="text-xs text-white/50">{sub}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MetaItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-black/30 p-4">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
-        {label}
-      </p>
-      <p className="mt-2 text-sm font-bold capitalize text-white">{value}</p>
-    </div>
   );
 }
