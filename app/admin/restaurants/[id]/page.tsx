@@ -490,39 +490,62 @@ export default function AdminRestaurantDetailPage() {
           </section>
 
           <section className="rounded-3xl bg-white p-6 text-black">
-            <h2 className="text-xl font-bold">Scores</h2>
+  <h2 className="text-xl font-bold">Scores</h2>
 
-            <div className="mt-4 grid gap-3">
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.rating || ""}
-                onChange={(e) => update("rating", e.target.value)}
-                placeholder="Rating"
-              />
+  <p className="mt-1 text-xs text-neutral-500">
+    These scores are used internally for ranking, recommendations, and listing quality.
+  </p>
 
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.review_count || ""}
-                onChange={(e) => update("review_count", e.target.value)}
-                placeholder="Review Count"
-              />
+  <div className="mt-5 grid gap-4">
+    <div>
+      <label className="text-sm font-semibold text-neutral-600">
+        Rating
+      </label>
+      <input
+        className="mt-1 w-full rounded-xl border px-4 py-3"
+        value={form.rating || ""}
+        onChange={(e) => update("rating", e.target.value)}
+        placeholder="Example: 4.8"
+      />
+    </div>
 
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.quality_score || ""}
-                onChange={(e) => update("quality_score", e.target.value)}
-                placeholder="Quality Score"
-              />
+    <div>
+      <label className="text-sm font-semibold text-neutral-600">
+        Review Count
+      </label>
+      <input
+        className="mt-1 w-full rounded-xl border px-4 py-3"
+        value={form.review_count || ""}
+        onChange={(e) => update("review_count", e.target.value)}
+        placeholder="Example: 125"
+      />
+    </div>
 
-              <input
-                className="rounded-xl border px-4 py-3"
-                value={form.popularity_score || ""}
-                onChange={(e) => update("popularity_score", e.target.value)}
-                placeholder="Popularity Score"
-              />
-            </div>
-          </section>
+    <div>
+      <label className="text-sm font-semibold text-neutral-600">
+        Quality Score
+      </label>
+      <input
+        className="mt-1 w-full rounded-xl border px-4 py-3"
+        value={form.quality_score || ""}
+        onChange={(e) => update("quality_score", e.target.value)}
+        placeholder="Example: 90"
+      />
+    </div>
 
+    <div>
+      <label className="text-sm font-semibold text-neutral-600">
+        Popularity Score
+      </label>
+      <input
+        className="mt-1 w-full rounded-xl border px-4 py-3"
+        value={form.popularity_score || ""}
+        onChange={(e) => update("popularity_score", e.target.value)}
+        placeholder="Example: 85"
+      />
+    </div>
+  </div>
+</section>
           <section className="rounded-3xl bg-white p-6 text-black">
             <h2 className="text-xl font-bold">External Actions</h2>
 
