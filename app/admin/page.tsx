@@ -117,8 +117,7 @@ export default function AdminPage() {
       const matchesType =
         locationType === "all" || location.location_type === locationType;
 
-      const matchesClaim =
-        claimFilter === "all" || status === claimFilter;
+      const matchesClaim = claimFilter === "all" || status === claimFilter;
 
       const matchesSearch =
         location.display_name.toLowerCase().includes(query) ||
@@ -208,7 +207,10 @@ export default function AdminPage() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-6">
           <button
-            onClick={() => setLocationType("all")}
+            onClick={() => {
+              setLocationType("all");
+              setClaimFilter("all");
+            }}
             className="rounded-3xl bg-white p-5 text-left text-black"
           >
             <p className="text-sm font-semibold text-neutral-500">All</p>
@@ -297,10 +299,11 @@ export default function AdminPage() {
 
         <section className="mt-8 overflow-hidden rounded-3xl border border-white/10 bg-white">
           <div className="grid grid-cols-12 bg-neutral-100 px-5 py-4 text-xs font-black uppercase tracking-wide text-neutral-500">
-            <div className="col-span-5">Location</div>
+            <div className="col-span-2">Image</div>
+            <div className="col-span-4">Location</div>
             <div className="col-span-2 hidden md:block">Type</div>
             <div className="col-span-2 hidden md:block">Claim</div>
-            <div className="col-span-3 text-right">Actions</div>
+            <div className="col-span-2 text-right">Actions</div>
           </div>
 
           <div className="divide-y divide-neutral-200">
@@ -313,9 +316,23 @@ export default function AdminPage() {
               return (
                 <div
                   key={`${location.location_type}-${location.id}`}
-                  className="grid grid-cols-12 gap-4 px-5 py-5 text-black hover:bg-neutral-50"
+                  className="grid grid-cols-12 items-center gap-4 px-5 py-5 text-black hover:bg-neutral-50"
                 >
-                  <div className="col-span-12 md:col-span-5">
+                  <div className="col-span-12 md:col-span-2">
+                    {location.image_url ? (
+                      <img
+                        src={location.image_url}
+                        alt={location.display_name}
+                        className="h-20 w-28 rounded-2xl object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-20 w-28 items-center justify-center rounded-2xl bg-neutral-200 text-xs font-semibold text-neutral-500">
+                        No Image
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-span-12 md:col-span-4">
                     <Link
                       href={location.edit_path}
                       className="text-lg font-black hover:underline"
@@ -364,7 +381,7 @@ export default function AdminPage() {
                     </span>
                   </div>
 
-                  <div className="col-span-12 md:col-span-3">
+                  <div className="col-span-12 md:col-span-2">
                     <div className="flex flex-wrap justify-end gap-2">
                       <Link
                         href={location.edit_path}
@@ -380,22 +397,26 @@ export default function AdminPage() {
                           rel="noopener noreferrer"
                           className="rounded-full border border-black px-4 py-2 text-sm font-bold text-black"
                         >
-                          Claim Link
+                          Claim
                         </a>
                       )}
                     </div>
+                  </div>
 
-                    {pendingClaim && (
-                      <div className="mt-4 rounded-2xl bg-yellow-50 p-4 text-left text-sm">
-                        <p className="font-bold text-yellow-700">
-                          Pending Claim
-                        </p>
-                        <p>{pendingClaim.owner_name || "No name"}</p>
-                        <p className="break-all text-neutral-600">
-                          {pendingClaim.owner_email}
-                        </p>
+                  {pendingClaim && (
+                    <div className="col-span-12 rounded-2xl bg-yellow-50 p-4 text-sm">
+                      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+                        <div>
+                          <p className="font-bold text-yellow-700">
+                            Pending Claim
+                          </p>
+                          <p>{pendingClaim.owner_name || "No name"}</p>
+                          <p className="break-all text-neutral-600">
+                            {pendingClaim.owner_email}
+                          </p>
+                        </div>
 
-                        <div className="mt-3 flex justify-end gap-2">
+                        <div className="flex gap-2">
                           <button
                             onClick={() =>
                               updateClaim(
@@ -404,7 +425,7 @@ export default function AdminPage() {
                                 "claimed"
                               )
                             }
-                            className="rounded-full bg-green-600 px-3 py-2 text-xs font-bold text-white"
+                            className="rounded-full bg-green-600 px-4 py-2 text-xs font-bold text-white"
                           >
                             Approve
                           </button>
@@ -417,14 +438,14 @@ export default function AdminPage() {
                                 "rejected"
                               )
                             }
-                            className="rounded-full bg-red-600 px-3 py-2 text-xs font-bold text-white"
+                            className="rounded-full bg-red-600 px-4 py-2 text-xs font-bold text-white"
                           >
                             Reject
                           </button>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
