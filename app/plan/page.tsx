@@ -1,29 +1,46 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function PlanPage() {
   const [plan, setPlan] = useState<any>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("roseout_plan");
 
     if (saved) {
-      setPlan(JSON.parse(saved));
+      try {
+        setPlan(JSON.parse(saved));
+      } catch {
+        setPlan(null);
+      }
     }
+
+    setLoaded(true);
   }, []);
+
+  if (!loaded) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
+        <p className="text-lg font-bold text-yellow-500">Loading plan...</p>
+      </main>
+    );
+  }
 
   if (!plan) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
         <div className="text-center">
           <p className="text-2xl font-bold">No plan found</p>
-          <a
+
+          <Link
             href="/create"
             className="mt-4 inline-block rounded-full bg-yellow-500 px-6 py-3 font-bold text-black"
           >
             Create a Plan
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -43,21 +60,28 @@ export default function PlanPage() {
     activity?.primary_tag ||
     "Curated by RoseOut";
 
+  const getRestaurantId = restaurant?.id || restaurant?.google_place_id;
+  const getActivityId = activity?.id || activity?.google_place_id;
+
   const restaurantMapsUrl = restaurant
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        `${restaurant.restaurant_name} ${restaurant.address} ${restaurant.city}`
+        `${restaurant.restaurant_name || ""} ${restaurant.address || ""} ${
+          restaurant.city || ""
+        }`
       )}`
     : "#";
 
   const activityMapsUrl = activity
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        `${activity.activity_name} ${activity.address} ${activity.city}`
+        `${activity.activity_name || ""} ${activity.address || ""} ${
+          activity.city || ""
+        }`
       )}`
     : "#";
 
   return (
     <main className="min-h-screen bg-[#050505] px-5 py-10 text-white">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-3xl">
         <button
           onClick={() => window.history.back()}
           className="mb-6 text-sm font-semibold text-yellow-500"
@@ -83,13 +107,9 @@ export default function PlanPage() {
               Plan Overview
             </p>
 
-            <h2 className="mt-2 text-2xl font-extrabold">
-              {planTitle}
-            </h2>
+            <h2 className="mt-2 text-2xl font-extrabold">{planTitle}</h2>
 
-            <p className="mt-2 text-sm text-neutral-300">
-              {planSubtitle}
-            </p>
+            <p className="mt-2 text-sm text-neutral-300">{planSubtitle}</p>
           </div>
 
           {restaurant && (
@@ -97,7 +117,7 @@ export default function PlanPage() {
               {restaurant.image_url ? (
                 <img
                   src={restaurant.image_url}
-                  alt={restaurant.restaurant_name}
+                  alt={restaurant.restaurant_name || "Restaurant"}
                   className="h-60 w-full object-cover"
                 />
               ) : (
@@ -112,12 +132,13 @@ export default function PlanPage() {
                 </p>
 
                 <h2 className="mt-2 text-2xl font-bold">
-                  {restaurant.restaurant_name}
+                  {restaurant.restaurant_name || "Restaurant"}
                 </h2>
 
                 <p className="mt-2 text-sm text-neutral-600">
-                  {restaurant.address}, {restaurant.city}, {restaurant.state}{" "}
-                  {restaurant.zip_code}
+                  {[restaurant.address, restaurant.city, restaurant.state, restaurant.zip_code]
+                    .filter(Boolean)
+                    .join(", ")}
                 </p>
 
                 {restaurant.rating && (
@@ -142,9 +163,18 @@ export default function PlanPage() {
                 ) : null}
 
                 <div className="mt-5 grid gap-3">
-                  {restaurant.reservation_link && (
+                  {getRestaurantId && (
+                    <Link
+                      href={`/locations/restaurants/${getRestaurantId}`}
+                      className="rounded-full bg-yellow-500 px-5 py-3 text-center text-sm font-extrabold text-black"
+                    >
+                      View Dinner Details
+                    </Link>
+                  )}
+
+                  {(restaurant.reservation_url || restaurant.reservation_link) && (
                     <a
-                      href={restaurant.reservation_link}
+                      href={restaurant.reservation_url || restaurant.reservation_link}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
@@ -171,7 +201,7 @@ export default function PlanPage() {
               {activity.image_url ? (
                 <img
                   src={activity.image_url}
-                  alt={activity.activity_name}
+                  alt={activity.activity_name || "Activity"}
                   className="h-60 w-full object-cover"
                 />
               ) : (
@@ -186,12 +216,13 @@ export default function PlanPage() {
                 </p>
 
                 <h2 className="mt-2 text-2xl font-bold">
-                  {activity.activity_name}
+                  {activity.activity_name || "Activity"}
                 </h2>
 
                 <p className="mt-2 text-sm text-neutral-600">
-                  {activity.address}, {activity.city}, {activity.state}{" "}
-                  {activity.zip_code}
+                  {[activity.address, activity.city, activity.state, activity.zip_code]
+                    .filter(Boolean)
+                    .join(", ")}
                 </p>
 
                 {activity.rating && (
@@ -216,9 +247,18 @@ export default function PlanPage() {
                 ) : null}
 
                 <div className="mt-5 grid gap-3">
-                  {activity.reservation_link && (
+                  {getActivityId && (
+                    <Link
+                      href={`/locations/activities/${getActivityId}`}
+                      className="rounded-full bg-yellow-500 px-5 py-3 text-center text-sm font-extrabold text-black"
+                    >
+                      View Activity Details
+                    </Link>
+                  )}
+
+                  {(activity.reservation_url || activity.reservation_link) && (
                     <a
-                      href={activity.reservation_link}
+                      href={activity.reservation_url || activity.reservation_link}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="rounded-full bg-black px-5 py-3 text-center text-sm font-bold text-white"
