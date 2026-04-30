@@ -8,14 +8,13 @@ const supabaseAdmin = createClient(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
+  const { id } = params;
 
   const { data, error } = await supabaseAdmin
     .from("restaurants")
-    .select(
-      `
+    .select(`
       *,
       restaurant_owners (
         id,
@@ -23,8 +22,7 @@ export async function GET(
         name,
         email
       )
-    `
-    )
+    `)
     .eq("id", id)
     .single();
 
@@ -37,17 +35,12 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
+  const { id } = params;
   const body = await request.json();
 
-  const {
-    owner_name,
-    owner_email,
-    restaurant_owners,
-    ...updates
-  } = body;
+  const { owner_name, owner_email, ...updates } = body;
 
   const { error } = await supabaseAdmin
     .from("restaurants")
@@ -73,7 +66,7 @@ export async function PATCH(
           email: owner_email,
         })
         .eq("restaurant_id", id);
-    } else if (owner_name || owner_email) {
+    } else {
       await supabaseAdmin.from("restaurant_owners").insert({
         restaurant_id: id,
         name: owner_name,
@@ -82,10 +75,9 @@ export async function PATCH(
     }
   }
 
-  const { data: restaurant, error: fetchError } = await supabaseAdmin
+  const { data: restaurant } = await supabaseAdmin
     .from("restaurants")
-    .select(
-      `
+    .select(`
       *,
       restaurant_owners (
         id,
@@ -93,14 +85,9 @@ export async function PATCH(
         name,
         email
       )
-    `
-    )
+    `)
     .eq("id", id)
     .single();
-
-  if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 500 });
-  }
 
   return NextResponse.json({ restaurant });
 }
