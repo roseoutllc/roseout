@@ -1,274 +1,234 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase-browser";
 
 type Restaurant = {
   id: string;
   restaurant_name: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  status?: string;
-  cuisine_type?: string;
-  price_range?: string;
-  atmosphere?: string;
-  primary_tag?: string;
-  reservation_link?: string;
-  website?: string;
-  image_url?: string;
-  rating?: number;
-  review_count?: number;
-  roseout_score?: number;
-  view_count?: number;
-  click_count?: number;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  status: string;
+
+  phone?: string | null;
+  website?: string | null;
+  reservation_url?: string | null;
+  cuisine?: string | null;
+  description?: string | null;
+  image_url?: string | null;
+  roseout_score?: number | null;
+  view_count?: number | null;
+  click_count?: number | null;
+  created_at?: string | null;
+};
+
+type RestaurantForm = Partial<Restaurant>;
+
+type Props = {
+  initialRestaurants: Restaurant[];
 };
 
 export default function RestaurantsAdminClient({
   initialRestaurants,
-  loadError,
-}: {
-  initialRestaurants: Restaurant[];
-  loadError: string;
-}) {
-  const supabase = createClient();
-
+}: Props) {
   const [restaurants, setRestaurants] =
     useState<Restaurant[]>(initialRestaurants);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<RestaurantForm>({});
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Partial<Restaurant>>({});
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState(loadError || "");
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  function startEditing(restaurant: Restaurant) {
+    setEditingId(restaurant.id);
+    setMessage("");
+
+    setForm({
+      restaurant_name: restaurant.restaurant_name,
+      address: restaurant.address,
+      city: restaurant.city,
+      state: restaurant.state,
+      zip_code: restaurant.zip_code,
+      status: restaurant.status,
+      phone: restaurant.phone ?? "",
+      website: restaurant.website ?? "",
+      reservation_url: restaurant.reservation_url ?? "",
+      cuisine: restaurant.cuisine ?? "",
+      description: restaurant.description ?? "",
+      image_url: restaurant.image_url ?? "",
+      roseout_score: restaurant.roseout_score ?? 0,
+      view_count: restaurant.view_count ?? 0,
+      click_count: restaurant.click_count ?? 0,
+    });
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setForm({});
+    setMessage("");
+  }
+
+  function updateForm(field: keyof Restaurant, value: string | number) {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
+
+  async function saveRestaurant(id: string) {
+    try {
+      setSaving(true);
+      setMessage("");
+
+      const payload = {
+        restaurant_name: form.restaurant_name ?? "",
+        address: form.address ?? "",
+        city: form.city ?? "",
+        state: form.state ?? "",
+        zip_code: form.zip_code ?? "",
+        status: form.status ?? "pending",
+        phone: form.phone ?? null,
+        website: form.website ?? null,
+        reservation_url: form.reservation_url ?? null,
+        cuisine: form.cuisine ?? null,
+        description: form.description ?? null,
+        image_url: form.image_url ?? null,
+        roseout_score:
+          form.roseout_score === undefined || form.roseout_score === null
+            ? null
+            : Number(form.roseout_score),
+      };
+
+      const res = await fetch(`/api/admin/restaurants/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update restaurant");
+      }
+
+      setRestaurants((prev): Restaurant[] =>
+        prev.map((r): Restaurant =>
+          r.id === id
+            ? {
+                ...r,
+                restaurant_name: form.restaurant_name ?? r.restaurant_name,
+                address: form.address ?? r.address,
+                city: form.city ?? r.city,
+                state: form.state ?? r.state,
+                zip_code: form.zip_code ?? r.zip_code,
+                status: form.status ?? r.status,
+                phone: form.phone ?? r.phone,
+                website: form.website ?? r.website,
+                reservation_url: form.reservation_url ?? r.reservation_url,
+                cuisine: form.cuisine ?? r.cuisine,
+                description: form.description ?? r.description,
+                image_url: form.image_url ?? r.image_url,
+                roseout_score:
+                  form.roseout_score === undefined
+                    ? r.roseout_score
+                    : Number(form.roseout_score),
+                view_count: r.view_count,
+                click_count: r.click_count,
+              }
+            : r
+        )
+      );
+
+      setEditingId(null);
+      setForm({});
+      setMessage("Restaurant updated successfully.");
+    } catch (error) {
+      console.error(error);
+      setMessage("Update failed. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const filteredRestaurants = useMemo(() => {
-    return restaurants.filter((r) => {
+    return restaurants.filter((restaurant) => {
+      const q = search.toLowerCase();
+
       const matchesSearch =
-        r.restaurant_name?.toLowerCase().includes(search.toLowerCase()) ||
-        r.city?.toLowerCase().includes(search.toLowerCase()) ||
-        r.cuisine_type?.toLowerCase().includes(search.toLowerCase());
+        restaurant.restaurant_name.toLowerCase().includes(q) ||
+        restaurant.address.toLowerCase().includes(q) ||
+        restaurant.city.toLowerCase().includes(q) ||
+        restaurant.state.toLowerCase().includes(q) ||
+        restaurant.cuisine?.toLowerCase().includes(q);
 
       const matchesStatus =
-        statusFilter === "all" || r.status === statusFilter;
+        statusFilter === "all" || restaurant.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [restaurants, search, statusFilter]);
 
-  const startEdit = (restaurant: Restaurant) => {
-    setEditingId(restaurant.id);
-    setForm({
-      restaurant_name: restaurant.restaurant_name || "",
-      address: restaurant.address || "",
-      city: restaurant.city || "",
-      state: restaurant.state || "",
-      zip_code: restaurant.zip_code || "",
-      status: restaurant.status || "approved",
-      cuisine_type: restaurant.cuisine_type || "",
-      price_range: restaurant.price_range || "",
-      atmosphere: restaurant.atmosphere || "",
-      primary_tag: restaurant.primary_tag || "",
-      reservation_link: restaurant.reservation_link || "",
-      website: restaurant.website || "",
-      image_url: restaurant.image_url || "",
-      rating: restaurant.rating || 0,
-      review_count: restaurant.review_count || 0,
-      roseout_score: restaurant.roseout_score || 0,
-    });
-    setMessage("");
-    setError("");
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setForm({});
-  };
-
-  const updateField = (field: keyof Restaurant, value: any) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const saveRestaurant = async (id: string) => {
-    setSaving(true);
-    setMessage("");
-    setError("");
-
-    try {
-      const updatePayload = {
-        restaurant_name: form.restaurant_name,
-        address: form.address,
-        city: form.city,
-        state: form.state,
-        zip_code: form.zip_code,
-        status: form.status,
-        cuisine_type: form.cuisine_type,
-        price_range: form.price_range,
-        atmosphere: form.atmosphere,
-        primary_tag: form.primary_tag,
-        reservation_link: form.reservation_link,
-        website: form.website,
-        image_url: form.image_url,
-        rating: Number(form.rating || 0),
-        review_count: Number(form.review_count || 0),
-        roseout_score: Number(form.roseout_score || 0),
-      };
-
-      const { error: updateError } = await supabase
-        .from("restaurants")
-        .update(updatePayload)
-        .eq("id", id);
-
-      if (updateError) throw updateError;
-
-setRestaurants((prev): Restaurant[] =>
-  prev.map((r): Restaurant =>
-    r.id === id
-      ? {
-          ...r,
-          restaurant_name: form.restaurant_name ?? r.restaurant_name,
-          address: form.address ?? r.address,
-          city: form.city ?? r.city,
-          state: form.state ?? r.state,
-          zip_code: form.zip_code ?? r.zip_code,
-          status: form.status ?? r.status,
-          phone: form.phone ?? r.phone,
-          website: form.website ?? r.website,
-          reservation_url: form.reservation_url ?? r.reservation_url,
-          cuisine: form.cuisine ?? r.cuisine,
-          description: form.description ?? r.description,
-          image_url: form.image_url ?? r.image_url,
-          roseout_score:
-            form.roseout_score === undefined
-              ? r.roseout_score
-              : Number(form.roseout_score),
-          view_count: r.view_count,
-          click_count: r.click_count,
-        }
-      : r
-  )
-);
-
-      setEditingId(null);
-      setForm({});
-      setMessage("Restaurant updated successfully.");
-    } catch (err: any) {
-      setError(err.message || "Could not update restaurant.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
-    <div>
-      <div className="mb-8">
-        <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
-          RoseOut Admin
-        </p>
-
-        <h1 className="text-4xl font-extrabold tracking-tight">
-          Restaurants Admin
-        </h1>
-
-        <p className="mt-3 text-neutral-400">
-          Search, edit, approve, and manage restaurant listings.
-        </p>
-      </div>
-
-      {message && (
-        <div className="mb-5 rounded-2xl bg-green-100 p-4 text-green-700">
-          {message}
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-5 rounded-2xl bg-red-100 p-4 text-red-700">
-          {error}
-        </div>
-      )}
-
-      <section className="mb-6 grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl bg-white p-5 text-black">
-          <p className="text-xs font-bold uppercase text-neutral-500">Total</p>
-          <p className="mt-1 text-3xl font-extrabold">{restaurants.length}</p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-5 text-black">
-          <p className="text-xs font-bold uppercase text-neutral-500">
-            Approved
+    <main className="min-h-screen bg-[#fff8f1] px-6 py-8 text-[#2b1a12]">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#b66a3c]">
+            RoseOut Admin
           </p>
-          <p className="mt-1 text-3xl font-extrabold">
-            {restaurants.filter((r) => r.status === "approved").length}
+          <h1 className="mt-2 text-4xl font-bold">Restaurants CMS</h1>
+          <p className="mt-2 text-sm text-[#6f5c50]">
+            Manage restaurant listings, details, images, reservation links, and
+            RoseOut scores.
           </p>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 text-black">
-          <p className="text-xs font-bold uppercase text-neutral-500">
-            Views
-          </p>
-          <p className="mt-1 text-3xl font-extrabold">
-            {restaurants.reduce((sum, r) => sum + Number(r.view_count || 0), 0)}
-          </p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-5 text-black">
-          <p className="text-xs font-bold uppercase text-neutral-500">
-            Clicks
-          </p>
-          <p className="mt-1 text-3xl font-extrabold">
-            {restaurants.reduce(
-              (sum, r) => sum + Number(r.click_count || 0),
-              0
-            )}
-          </p>
-        </div>
-      </section>
-
-      <section className="mb-6 rounded-[2rem] bg-white p-5 text-black shadow-xl">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="mb-6 grid gap-4 rounded-3xl border border-[#ead8c7] bg-white p-5 shadow-sm md:grid-cols-3">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search restaurants, city, cuisine..."
-            className="rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500 md:col-span-2"
+            placeholder="Search restaurants..."
+            className="rounded-2xl border border-[#ead8c7] px-4 py-3 text-sm outline-none focus:border-[#b66a3c]"
           />
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
+            className="rounded-2xl border border-[#ead8c7] px-4 py-3 text-sm outline-none focus:border-[#b66a3c]"
           >
             <option value="all">All Statuses</option>
             <option value="approved">Approved</option>
             <option value="pending">Pending</option>
-            <option value="draft">Draft</option>
             <option value="rejected">Rejected</option>
+            <option value="draft">Draft</option>
           </select>
-        </div>
-      </section>
 
-      <section className="overflow-hidden rounded-[2rem] bg-white text-black shadow-2xl">
-        <div className="border-b border-neutral-200 p-5">
-          <h2 className="text-xl font-bold">Restaurant Listings</h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            Showing {filteredRestaurants.length} restaurants.
-          </p>
+          <div className="flex items-center rounded-2xl bg-[#fff8f1] px-4 py-3 text-sm font-semibold text-[#6f5c50]">
+            {filteredRestaurants.length} restaurants found
+          </div>
         </div>
 
-        <div className="divide-y divide-neutral-200">
+        {message && (
+          <div className="mb-6 rounded-2xl border border-[#ead8c7] bg-white px-5 py-4 text-sm font-semibold text-[#6f5c50]">
+            {message}
+          </div>
+        )}
+
+        <div className="grid gap-5">
           {filteredRestaurants.map((restaurant) => {
             const isEditing = editingId === restaurant.id;
 
             return (
-              <div key={restaurant.id} className="p-5">
+              <section
+                key={restaurant.id}
+                className="rounded-3xl border border-[#ead8c7] bg-white p-5 shadow-sm"
+              >
                 {!isEditing ? (
-                  <div className="grid gap-5 md:grid-cols-[120px_1fr_auto]">
-                    <div className="h-24 w-full overflow-hidden rounded-2xl bg-neutral-200 md:w-28">
+                  <div className="grid gap-5 lg:grid-cols-[140px_1fr_auto]">
+                    <div className="h-32 w-full overflow-hidden rounded-2xl bg-[#f4e5d8] lg:w-32">
                       {restaurant.image_url ? (
                         <img
                           src={restaurant.image_url}
@@ -276,246 +236,218 @@ setRestaurants((prev): Restaurant[] =>
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <div className="flex h-full items-center justify-center text-xs text-neutral-500">
+                        <div className="flex h-full w-full items-center justify-center text-xs text-[#8a7568]">
                           No Image
                         </div>
                       )}
                     </div>
 
                     <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-xl font-extrabold">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <h2 className="text-2xl font-bold">
                           {restaurant.restaurant_name}
-                        </h3>
+                        </h2>
 
-                        <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
-                          {restaurant.status || "unknown"}
+                        <span className="rounded-full bg-[#fff0e3] px-3 py-1 text-xs font-semibold capitalize text-[#b66a3c]">
+                          {restaurant.status}
                         </span>
                       </div>
 
-                      <p className="mt-2 text-sm text-neutral-600">
+                      <p className="text-sm text-[#6f5c50]">
                         {restaurant.address}, {restaurant.city},{" "}
                         {restaurant.state} {restaurant.zip_code}
                       </p>
 
-                      <p className="mt-2 text-sm text-neutral-500">
-                        {restaurant.cuisine_type || "Cuisine N/A"} ·{" "}
-                        {restaurant.price_range || "Price N/A"} · Score:{" "}
-                        {restaurant.roseout_score || 0}
+                      <p className="mt-2 text-sm text-[#6f5c50]">
+                        {restaurant.cuisine || "No cuisine listed"}
                       </p>
 
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                        <span className="rounded-full bg-neutral-100 px-3 py-1">
-                          Views: {restaurant.view_count || 0}
-                        </span>
-                        <span className="rounded-full bg-neutral-100 px-3 py-1">
-                          Clicks: {restaurant.click_count || 0}
-                        </span>
-                        <span className="rounded-full bg-neutral-100 px-3 py-1">
-                          Rating: {restaurant.rating || 0}
-                        </span>
+                      <p className="mt-3 max-w-3xl text-sm leading-6 text-[#6f5c50]">
+                        {restaurant.description || "No description added."}
+                      </p>
+
+                      <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold text-[#6f5c50]">
+                        <span>Score: {restaurant.roseout_score ?? 0}</span>
+                        <span>Views: {restaurant.view_count ?? 0}</span>
+                        <span>Clicks: {restaurant.click_count ?? 0}</span>
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-2">
+                    <div>
                       <button
-                        type="button"
-                        onClick={() => startEdit(restaurant)}
-                        className="rounded-full bg-yellow-500 px-5 py-2 text-sm font-extrabold text-black"
+                        onClick={() => startEditing(restaurant)}
+                        className="rounded-full bg-[#2b1a12] px-5 py-3 text-sm font-semibold text-white hover:opacity-90"
                       >
                         Edit
                       </button>
-
-                      <a
-                        href={`/restaurants/${restaurant.id}`}
-                        target="_blank"
-                        className="rounded-full bg-black px-5 py-2 text-center text-sm font-extrabold text-white"
-                      >
-                        View
-                      </a>
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <div className="mb-5 flex items-center justify-between">
-                      <h3 className="text-xl font-extrabold">
-                        Editing Restaurant
-                      </h3>
+                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                      <h2 className="text-2xl font-bold">Edit Restaurant</h2>
 
-                      <button
-                        type="button"
-                        onClick={cancelEdit}
-                        className="rounded-full border border-black px-4 py-2 text-sm font-bold"
-                      >
-                        Cancel
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={cancelEditing}
+                          className="rounded-full border border-[#ead8c7] px-5 py-3 text-sm font-semibold"
+                        >
+                          Cancel
+                        </button>
+
+                        <button
+                          onClick={() => saveRestaurant(restaurant.id)}
+                          disabled={saving}
+                          className="rounded-full bg-[#b66a3c] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                        >
+                          {saving ? "Saving..." : "Save"}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <input
-                        value={form.restaurant_name || ""}
-                        onChange={(e) =>
-                          updateField("restaurant_name", e.target.value)
+                      <Input
+                        label="Restaurant Name"
+                        value={form.restaurant_name ?? ""}
+                        onChange={(value) =>
+                          updateForm("restaurant_name", value)
                         }
-                        placeholder="Restaurant name"
-                        className="rounded-2xl border px-4 py-3"
                       />
 
-                      <select
-                        value={form.status || "approved"}
-                        onChange={(e) => updateField("status", e.target.value)}
-                        className="rounded-2xl border px-4 py-3"
-                      >
-                        <option value="approved">Approved</option>
-                        <option value="pending">Pending</option>
-                        <option value="draft">Draft</option>
-                        <option value="rejected">Rejected</option>
-                      </select>
-
-                      <input
-                        value={form.address || ""}
-                        onChange={(e) => updateField("address", e.target.value)}
-                        placeholder="Address"
-                        className="rounded-2xl border px-4 py-3"
+                      <Input
+                        label="Cuisine"
+                        value={form.cuisine ?? ""}
+                        onChange={(value) => updateForm("cuisine", value)}
                       />
 
-                      <input
-                        value={form.city || ""}
-                        onChange={(e) => updateField("city", e.target.value)}
-                        placeholder="City"
-                        className="rounded-2xl border px-4 py-3"
+                      <Input
+                        label="Address"
+                        value={form.address ?? ""}
+                        onChange={(value) => updateForm("address", value)}
                       />
 
-                      <input
-                        value={form.state || ""}
-                        onChange={(e) => updateField("state", e.target.value)}
-                        placeholder="State"
-                        className="rounded-2xl border px-4 py-3"
+                      <Input
+                        label="City"
+                        value={form.city ?? ""}
+                        onChange={(value) => updateForm("city", value)}
                       />
 
-                      <input
-                        value={form.zip_code || ""}
-                        onChange={(e) =>
-                          updateField("zip_code", e.target.value)
+                      <Input
+                        label="State"
+                        value={form.state ?? ""}
+                        onChange={(value) => updateForm("state", value)}
+                      />
+
+                      <Input
+                        label="Zip Code"
+                        value={form.zip_code ?? ""}
+                        onChange={(value) => updateForm("zip_code", value)}
+                      />
+
+                      <Input
+                        label="Phone"
+                        value={form.phone ?? ""}
+                        onChange={(value) => updateForm("phone", value)}
+                      />
+
+                      <Input
+                        label="Website"
+                        value={form.website ?? ""}
+                        onChange={(value) => updateForm("website", value)}
+                      />
+
+                      <Input
+                        label="Reservation Link"
+                        value={form.reservation_url ?? ""}
+                        onChange={(value) =>
+                          updateForm("reservation_url", value)
                         }
-                        placeholder="Zip Code"
-                        className="rounded-2xl border px-4 py-3"
                       />
 
-                      <input
-                        value={form.cuisine_type || ""}
-                        onChange={(e) =>
-                          updateField("cuisine_type", e.target.value)
-                        }
-                        placeholder="Cuisine Type"
-                        className="rounded-2xl border px-4 py-3"
+                      <Input
+                        label="Image URL"
+                        value={form.image_url ?? ""}
+                        onChange={(value) => updateForm("image_url", value)}
                       />
 
-                      <input
-                        value={form.price_range || ""}
-                        onChange={(e) =>
-                          updateField("price_range", e.target.value)
-                        }
-                        placeholder="Price Range"
-                        className="rounded-2xl border px-4 py-3"
-                      />
-
-                      <input
-                        value={form.atmosphere || ""}
-                        onChange={(e) =>
-                          updateField("atmosphere", e.target.value)
-                        }
-                        placeholder="Atmosphere"
-                        className="rounded-2xl border px-4 py-3"
-                      />
-
-                      <input
-                        value={form.primary_tag || ""}
-                        onChange={(e) =>
-                          updateField("primary_tag", e.target.value)
-                        }
-                        placeholder="Primary Tag"
-                        className="rounded-2xl border px-4 py-3"
-                      />
-
-                      <input
-                        value={form.rating || 0}
-                        onChange={(e) =>
-                          updateField("rating", Number(e.target.value))
-                        }
+                      <Input
+                        label="RoseOut Score"
                         type="number"
-                        step="0.1"
-                        placeholder="Rating"
-                        className="rounded-2xl border px-4 py-3"
-                      />
-
-                      <input
-                        value={form.review_count || 0}
-                        onChange={(e) =>
-                          updateField("review_count", Number(e.target.value))
+                        value={String(form.roseout_score ?? 0)}
+                        onChange={(value) =>
+                          updateForm("roseout_score", Number(value))
                         }
-                        type="number"
-                        placeholder="Review Count"
-                        className="rounded-2xl border px-4 py-3"
                       />
 
-                      <input
-                        value={form.roseout_score || 0}
-                        onChange={(e) =>
-                          updateField("roseout_score", Number(e.target.value))
-                        }
-                        type="number"
-                        placeholder="RoseOut Score"
-                        className="rounded-2xl border px-4 py-3"
-                      />
-
-                      <input
-                        value={form.image_url || ""}
-                        onChange={(e) =>
-                          updateField("image_url", e.target.value)
-                        }
-                        placeholder="Image URL"
-                        className="rounded-2xl border px-4 py-3"
-                      />
-
-                      <input
-                        value={form.website || ""}
-                        onChange={(e) => updateField("website", e.target.value)}
-                        placeholder="Website"
-                        className="rounded-2xl border px-4 py-3"
-                      />
-
-                      <input
-                        value={form.reservation_link || ""}
-                        onChange={(e) =>
-                          updateField("reservation_link", e.target.value)
-                        }
-                        placeholder="Reservation Link"
-                        className="rounded-2xl border px-4 py-3"
-                      />
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold">
+                          Status
+                        </label>
+                        <select
+                          value={form.status ?? "pending"}
+                          onChange={(e) =>
+                            updateForm("status", e.target.value)
+                          }
+                          className="w-full rounded-2xl border border-[#ead8c7] px-4 py-3 text-sm outline-none focus:border-[#b66a3c]"
+                        >
+                          <option value="approved">Approved</option>
+                          <option value="pending">Pending</option>
+                          <option value="rejected">Rejected</option>
+                          <option value="draft">Draft</option>
+                        </select>
+                      </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => saveRestaurant(restaurant.id)}
-                      disabled={saving}
-                      className="mt-5 rounded-full bg-yellow-500 px-6 py-3 font-extrabold text-black disabled:opacity-50"
-                    >
-                      {saving ? "Saving..." : "Save Changes"}
-                    </button>
+                    <div className="mt-4">
+                      <label className="mb-2 block text-sm font-semibold">
+                        Description
+                      </label>
+                      <textarea
+                        value={form.description ?? ""}
+                        onChange={(e) =>
+                          updateForm("description", e.target.value)
+                        }
+                        rows={5}
+                        className="w-full rounded-2xl border border-[#ead8c7] px-4 py-3 text-sm outline-none focus:border-[#b66a3c]"
+                      />
+                    </div>
                   </div>
                 )}
-              </div>
+              </section>
             );
           })}
 
-          {!filteredRestaurants.length && (
-            <div className="p-8 text-center text-neutral-500">
+          {filteredRestaurants.length === 0 && (
+            <div className="rounded-3xl border border-[#ead8c7] bg-white p-8 text-center text-sm text-[#6f5c50] shadow-sm">
               No restaurants found.
             </div>
           )}
         </div>
-      </section>
+      </div>
+    </main>
+  );
+}
+
+function Input({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-2xl border border-[#ead8c7] px-4 py-3 text-sm outline-none focus:border-[#b66a3c]"
+      />
     </div>
   );
 }
