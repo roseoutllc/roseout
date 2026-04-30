@@ -1,32 +1,106 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export async function GET() {
-  try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-    const { data, error } = await supabase
-      .from("restaurants")
-      .select("*")
-      .order("created_at", { ascending: false });
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
 
-    if (error) {
-      return NextResponse.json(
-        { error: "Failed to load restaurants" },
-        { status: 500 }
-      );
-    }
+  const { data, error } = await supabaseAdmin
+    .from("restaurants")
+    .select(
+      `
+      *,
+      restaurant_owners (
+        id,
+        user_id,
+        name,
+        email
+      )
+    `
+    )
+    .eq("id", id)
+    .single();
 
-    return NextResponse.json({
-      restaurants: data || [],
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  return NextResponse.json({ restaurant: data });
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const body = await request.json();
+
+  const {
+    owner_name,
+    owner_email,
+    restaurant_owners,
+    ...updates
+  } = body;
+
+  const { error } = await supabaseAdmin
+    .from("restaurants")
+    .update(updates)
+    .eq("id", id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (owner_name !== undefined || owner_email !== undefined) {
+    const { data: existingOwner } = await supabaseAdmin
+      .from("restaurant_owners")
+      .select("id")
+      .eq("restaurant_id", id)
+      .maybeSingle();
+
+    if (existingOwner) {
+      await supabaseAdmin
+        .from("restaurant_owners")
+        .update({
+          name: owner_name,
+          email: owner_email,
+        })
+        .eq("restaurant_id", id);
+    } else if (owner_name || owner_email) {
+      await supabaseAdmin.from("restaurant_owners").insert({
+        restaurant_id: id,
+        name: owner_name,
+        email: owner_email,
+      });
+    }
+  }
+
+  const { data: restaurant, error: fetchError } = await supabaseAdmin
+    .from("restaurants")
+    .select(
+      `
+      *,
+      restaurant_owners (
+        id,
+        user_id,
+        name,
+        email
+      )
+    `
+    )
+    .eq("id", id)
+    .single();
+
+  if (fetchError) {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ restaurant });
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import Link from "next/link";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,7 +14,17 @@ export async function GET(
 
   const { data, error } = await supabaseAdmin
     .from("restaurants")
-    .select("*")
+    .select(
+      `
+      *,
+      restaurant_owners (
+        id,
+        user_id,
+        name,
+        email
+      )
+    `
+    )
     .eq("id", id)
     .single();
 
@@ -33,16 +42,65 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  const { data, error } = await supabaseAdmin
+  const {
+    owner_name,
+    owner_email,
+    restaurant_owners,
+    ...updates
+  } = body;
+
+  const { error } = await supabaseAdmin
     .from("restaurants")
-    .update(body)
-    .eq("id", id)
-    .select("*")
-    .single();
+    .update(updates)
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ restaurant: data });
+  if (owner_name !== undefined || owner_email !== undefined) {
+    const { data: existingOwner } = await supabaseAdmin
+      .from("restaurant_owners")
+      .select("id")
+      .eq("restaurant_id", id)
+      .maybeSingle();
+
+    if (existingOwner) {
+      await supabaseAdmin
+        .from("restaurant_owners")
+        .update({
+          name: owner_name,
+          email: owner_email,
+        })
+        .eq("restaurant_id", id);
+    } else if (owner_name || owner_email) {
+      await supabaseAdmin.from("restaurant_owners").insert({
+        restaurant_id: id,
+        name: owner_name,
+        email: owner_email,
+      });
+    }
+  }
+
+  const { data: restaurant, error: fetchError } = await supabaseAdmin
+    .from("restaurants")
+    .select(
+      `
+      *,
+      restaurant_owners (
+        id,
+        user_id,
+        name,
+        email
+      )
+    `
+    )
+    .eq("id", id)
+    .single();
+
+  if (fetchError) {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ restaurant });
 }
