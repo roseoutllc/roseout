@@ -26,9 +26,11 @@ export async function POST(req: NextRequest) {
     const itemType = body.item_type;
     const eventType = body.event_type;
     const pagePath = body.page_path || null;
+
     const referrer = req.headers.get("referer");
     const userAgent = req.headers.get("user-agent");
 
+    // ✅ Validation
     if (!itemId || !itemType || !eventType) {
       return NextResponse.json(
         { error: "Missing item_id, item_type, or event_type." },
@@ -46,6 +48,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ✅ Log event (for history / analytics dashboard)
     await supabaseAdmin.from("analytics_events").insert({
       item_id: itemId,
       item_type: itemType,
@@ -55,6 +58,7 @@ export async function POST(req: NextRequest) {
       user_agent: userAgent,
     });
 
+    // ✅ Get current count
     const { data: item, error: fetchError } = await supabaseAdmin
       .from(table)
       .select(counter)
@@ -68,8 +72,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const currentCount = Number(item[counter] || 0);
+    // 🔥 FIXED TYPE ERROR HERE
+    const typedItem = item as Record<string, any>;
+    const currentCount = Number(typedItem[counter] || 0);
 
+    // ✅ Update counter
     const { error: updateError } = await supabaseAdmin
       .from(table)
       .update({
