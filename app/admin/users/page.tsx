@@ -8,6 +8,8 @@ export default function AdminUsersPage() {
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState("editor");
+
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,10 +26,13 @@ export default function AdminUsersPage() {
     setLoading(true);
 
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // Check if already exists
       const { data: existingUser } = await supabase
         .from("admin_users")
         .select("id")
-        .eq("email", email.trim().toLowerCase())
+        .eq("email", normalizedEmail)
         .maybeSingle();
 
       if (existingUser) {
@@ -35,17 +40,26 @@ export default function AdminUsersPage() {
         return;
       }
 
-      const { error: insertError } = await supabase.from("admin_users").insert({
-        email: email.trim().toLowerCase(),
-        full_name: fullName.trim() || null,
-        role: "admin",
-      });
+      // 🚨 Prevent assigning superuser from UI
+      if (role === "superuser") {
+        setError("Only superusers can assign the superuser role.");
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from("admin_users")
+        .insert({
+          email: normalizedEmail,
+          full_name: fullName.trim() || null,
+          role,
+        });
 
       if (insertError) throw insertError;
 
       setMessage("Admin user added successfully.");
       setEmail("");
       setFullName("");
+      setRole("editor");
     } catch (err: any) {
       setError(err.message || "Could not add admin user.");
     } finally {
@@ -55,9 +69,8 @@ export default function AdminUsersPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
-      <AdminTopBar />
-
       <div className="mx-auto max-w-3xl px-6 py-10">
+        {/* Header */}
         <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
           RoseOut Admin
         </p>
@@ -67,22 +80,26 @@ export default function AdminUsersPage() {
         </h1>
 
         <p className="mt-3 text-neutral-400">
-          Add team members who should have access to the RoseOut admin portal.
+          Add team members and assign their role.
         </p>
 
+        {/* Card */}
         <div className="mt-8 rounded-[2rem] bg-white p-6 text-black shadow-2xl">
+          {/* Success */}
           {message && (
             <div className="mb-5 rounded-2xl bg-green-100 p-4 text-green-700">
               {message}
             </div>
           )}
 
+          {/* Error */}
           {error && (
             <div className="mb-5 rounded-2xl bg-red-100 p-4 text-red-700">
               {error}
             </div>
           )}
 
+          {/* Full Name */}
           <label className="text-sm font-bold">Full Name</label>
           <input
             value={fullName}
@@ -91,7 +108,10 @@ export default function AdminUsersPage() {
             className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
           />
 
-          <label className="mt-5 block text-sm font-bold">Email Address</label>
+          {/* Email */}
+          <label className="mt-5 block text-sm font-bold">
+            Email Address
+          </label>
           <input
             type="email"
             value={email}
@@ -100,6 +120,21 @@ export default function AdminUsersPage() {
             className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
           />
 
+          {/* Role */}
+          <label className="mt-5 block text-sm font-bold">Role</label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
+          >
+            <option value="editor">Editor</option>
+            <option value="reviewer">Reviewer</option>
+            <option value="viewer">Viewer</option>
+            <option value="admin">Admin</option>
+            <option value="superuser">Superuser</option>
+          </select>
+
+          {/* Button */}
           <button
             onClick={addAdminUser}
             disabled={loading}
