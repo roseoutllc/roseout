@@ -1,7 +1,7 @@
 import { requireAdminRole } from "@/lib/admin-auth";
 
 export default async function AdminDashboardPage() {
-  await requireAdminRole(["superuser", "admin", "editor"]);
+  await requireAdminRole(["superuser", "admin", "editor", "viewer"]);
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
@@ -16,11 +16,12 @@ export default async function AdminDashboardPage() {
         </h1>
 
         <p className="mt-3 max-w-2xl text-neutral-400">
-          Manage your platform, listings, imports, claims, and admin access.
+          Manage your platform, listings, analytics, imports, claims, and admin access.
         </p>
 
         {/* Cards */}
         <section className="mt-10 grid gap-6 md:grid-cols-3">
+          {/* Restaurants */}
           <a
             href="/admin/restaurants"
             className="rounded-[2rem] bg-white p-6 text-black shadow-xl transition hover:-translate-y-1"
@@ -38,6 +39,7 @@ export default async function AdminDashboardPage() {
             </p>
           </a>
 
+          {/* Activities */}
           <a
             href="/admin/activities"
             className="rounded-[2rem] bg-white p-6 text-black shadow-xl transition hover:-translate-y-1"
@@ -55,6 +57,7 @@ export default async function AdminDashboardPage() {
             </p>
           </a>
 
+          {/* Claims */}
           <a
             href="/admin/claims"
             className="rounded-[2rem] bg-white p-6 text-black shadow-xl transition hover:-translate-y-1"
@@ -72,6 +75,25 @@ export default async function AdminDashboardPage() {
             </p>
           </a>
 
+          {/* 🔥 NEW: Analytics Dashboard */}
+          <a
+            href="/admin/analytics"
+            className="rounded-[2rem] bg-white p-6 text-black shadow-xl transition hover:-translate-y-1"
+          >
+            <span className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
+              Analytics
+            </span>
+
+            <h2 className="mt-5 text-2xl font-extrabold">
+              Analytics Dashboard
+            </h2>
+
+            <p className="mt-3 text-sm text-neutral-600">
+              View views, clicks, top listings, and user activity in real time.
+            </p>
+          </a>
+
+          {/* Import History */}
           <a
             href="/admin/import-history"
             className="rounded-[2rem] bg-white p-6 text-black shadow-xl transition hover:-translate-y-1"
@@ -89,6 +111,7 @@ export default async function AdminDashboardPage() {
             </p>
           </a>
 
+          {/* Admin Users */}
           <a
             href="/admin/users"
             className="rounded-[2rem] bg-white p-6 text-black shadow-xl transition hover:-translate-y-1"
@@ -105,26 +128,9 @@ export default async function AdminDashboardPage() {
               Add users, assign roles, and manage admin access.
             </p>
           </a>
-
-          <a
-            href="/admin"
-            className="rounded-[2rem] bg-white p-6 text-black shadow-xl transition hover:-translate-y-1"
-          >
-            <span className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
-              Overview
-            </span>
-
-            <h2 className="mt-5 text-2xl font-extrabold">
-              Main Admin
-            </h2>
-
-            <p className="mt-3 text-sm text-neutral-600">
-              Return to the main admin overview.
-            </p>
-          </a>
         </section>
 
-        {/* Role Table */}
+        {/* Access Levels */}
         <section className="mt-12 rounded-[2rem] border border-white/10 bg-white/5 p-6">
           <h2 className="text-2xl font-extrabold">Access Levels</h2>
 
@@ -141,14 +147,14 @@ export default async function AdminDashboardPage() {
                 <tr className="border-t">
                   <td className="px-5 py-4 font-bold">Superuser</td>
                   <td className="px-5 py-4">
-                    Full system access, users, imports, and content.
+                    Full system access, analytics, users, imports, and content.
                   </td>
                 </tr>
 
                 <tr className="border-t">
                   <td className="px-5 py-4 font-bold">Admin</td>
                   <td className="px-5 py-4">
-                    Manage content, claims, and imports.
+                    Manage content, claims, analytics, and imports.
                   </td>
                 </tr>
 
@@ -156,6 +162,13 @@ export default async function AdminDashboardPage() {
                   <td className="px-5 py-4 font-bold">Editor</td>
                   <td className="px-5 py-4">
                     Edit restaurants and activities.
+                  </td>
+                </tr>
+
+                <tr className="border-t">
+                  <td className="px-5 py-4 font-bold">Viewer</td>
+                  <td className="px-5 py-4">
+                    View analytics and platform data only.
                   </td>
                 </tr>
               </tbody>
