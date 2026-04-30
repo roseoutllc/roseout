@@ -71,13 +71,65 @@ type SavedCreateState = {
 const STORAGE_KEY = "roseout_create_state";
 const LOCATION_KEY = "roseout_user_location";
 
-function SkeletonCards() {
+function TypingText({ text }: { text: string }) {
+  const [display, setDisplay] = useState("");
+
+  useEffect(() => {
+    setDisplay("");
+
+    let index = 0;
+
+    const interval = setInterval(() => {
+      setDisplay(text.slice(0, index + 1));
+      index++;
+
+      if (index >= text.length) {
+        clearInterval(interval);
+      }
+    }, 28);
+
+    return () => clearInterval(interval);
+  }, [text]);
+
   return (
-    <div className="mb-6 rounded-[2rem] border border-white/10 bg-[#f7f3ed] p-5 text-black shadow-2xl">
-      <div className="mb-6">
-        <div className="h-4 w-40 animate-pulse rounded-full bg-neutral-300" />
-        <div className="mt-3 h-8 w-72 animate-pulse rounded-full bg-neutral-300" />
-        <div className="mt-3 h-4 w-56 animate-pulse rounded-full bg-neutral-200" />
+    <span>
+      {display}
+      <span className="animate-pulse">|</span>
+    </span>
+  );
+}
+
+function SkeletonCards() {
+  const messages = [
+    "Curating your perfect outing…",
+    "Finding top-rated spots for you…",
+    "Matching vibe, distance, and experience…",
+  ];
+
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % messages.length);
+    }, 1800);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="mb-6 animate-in fade-in duration-500 rounded-[2rem] border border-white/10 bg-[#f7f3ed] p-6 text-black shadow-2xl">
+      <div className="mb-6 text-center">
+        <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">
+          RoseOut
+        </p>
+
+        <h2 className="mt-2 text-2xl font-black">
+          <TypingText text={messages[index]} />
+        </h2>
+
+        <p className="mt-2 text-sm text-neutral-500">
+          Building your results now.
+        </p>
       </div>
 
       <div className="grid gap-6">
@@ -119,6 +171,37 @@ function SkeletonCards() {
           }
         }
       `}</style>
+    </div>
+  );
+}
+
+function ResultIntro({
+  restaurantsCount,
+  activitiesCount,
+}: {
+  restaurantsCount: number;
+  activitiesCount: number;
+}) {
+  const total = restaurantsCount + activitiesCount;
+
+  const text =
+    total > 0
+      ? `RoseOut found ${total} great option${total === 1 ? "" : "s"} for you.`
+      : "RoseOut found curated results for you.";
+
+  return (
+    <div className="mb-6">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">
+        Curated Results
+      </p>
+
+      <h2 className="mt-2 text-2xl font-black text-black">
+        <TypingText text={text} />
+      </h2>
+
+      <p className="mt-1 text-sm font-medium text-neutral-500">
+        Select your favorites or view full details.
+      </p>
     </div>
   );
 }
@@ -391,7 +474,7 @@ export default function CreatePage() {
             placeholder={
               messages.length
                 ? "Ask a follow-up question..."
-                : "Example: Romantic dinner near me within 10 miles"
+                : "Example: Romantic brunch in Queens"
             }
             className="min-h-[96px] w-full resize-none rounded-[1.35rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
           />
@@ -443,7 +526,7 @@ export default function CreatePage() {
               </p>
 
               <h1 className="max-w-2xl text-4xl font-black tracking-tight md:text-6xl">
-                Find a better night out.
+                Find your next perfect outing.
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-300 md:text-base">
@@ -478,7 +561,7 @@ export default function CreatePage() {
 
         {loading && <SkeletonCards />}
 
-        <section className="space-y-5">
+        <section className={`space-y-5 transition-opacity duration-700 ${loading ? "opacity-40" : "opacity-100"}`}>
           {messages.map((msg, index) => {
             const hasRestaurants = !!msg.restaurants?.length;
             const hasActivities = !!msg.activities?.length;
@@ -486,10 +569,10 @@ export default function CreatePage() {
             return (
               <div
                 key={index}
-                className={`rounded-[2rem] p-5 ${
+                className={`rounded-[2rem] p-5 transition-all duration-700 ${
                   msg.role === "user"
                     ? "bg-yellow-500 text-black shadow-xl"
-                    : "border border-white/10 bg-[#f7f3ed] text-black shadow-2xl"
+                    : "animate-in fade-in slide-in-from-bottom-4 border border-white/10 bg-[#f7f3ed] text-black shadow-2xl"
                 }`}
               >
                 {msg.role === "user" && (
@@ -501,19 +584,10 @@ export default function CreatePage() {
                 {msg.role === "assistant" &&
                 (hasRestaurants || hasActivities) ? (
                   <>
-                    <div className="mb-6">
-                      <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">
-                        Curated Results
-                      </p>
-
-                      <h2 className="mt-2 text-2xl font-black text-black">
-                        Here’s what RoseOut found
-                      </h2>
-
-                      <p className="mt-1 text-sm font-medium text-neutral-500">
-                        Select your favorites or view full details.
-                      </p>
-                    </div>
+                    <ResultIntro
+                      restaurantsCount={msg.restaurants?.length || 0}
+                      activitiesCount={msg.activities?.length || 0}
+                    />
 
                     {hasRestaurants && (
                       <div className="mb-10">
@@ -539,7 +613,7 @@ export default function CreatePage() {
                             return (
                               <div
                                 key={restaurantId || restaurantIndex}
-                                className={`group overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+                                className={`group animate-in fade-in slide-in-from-bottom-5 overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-500 hover:-translate-y-1 hover:shadow-2xl ${
                                   isSelected
                                     ? "border-yellow-500 ring-2 ring-yellow-500"
                                     : "border-neutral-200"
@@ -705,7 +779,7 @@ export default function CreatePage() {
                             return (
                               <div
                                 key={activityId || activityIndex}
-                                className={`group overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+                                className={`group animate-in fade-in slide-in-from-bottom-5 overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-500 hover:-translate-y-1 hover:shadow-2xl ${
                                   isSelected
                                     ? "border-yellow-500 ring-2 ring-yellow-500"
                                     : "border-neutral-200"
