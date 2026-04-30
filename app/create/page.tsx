@@ -470,69 +470,54 @@ export default function CreatePage() {
     : "";
 
   return (
-    <main className="min-h-screen bg-[#070707] px-5 py-8 pb-40 text-white">
+    <main className="min-h-screen bg-[#070707] px-5 py-6 pb-40 text-white">
       <div className="mx-auto max-w-6xl">
-        <section className="mb-8 overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#111] shadow-2xl">
-          <div className="grid gap-0 lg:grid-cols-[1fr_420px]">
-            <div className="p-6 md:p-8">
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
-                RoseOut
-              </p>
+        <section className="mb-6 overflow-hidden rounded-[2rem] border border-white/10 bg-[#111] shadow-2xl">
+          <div className="p-6 md:p-8">
+            <p className="mb-2 text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
+              RoseOut
+            </p>
 
-              <h1 className="max-w-2xl text-4xl font-black tracking-tight md:text-6xl">
-                Find a better night out.
-              </h1>
+            <h1 className="max-w-2xl text-4xl font-black tracking-tight md:text-6xl">
+              Find a better night out.
+            </h1>
 
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-300 md:text-base">
-                Search in full sentences. RoseOut finds curated restaurants,
-                activities, distance-aware matches, and detail pages that feel
-                premium.
-              </p>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-300 md:text-base">
+              Search in full sentences. RoseOut finds curated restaurants,
+              activities, distance-aware matches, and premium detail pages.
+            </p>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={requestUserLocation}
-                  className={`rounded-full px-5 py-3 text-sm font-extrabold transition ${
-                    locationSaved
-                      ? "bg-green-500 text-black hover:bg-green-400"
-                      : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
-                  }`}
-                >
-                  {locationSaved ? "Location Saved" : "Use My Location"}
-                </button>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={requestUserLocation}
+                className={`rounded-full px-5 py-3 text-sm font-extrabold transition ${
+                  locationSaved
+                    ? "bg-green-500 text-black hover:bg-green-400"
+                    : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
+                }`}
+              >
+                {locationSaved ? "✓ Location Saved" : "Use My Location"}
+              </button>
 
-                <button
-                  type="button"
-                  onClick={resetSearch}
-                  className="rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-white/15"
-                >
-                  Start New Search
-                </button>
-              </div>
-
-              <p className="mt-3 text-xs text-neutral-400">
-                Try: “romantic dinner near me within 10 miles” or “fun activity
-                in Nassau.”
-              </p>
+              <button
+                type="button"
+                onClick={resetSearch}
+                className="rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-white/15"
+              >
+                Start New Search
+              </button>
             </div>
 
-            <div className="relative hidden min-h-[320px] lg:block">
-              <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/30 via-white/10 to-transparent" />
-              <div className="absolute bottom-8 left-8 right-8 rounded-[2rem] border border-white/10 bg-black/60 p-5 backdrop-blur">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-yellow-500">
-                  Smart Search
-                </p>
-                <p className="mt-3 text-2xl font-black">
-                  Boroughs, counties, zip codes, and near-me radius search.
-                </p>
-              </div>
-            </div>
+            <p className="mt-3 text-xs text-neutral-400">
+              Try: “romantic dinner near me within 10 miles” or “fun activity in
+              Nassau.”
+            </p>
           </div>
         </section>
 
-        <section className="sticky top-0 z-20 mb-6 rounded-[1.75rem] border border-white/10 bg-black/80 p-4 backdrop-blur-xl">
-          <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+        <section className="relative z-10 mb-8 rounded-[1.75rem] border border-white/10 bg-black/80 p-4 backdrop-blur-xl lg:sticky lg:top-4">
+          <div className="grid gap-3 lg:grid-cols-[1fr_180px] lg:items-end">
             <div>
               <textarea
                 value={input}
@@ -565,7 +550,7 @@ export default function CreatePage() {
             </button>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-5">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <select
               value={priceFilter}
               onChange={(e) => setPriceFilter(e.target.value)}
@@ -691,7 +676,7 @@ export default function CreatePage() {
               })}
             </div>
 
-            <div className="sticky top-32 h-[640px] overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl">
+            <div className="h-[520px] overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl lg:sticky lg:top-32">
               {activeMapItem ? (
                 <iframe
                   title="RoseOut map"
