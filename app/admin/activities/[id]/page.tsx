@@ -185,9 +185,9 @@ export default function AdminActivityDetailPage() {
       <AdminTopBar />
 
       <div className="mx-auto max-w-6xl px-6 py-12">
-        <a href="/admin/activities" className="text-sm underline">
-          ← Back to Activities
-        </a>
+        <a href="/admin" className="text-sm underline">
+  ← Back to Admin Dashboard
+</a>
 
         <div className="mt-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
