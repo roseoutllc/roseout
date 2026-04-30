@@ -1,38 +1,45 @@
-import { supabase } from "@/lib/supabase";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
 
-export async function GET() {
-  const { data, error } = await supabase
-    .from("restaurants")
-    .select("*")
-    .order("created_at", { ascending: false });
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
 
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    const { data, error } = await supabase
+      .from("restaurants")
+      .select(
+        `
+        *,
+        restaurant_claims (
+          id,
+          status,
+          owner_name,
+          owner_email,
+          owner_phone,
+          created_at
+        )
+      `
+      )
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching restaurants:", error);
+
+      return NextResponse.json(
+        { error: "Failed to load restaurants" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      restaurants: data || [],
+    });
+  } catch (err) {
+    console.error("Server error:", err);
+
+    return NextResponse.json(
+      { error: "Server error" },
+      { status: 500 }
+    );
   }
-
-  return Response.json({ restaurants: data || [] });
-}
-
-export async function PATCH(req: Request) {
-  const body = await req.json();
-
-  if (!body.id) {
-    return Response.json({ error: "Missing restaurant ID" }, { status: 400 });
-  }
-
-  const updates: any = {};
-
-  if (body.status !== undefined) updates.status = body.status;
-  if (body.is_featured !== undefined) updates.is_featured = body.is_featured;
-
-  const { error } = await supabase
-    .from("restaurants")
-    .update(updates)
-    .eq("id", body.id);
-
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
-
-  return Response.json({ success: true });
 }
