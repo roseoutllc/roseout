@@ -18,6 +18,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -47,17 +48,35 @@ export default function AdminPage() {
       supabase
         .from("restaurants")
         .select(`*, restaurant_claims(*)`)
-        .order("created_at", { ascending: false }),
+        .order("roseout_score", { ascending: false }),
 
       supabase
         .from("activities")
         .select(`*, activity_claims(*)`)
-        .order("created_at", { ascending: false }),
+        .order("roseout_score", { ascending: false }),
     ]);
 
     setRestaurants(restaurantResult.data || []);
     setActivities(activityResult.data || []);
     setLoading(false);
+  };
+
+  const recalculateScores = async () => {
+    setRecalculating(true);
+
+    const res = await fetch("/api/admin/recalculate-scores", {
+      method: "POST",
+    });
+
+    if (!res.ok) {
+      alert("Score recalculation failed.");
+      setRecalculating(false);
+      return;
+    }
+
+    await fetchData();
+    setRecalculating(false);
+    alert("RoseOut scores recalculated.");
   };
 
   const getClaimStatus = (claims: any[] = []): ClaimStatus => {
@@ -103,7 +122,9 @@ export default function AdminPage() {
       claims: a.activity_claims || [],
     }));
 
-    return [...restaurantLocations, ...activityLocations];
+    return [...restaurantLocations, ...activityLocations].sort(
+      (a, b) => Number(b.roseout_score || 0) - Number(a.roseout_score || 0)
+    );
   }, [restaurants, activities]);
 
   const filteredLocations = useMemo(() => {
@@ -145,16 +166,28 @@ export default function AdminPage() {
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10 text-white">
-      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-yellow-500">
-        RoseOut Admin
-      </p>
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-yellow-500">
+            RoseOut Admin
+          </p>
 
-      <h1 className="mt-2 text-4xl font-bold">All Locations</h1>
+          <h1 className="mt-2 text-4xl font-bold">All Locations</h1>
 
-      <p className="mt-2 text-neutral-400">
-        Manage restaurants, activity locations, ownership claims, and listing
-        content in one place.
-      </p>
+          <p className="mt-2 text-neutral-400">
+            Manage restaurants, activity locations, ownership claims, analytics,
+            ranking, and listing content in one place.
+          </p>
+        </div>
+
+        <button
+          onClick={recalculateScores}
+          disabled={recalculating}
+          className="rounded-full bg-yellow-500 px-6 py-3 font-extrabold text-black disabled:opacity-50"
+        >
+          {recalculating ? "Recalculating..." : "Recalculate Scores"}
+        </button>
+      </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-6">
         <StatCard label="All" value={stats.total} />
@@ -201,10 +234,13 @@ export default function AdminPage() {
       <section className="mt-8 overflow-hidden rounded-3xl bg-white text-black">
         <div className="grid grid-cols-12 bg-neutral-100 px-5 py-4 text-xs font-black uppercase tracking-wide text-neutral-500">
           <div className="col-span-2">Image</div>
-          <div className="col-span-4">Location</div>
+          <div className="col-span-3">Location</div>
           <div className="col-span-2">Type</div>
-          <div className="col-span-2">Claim</div>
-          <div className="col-span-2 text-right">Actions</div>
+          <div className="col-span-1">Score</div>
+          <div className="col-span-1">Views</div>
+          <div className="col-span-1">Clicks</div>
+          <div className="col-span-1">Claim</div>
+          <div className="col-span-1 text-right">Edit</div>
         </div>
 
         {filteredLocations.map((location) => {
@@ -229,7 +265,7 @@ export default function AdminPage() {
                 )}
               </div>
 
-              <div className="col-span-4">
+              <div className="col-span-3">
                 <Link
                   href={location.edit_path}
                   className="font-black hover:underline"
@@ -244,24 +280,23 @@ export default function AdminPage() {
 
               <div className="col-span-2">{location.display_type}</div>
 
-              <div className="col-span-2 capitalize">{status}</div>
+              <div className="col-span-1 font-black text-yellow-600">
+                {Number(location.roseout_score || 0)}
+              </div>
 
-              <div className="col-span-2 flex justify-end gap-2">
+              <div className="col-span-1">{location.view_count || 0}</div>
+
+              <div className="col-span-1">{location.click_count || 0}</div>
+
+              <div className="col-span-1 capitalize">{status}</div>
+
+              <div className="col-span-1 flex justify-end">
                 <Link
                   href={location.edit_path}
                   className="rounded-full bg-black px-4 py-2 text-sm font-bold text-white"
                 >
                   Edit
                 </Link>
-
-                <a
-                  href={location.claim_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-full border border-black px-4 py-2 text-sm font-bold"
-                >
-                  Claim
-                </a>
               </div>
             </div>
           );
