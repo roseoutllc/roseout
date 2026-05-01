@@ -3,12 +3,10 @@
 import { useState } from "react";
 
 type LocationReviewFormProps = {
-  locationType: "restaurant" | "activity";
   locationId: string;
 };
 
 export default function LocationReviewForm({
-  locationType,
   locationId,
 }: LocationReviewFormProps) {
   const [customerName, setCustomerName] = useState("");
@@ -23,13 +21,12 @@ export default function LocationReviewForm({
     setMessage("");
 
     const payload = {
-      location_type: locationType,
-      restaurant_id: locationType === "restaurant" ? locationId : null,
-      activity_id: locationType === "activity" ? locationId : null,
-      customer_name: customerName,
-      rating,
-      review_text: reviewText,
-    };
+    body: JSON.stringify({
+  location_id: locationId,
+  customer_name: customerName,
+  rating,
+  review_text: reviewText,
+}),
 
     const res = await fetch("/api/reviews", {
       method: "POST",
