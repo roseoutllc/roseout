@@ -112,7 +112,6 @@ export async function POST(req: NextRequest) {
         .from("restaurants")
         .insert({
           restaurant_name: place.name || "Unnamed Restaurant",
-          name: place.name || "Unnamed Restaurant",
           address: place.formatted_address || "",
           google_place_id: place.place_id,
           rating: Number(place.rating || 0),
