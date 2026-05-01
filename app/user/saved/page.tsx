@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import RoseOutHeader from "@/components/RoseOutHeader";
 
 export default async function SavedPlansPage() {
   const {
@@ -19,6 +20,7 @@ export default async function SavedPlansPage() {
 
   return (
     <main className="min-h-screen bg-[#0b0507] px-6 py-10 text-white">
+       <RoseOutHeader />
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex items-center justify-between">
           <div>

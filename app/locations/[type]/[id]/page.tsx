@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase-browser";
 import { clampScore } from "@/lib/clampScore";
 import ScoreBadge from "@/components/ScoreBadge";
 import { trackActivity } from "@/lib/trackActivity";
+import RoseOutHeader from "@/components/RoseOutHeader";
 
 function toArray(value: any): string[] {
   if (!value) return [];
@@ -121,6 +122,7 @@ export default function LocationDetailPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-5 text-white">
+        <RoseOutHeader />
         <p className="text-sm font-black uppercase tracking-[0.3em] text-yellow-500">
           Loading Location...
         </p>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import RoseOutHeader from "@/components/RoseOutHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-[#050305] text-white">
-      {/* NAV */}
+      <RoseOutHeader />
       <section className="absolute left-0 right-0 top-0 z-20 px-6 py-6">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <Link href="/" className="text-xl font-black">

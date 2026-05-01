@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 import { clampScore } from "@/lib/clampScore";
 import ScoreBadge from "@/components/ScoreBadge";
+import RoseOutHeader from "@/components/RoseOutHeader";
 
 type RestaurantCard = {
   id: string;
@@ -352,6 +353,7 @@ export default function CreatePage() {
 
   return (
     <main className="min-h-screen bg-[#070707] px-5 py-8 pb-40 text-white">
+        <RoseOutHeader />
       <div className="mx-auto max-w-3xl">
         <div className="mb-5 flex items-center justify-between gap-3">
           <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">

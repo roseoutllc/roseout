@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import ActivityTracker from "@/components/ActivityTracker";
 import TrackedButton from "@/components/TrackedButton";
+import RoseOutHeader from "@/components/RoseOutHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ export default async function UserDashboardPage() {
   return (
     <main className="min-h-screen bg-[#080407] text-white">
       <ActivityTracker userId={userId} />
+      <RoseOutHeader />
 
       <section className="relative overflow-hidden border-b border-white/10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.28),transparent_34%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.18),transparent_30%)]" />
