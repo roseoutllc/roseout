@@ -15,6 +15,9 @@ type RestaurantCard = {
   city: string;
   state: string;
   zip_code: string;
+  cuisine?: string | null;
+  atmosphere?: string | null;
+  price_range?: string | null;
   roseout_score: number;
   reservation_link?: string;
   reservation_url?: string;
@@ -103,6 +106,7 @@ export default function CreatePage() {
 
   const viewedItems = useRef<Set<string>>(new Set());
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const followUpRef = useRef<HTMLTextAreaElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedRestaurant, setSelectedRestaurant] =
@@ -112,6 +116,12 @@ export default function CreatePage() {
     useState<ActivityCard | null>(null);
 
   const hasSearched = messages.length > 0;
+
+  const latestAssistant = [...messages]
+    .reverse()
+    .find((msg) => msg.role === "assistant");
+
+  const suggestedFollowUps = getSuggestedFollowUps(latestAssistant);
 
   const getSavedUserLocation = (): UserLocation | null => {
     if (typeof window === "undefined") return null;
@@ -302,7 +312,7 @@ export default function CreatePage() {
       });
     }, 250);
 
-    setTimeout(() => inputRef.current?.focus(), 500);
+    setTimeout(() => followUpRef.current?.focus(), 600);
   }, [messages.length, hasSearched]);
 
   const trackRestaurantClick = (id: string) => {
@@ -321,17 +331,19 @@ export default function CreatePage() {
     });
   };
 
-  const sendMessage = async () => {
+  const sendMessage = async (overrideText?: string) => {
     if (loading) return;
 
-    if (!input.trim()) {
+    const messageText = overrideText || input;
+
+    if (!messageText.trim()) {
       setError("Please enter what you’re looking for.");
       return;
     }
 
     const userMessage: Message = {
       role: "user",
-      content: input,
+      content: messageText,
     };
 
     const nextMessages = [...messages, userMessage];
@@ -397,7 +409,7 @@ export default function CreatePage() {
       setError("Could not create response. Please try again.");
     } finally {
       setLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
+      setTimeout(() => followUpRef.current?.focus(), 100);
     }
   };
 
@@ -427,11 +439,12 @@ export default function CreatePage() {
       <RoseOutHeader />
 
       <section
-        className={`relative overflow-visible border-b border-white/10 transition-all duration-500 ${
+        className={`relative overflow-hidden border-b border-white/10 transition-all duration-500 ${
           hasSearched ? "pt-24 pb-4" : "pt-28 pb-16"
         }`}
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(225,6,42,0.24),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(225,6,42,0.16),transparent_28%),linear-gradient(180deg,#050505,#000)]" />
+
         {!hasSearched && (
           <div className="absolute right-0 top-20 hidden h-[520px] w-[46vw] rounded-bl-[14rem] border-l border-t border-red-500/20 bg-[radial-gradient(circle_at_center,rgba(225,6,42,0.18),transparent_50%)] lg:block" />
         )}
@@ -454,14 +467,8 @@ export default function CreatePage() {
             </button>
           </div>
 
-          <div
-            className={`grid transition-all duration-500 ${
-              hasSearched
-                ? "gap-3 lg:grid-cols-1"
-                : "gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end"
-            }`}
-          >
-            {!hasSearched && (
+          {!hasSearched && (
+            <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.38em] text-[#e1062a]">
                   AI-powered outing planner
@@ -478,97 +485,70 @@ export default function CreatePage() {
                   borough, mood, and outing style.
                 </p>
               </div>
-            )}
 
-            <div
-              className={`rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-4 shadow-2xl shadow-black/40 backdrop-blur transition-all duration-500 ${
-                hasSearched ? "sticky top-[88px] z-30" : "p-5"
-              }`}
-            >
-              {hasSearched && (
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
-                    Ask RoseOut
-                  </p>
+              <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur">
+                <div className="relative">
+                  {!input && (
+                    <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-semibold leading-7 text-white">
+                      <span className="bg-gradient-to-r from-white via-white/90 to-white/65 bg-clip-text text-transparent">
+                        {typedSuggestion}
+                      </span>
+                      <span className="ml-1 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-white/80" />
+                    </div>
+                  )}
 
-                  <p className="hidden text-xs font-bold text-white/35 sm:block">
-                    Press Enter to send • Shift + Enter for new line
-                  </p>
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleInputKeyDown}
+                    rows={5}
+                    className="relative z-20 min-h-[170px] w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-transparent focus:border-[#e1062a]/70"
+                  />
                 </div>
-              )}
 
-              <div className="relative">
-                {!input && (
-                  <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-semibold leading-7 text-white">
-                    <span className="bg-gradient-to-r from-white via-white/90 to-white/65 bg-clip-text text-transparent">
-                      {hasSearched
-                        ? "Ask a follow-up or refine your outing..."
-                        : typedSuggestion}
-                    </span>
-                    <span className="ml-1 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-white/80" />
+                <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-white/35">
+                  <span>Try full sentences. RoseOut will understand.</span>
+                  <span className="text-[#e1062a]">AI Suggestions</span>
+                </div>
+
+                {error && (
+                  <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">
+                    {error}
                   </div>
                 )}
 
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  rows={hasSearched ? 2 : 5}
-                  className={`relative z-20 w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-transparent focus:border-[#e1062a]/70 ${
-                    hasSearched ? "min-h-[76px]" : "min-h-[170px]"
-                  }`}
-                />
-              </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <button
+                    onClick={() => sendMessage()}
+                    disabled={loading}
+                    className="rounded-2xl bg-[#e1062a] px-7 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {loading ? "Finding Matches..." : "Plan My Outing"}
+                  </button>
 
-              <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-white/35">
-                <span>
-                  {hasSearched
-                    ? "Continue the conversation instantly."
-                    : "Try full sentences. RoseOut will understand."}
-                </span>
-                <span className="text-[#e1062a]">
-                  {hasSearched ? "Follow-up Ready" : "AI Suggestions"}
-                </span>
-              </div>
-
-              {error && (
-                <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">
-                  {error}
+                  <button
+                    type="button"
+                    onClick={requestUserLocation}
+                    className={`rounded-2xl px-7 py-4 text-sm font-black transition ${
+                      locationSaved
+                        ? "bg-emerald-500 text-black hover:bg-emerald-400"
+                        : "border border-white/15 bg-white/5 text-white hover:bg-white hover:text-black"
+                    }`}
+                  >
+                    {locationSaved ? "✓ Location Saved" : "Use My Location"}
+                  </button>
                 </div>
-              )}
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-                <button
-                  onClick={sendMessage}
-                  disabled={loading}
-                  className="rounded-2xl bg-[#e1062a] px-7 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {loading
-                    ? "Finding Matches..."
-                    : hasSearched
-                      ? "Send Follow-Up"
-                      : "Plan My Outing"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={requestUserLocation}
-                  className={`rounded-2xl px-7 py-4 text-sm font-black transition ${
-                    locationSaved
-                      ? "bg-emerald-500 text-black hover:bg-emerald-400"
-                      : "border border-white/15 bg-white/5 text-white hover:bg-white hover:text-black"
-                  }`}
-                >
-                  {locationSaved ? "✓ Location Saved" : "Use My Location"}
-                </button>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
-      <section ref={resultsRef} className="mx-auto max-w-6xl scroll-mt-40 px-5 py-8">
+      <section
+        ref={resultsRef}
+        className="mx-auto max-w-6xl scroll-mt-40 px-5 py-8"
+      >
         <div className="space-y-5">
           {messages.map((msg, index) => {
             const hasRestaurants = !!msg.restaurants?.length;
@@ -723,6 +703,72 @@ export default function CreatePage() {
         )}
       </section>
 
+      {hasSearched && (
+        <section className="mx-auto max-w-4xl px-5 pb-28">
+          <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl shadow-black/40">
+            <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
+              Ask a follow-up
+            </p>
+
+            {suggestedFollowUps.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {suggestedFollowUps.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => sendMessage(suggestion)}
+                    disabled={loading}
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black text-white/65 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white disabled:opacity-50"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="relative">
+              {!input && (
+                <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-semibold leading-7 text-white">
+                  <span className="bg-gradient-to-r from-white via-white/90 to-white/60 bg-clip-text text-transparent">
+                    Refine your plan, change location, budget, or vibe...
+                  </span>
+                  <span className="ml-1 inline-block h-4 w-[2px] animate-pulse bg-white/80" />
+                </div>
+              )}
+
+              <textarea
+                ref={followUpRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleInputKeyDown}
+                rows={2}
+                className="relative z-20 min-h-[76px] w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none focus:border-[#e1062a]/70"
+              />
+            </div>
+
+            {error && (
+              <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">
+                {error}
+              </div>
+            )}
+
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <p className="text-xs font-bold text-white/40">
+                Press Enter to send • Shift + Enter for new line
+              </p>
+
+              <button
+                onClick={() => sendMessage()}
+                disabled={loading}
+                className="rounded-full bg-[#e1062a] px-6 py-2 text-sm font-black text-white transition hover:bg-red-500 disabled:opacity-50"
+              >
+                {loading ? "Sending..." : "Send"}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {(selectedRestaurant || selectedActivity) && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur-2xl">
           <div className="mx-auto flex max-w-6xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -758,6 +804,66 @@ export default function CreatePage() {
       )}
     </main>
   );
+}
+
+function getSuggestedFollowUps(message?: Message) {
+  const restaurants = message?.restaurants || [];
+  const activities = message?.activities || [];
+
+  const cuisine = restaurants.find((r) => r.cuisine)?.cuisine;
+  const restaurantTags = restaurants.flatMap((r) => r.date_style_tags || []);
+  const activityTags = activities.flatMap((a) => a.date_style_tags || []);
+  const allTags = [...restaurantTags, ...activityTags].join(" ").toLowerCase();
+
+  const hasRestaurants = restaurants.length > 0;
+  const hasActivities = activities.length > 0;
+
+  const suggestions: string[] = [];
+
+  suggestions.push("Make it cheaper");
+  suggestions.push("More romantic");
+
+  if (cuisine) {
+    suggestions.push(`More ${cuisine} options`);
+  }
+
+  if (
+    allTags.includes("rooftop") ||
+    allTags.includes("views") ||
+    allTags.includes("skyline")
+  ) {
+    suggestions.push("Add rooftop vibes");
+  } else {
+    suggestions.push("Add rooftop vibes");
+  }
+
+  if (
+    allTags.includes("family") ||
+    allTags.includes("kid") ||
+    activities.some((a) => a.group_friendly)
+  ) {
+    suggestions.push("Make it kid-friendly");
+  }
+
+  if (
+    allTags.includes("bar") ||
+    allTags.includes("drinks") ||
+    allTags.includes("music") ||
+    allTags.includes("nightlife")
+  ) {
+    suggestions.push("Add nightlife");
+  } else if (hasRestaurants) {
+    suggestions.push("Add drinks after");
+  }
+
+  if (hasActivities) {
+    suggestions.push("Make the activity more fun");
+  }
+
+  suggestions.push("Change to Brooklyn");
+  suggestions.push("Show me something more upscale");
+
+  return Array.from(new Set(suggestions)).slice(0, 8);
 }
 
 function ResultSection({
@@ -980,40 +1086,6 @@ function LuxuryLoading({ loadingText }: { loadingText: string }) {
           <span className="h-2 w-2 animate-bounce rounded-full bg-[#e1062a] [animation-delay:300ms]" />
         </div>
       </div>
-
-      <div className="grid gap-5 md:grid-cols-2">
-        {[1, 2].map((item) => (
-          <div
-            key={item}
-            className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-black shadow-xl"
-          >
-            <div className="relative h-64 overflow-hidden bg-neutral-900">
-              <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 via-neutral-900 to-black blur-sm" />
-              <div className="absolute inset-0 -translate-x-full animate-[roseoutShimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-            </div>
-
-            <div className="p-5">
-              <div className="h-3 w-28 animate-pulse rounded-full bg-white/10" />
-              <div className="mt-4 h-8 w-64 animate-pulse rounded-full bg-white/10" />
-              <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-white/10" />
-              <div className="mt-2 h-4 w-2/3 animate-pulse rounded-full bg-white/10" />
-
-              <div className="mt-6 flex gap-3">
-                <div className="h-11 w-28 animate-pulse rounded-full border border-white/10" />
-                <div className="h-11 w-36 animate-pulse rounded-full bg-red-500/20" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <style jsx>{`
-        @keyframes roseoutShimmer {
-          100% {
-            transform: translateX(100%);
-          }
-        }
-      `}</style>
     </div>
   );
 }
