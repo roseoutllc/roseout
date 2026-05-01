@@ -1,5 +1,9 @@
 import { requireAdminRole } from "@/lib/admin-auth";
+import { redirect } from "next/navigation";
 
+export default function AdminPage() {
+  redirect("/admin/dashboard");
+}
 export default async function AdminPage() {
   await requireAdminRole([
     "superuser",
