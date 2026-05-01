@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminTopBar from "@/app/admin/components/AdminTopBar";
+import { createClient } from "@/lib/supabase-browser";
 
 type ImportRun = {
   id: string;
@@ -14,6 +15,8 @@ type ImportRun = {
 };
 
 export default function ImportHistoryPage() {
+  const supabase = createClient();
+
   const [runs, setRuns] = useState<ImportRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
@@ -52,11 +55,22 @@ export default function ImportHistoryPage() {
     setResult("");
 
     try {
+      // 🔐 GET USER TOKEN
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        setResult("Not authenticated");
+        setImporting(false);
+        return;
+      }
+
       const res = await fetch("/api/google/import", {
         method: "POST",
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           query: "restaurants in Queens NY",
@@ -71,6 +85,7 @@ export default function ImportHistoryPage() {
       }
 
       setResult(`Imported ${data.imported ?? 0} places.`);
+
       await loadHistory();
     } catch {
       setResult("Import failed.");
@@ -84,6 +99,7 @@ export default function ImportHistoryPage() {
       <AdminTopBar />
 
       <div className="mx-auto max-w-7xl px-6 py-8">
+        {/* HEADER */}
         <div className="mb-8 flex items-start justify-between gap-6">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.35em] text-[#f5b700]">
@@ -98,6 +114,7 @@ export default function ImportHistoryPage() {
             </p>
           </div>
 
+          {/* RIGHT SIDE */}
           <div className="flex flex-col items-end gap-3">
             <button
               type="button"
@@ -122,6 +139,7 @@ export default function ImportHistoryPage() {
           </div>
         </div>
 
+        {/* STATS */}
         <section className="mb-6 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-[#181818] p-5">
             <p className="text-sm text-zinc-400">Total Runs</p>
@@ -148,6 +166,7 @@ export default function ImportHistoryPage() {
           </div>
         </section>
 
+        {/* TABLE */}
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#181818] shadow-2xl">
           <div className="border-b border-white/10 px-6 py-5">
             <h2 className="text-xl font-black">Recent Imports</h2>
@@ -186,9 +205,7 @@ export default function ImportHistoryPage() {
                   runs.map((run) => (
                     <tr key={run.id} className="hover:bg-white/[0.03]">
                       <td className="px-6 py-4 text-zinc-400">
-                        {run.created_at
-                          ? new Date(run.created_at).toLocaleString()
-                          : "—"}
+                        {new Date(run.created_at).toLocaleString()}
                       </td>
 
                       <td className="px-6 py-4 font-bold text-white">
@@ -205,15 +222,15 @@ export default function ImportHistoryPage() {
 
                       <td className="px-6 py-4">
                         <span
-                          className={`rounded-full border px-3 py-1 text-xs font-bold capitalize ${
+                          className={`rounded-full border px-3 py-1 text-xs font-bold ${
                             run.status === "success"
                               ? "border-green-400/30 bg-green-500/10 text-green-300"
                               : run.status === "running"
-                                ? "border-[#f5b700]/30 bg-[#f5b700]/10 text-[#f5b700]"
-                                : "border-red-400/30 bg-red-500/10 text-red-300"
+                              ? "border-[#f5b700]/30 bg-[#f5b700]/10 text-[#f5b700]"
+                              : "border-red-400/30 bg-red-500/10 text-red-300"
                           }`}
                         >
-                          {run.status || "unknown"}
+                          {run.status}
                         </span>
                       </td>
 
