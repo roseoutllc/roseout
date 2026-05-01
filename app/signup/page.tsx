@@ -24,8 +24,8 @@ type TurnstileWindow = Window & {
 export default function SignupPage() {
   const supabase = createClient();
 
-  const turnstileRef = useRef<HTMLDivElement | null>(null);
-  const widgetIdRef = useRef<string | null>(null);
+ const turnstileRef = useRef<HTMLDivElement | null>(null);
+const widgetIdRef = useRef<string | null | undefined>(null);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
