@@ -41,11 +41,11 @@ export async function POST(req: Request) {
 
     const { data: admin } = await supabase
       .from("users")
-      .select("id,role,email")
+      .select("id,email,role")
       .eq("id", adminUserId)
       .single();
 
-    if (!admin || admin.role !== "superuser") {
+    if (!admin || !["superuser", "admin"].includes(admin.role)) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 403 }
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
     const { data: targetUser } = await supabase
       .from("users")
-      .select("id,email")
+      .select("id,email,full_name")
       .eq("id", userId)
       .single();
 
@@ -65,7 +65,14 @@ export async function POST(req: Request) {
       );
     }
 
-    cookieStore.set("roseout_impersonate_user_id", userId, {
+    if (targetUser.id === admin.id) {
+      return NextResponse.json(
+        { error: "You cannot impersonate yourself." },
+        { status: 400 }
+      );
+    }
+
+    cookieStore.set("roseout_impersonate_user_id", targetUser.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -75,14 +82,17 @@ export async function POST(req: Request) {
 
     await supabase.from("admin_impersonation_logs").insert({
       admin_id: admin.id,
-      target_user_id: userId,
+      admin_email: admin.email,
+      target_user_id: targetUser.id,
+      target_user_email: targetUser.email,
       action: "started",
     });
 
     return NextResponse.json({
       success: true,
+      message: "Impersonation started.",
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Failed to impersonate user" },
       { status: 500 }
