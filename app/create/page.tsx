@@ -102,12 +102,16 @@ export default function CreatePage() {
   const [locationSaved, setLocationSaved] = useState(false);
 
   const viewedItems = useRef<Set<string>>(new Set());
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<RestaurantCard | null>(null);
 
   const [selectedActivity, setSelectedActivity] =
     useState<ActivityCard | null>(null);
+
+  const hasSearched = messages.length > 0;
 
   const getSavedUserLocation = (): UserLocation | null => {
     if (typeof window === "undefined") return null;
@@ -177,6 +181,7 @@ export default function CreatePage() {
     setSelectedActivity(null);
     setError("");
 
+    setTimeout(() => inputRef.current?.focus(), 100);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -185,7 +190,10 @@ export default function CreatePage() {
 
     const saved = sessionStorage.getItem(STORAGE_KEY);
 
-    if (!saved) return;
+    if (!saved) {
+      setTimeout(() => inputRef.current?.focus(), 300);
+      return;
+    }
 
     try {
       const parsed = JSON.parse(saved) as SavedCreateState;
@@ -284,6 +292,19 @@ export default function CreatePage() {
     });
   }, [messages]);
 
+  useEffect(() => {
+    if (!hasSearched) return;
+
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 250);
+
+    setTimeout(() => inputRef.current?.focus(), 500);
+  }, [messages.length, hasSearched]);
+
   const trackRestaurantClick = (id: string) => {
     trackAnalytics({
       itemId: id,
@@ -321,6 +342,13 @@ export default function CreatePage() {
     setLoading(true);
     setSelectedRestaurant(null);
     setSelectedActivity(null);
+
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
 
     try {
       const res = await fetch("/api/generate", {
@@ -369,6 +397,14 @@ export default function CreatePage() {
       setError("Could not create response. Please try again.");
     } finally {
       setLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   };
 
@@ -390,12 +426,18 @@ export default function CreatePage() {
     <main className="min-h-screen bg-black text-white">
       <RoseOutHeader />
 
-      <section className="relative overflow-hidden border-b border-white/10 pt-28">
+      <section
+        className={`relative overflow-visible border-b border-white/10 transition-all duration-500 ${
+          hasSearched ? "pt-24 pb-4" : "pt-28 pb-16"
+        }`}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(225,6,42,0.24),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(225,6,42,0.16),transparent_28%),linear-gradient(180deg,#050505,#000)]" />
-        <div className="absolute right-0 top-20 hidden h-[520px] w-[46vw] rounded-bl-[14rem] border-l border-t border-red-500/20 bg-[radial-gradient(circle_at_center,rgba(225,6,42,0.18),transparent_50%)] lg:block" />
+        {!hasSearched && (
+          <div className="absolute right-0 top-20 hidden h-[520px] w-[46vw] rounded-bl-[14rem] border-l border-t border-red-500/20 bg-[radial-gradient(circle_at_center,rgba(225,6,42,0.18),transparent_50%)] lg:block" />
+        )}
 
-        <div className="relative mx-auto max-w-6xl px-5 py-10">
-          <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="relative mx-auto max-w-6xl px-5 py-4">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <Link
               href="/"
               className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black text-white/70 transition hover:bg-white hover:text-black"
@@ -412,45 +454,82 @@ export default function CreatePage() {
             </button>
           </div>
 
-          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.38em] text-[#e1062a]">
-                AI-powered outing planner
-              </p>
+          <div
+            className={`grid transition-all duration-500 ${
+              hasSearched
+                ? "gap-3 lg:grid-cols-1"
+                : "gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end"
+            }`}
+          >
+            {!hasSearched && (
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.38em] text-[#e1062a]">
+                  AI-powered outing planner
+                </p>
 
-              <h1 className="mt-5 text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
-                What are we
-                <br />
-                <span className="text-[#e1062a]">planning?</span>
-              </h1>
+                <h1 className="mt-5 text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
+                  What are we
+                  <br />
+                  <span className="text-[#e1062a]">planning?</span>
+                </h1>
 
-              <p className="mt-6 max-w-xl text-base leading-7 text-white/55 md:text-lg">
-                Type naturally. RoseOut understands your vibe, budget, borough,
-                mood, and outing style.
-              </p>
-            </div>
+                <p className="mt-6 max-w-xl text-base leading-7 text-white/55 md:text-lg">
+                  Type naturally. RoseOut understands your vibe, budget,
+                  borough, mood, and outing style.
+                </p>
+              </div>
+            )}
 
-            <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d]/90 p-5 shadow-2xl shadow-black/40 backdrop-blur">
+            <div
+              className={`rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-4 shadow-2xl shadow-black/40 backdrop-blur transition-all duration-500 ${
+                hasSearched ? "sticky top-[88px] z-30" : "p-5"
+              }`}
+            >
+              {hasSearched && (
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
+                    Ask RoseOut
+                  </p>
+
+                  <p className="hidden text-xs font-bold text-white/35 sm:block">
+                    Press Enter to send • Shift + Enter for new line
+                  </p>
+                </div>
+              )}
+
               <div className="relative">
                 {!input && (
-                 <div className="pointer-events-none absolute left-5 top-4 right-5 z-10 text-sm font-semibold leading-7 text-white">
-  <span className="bg-gradient-to-r from-white via-white/80 to-white/50 bg-clip-text text-transparent">
-    {typedSuggestion}
-  </span>
-  <span className="ml-1 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-white/80" />
-</div>
+                  <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-semibold leading-7 text-white">
+                    <span className="bg-gradient-to-r from-white via-white/90 to-white/65 bg-clip-text text-transparent">
+                      {hasSearched
+                        ? "Ask a follow-up or refine your outing..."
+                        : typedSuggestion}
+                    </span>
+                    <span className="ml-1 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-white/80" />
+                  </div>
                 )}
 
                 <textarea
+                  ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  className="relative z-20 min-h-[170px] w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-transparent focus:border-[#e1062a]/70"
+                  onKeyDown={handleInputKeyDown}
+                  rows={hasSearched ? 2 : 5}
+                  className={`relative z-20 w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-transparent focus:border-[#e1062a]/70 ${
+                    hasSearched ? "min-h-[76px]" : "min-h-[170px]"
+                  }`}
                 />
               </div>
 
               <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-white/35">
-                <span>Try full sentences. RoseOut will understand.</span>
-                <span className="text-[#e1062a]">AI Suggestions</span>
+                <span>
+                  {hasSearched
+                    ? "Continue the conversation instantly."
+                    : "Try full sentences. RoseOut will understand."}
+                </span>
+                <span className="text-[#e1062a]">
+                  {hasSearched ? "Follow-up Ready" : "AI Suggestions"}
+                </span>
               </div>
 
               {error && (
@@ -467,8 +546,8 @@ export default function CreatePage() {
                 >
                   {loading
                     ? "Finding Matches..."
-                    : messages.length
-                      ? "Send"
+                    : hasSearched
+                      ? "Send Follow-Up"
                       : "Plan My Outing"}
                 </button>
 
@@ -489,7 +568,7 @@ export default function CreatePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-5 py-10">
+      <section ref={resultsRef} className="mx-auto max-w-6xl scroll-mt-40 px-5 py-8">
         <div className="space-y-5">
           {messages.map((msg, index) => {
             const hasRestaurants = !!msg.restaurants?.length;
@@ -500,7 +579,7 @@ export default function CreatePage() {
                 key={index}
                 className={`rounded-[2rem] border p-5 shadow-2xl ${
                   msg.role === "user"
-                    ? "border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
+                    ? "ml-auto max-w-4xl border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
                     : "border-white/10 bg-[#0d0d0d] text-white shadow-black/30"
                 }`}
               >
