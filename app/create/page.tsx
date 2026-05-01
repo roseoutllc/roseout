@@ -881,9 +881,24 @@ function ResultCard({
   reservationLabel?: string;
   onReservation?: () => void;
 }) {
+  const openDetails = () => {
+    onDetails();
+    window.location.href = detailsHref;
+  };
+
   return (
     <div
-      className={`group w-full max-w-full overflow-hidden rounded-[2rem] border bg-[#111] shadow-2xl shadow-black/30 transition duration-300 hover:-translate-y-1 ${
+      role="link"
+      tabIndex={0}
+      onClick={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("a, button")) return;
+        openDetails();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") openDetails();
+      }}
+      className={`group w-full max-w-full cursor-pointer overflow-hidden rounded-[2rem] border bg-[#111] shadow-2xl shadow-black/30 transition duration-300 hover:-translate-y-1 hover:border-[#e1062a]/70 hover:shadow-red-500/10 ${
         selected
           ? "border-red-500 ring-2 ring-red-500/50"
           : "border-white/10 hover:border-red-500/50"
@@ -892,18 +907,18 @@ function ResultCard({
         animation: `cardReveal 560ms ease-out ${index * 120}ms both`,
       }}
     >
-      <div className="relative max-w-full">
+      <div className="relative h-64 w-full max-w-full overflow-hidden">
         {imageUrl ? (
           <Image
             src={imageUrl}
             alt={title}
             width={900}
             height={520}
-            className="h-64 w-full max-w-full object-cover transition duration-700 group-hover:scale-105"
+            className="h-full w-full max-w-full object-cover object-center transition-transform duration-700 ease-out will-change-transform group-hover:scale-110"
             priority={priority}
           />
         ) : (
-          <div className="flex h-64 w-full max-w-full items-center justify-center bg-neutral-900 text-neutral-500">
+          <div className="flex h-full w-full max-w-full items-center justify-center bg-neutral-900 text-neutral-500">
             No image available
           </div>
         )}
@@ -948,9 +963,12 @@ function ResultCard({
           {eyebrow}
         </p>
 
-        <h3 className="mt-2 break-words text-2xl font-black tracking-tight text-white">
-          {title}
-        </h3>
+        <Link href={detailsHref} onClick={onDetails} className="group/title block">
+          <h3 className="mt-2 break-words text-2xl font-black tracking-tight text-white transition duration-200 group-hover/title:text-[#e1062a]">
+            {title}
+          </h3>
+          <span className="mt-1 block h-[2px] w-0 bg-[#e1062a] transition-all duration-300 group-hover/title:w-full" />
+        </Link>
 
         <p className="mt-3 break-words text-sm leading-6 text-white/50">
           {address}
