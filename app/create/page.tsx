@@ -383,7 +383,7 @@ export default function CreatePage() {
 
       <section
         className={`relative overflow-hidden border-b border-white/10 transition-all duration-500 ${
-          hasSearched ? "pt-24 pb-4" : "pt-28 pb-16"
+          hasSearched ? "pt-8 pb-3 sm:pt-24 sm:pb-4" : "pt-8 pb-10 sm:pt-28 sm:pb-16"
         }`}
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(225,6,42,0.24),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(225,6,42,0.16),transparent_28%),linear-gradient(180deg,#050505,#000)]" />
@@ -392,7 +392,7 @@ export default function CreatePage() {
           <div className="absolute right-0 top-20 hidden h-[520px] w-[46vw] rounded-bl-[14rem] border-l border-t border-red-500/20 bg-[radial-gradient(circle_at_center,rgba(225,6,42,0.18),transparent_50%)] lg:block" />
         )}
 
-        <div className="relative mx-auto w-full max-w-6xl px-4 py-4 sm:px-5">
+        <div className="relative mx-auto w-full max-w-6xl px-4 py-2 sm:px-5 sm:py-4">
           {!hasSearched && (
             <div className="grid w-full gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
               <div className="max-w-full">
@@ -486,9 +486,9 @@ export default function CreatePage() {
               return (
                 <div
                   key={index}
-                  className={`max-w-full rounded-[2rem] border p-4 shadow-2xl sm:p-5 ${
+                  className={`max-w-full border shadow-2xl ${
                     msg.role === "user"
-                      ? "mx-auto max-w-4xl animate-[resultFadeIn_450ms_ease-out_both] border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
+                      ? "mx-auto max-w-4xl animate-[resultFadeIn_450ms_ease-out_both] rounded-[1.5rem] border-red-500/30 bg-[#e1062a] p-4 text-white shadow-red-500/10 sm:rounded-[2rem] sm:p-5"
                       : "animate-[resultFadeIn_550ms_ease-out_both] border-white/10 bg-[#0d0d0d] text-white shadow-black/30"
                   }`}
                 >
