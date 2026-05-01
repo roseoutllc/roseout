@@ -30,7 +30,7 @@ export default function AdminTopBar() {
     };
 
     loadUserAndRole();
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -61,9 +61,7 @@ export default function AdminTopBar() {
   };
 
   const name =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    "Admin";
+    user?.user_metadata?.full_name || user?.user_metadata?.name || "Admin";
 
   const email = user?.email || "";
   const initial = name?.charAt(0)?.toUpperCase() || "A";
@@ -90,7 +88,7 @@ export default function AdminTopBar() {
     role || ""
   );
 
-  const canViewUsers = role === "superuser";
+  const canViewUsers = ["superuser", "admin"].includes(role || "");
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black text-white">
@@ -102,6 +100,58 @@ export default function AdminTopBar() {
         >
           RoseOut Admin
         </button>
+
+        <div className="hidden items-center gap-2 lg:flex">
+          {canViewDashboard && (
+            <button
+              type="button"
+              onClick={() => goTo("/admin/dashboard")}
+              className="rounded-full px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+            >
+              Dashboard
+            </button>
+          )}
+
+          {canViewRestaurants && (
+            <button
+              type="button"
+              onClick={() => goTo("/admin/restaurants")}
+              className="rounded-full px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+            >
+              Restaurants
+            </button>
+          )}
+
+          {canViewActivities && (
+            <button
+              type="button"
+              onClick={() => goTo("/admin/activities")}
+              className="rounded-full px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+            >
+              Activities
+            </button>
+          )}
+
+          {canViewUsers && (
+            <button
+              type="button"
+              onClick={() => goTo("/admin/users")}
+              className="rounded-full px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+            >
+              Users
+            </button>
+          )}
+
+          {canViewClaims && (
+            <button
+              type="button"
+              onClick={() => goTo("/admin/claims")}
+              className="rounded-full px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+            >
+              Claims
+            </button>
+          )}
+        </div>
 
         <div className="relative" ref={dropdownRef}>
           <button
@@ -169,6 +219,16 @@ export default function AdminTopBar() {
                   </button>
                 )}
 
+                {canViewUsers && (
+                  <button
+                    type="button"
+                    onClick={() => goTo("/admin/users")}
+                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100"
+                  >
+                    Users Dashboard
+                  </button>
+                )}
+
                 {canViewClaims && (
                   <button
                     type="button"
@@ -196,16 +256,6 @@ export default function AdminTopBar() {
                     className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100"
                   >
                     Import History
-                  </button>
-                )}
-
-                {canViewUsers && (
-                  <button
-                    type="button"
-                    onClick={() => goTo("/admin/users")}
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100"
-                  >
-                    Admin Users
                   </button>
                 )}
 
