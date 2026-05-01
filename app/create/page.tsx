@@ -178,7 +178,7 @@ export default function CreatePage() {
   useEffect(() => {
     setLocationSaved(!!getSavedUserLocation());
 
-    // Fresh page every browser refresh/reload
+    // Clear results on browser refresh/reload.
     sessionStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem("roseout_plan");
 
@@ -257,20 +257,21 @@ export default function CreatePage() {
     });
   }, [messages]);
 
- useEffect(() => {
-  if (!hasSearched) return;
+  useEffect(() => {
+    if (!hasSearched) return;
 
-  const latestMessage = messages[messages.length - 1];
+    const latestMessage = messages[messages.length - 1];
 
-  if (latestMessage?.role !== "user") return;
+    // Scroll only when the user submits. Do not focus follow-up box.
+    if (latestMessage?.role !== "user") return;
 
-  setTimeout(() => {
-    resultsRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }, 150);
-}, [messages.length, hasSearched, messages]);
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 150);
+  }, [messages.length, hasSearched, messages]);
 
   const trackRestaurantClick = (id: string) => {
     trackAnalytics({
@@ -354,8 +355,8 @@ export default function CreatePage() {
     } catch {
       setError("Could not create response. Please try again.");
     } finally {
+      // Do not auto-focus the follow-up textarea. That caused the page jump.
       setLoading(false);
-      setTimeout(() => followUpRef.current?.focus(), 100);
     }
   };
 
@@ -512,8 +513,8 @@ export default function CreatePage() {
                   key={index}
                   className={`rounded-[2rem] border p-5 shadow-2xl ${
                     msg.role === "user"
-                      ? "ml-auto max-w-4xl border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
-                      : "border-white/10 bg-[#0d0d0d] text-white shadow-black/30"
+                      ? "ml-auto max-w-4xl animate-[resultFadeIn_450ms_ease-out_both] border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
+                      : "animate-[resultFadeIn_550ms_ease-out_both] border-white/10 bg-[#0d0d0d] text-white shadow-black/30"
                   }`}
                 >
                   {msg.role === "user" && (
@@ -551,6 +552,7 @@ export default function CreatePage() {
                             return (
                               <ResultCard
                                 key={restaurantId || restaurantIndex}
+                                index={restaurantIndex}
                                 imageUrl={r.image_url}
                                 title={r.restaurant_name}
                                 eyebrow="Restaurant"
@@ -577,9 +579,9 @@ export default function CreatePage() {
                                   )
                                 }
                                 detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
-                                onDetails={() => {
-                                  trackRestaurantClick(restaurantId);
-                                }}
+                                onDetails={() =>
+                                  trackRestaurantClick(restaurantId)
+                                }
                                 reservationUrl={reservationUrl}
                                 reservationLabel="Reserve"
                                 onReservation={() =>
@@ -603,6 +605,7 @@ export default function CreatePage() {
                             return (
                               <ResultCard
                                 key={activityId || activityIndex}
+                                index={activityIndex}
                                 imageUrl={a.image_url}
                                 title={a.activity_name}
                                 eyebrow={a.activity_type || "Activity"}
@@ -629,9 +632,9 @@ export default function CreatePage() {
                                   )
                                 }
                                 detailsHref={`/locations/activities/${activityId}?from=/create`}
-                                onDetails={() => {
-                                  trackActivityClick(activityId);
-                                }}
+                                onDetails={() =>
+                                  trackActivityClick(activityId)
+                                }
                                 websiteUrl={a.website}
                                 onWebsite={() => trackActivityClick(activityId)}
                                 reservationUrl={reservationUrl}
@@ -760,6 +763,30 @@ export default function CreatePage() {
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        @keyframes resultFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(16px) scale(0.985);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes cardReveal {
+          from {
+            opacity: 0;
+            transform: translateY(18px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
     </main>
   );
 }
@@ -843,6 +870,7 @@ function ResultSection({
 }
 
 function ResultCard({
+  index,
   imageUrl,
   title,
   eyebrow,
@@ -865,6 +893,7 @@ function ResultCard({
   reservationLabel,
   onReservation,
 }: {
+  index: number;
   imageUrl?: string;
   title: string;
   eyebrow: string;
@@ -894,6 +923,9 @@ function ResultCard({
           ? "border-red-500 ring-2 ring-red-500/50"
           : "border-white/10 hover:border-red-500/50"
       }`}
+      style={{
+        animation: `cardReveal 560ms ease-out ${index * 120}ms both`,
+      }}
     >
       <div className="relative">
         {imageUrl ? (
