@@ -394,23 +394,6 @@ export default function CreatePage() {
         )}
 
         <div className="relative mx-auto w-full max-w-6xl px-4 py-4 sm:px-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <Link
-              href="/"
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black text-white/70 transition hover:bg-white hover:text-black"
-            >
-              ← Home
-            </Link>
-
-            <button
-              type="button"
-              onClick={resetSearch}
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black text-white/70 transition hover:bg-white hover:text-black"
-            >
-              Start New Search
-            </button>
-          </div>
-
           {!hasSearched && (
             <div className="grid w-full gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
               <div className="max-w-full">
@@ -510,7 +493,7 @@ export default function CreatePage() {
                   key={index}
                   className={`max-w-full rounded-[2rem] border p-4 shadow-2xl sm:p-5 ${
                     msg.role === "user"
-                      ? "ml-auto max-w-4xl animate-[resultFadeIn_450ms_ease-out_both] border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
+                      ? "mx-auto max-w-4xl animate-[resultFadeIn_450ms_ease-out_both] border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
                       : "animate-[resultFadeIn_550ms_ease-out_both] border-white/10 bg-[#0d0d0d] text-white shadow-black/30"
                   }`}
                 >
@@ -524,9 +507,19 @@ export default function CreatePage() {
                   (hasRestaurants || hasActivities) ? (
                     <>
                       <div className="mb-6 max-w-full">
-                        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#e1062a] sm:tracking-[0.3em]">
-                          Results / Recommendations
-                        </p>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#e1062a] sm:tracking-[0.3em]">
+                            Results / Recommendations
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={resetSearch}
+                            className="w-fit rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black text-white/70 transition hover:bg-white hover:text-black"
+                          >
+                            Start New Search
+                          </button>
+                        </div>
 
                         <h2 className="mt-2 max-w-full break-words text-3xl font-black leading-tight sm:text-5xl">
                           Your perfect outing ✨
@@ -538,7 +531,7 @@ export default function CreatePage() {
                       </div>
 
                       {hasRestaurants && (
-                        <ResultSection title="Dinner" label="Restaurant Picks">
+                        <ResultSection>
                           {msg.restaurants?.map((r, restaurantIndex) => {
                             const restaurantId = String(r.id);
                             const isSelected = selectedRestaurant?.id === r.id;
@@ -591,7 +584,7 @@ export default function CreatePage() {
                       )}
 
                       {hasActivities && (
-                        <ResultSection title="Activity" label="Experience Picks">
+                        <ResultSection>
                           {msg.activities?.map((a, activityIndex) => {
                             const activityId = String(a.id);
                             const isSelected = selectedActivity?.id === a.id;
@@ -805,9 +798,7 @@ function getSuggestedFollowUps(message?: Message) {
   suggestions.push("Make it cheaper");
   suggestions.push("More romantic");
 
-  if (cuisine) {
-    suggestions.push(`More ${cuisine} options`);
-  }
+  if (cuisine) suggestions.push(`More ${cuisine} options`);
 
   suggestions.push("Add rooftop vibes");
 
@@ -830,9 +821,7 @@ function getSuggestedFollowUps(message?: Message) {
     suggestions.push("Add drinks after");
   }
 
-  if (hasActivities) {
-    suggestions.push("Make the activity more fun");
-  }
+  if (hasActivities) suggestions.push("Make the activity more fun");
 
   suggestions.push("Change to Brooklyn");
   suggestions.push("Show me something more upscale");
@@ -840,27 +829,9 @@ function getSuggestedFollowUps(message?: Message) {
   return Array.from(new Set(suggestions)).slice(0, 8);
 }
 
-function ResultSection({
-  title,
-  label,
-  children,
-}: {
-  title: string;
-  label: string;
-  children: React.ReactNode;
-}) {
+function ResultSection({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-10 max-w-full overflow-x-hidden">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-black uppercase tracking-[0.25em] text-white/40">
-          {title}
-        </h2>
-
-        <span className="shrink-0 rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white">
-          {label}
-        </span>
-      </div>
-
       <div className="grid w-full max-w-full gap-5 lg:grid-cols-2">
         {children}
       </div>
@@ -944,7 +915,7 @@ function ResultCard({
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
 
-        <div className="absolute left-4 top-4 origin-top-left scale-75 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
+        <div className="absolute left-4 top-4 origin-top-left scale-75 rounded-[1rem] bg-black/80 p-2 text-white shadow-xl ring-1 ring-red-500/40 backdrop-blur">
           <ScoreBadge score={score} />
         </div>
 
