@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
-import AdminTopBar from "@/components/AdminTopBar";
+import AdminTopBar from "@/app/components/AdminTopBar";
 
 type LocationType = "restaurants" | "activities";
 
@@ -145,7 +145,7 @@ export default function LocationsDashboardPage() {
 
   return (
     <main className="h-screen overflow-hidden bg-[#030303] text-white">
-      <AdminTopBar />
+    
 
       <div className="mx-auto flex h-[calc(100vh-73px)] max-w-7xl flex-col px-6 py-5">
         <header className="mb-4 flex items-center justify-between gap-4">
