@@ -82,11 +82,22 @@ const loadingMessages = [
   "Building something special...",
 ];
 
+const aiSuggestions = [
+  "Plan a fun outing in Queens with dinner and something relaxing after...",
+  "Find a classy restaurant near me with a great vibe and easy parking...",
+  "I want a birthday outing with food, music, and a memorable experience...",
+  "Plan an affordable night out with great food and something fun nearby...",
+  "Find a romantic restaurant with an activity close by...",
+  "Give me a luxury outing idea for this weekend...",
+];
+
 export default function CreatePage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingTextIndex, setLoadingTextIndex] = useState(0);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
+  const [typedSuggestion, setTypedSuggestion] = useState("");
   const [error, setError] = useState("");
   const [locationSaved, setLocationSaved] = useState(false);
 
@@ -216,6 +227,30 @@ export default function CreatePage() {
 
     return () => clearInterval(interval);
   }, [loading]);
+
+  useEffect(() => {
+    if (input.trim()) return;
+
+    const fullText = aiSuggestions[suggestionIndex];
+    let charIndex = 0;
+
+    setTypedSuggestion("");
+
+    const typingTimer = setInterval(() => {
+      charIndex += 1;
+      setTypedSuggestion(fullText.slice(0, charIndex));
+
+      if (charIndex >= fullText.length) {
+        clearInterval(typingTimer);
+
+        setTimeout(() => {
+          setSuggestionIndex((prev) => (prev + 1) % aiSuggestions.length);
+        }, 1800);
+      }
+    }, 35);
+
+    return () => clearInterval(typingTimer);
+  }, [suggestionIndex, input]);
 
   useEffect(() => {
     messages.forEach((msg) => {
@@ -380,7 +415,7 @@ export default function CreatePage() {
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.38em] text-[#e1062a]">
-                Create / Input Page
+                AI-powered outing planner
               </p>
 
               <h1 className="mt-5 text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
@@ -390,22 +425,31 @@ export default function CreatePage() {
               </h1>
 
               <p className="mt-6 max-w-xl text-base leading-7 text-white/55 md:text-lg">
-                Tell RoseOut your vibe, budget, borough, and mood. We’ll match
-                restaurants and activities into a polished outing.
+                Type naturally. RoseOut understands your vibe, budget, borough,
+                mood, and outing style.
               </p>
             </div>
 
             <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d]/90 p-5 shadow-2xl shadow-black/40 backdrop-blur">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  messages.length
-                    ? "Ask a follow-up question..."
-                    : "Example: Romantic dinner in Queens with a fun activity after"
-                }
-                className="min-h-[150px] w-full resize-none rounded-[1.5rem] border border-white/10 bg-black px-5 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-white/35 focus:border-[#e1062a]/70"
-              />
+              <div className="relative">
+                {!input && (
+                  <div className="pointer-events-none absolute left-5 top-4 right-5 z-10 text-sm font-semibold leading-7 text-white/30">
+                    <span>{typedSuggestion}</span>
+                    <span className="ml-1 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-[#e1062a]" />
+                  </div>
+                )}
+
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  className="relative z-20 min-h-[170px] w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-transparent focus:border-[#e1062a]/70"
+                />
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-white/35">
+                <span>Try full sentences. RoseOut will understand.</span>
+                <span className="text-[#e1062a]">AI Suggestions</span>
+              </div>
 
               {error && (
                 <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">
@@ -437,12 +481,6 @@ export default function CreatePage() {
                 >
                   {locationSaved ? "✓ Location Saved" : "Use My Location"}
                 </button>
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <PromptPill text="Date night in Brooklyn" setInput={setInput} />
-                <PromptPill text="Birthday dinner + drinks" setInput={setInput} />
-                <PromptPill text="Fun activity near me" setInput={setInput} />
               </div>
             </div>
           </div>
@@ -587,11 +625,13 @@ export default function CreatePage() {
                   </>
                 ) : null}
 
-                {msg.role === "assistant" && !hasRestaurants && !hasActivities && (
-                  <p className="whitespace-pre-wrap text-white/75">
-                    {msg.content}
-                  </p>
-                )}
+                {msg.role === "assistant" &&
+                  !hasRestaurants &&
+                  !hasActivities && (
+                    <p className="whitespace-pre-wrap text-white/75">
+                      {msg.content}
+                    </p>
+                  )}
               </div>
             );
           })}
@@ -636,24 +676,6 @@ export default function CreatePage() {
         </div>
       )}
     </main>
-  );
-}
-
-function PromptPill({
-  text,
-  setInput,
-}: {
-  text: string;
-  setInput: (value: string) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => setInput(text)}
-      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/55 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"
-    >
-      {text}
-    </button>
   );
 }
 
