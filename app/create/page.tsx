@@ -2,478 +2,928 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import QRCode from "qrcode";
-import { createClient } from "@/lib/supabase-browser";
+import { useEffect, useRef, useState } from "react";
+import { trackAnalytics } from "@/lib/trackAnalytics";
 import { clampScore } from "@/lib/clampScore";
 import ScoreBadge from "@/components/ScoreBadge";
+import RoseOutHeader from "@/components/RoseOutHeader";
 
-type LocationType = "restaurant" | "activity";
-
-type LocationItem = {
+type RestaurantCard = {
   id: string;
-  location_type: LocationType;
-  display_name: string;
-  restaurant_name?: string;
-  activity_name?: string;
-  address?: string;
-  city?: string;
-  state?: string;
+  restaurant_name: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  roseout_score: number;
+  reservation_link?: string;
+  reservation_url?: string;
+  website?: string;
   image_url?: string;
-  roseout_score?: number;
-  quality_score?: number;
-  claim_status?: string;
-  owner_name?: string;
-  owner_email?: string;
-  owner_phone?: string;
-  primary_tag?: string;
+  rating?: number | null;
+  review_count?: number | null;
+  primary_tag?: string | null;
+  date_style_tags?: string[];
+  distance_miles?: number | null;
 };
 
-export default function DashboardPage() {
-  const supabase = createClient();
+type ActivityCard = {
+  id: string;
+  activity_name: string;
+  activity_type?: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  price_range?: string;
+  atmosphere?: string;
+  group_friendly?: boolean;
+  roseout_score: number;
+  reservation_link?: string;
+  reservation_url?: string;
+  website?: string;
+  image_url?: string;
+  rating?: number | null;
+  review_count?: number | null;
+  primary_tag?: string | null;
+  date_style_tags?: string[];
+  distance_miles?: number | null;
+};
 
-  const [locations, setLocations] = useState<LocationItem[]>([]);
-  const [selected, setSelected] = useState<LocationItem | null>(null);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "restaurant" | "activity">("all");
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  restaurants?: RestaurantCard[];
+  activities?: ActivityCard[];
+};
+
+type UserLocation = {
+  latitude: number;
+  longitude: number;
+};
+
+type SavedCreateState = {
+  input: string;
+  messages: Message[];
+  selectedRestaurant: RestaurantCard | null;
+  selectedActivity: ActivityCard | null;
+  scrollY: number;
+};
+
+const STORAGE_KEY = "roseout_create_state";
+const LOCATION_KEY = "roseout_user_location";
+
+const loadingMessages = [
+  "Finding hidden gems...",
+  "Matching your vibe...",
+  "Scanning top-rated spots...",
+  "Curating your perfect outing...",
+  "Checking the best experiences...",
+  "Building something special...",
+];
+
+export default function CreatePage() {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingTextIndex, setLoadingTextIndex] = useState(0);
+  const [error, setError] = useState("");
+  const [locationSaved, setLocationSaved] = useState(false);
+
+  const viewedItems = useRef<Set<string>>(new Set());
+
+  const [selectedRestaurant, setSelectedRestaurant] =
+    useState<RestaurantCard | null>(null);
+
+  const [selectedActivity, setSelectedActivity] =
+    useState<ActivityCard | null>(null);
+
+  const getSavedUserLocation = (): UserLocation | null => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const saved = localStorage.getItem(LOCATION_KEY);
+      if (!saved) return null;
+
+      const parsed = JSON.parse(saved);
+
+      if (
+        typeof parsed.latitude === "number" &&
+        typeof parsed.longitude === "number"
+      ) {
+        return parsed;
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const requestUserLocation = () => {
+    if (!navigator.geolocation) {
+      setError("Location is not supported on this device.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLocation: UserLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+
+        localStorage.setItem(LOCATION_KEY, JSON.stringify(userLocation));
+        setLocationSaved(true);
+        setError("");
+      },
+      () => {
+        setLocationSaved(false);
+        setError("Please allow location access or search by zip code.");
+      }
+    );
+  };
+
+  const saveCreateState = () => {
+    const state: SavedCreateState = {
+      input,
+      messages,
+      selectedRestaurant,
+      selectedActivity,
+      scrollY: window.scrollY,
+    };
+
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  };
+
+  const resetSearch = () => {
+    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("roseout_plan");
+
+    setInput("");
+    setMessages([]);
+    setSelectedRestaurant(null);
+    setSelectedActivity(null);
+    setError("");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   useEffect(() => {
-    const load = async () => {
-      const { data: restaurants } = await supabase.from("restaurants").select("*");
-      const { data: activities } = await supabase.from("activities").select("*");
+    setLocationSaved(!!getSavedUserLocation());
 
-      const combined: LocationItem[] = [
-        ...(restaurants || []).map((r: any) => ({
-          ...r,
-          location_type: "restaurant",
-          display_name: r.restaurant_name || r.name || "Unnamed Restaurant",
-        })),
-        ...(activities || []).map((a: any) => ({
-          ...a,
-          location_type: "activity",
-          display_name: a.activity_name || a.name || "Unnamed Activity",
-        })),
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved) as SavedCreateState;
+
+      setInput(parsed.input || "");
+      setMessages(parsed.messages || []);
+      setSelectedRestaurant(parsed.selectedRestaurant || null);
+      setSelectedActivity(parsed.selectedActivity || null);
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo({
+            top: parsed.scrollY || 0,
+            behavior: "instant" as ScrollBehavior,
+          });
+        });
+      });
+    } catch {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => saveCreateState();
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  });
+
+  useEffect(() => {
+    if (!loading) return;
+
+    const interval = setInterval(() => {
+      setLoadingTextIndex((prev) => (prev + 1) % loadingMessages.length);
+    }, 1400);
+
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  useEffect(() => {
+    messages.forEach((msg) => {
+      msg.restaurants?.forEach((r) => {
+        const key = `restaurant-${r.id}`;
+
+        if (!viewedItems.current.has(key)) {
+          viewedItems.current.add(key);
+
+          trackAnalytics({
+            itemId: r.id,
+            itemType: "restaurant",
+            eventType: "view",
+          });
+        }
+      });
+
+      msg.activities?.forEach((a) => {
+        const key = `activity-${a.id}`;
+
+        if (!viewedItems.current.has(key)) {
+          viewedItems.current.add(key);
+
+          trackAnalytics({
+            itemId: a.id,
+            itemType: "activity",
+            eventType: "view",
+          });
+        }
+      });
+    });
+  }, [messages]);
+
+  const trackRestaurantClick = (id: string) => {
+    trackAnalytics({
+      itemId: id,
+      itemType: "restaurant",
+      eventType: "click",
+    });
+  };
+
+  const trackActivityClick = (id: string) => {
+    trackAnalytics({
+      itemId: id,
+      itemType: "activity",
+      eventType: "click",
+    });
+  };
+
+  const sendMessage = async () => {
+    if (loading) return;
+
+    if (!input.trim()) {
+      setError("Please enter what you’re looking for.");
+      return;
+    }
+
+    const userMessage: Message = {
+      role: "user",
+      content: input,
+    };
+
+    const nextMessages = [...messages, userMessage];
+
+    setMessages(nextMessages);
+    setInput("");
+    setError("");
+    setLoading(true);
+    setSelectedRestaurant(null);
+    setSelectedActivity(null);
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: nextMessages.slice(-4),
+          userLocation: getSavedUserLocation(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Something went wrong.");
+        return;
+      }
+
+      const assistantReply = data.reply || data.message || data.answer || "";
+
+      const updatedMessages: Message[] = [
+        ...nextMessages,
+        {
+          role: "assistant",
+          content: assistantReply,
+          restaurants: data.restaurants || [],
+          activities: data.activities || [],
+        },
       ];
 
-      setLocations(combined);
-      setSelected(combined[0] || null);
-    };
+      setMessages(updatedMessages);
 
-    load();
-  }, [supabase]);
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          input: "",
+          messages: updatedMessages,
+          selectedRestaurant: null,
+          selectedActivity: null,
+          scrollY: window.scrollY,
+        })
+      );
+    } catch {
+      setError("Could not create response. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filteredLocations = useMemo(() => {
-    return locations.filter((location) => {
-      const matchesType = filter === "all" || location.location_type === filter;
+  const getPlanButtonText = () => {
+    if (selectedRestaurant && selectedActivity) return "View Your Full Plan";
+    if (selectedRestaurant) return "View Dinner Plan";
+    if (selectedActivity) return "View Activity Plan";
+    return "View Your Plan";
+  };
 
-      const searchText = [
-        location.display_name,
-        location.city,
-        location.state,
-        location.owner_name,
-        location.owner_email,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch = searchText.includes(search.toLowerCase());
-
-      return matchesType && matchesSearch;
-    });
-  }, [locations, search, filter]);
-
-  const stats = useMemo(() => {
-    return {
-      total: locations.length,
-      claimed: locations.filter((l) => l.claim_status === "claimed").length,
-      unclaimed: locations.filter((l) => l.claim_status !== "claimed").length,
-      restaurants: locations.filter((l) => l.location_type === "restaurant").length,
-      activities: locations.filter((l) => l.location_type === "activity").length,
-    };
-  }, [locations]);
+  const selectedPlanText =
+    selectedRestaurant && selectedActivity
+      ? `${selectedRestaurant.restaurant_name} + ${selectedActivity.activity_name}`
+      : selectedRestaurant?.restaurant_name ||
+        selectedActivity?.activity_name ||
+        "";
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <section className="relative overflow-hidden border-b border-white/10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(225,6,42,0.24),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(225,6,42,0.16),transparent_28%),linear-gradient(180deg,#050505,#000)]" />
+    <main className="min-h-screen bg-[#070707] px-5 py-8 pb-40 text-white">
+        <RoseOutHeader />
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
+            RoseOut
+          </p>
 
-        <div className="relative mx-auto max-w-7xl px-6 py-6">
-          <div className="flex items-center justify-between">
-            <Link href="/admin/dashboard" className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 text-xl">
-                🌹
-              </div>
-
-              <span className="text-2xl font-black">
-                Rose<span className="text-[#e1062a]">Out</span>
-              </span>
-            </Link>
-
-            <div className="hidden items-center gap-6 text-sm font-bold text-white/60 md:flex">
-              <Link href="/admin/dashboard" className="hover:text-white">
-                Dashboard
-              </Link>
-              <Link href="/admin/restaurants" className="hover:text-white">
-                Restaurants
-              </Link>
-              <Link href="/admin/activities" className="hover:text-white">
-                Activities
-              </Link>
-              <Link href="/admin/users" className="hover:text-white">
-                Users
-              </Link>
-            </div>
-
-            <Link
-              href="/admin/dashboard"
-              className="rounded-2xl bg-[#e1062a] px-5 py-2 text-sm font-black text-white shadow-lg shadow-red-500/25 transition hover:bg-red-500"
-            >
-              Admin Home
-            </Link>
-          </div>
-
-          <div className="grid gap-8 py-14 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.35em] text-red-500">
-                RoseOut Control Room
-              </p>
-
-              <h1 className="mt-5 text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
-                Locations
-                <br />
-                <span className="text-[#e1062a]">Dashboard.</span>
-              </h1>
-
-              <p className="mt-6 max-w-xl text-base leading-7 text-white/55">
-                View, manage, claim, and edit restaurants and activities in one
-                premium RoseOut command center.
-              </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Stat label="Total" value={stats.total} />
-              <Stat label="Claimed" value={stats.claimed} />
-              <Stat label="Unclaimed" value={stats.unclaimed} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-3 shadow-2xl shadow-black/30">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search locations, city, owner, email..."
-              className="w-full rounded-2xl border border-white/10 bg-black px-5 py-4 text-sm font-bold text-white outline-none placeholder:text-white/35 focus:border-red-500/60"
-            />
-          </div>
-
-          <div className="flex gap-2 rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-2">
-            <FilterButton active={filter === "all"} onClick={() => setFilter("all")}>
-              All
-            </FilterButton>
-            <FilterButton
-              active={filter === "restaurant"}
-              onClick={() => setFilter("restaurant")}
-            >
-              Restaurants
-            </FilterButton>
-            <FilterButton
-              active={filter === "activity"}
-              onClick={() => setFilter("activity")}
-            >
-              Activities
-            </FilterButton>
-          </div>
+          <button
+            type="button"
+            onClick={resetSearch}
+            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white transition hover:bg-white/15"
+          >
+            Start New Search
+          </button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-          <aside className="max-h-[82vh] space-y-3 overflow-y-auto rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-4 shadow-2xl shadow-black/30">
-            <div className="mb-2 flex items-center justify-between px-1">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-red-500">
-                Locations
-              </p>
+        <div className="mb-8 rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-2xl">
+          <h1 className="text-4xl font-black tracking-tight md:text-5xl">
+            Plan Your Outing
+          </h1>
 
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/50">
-                {filteredLocations.length}
-              </span>
-            </div>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-300">
+            Tell RoseOut what kind of experience you want, and get curated
+            restaurants and activities with a polished outing feel.
+          </p>
+        </div>
 
-            {filteredLocations.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-sm font-bold text-white/40">
-                No locations found.
-              </div>
-            ) : (
-              filteredLocations.map((loc) => {
-                const score = clampScore(loc.roseout_score ?? loc.quality_score ?? 0);
-                const active = selected?.id === loc.id;
+        <div className="space-y-5">
+          {messages.map((msg, index) => {
+            const hasRestaurants = !!msg.restaurants?.length;
+            const hasActivities = !!msg.activities?.length;
 
-                return (
-                  <button
-                    key={`${loc.location_type}-${loc.id}`}
-                    onClick={() => setSelected(loc)}
-                    className={`w-full rounded-2xl border p-3 text-left transition ${
-                      active
-                        ? "border-red-500/60 bg-red-500/10"
-                        : "border-white/10 bg-black/35 hover:border-red-500/40 hover:bg-red-500/10"
-                    }`}
-                  >
-                    <div className="flex gap-3">
-                      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-white/10">
-                        {loc.image_url ? (
-                          <Image
-                            src={loc.image_url}
-                            alt={loc.display_name}
-                            width={100}
-                            height={100}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xl">
-                            {loc.location_type === "restaurant" ? "🍽️" : "🎟️"}
-                          </div>
-                        )}
-                      </div>
+            return (
+              <div
+                key={index}
+                className={`rounded-[2rem] p-5 ${
+                  msg.role === "user"
+                    ? "bg-yellow-500 text-black shadow-xl"
+                    : "border border-white/10 bg-[#f7f3ed] text-black shadow-2xl"
+                }`}
+              >
+                {msg.role === "user" && (
+                  <p className="whitespace-pre-wrap font-bold">
+                    {msg.content}
+                  </p>
+                )}
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="truncate text-sm font-black">
-                            {loc.display_name}
-                          </p>
+                {msg.role === "assistant" &&
+                (hasRestaurants || hasActivities) ? (
+                  <>
+                    <div className="mb-6">
+                      <p className="text-xs font-bold uppercase tracking-[0.3em] text-neutral-500">
+                        Curated Results
+                      </p>
 
-                          <span className="rounded-full bg-[#e1062a] px-2 py-0.5 text-[10px] font-black text-white">
-                            {score}
+                      <h2 className="mt-2 text-2xl font-black text-black">
+                        Here’s what RoseOut found
+                      </h2>
+
+                      <p className="mt-1 text-sm font-medium text-neutral-500">
+                        Select your favorites or view the full details.
+                      </p>
+                    </div>
+
+                    {hasRestaurants && (
+                      <div className="mb-10">
+                        <div className="mb-4 flex items-center justify-between">
+                          <h2 className="text-sm font-black uppercase tracking-[0.25em] text-neutral-500">
+                            Restaurants
+                          </h2>
+
+                          <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
+                            Dinner picks
                           </span>
                         </div>
 
-                        <p className="mt-1 truncate text-xs font-bold capitalize text-white/40">
-                          {loc.location_type}
-                        </p>
+                        <div className="grid gap-6">
+                          {msg.restaurants?.map((r, restaurantIndex) => {
+                            const restaurantId = String(r.id);
+                            const isSelected =
+                              selectedRestaurant?.id === r.id;
 
-                        <p className="mt-1 truncate text-xs text-white/35">
-                          {[loc.city, loc.state].filter(Boolean).join(", ") ||
-                            "No location"}
-                        </p>
+                            const reservationUrl =
+                              r.reservation_url || r.reservation_link;
 
-                        <span
-                          className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${
-                            loc.claim_status === "claimed"
-                              ? "bg-emerald-500/15 text-emerald-300"
-                              : "bg-white/10 text-white/45"
-                          }`}
-                        >
-                          {loc.claim_status === "claimed" ? "Claimed" : "Unclaimed"}
-                        </span>
+                            const safeScore = clampScore(r.roseout_score);
+
+                            return (
+                              <div
+                                key={restaurantId || restaurantIndex}
+                                className={`group overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+                                  isSelected
+                                    ? "border-yellow-500 ring-2 ring-yellow-500"
+                                    : "border-neutral-200"
+                                }`}
+                              >
+                                <div className="relative">
+                                  {r.image_url ? (
+                                    <Image
+                                      src={r.image_url}
+                                      alt={r.restaurant_name}
+                                      width={900}
+                                      height={520}
+                                      className="h-72 w-full object-cover transition duration-700 group-hover:scale-105"
+                                      priority={restaurantIndex === 0}
+                                    />
+                                  ) : (
+                                    <div className="flex h-72 items-center justify-center bg-neutral-200 text-neutral-500">
+                                      No image available
+                                    </div>
+                                  )}
+
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
+
+                                  <div className="absolute left-4 top-4 origin-top-left scale-75 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
+                                    <ScoreBadge score={safeScore} />
+                                  </div>
+
+                                  {r.distance_miles !== null &&
+                                    r.distance_miles !== undefined && (
+                                      <div className="absolute bottom-4 left-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
+                                        {r.distance_miles} mi away
+                                      </div>
+                                    )}
+
+                                  {r.rating && (
+                                    <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
+                                      ⭐ {r.rating}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="p-5">
+                                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">
+                                    Restaurant
+                                  </p>
+
+                                  <h3 className="mt-1 text-2xl font-black tracking-tight text-black">
+                                    {r.restaurant_name}
+                                  </h3>
+
+                                  <p className="mt-3 text-sm leading-6 text-neutral-600">
+                                    {[r.address, r.city, r.state, r.zip_code]
+                                      .filter(Boolean)
+                                      .join(", ")}
+                                  </p>
+
+                                  {r.review_count ? (
+                                    <p className="mt-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
+                                      {r.review_count} reviews
+                                    </p>
+                                  ) : null}
+
+                                  {r.primary_tag && (
+                                    <p className="mt-4 text-sm font-black text-black">
+                                      ✨ {r.primary_tag}
+                                    </p>
+                                  )}
+
+                                  {r.date_style_tags?.length ? (
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                      {r.date_style_tags
+                                        .slice(0, 3)
+                                        .map((tag) => (
+                                          <span
+                                            key={tag}
+                                            className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                    </div>
+                                  ) : null}
+
+                                  <div className="mt-5 flex flex-wrap gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedRestaurant(
+                                          selectedRestaurant?.id === r.id
+                                            ? null
+                                            : r
+                                        )
+                                      }
+                                      className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
+                                        isSelected
+                                          ? "bg-yellow-500 text-black"
+                                          : "border border-black text-black hover:bg-black hover:text-white"
+                                      }`}
+                                    >
+                                      {isSelected ? "Selected" : "Select"}
+                                    </button>
+
+                                    <Link
+                                      href={`/locations/restaurants/${restaurantId}?from=/create`}
+                                      onClick={() => {
+                                        saveCreateState();
+                                        trackRestaurantClick(restaurantId);
+                                      }}
+                                      className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
+                                    >
+                                      View Details
+                                    </Link>
+
+                                    {reservationUrl && (
+                                      <a
+                                        href={reservationUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() =>
+                                          trackRestaurantClick(restaurantId)
+                                        }
+                                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
+                                      >
+                                        Reserve
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </aside>
+                    )}
 
-          <section className="min-h-[680px] rounded-[2.5rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl shadow-black/30">
-            {selected ? (
-              <SelectedLocationPanel selected={selected} />
-            ) : (
-              <div className="flex min-h-[600px] items-center justify-center text-center">
-                <div>
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-3xl">
-                    🌹
-                  </div>
-                  <h2 className="mt-5 text-3xl font-black">Select a location</h2>
-                  <p className="mt-2 text-sm text-white/40">
-                    Choose a restaurant or activity to view details.
-                  </p>
-                </div>
+                    {hasActivities && (
+                      <div>
+                        <div className="mb-4 flex items-center justify-between">
+                          <h2 className="text-sm font-black uppercase tracking-[0.25em] text-neutral-500">
+                            Activities
+                          </h2>
+
+                          <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
+                            Experience picks
+                          </span>
+                        </div>
+
+                        <div className="grid gap-6">
+                          {msg.activities?.map((a, activityIndex) => {
+                            const activityId = String(a.id);
+                            const isSelected =
+                              selectedActivity?.id === a.id;
+
+                            const reservationUrl =
+                              a.reservation_url || a.reservation_link;
+
+                            const safeScore = clampScore(a.roseout_score);
+
+                            return (
+                              <div
+                                key={activityId || activityIndex}
+                                className={`group overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+                                  isSelected
+                                    ? "border-yellow-500 ring-2 ring-yellow-500"
+                                    : "border-neutral-200"
+                                }`}
+                              >
+                                <div className="relative">
+                                  {a.image_url ? (
+                                    <Image
+                                      src={a.image_url}
+                                      alt={a.activity_name}
+                                      width={900}
+                                      height={520}
+                                      className="h-72 w-full object-cover transition duration-700 group-hover:scale-105"
+                                      priority={activityIndex === 0}
+                                    />
+                                  ) : (
+                                    <div className="flex h-72 items-center justify-center bg-neutral-200 text-neutral-500">
+                                      No image available
+                                    </div>
+                                  )}
+
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
+
+                                  <div className="absolute left-4 top-4 origin-top-left scale-75 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
+                                    <ScoreBadge score={safeScore} />
+                                  </div>
+
+                                  {a.distance_miles !== null &&
+                                    a.distance_miles !== undefined && (
+                                      <div className="absolute bottom-4 left-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
+                                        {a.distance_miles} mi away
+                                      </div>
+                                    )}
+
+                                  {a.rating && (
+                                    <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
+                                      ⭐ {a.rating}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="p-5">
+                                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">
+                                    {a.activity_type || "Activity"}
+                                  </p>
+
+                                  <h3 className="mt-1 text-2xl font-black tracking-tight text-black">
+                                    {a.activity_name}
+                                  </h3>
+
+                                  <p className="mt-3 text-sm leading-6 text-neutral-600">
+                                    {[a.address, a.city, a.state, a.zip_code]
+                                      .filter(Boolean)
+                                      .join(", ")}
+                                  </p>
+
+                                  {a.review_count ? (
+                                    <p className="mt-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
+                                      {a.review_count} reviews
+                                    </p>
+                                  ) : null}
+
+                                  {a.primary_tag && (
+                                    <p className="mt-4 text-sm font-black text-black">
+                                      ✨ {a.primary_tag}
+                                    </p>
+                                  )}
+
+                                  {a.date_style_tags?.length ? (
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                      {a.date_style_tags
+                                        .slice(0, 3)
+                                        .map((tag) => (
+                                          <span
+                                            key={tag}
+                                            className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                    </div>
+                                  ) : null}
+
+                                  <div className="mt-5 flex flex-wrap gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedActivity(
+                                          selectedActivity?.id === a.id
+                                            ? null
+                                            : a
+                                        )
+                                      }
+                                      className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
+                                        isSelected
+                                          ? "bg-yellow-500 text-black"
+                                          : "border border-black text-black hover:bg-black hover:text-white"
+                                      }`}
+                                    >
+                                      {isSelected ? "Selected" : "Select"}
+                                    </button>
+
+                                    <Link
+                                      href={`/locations/activities/${activityId}?from=/create`}
+                                      onClick={() => {
+                                        saveCreateState();
+                                        trackActivityClick(activityId);
+                                      }}
+                                      className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
+                                    >
+                                      View Details
+                                    </Link>
+
+                                    {a.website && (
+                                      <a
+                                        href={a.website}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() =>
+                                          trackActivityClick(activityId)
+                                        }
+                                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
+                                      >
+                                        Website
+                                      </a>
+                                    )}
+
+                                    {reservationUrl && (
+                                      <a
+                                        href={reservationUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() =>
+                                          trackActivityClick(activityId)
+                                        }
+                                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
+                                      >
+                                        Book
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : null}
+
+                {msg.role === "assistant" &&
+                  !hasRestaurants &&
+                  !hasActivities && (
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  )}
               </div>
-            )}
-          </section>
+            );
+          })}
         </div>
-      </section>
+
+        {loading && (
+          <LuxuryLoading loadingText={loadingMessages[loadingTextIndex]} />
+        )}
+
+        {error && (
+          <div className="mt-6 rounded-2xl bg-red-100 p-4 text-red-700">
+            {error}
+          </div>
+        )}
+
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={
+            messages.length
+              ? "Ask a follow-up question..."
+              : "Example: Romantic dinner near me within 10 miles"
+          }
+          className="mt-6 w-full rounded-[1.5rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
+        />
+
+        <button
+          onClick={sendMessage}
+          disabled={loading}
+          className="mt-4 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black transition hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading
+            ? "Finding matches..."
+            : messages.length
+            ? "Send"
+            : "Create Plan"}
+        </button>
+
+        <button
+          type="button"
+          onClick={requestUserLocation}
+          className={`mt-3 w-full rounded-full px-6 py-4 font-extrabold transition ${
+            locationSaved
+              ? "bg-green-500 text-black hover:bg-green-400"
+              : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
+          }`}
+        >
+          {locationSaved ? "✓ Location Saved" : "Use My Location"}
+        </button>
+      </div>
+
+      {(selectedRestaurant || selectedActivity) && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
+          <div className="mx-auto max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-yellow-500">
+              Building your plan
+            </p>
+
+            <p className="mt-1 text-sm font-bold">{selectedPlanText}</p>
+
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.setItem(
+                  "roseout_plan",
+                  JSON.stringify({
+                    restaurant: selectedRestaurant,
+                    activity: selectedActivity,
+                  })
+                );
+
+                window.location.href = "/plan";
+              }}
+              className="mt-3 w-full rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black transition hover:bg-yellow-400"
+            >
+              {getPlanButtonText()}
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
 
-function SelectedLocationPanel({ selected }: { selected: LocationItem }) {
-  const score = clampScore(selected.roseout_score ?? selected.quality_score ?? 0);
-
+function LuxuryLoading({ loadingText }: { loadingText: string }) {
   return (
-    <div>
-      <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black">
-        {selected.image_url ? (
-          <Image
-            src={selected.image_url}
-            alt={selected.display_name}
-            width={1200}
-            height={520}
-            className="h-[320px] w-full object-cover opacity-80"
-          />
-        ) : (
-          <div className="flex h-[320px] w-full items-center justify-center bg-gradient-to-br from-red-500/20 to-black text-6xl">
-            {selected.location_type === "restaurant" ? "🍽️" : "🎟️"}
-          </div>
-        )}
+    <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-[#f7f3ed] p-5 text-black shadow-2xl">
+      <div className="mb-5 text-center">
+        <p className="text-xs font-black uppercase tracking-[0.35em] text-neutral-500">
+          RoseOut is searching
+        </p>
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
+        <h2 className="mt-2 min-h-[32px] text-2xl font-black transition-all duration-500">
+          {loadingText}
+        </h2>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6">
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-red-500">
-            {selected.location_type === "restaurant"
-              ? "RoseOut Restaurant"
-              : "RoseOut Activity"}
-          </p>
-
-          <h2 className="mt-2 max-w-3xl text-4xl font-black tracking-tight">
-            {selected.display_name}
-          </h2>
-
-          <p className="mt-2 text-sm font-semibold text-white/55">
-            {[selected.address, selected.city, selected.state]
-              .filter(Boolean)
-              .join(", ") || "Address not listed"}
-          </p>
+        <div className="mt-4 flex justify-center gap-2">
+          <span className="h-2 w-2 animate-bounce rounded-full bg-yellow-500" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-yellow-500 [animation-delay:150ms]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-yellow-500 [animation-delay:300ms]" />
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_340px]">
-        <div className="space-y-6">
-          <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-red-500">
-              RoseOut Score
-            </p>
-
-            <div className="mt-4">
-              <ScoreBadge score={score} />
-            </div>
-
-            {selected.primary_tag && (
-              <p className="mt-4 text-lg font-black text-red-400">
-                ✨ {selected.primary_tag}
-              </p>
-            )}
-          </div>
-
-          <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-red-500">
-              Owner Info
-            </p>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-3">
-              <DetailBox label="Name" value={selected.owner_name || "Not set"} />
-              <DetailBox
-                label="Email"
-                value={
-                  selected.owner_email ? maskEmail(selected.owner_email) : "Not set"
-                }
-              />
-              <DetailBox label="Phone" value={selected.owner_phone || "Not set"} />
-            </div>
-          </div>
-        </div>
-
-        <aside className="space-y-6">
-          <div className="rounded-[2rem] border border-white/10 bg-white p-6 text-black">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
-              Claim QR
-            </p>
-
-            <QRPanel id={selected.id} />
-
-            <p className="mt-4 text-xs leading-5 text-neutral-500">
-              Print or send this QR code so owners can claim their listing.
-            </p>
-          </div>
-
-          <Link
-            href={`/locations/edit/${selected.location_type}s/${selected.id}`}
-            className="flex w-full justify-center rounded-2xl bg-[#e1062a] px-6 py-4 text-sm font-black text-white shadow-lg shadow-red-500/25 transition hover:bg-red-500"
+      <div className="grid gap-5">
+        {[1, 2].map((item) => (
+          <div
+            key={item}
+            className="overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white shadow-xl"
           >
-            Edit Location
-          </Link>
-        </aside>
+            <div className="relative h-72 overflow-hidden bg-neutral-200">
+              <div className="absolute inset-0 bg-gradient-to-br from-neutral-300 via-neutral-200 to-neutral-400 blur-sm" />
+
+              <div className="absolute inset-0 -translate-x-full animate-[roseoutShimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+
+              <div className="absolute left-4 top-4 rounded-[1rem] bg-white/90 p-3 shadow-xl">
+                <div className="flex items-center gap-2">
+                  <div className="relative h-12 w-12">
+                    <div className="absolute inset-0 rounded-full border-[5px] border-neutral-200" />
+                    <div className="absolute inset-0 animate-spin rounded-full border-[5px] border-yellow-500 border-r-transparent" />
+                    <div className="absolute inset-0 flex items-center justify-center text-xs font-black">
+                      AI
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="h-3 w-16 animate-pulse rounded-full bg-neutral-300" />
+                    <div className="mt-2 h-4 w-20 animate-pulse rounded-full bg-neutral-300" />
+                    <div className="mt-2 h-5 w-14 animate-pulse rounded-full bg-yellow-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute bottom-4 right-4 h-10 w-24 animate-pulse rounded-full bg-white/90" />
+            </div>
+
+            <div className="p-5">
+              <div className="h-3 w-28 animate-pulse rounded-full bg-neutral-300" />
+              <div className="mt-4 h-8 w-64 animate-pulse rounded-full bg-neutral-300" />
+              <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-neutral-200" />
+              <div className="mt-2 h-4 w-2/3 animate-pulse rounded-full bg-neutral-200" />
+
+              <div className="mt-5 flex gap-2">
+                <div className="h-8 w-24 animate-pulse rounded-full bg-neutral-200" />
+                <div className="h-8 w-20 animate-pulse rounded-full bg-neutral-200" />
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <div className="h-11 w-28 animate-pulse rounded-full border border-neutral-300" />
+                <div className="h-11 w-36 animate-pulse rounded-full bg-black" />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
+
+      <style jsx>{`
+        @keyframes roseoutShimmer {
+          100% {
+            transform: translateX(100%);
+          }
+        }
+      `}</style>
     </div>
   );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl shadow-black/30">
-      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/35">
-        {label}
-      </p>
-      <p className="mt-2 text-4xl font-black">{value}</p>
-    </div>
-  );
-}
-
-function FilterButton({
-  children,
-  active,
-  onClick,
-}: {
-  children: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-4 py-2 text-xs font-black transition ${
-        active
-          ? "bg-[#e1062a] text-white"
-          : "text-white/50 hover:bg-white/10 hover:text-white"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function DetailBox({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/35">
-        {label}
-      </p>
-      <p className="mt-2 break-words text-sm font-black text-white">{value}</p>
-    </div>
-  );
-}
-
-function QRPanel({ id }: { id: string }) {
-  const [qr, setQr] = useState("");
-
-  useEffect(() => {
-    const url = `${window.location.origin}/claim?id=${id}`;
-    QRCode.toDataURL(url).then(setQr);
-  }, [id]);
-
-  return (
-    <div className="mt-4">
-      {qr ? (
-        <img
-          src={qr}
-          alt="Claim QR"
-          className="mx-auto h-44 w-44 rounded-2xl bg-white p-2"
-        />
-      ) : (
-        <div className="flex h-44 w-44 items-center justify-center rounded-2xl bg-neutral-100 text-sm font-bold text-neutral-400">
-          Loading QR...
-        </div>
-      )}
-    </div>
-  );
-}
-
-function maskEmail(email: string) {
-  const [name, domain] = email.split("@");
-  if (!name || !domain) return email;
-
-  return name[0] + "***@" + domain;
 }
