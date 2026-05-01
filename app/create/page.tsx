@@ -123,7 +123,6 @@ export default function CreatePage() {
         };
 
         localStorage.setItem(LOCATION_KEY, JSON.stringify(userLocation));
-
         setLocationSaved(true);
         setError("");
       },
@@ -357,10 +356,6 @@ export default function CreatePage() {
             Tell RoseOut what kind of experience you want, and get curated
             restaurants and activities with a polished outing feel.
           </p>
-
-          <p className="mt-4 text-xs text-neutral-400">
-            You can search by city, zip code, vibe, activity, or nearby request.
-          </p>
         </div>
 
         <div className="space-y-5">
@@ -450,7 +445,7 @@ export default function CreatePage() {
 
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
-                                  <div className="absolute left-4 top-4 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
+                                  <div className="absolute left-4 top-4 origin-top-left scale-75 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
                                     <ScoreBadge score={safeScore} />
                                   </div>
 
@@ -460,16 +455,6 @@ export default function CreatePage() {
                                         {r.distance_miles} mi away
                                       </div>
                                     )}
-
-                                  {safeScore >= 90 ? (
-                                    <div className="absolute right-4 top-4 rounded-full bg-black px-3 py-1 text-xs font-extrabold text-white">
-                                      Elite
-                                    </div>
-                                  ) : safeScore >= 80 ? (
-                                    <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
-                                      Top Pick
-                                    </div>
-                                  ) : null}
 
                                   {r.rating && (
                                     <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
@@ -622,7 +607,7 @@ export default function CreatePage() {
 
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
-                                  <div className="absolute left-4 top-4 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
+                                  <div className="absolute left-4 top-4 origin-top-left scale-75 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
                                     <ScoreBadge score={safeScore} />
                                   </div>
 
@@ -632,16 +617,6 @@ export default function CreatePage() {
                                         {a.distance_miles} mi away
                                       </div>
                                     )}
-
-                                  {safeScore >= 90 ? (
-                                    <div className="absolute right-4 top-4 rounded-full bg-black px-3 py-1 text-xs font-extrabold text-white">
-                                      Elite
-                                    </div>
-                                  ) : safeScore >= 80 ? (
-                                    <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
-                                      Top Pick
-                                    </div>
-                                  ) : null}
 
                                   {a.rating && (
                                     <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
