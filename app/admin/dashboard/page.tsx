@@ -59,16 +59,16 @@ export default function AdminDashboardPage() {
         .from("activities")
         .select("*");
 
-      const r =
+      const r: LocationRow[] =
         restaurants?.map((x: any) => ({
-          id: x.id,
-          type: "restaurants",
-          name: x.restaurant_name || x.name || "Unnamed",
+          id: String(x.id),
+          type: "restaurants" as LocationType,
+          name: x.restaurant_name || x.name || "Unnamed Restaurant",
           address: x.address || "",
           city: x.city || "",
           state: x.state || "",
-          image_url: x.image_url || null,
-          roseout_score: clampScore(Number(x.roseout_score || 0)),
+          image_url: x.image_url || x.photo_url || x.cover_image_url || null,
+          roseout_score: clampScore(Number(x.roseout_score || x.score || 0)),
           view_count: Number(x.view_count || 0),
           click_count: Number(x.click_count || 0),
           claim_status:
@@ -78,16 +78,16 @@ export default function AdminDashboardPage() {
           owner_email: x.owner_email || "",
         })) || [];
 
-      const a =
+      const a: LocationRow[] =
         activities?.map((x: any) => ({
-          id: x.id,
-          type: "activities",
-          name: x.activity_name || x.name || "Unnamed",
+          id: String(x.id),
+          type: "activities" as LocationType,
+          name: x.activity_name || x.name || "Unnamed Activity",
           address: x.address || "",
           city: x.city || "",
           state: x.state || "",
-          image_url: x.image_url || null,
-          roseout_score: clampScore(Number(x.roseout_score || 0)),
+          image_url: x.image_url || x.photo_url || x.cover_image_url || null,
+          roseout_score: clampScore(Number(x.roseout_score || x.score || 0)),
           view_count: Number(x.view_count || 0),
           click_count: Number(x.click_count || 0),
           claim_status:
@@ -106,14 +106,16 @@ export default function AdminDashboardPage() {
 
   const filtered = useMemo(() => {
     return rows.filter((x) => {
-      const q = search.toLowerCase();
+      const q = search.toLowerCase().trim();
 
       const matchSearch =
         !q ||
         x.name.toLowerCase().includes(q) ||
         x.city.toLowerCase().includes(q) ||
+        x.state.toLowerCase().includes(q) ||
         x.address.toLowerCase().includes(q) ||
-        x.owner_name.toLowerCase().includes(q);
+        x.owner_name.toLowerCase().includes(q) ||
+        x.owner_email.toLowerCase().includes(q);
 
       const matchType = typeFilter === "all" || x.type === typeFilter;
 
@@ -126,6 +128,8 @@ export default function AdminDashboardPage() {
   }, [rows, search, typeFilter, claimFilter]);
 
   const total = rows.length;
+  const restaurantsCount = rows.filter((x) => x.type === "restaurants").length;
+  const activitiesCount = rows.filter((x) => x.type === "activities").length;
   const claimed = rows.filter((x) => x.claim_status === "claimed").length;
   const unclaimed = total - claimed;
 
@@ -134,21 +138,34 @@ export default function AdminDashboardPage() {
       <AdminTopBar />
 
       <div className="mx-auto flex h-[calc(100vh-73px)] max-w-7xl flex-col px-6 py-5">
-        {/* HEADER */}
         <div className="mb-4">
           <p className="text-xs font-black uppercase tracking-[0.35em] text-[#f5b700]">
             Dashboard
           </p>
-          <h1 className="mt-1 text-3xl font-black">
-            Locations Overview
-          </h1>
+          <h1 className="mt-1 text-3xl font-black">Locations Overview</h1>
+          <p className="mt-1 text-sm text-zinc-400">
+            Manage restaurants, activities, claims, scores, and listing quality.
+          </p>
         </div>
 
-        {/* STATS */}
-        <div className="mb-4 grid grid-cols-3 gap-3">
+        <div className="mb-4 grid grid-cols-5 gap-3">
           <div className="rounded-2xl border border-white/15 bg-[#181818]/90 p-4">
             <p className="text-xs text-zinc-400">Total</p>
             <p className="text-2xl font-black text-[#f5b700]">{total}</p>
+          </div>
+
+          <div className="rounded-2xl border border-white/15 bg-[#181818]/90 p-4">
+            <p className="text-xs text-zinc-400">Restaurants</p>
+            <p className="text-2xl font-black text-[#f5b700]">
+              {restaurantsCount}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/15 bg-[#181818]/90 p-4">
+            <p className="text-xs text-zinc-400">Activities</p>
+            <p className="text-2xl font-black text-[#f5b700]">
+              {activitiesCount}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-white/15 bg-[#181818]/90 p-4">
@@ -162,13 +179,12 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* FILTERS */}
         <div className="mb-4 grid gap-3 lg:grid-cols-3">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search..."
-            className="rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white focus:border-[#f5b700]"
+            placeholder="Search locations, city, owner..."
+            className="rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
           />
 
           <select
@@ -176,9 +192,9 @@ export default function AdminDashboardPage() {
             onChange={(e) =>
               setTypeFilter(e.target.value as "all" | LocationType)
             }
-            className="rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white"
+            className="rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-sm text-white outline-none focus:border-[#f5b700]"
           >
-            <option value="all">All</option>
+            <option value="all">All Types</option>
             <option value="restaurants">Restaurants</option>
             <option value="activities">Activities</option>
           </select>
@@ -186,59 +202,104 @@ export default function AdminDashboardPage() {
           <select
             value={claimFilter}
             onChange={(e) => setClaimFilter(e.target.value)}
-            className="rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white"
+            className="rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-sm text-white outline-none focus:border-[#f5b700]"
           >
-            <option value="all">All</option>
+            <option value="all">All Claims</option>
             <option value="claimed">Claimed</option>
             <option value="unclaimed">Unclaimed</option>
+            <option value="pending">Pending</option>
           </select>
         </div>
 
-        {/* TABLE */}
-        <div className="flex-1 overflow-hidden rounded-2xl border border-white/15 bg-[#181818]/90">
-          <div className="grid grid-cols-[80px_1fr_100px_100px_80px] border-b border-white/10 p-3 text-xs text-zinc-400">
+        <div className="flex-1 overflow-hidden rounded-2xl border border-white/15 bg-[#181818]/90 shadow-2xl">
+          <div className="grid grid-cols-[80px_1fr_110px_110px_80px_80px_120px_80px] border-b border-white/10 bg-[#101010] p-3 text-xs font-black uppercase tracking-[0.16em] text-zinc-400">
             <div>Image</div>
             <div>Name</div>
             <div>Score</div>
             <div>Type</div>
-            <div>Edit</div>
+            <div>Views</div>
+            <div>Clicks</div>
+            <div>Claim</div>
+            <div className="text-right">Edit</div>
           </div>
 
-          <div className="h-full overflow-y-auto">
+          <div className="h-full overflow-y-auto pb-14">
             {loading ? (
-              <div className="p-6 text-zinc-400">Loading...</div>
+              <div className="p-6 text-sm text-zinc-400">Loading...</div>
+            ) : filtered.length === 0 ? (
+              <div className="p-6 text-sm text-zinc-400">
+                No locations found.
+              </div>
             ) : (
               filtered.map((x) => (
                 <div
-                  key={x.id}
-                  className="grid grid-cols-[80px_1fr_100px_100px_80px] items-center border-b border-white/10 p-3 hover:bg-white/[0.03]"
+                  key={`${x.type}-${x.id}`}
+                  className="grid grid-cols-[80px_1fr_110px_110px_80px_80px_120px_80px] items-center border-b border-white/10 p-3 transition hover:bg-white/[0.03]"
                 >
                   <div>
                     {x.image_url ? (
                       <img
                         src={x.image_url}
-                        className="h-12 w-16 rounded object-cover"
+                        alt={x.name}
+                        className="h-12 w-16 rounded-xl object-cover"
                       />
                     ) : (
-                      <div className="h-12 w-16 bg-black" />
+                      <div className="flex h-12 w-16 items-center justify-center rounded-xl border border-white/10 bg-[#050505] text-[10px] font-bold text-zinc-600">
+                        No Img
+                      </div>
                     )}
                   </div>
 
-                  <div>
-                    <p className="font-bold">{x.name}</p>
-                    <p className="text-xs text-zinc-500">{x.city}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-white">
+                      {x.name}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-zinc-500">
+                      {[x.address, x.city, x.state].filter(Boolean).join(", ") ||
+                        "No address"}
+                    </p>
                   </div>
 
-                  <ScoreBadge score={x.roseout_score} />
+                  <div>
+                    <ScoreBadge score={x.roseout_score} />
+                  </div>
 
-                  <div className="text-sm text-zinc-400">{x.type}</div>
+                  <div>
+                    <span className="rounded-full border border-[#f5b700]/30 bg-[#f5b700]/10 px-3 py-1 text-xs font-bold text-[#f5b700]">
+                      {x.type === "restaurants" ? "Restaurant" : "Activity"}
+                    </span>
+                  </div>
 
-                  <Link
-                    href={`/locations/${x.type}/${x.id}?from=/locations/dashboard`}
-                    className="rounded bg-[#f5b700] px-3 py-1 text-xs font-bold text-black"
-                  >
-                    Edit
-                  </Link>
+                  <div className="text-sm font-bold text-zinc-300">
+                    {x.view_count}
+                  </div>
+
+                  <div className="text-sm font-bold text-zinc-300">
+                    {x.click_count}
+                  </div>
+
+                  <div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        x.claim_status === "claimed"
+                          ? "border border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
+                          : x.claim_status === "pending"
+                            ? "border border-[#f5b700]/30 bg-[#f5b700]/10 text-[#f5b700]"
+                            : "border border-white/15 bg-white/5 text-zinc-400"
+                      }`}
+                    >
+                      {x.claim_status || "unclaimed"}
+                    </span>
+                  </div>
+
+                  <div className="text-right">
+                    <Link
+                      href={`/locations/${x.type}/${x.id}?from=/locations/dashboard`}
+                      className="inline-flex rounded-full bg-[#f5b700] px-3 py-1.5 text-xs font-black text-black hover:bg-[#ffd24a]"
+                    >
+                      Edit
+                    </Link>
+                  </div>
                 </div>
               ))
             )}
