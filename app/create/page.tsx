@@ -352,34 +352,104 @@ export default function CreatePage() {
         "";
 
   return (
-    <main className="min-h-screen bg-[#070707] px-5 py-8 pb-40 text-white">
-        <RoseOutHeader />
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
-            RoseOut
-          </p>
+    <main className="min-h-screen bg-black text-white">
+      <RoseOutHeader />
 
-          <button
-            type="button"
-            onClick={resetSearch}
-            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white transition hover:bg-white/15"
-          >
-            Start New Search
-          </button>
+      <section className="relative overflow-hidden border-b border-white/10 pt-28">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(225,6,42,0.24),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(225,6,42,0.16),transparent_28%),linear-gradient(180deg,#050505,#000)]" />
+        <div className="absolute right-0 top-20 hidden h-[520px] w-[46vw] rounded-bl-[14rem] border-l border-t border-red-500/20 bg-[radial-gradient(circle_at_center,rgba(225,6,42,0.18),transparent_50%)] lg:block" />
+
+        <div className="relative mx-auto max-w-6xl px-5 py-10">
+          <div className="mb-6 flex items-center justify-between gap-3">
+            <Link
+              href="/"
+              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black text-white/70 transition hover:bg-white hover:text-black"
+            >
+              ← Home
+            </Link>
+
+            <button
+              type="button"
+              onClick={resetSearch}
+              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-black text-white/70 transition hover:bg-white hover:text-black"
+            >
+              Start New Search
+            </button>
+          </div>
+
+          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.38em] text-[#e1062a]">
+                Create / Input Page
+              </p>
+
+              <h1 className="mt-5 text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
+                What are we
+                <br />
+                <span className="text-[#e1062a]">planning?</span>
+              </h1>
+
+              <p className="mt-6 max-w-xl text-base leading-7 text-white/55 md:text-lg">
+                Tell RoseOut your vibe, budget, borough, and mood. We’ll match
+                restaurants and activities into a polished outing.
+              </p>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d]/90 p-5 shadow-2xl shadow-black/40 backdrop-blur">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={
+                  messages.length
+                    ? "Ask a follow-up question..."
+                    : "Example: Romantic dinner in Queens with a fun activity after"
+                }
+                className="min-h-[150px] w-full resize-none rounded-[1.5rem] border border-white/10 bg-black px-5 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-white/35 focus:border-[#e1062a]/70"
+              />
+
+              {error && (
+                <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">
+                  {error}
+                </div>
+              )}
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                <button
+                  onClick={sendMessage}
+                  disabled={loading}
+                  className="rounded-2xl bg-[#e1062a] px-7 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading
+                    ? "Finding Matches..."
+                    : messages.length
+                      ? "Send"
+                      : "Plan My Outing"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={requestUserLocation}
+                  className={`rounded-2xl px-7 py-4 text-sm font-black transition ${
+                    locationSaved
+                      ? "bg-emerald-500 text-black hover:bg-emerald-400"
+                      : "border border-white/15 bg-white/5 text-white hover:bg-white hover:text-black"
+                  }`}
+                >
+                  {locationSaved ? "✓ Location Saved" : "Use My Location"}
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <PromptPill text="Date night in Brooklyn" setInput={setInput} />
+                <PromptPill text="Birthday dinner + drinks" setInput={setInput} />
+                <PromptPill text="Fun activity near me" setInput={setInput} />
+              </div>
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div className="mb-8 rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-2xl">
-          <h1 className="text-4xl font-black tracking-tight md:text-5xl">
-            Plan Your Outing
-          </h1>
-
-          <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-300">
-            Tell RoseOut what kind of experience you want, and get curated
-            restaurants and activities with a polished outing feel.
-          </p>
-        </div>
-
+      <section className="mx-auto max-w-6xl px-5 py-10">
         <div className="space-y-5">
           {messages.map((msg, index) => {
             const hasRestaurants = !!msg.restaurants?.length;
@@ -388,14 +458,14 @@ export default function CreatePage() {
             return (
               <div
                 key={index}
-                className={`rounded-[2rem] p-5 ${
+                className={`rounded-[2rem] border p-5 shadow-2xl ${
                   msg.role === "user"
-                    ? "bg-yellow-500 text-black shadow-xl"
-                    : "border border-white/10 bg-[#f7f3ed] text-black shadow-2xl"
+                    ? "border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
+                    : "border-white/10 bg-[#0d0d0d] text-white shadow-black/30"
                 }`}
               >
                 {msg.role === "user" && (
-                  <p className="whitespace-pre-wrap font-bold">
+                  <p className="whitespace-pre-wrap font-black">
                     {msg.content}
                   </p>
                 )}
@@ -404,364 +474,124 @@ export default function CreatePage() {
                 (hasRestaurants || hasActivities) ? (
                   <>
                     <div className="mb-6">
-                      <p className="text-xs font-bold uppercase tracking-[0.3em] text-neutral-500">
-                        Curated Results
+                      <p className="text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
+                        Results / Recommendations
                       </p>
 
-                      <h2 className="mt-2 text-2xl font-black text-black">
-                        Here’s what RoseOut found
+                      <h2 className="mt-2 text-3xl font-black">
+                        Your perfect outing ✨
                       </h2>
 
-                      <p className="mt-1 text-sm font-medium text-neutral-500">
-                        Select your favorites or view the full details.
+                      <p className="mt-1 text-sm font-medium text-white/45">
+                        Select your favorites or view full details.
                       </p>
                     </div>
 
                     {hasRestaurants && (
-                      <div className="mb-10">
-                        <div className="mb-4 flex items-center justify-between">
-                          <h2 className="text-sm font-black uppercase tracking-[0.25em] text-neutral-500">
-                            Restaurants
-                          </h2>
+                      <ResultSection title="Dinner" label="Restaurant Picks">
+                        {msg.restaurants?.map((r, restaurantIndex) => {
+                          const restaurantId = String(r.id);
+                          const isSelected = selectedRestaurant?.id === r.id;
+                          const reservationUrl =
+                            r.reservation_url || r.reservation_link;
+                          const safeScore = clampScore(r.roseout_score);
 
-                          <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
-                            Dinner picks
-                          </span>
-                        </div>
-
-                        <div className="grid gap-6">
-                          {msg.restaurants?.map((r, restaurantIndex) => {
-                            const restaurantId = String(r.id);
-                            const isSelected =
-                              selectedRestaurant?.id === r.id;
-
-                            const reservationUrl =
-                              r.reservation_url || r.reservation_link;
-
-                            const safeScore = clampScore(r.roseout_score);
-
-                            return (
-                              <div
-                                key={restaurantId || restaurantIndex}
-                                className={`group overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${
-                                  isSelected
-                                    ? "border-yellow-500 ring-2 ring-yellow-500"
-                                    : "border-neutral-200"
-                                }`}
-                              >
-                                <div className="relative">
-                                  {r.image_url ? (
-                                    <Image
-                                      src={r.image_url}
-                                      alt={r.restaurant_name}
-                                      width={900}
-                                      height={520}
-                                      className="h-72 w-full object-cover transition duration-700 group-hover:scale-105"
-                                      priority={restaurantIndex === 0}
-                                    />
-                                  ) : (
-                                    <div className="flex h-72 items-center justify-center bg-neutral-200 text-neutral-500">
-                                      No image available
-                                    </div>
-                                  )}
-
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
-
-                                  <div className="absolute left-4 top-4 origin-top-left scale-75 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
-                                    <ScoreBadge score={safeScore} />
-                                  </div>
-
-                                  {r.distance_miles !== null &&
-                                    r.distance_miles !== undefined && (
-                                      <div className="absolute bottom-4 left-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
-                                        {r.distance_miles} mi away
-                                      </div>
-                                    )}
-
-                                  {r.rating && (
-                                    <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
-                                      ⭐ {r.rating}
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="p-5">
-                                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">
-                                    Restaurant
-                                  </p>
-
-                                  <h3 className="mt-1 text-2xl font-black tracking-tight text-black">
-                                    {r.restaurant_name}
-                                  </h3>
-
-                                  <p className="mt-3 text-sm leading-6 text-neutral-600">
-                                    {[r.address, r.city, r.state, r.zip_code]
-                                      .filter(Boolean)
-                                      .join(", ")}
-                                  </p>
-
-                                  {r.review_count ? (
-                                    <p className="mt-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
-                                      {r.review_count} reviews
-                                    </p>
-                                  ) : null}
-
-                                  {r.primary_tag && (
-                                    <p className="mt-4 text-sm font-black text-black">
-                                      ✨ {r.primary_tag}
-                                    </p>
-                                  )}
-
-                                  {r.date_style_tags?.length ? (
-                                    <div className="mt-4 flex flex-wrap gap-2">
-                                      {r.date_style_tags
-                                        .slice(0, 3)
-                                        .map((tag) => (
-                                          <span
-                                            key={tag}
-                                            className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"
-                                          >
-                                            {tag}
-                                          </span>
-                                        ))}
-                                    </div>
-                                  ) : null}
-
-                                  <div className="mt-5 flex flex-wrap gap-3">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setSelectedRestaurant(
-                                          selectedRestaurant?.id === r.id
-                                            ? null
-                                            : r
-                                        )
-                                      }
-                                      className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
-                                        isSelected
-                                          ? "bg-yellow-500 text-black"
-                                          : "border border-black text-black hover:bg-black hover:text-white"
-                                      }`}
-                                    >
-                                      {isSelected ? "Selected" : "Select"}
-                                    </button>
-
-                                    <Link
-                                      href={`/locations/restaurants/${restaurantId}?from=/create`}
-                                      onClick={() => {
-                                        saveCreateState();
-                                        trackRestaurantClick(restaurantId);
-                                      }}
-                                      className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
-                                    >
-                                      View Details
-                                    </Link>
-
-                                    {reservationUrl && (
-                                      <a
-                                        href={reservationUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={() =>
-                                          trackRestaurantClick(restaurantId)
-                                        }
-                                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
-                                      >
-                                        Reserve
-                                      </a>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+                          return (
+                            <ResultCard
+                              key={restaurantId || restaurantIndex}
+                              imageUrl={r.image_url}
+                              title={r.restaurant_name}
+                              eyebrow="Restaurant"
+                              address={[r.address, r.city, r.state, r.zip_code]
+                                .filter(Boolean)
+                                .join(", ")}
+                              rating={r.rating}
+                              reviewCount={r.review_count}
+                              primaryTag={r.primary_tag}
+                              tags={r.date_style_tags}
+                              distance={r.distance_miles}
+                              score={safeScore}
+                              selected={isSelected}
+                              priority={restaurantIndex === 0}
+                              selectLabel={isSelected ? "Selected" : "Select"}
+                              onSelect={() =>
+                                setSelectedRestaurant(
+                                  selectedRestaurant?.id === r.id ? null : r
+                                )
+                              }
+                              detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
+                              onDetails={() => {
+                                saveCreateState();
+                                trackRestaurantClick(restaurantId);
+                              }}
+                              reservationUrl={reservationUrl}
+                              reservationLabel="Reserve"
+                              onReservation={() =>
+                                trackRestaurantClick(restaurantId)
+                              }
+                            />
+                          );
+                        })}
+                      </ResultSection>
                     )}
 
                     {hasActivities && (
-                      <div>
-                        <div className="mb-4 flex items-center justify-between">
-                          <h2 className="text-sm font-black uppercase tracking-[0.25em] text-neutral-500">
-                            Activities
-                          </h2>
+                      <ResultSection title="Activity" label="Experience Picks">
+                        {msg.activities?.map((a, activityIndex) => {
+                          const activityId = String(a.id);
+                          const isSelected = selectedActivity?.id === a.id;
+                          const reservationUrl =
+                            a.reservation_url || a.reservation_link;
+                          const safeScore = clampScore(a.roseout_score);
 
-                          <span className="rounded-full bg-black px-3 py-1 text-xs font-bold text-white">
-                            Experience picks
-                          </span>
-                        </div>
-
-                        <div className="grid gap-6">
-                          {msg.activities?.map((a, activityIndex) => {
-                            const activityId = String(a.id);
-                            const isSelected =
-                              selectedActivity?.id === a.id;
-
-                            const reservationUrl =
-                              a.reservation_url || a.reservation_link;
-
-                            const safeScore = clampScore(a.roseout_score);
-
-                            return (
-                              <div
-                                key={activityId || activityIndex}
-                                className={`group overflow-hidden rounded-[1.5rem] border bg-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${
-                                  isSelected
-                                    ? "border-yellow-500 ring-2 ring-yellow-500"
-                                    : "border-neutral-200"
-                                }`}
-                              >
-                                <div className="relative">
-                                  {a.image_url ? (
-                                    <Image
-                                      src={a.image_url}
-                                      alt={a.activity_name}
-                                      width={900}
-                                      height={520}
-                                      className="h-72 w-full object-cover transition duration-700 group-hover:scale-105"
-                                      priority={activityIndex === 0}
-                                    />
-                                  ) : (
-                                    <div className="flex h-72 items-center justify-center bg-neutral-200 text-neutral-500">
-                                      No image available
-                                    </div>
-                                  )}
-
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
-
-                                  <div className="absolute left-4 top-4 origin-top-left scale-75 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
-                                    <ScoreBadge score={safeScore} />
-                                  </div>
-
-                                  {a.distance_miles !== null &&
-                                    a.distance_miles !== undefined && (
-                                      <div className="absolute bottom-4 left-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
-                                        {a.distance_miles} mi away
-                                      </div>
-                                    )}
-
-                                  {a.rating && (
-                                    <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
-                                      ⭐ {a.rating}
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="p-5">
-                                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">
-                                    {a.activity_type || "Activity"}
-                                  </p>
-
-                                  <h3 className="mt-1 text-2xl font-black tracking-tight text-black">
-                                    {a.activity_name}
-                                  </h3>
-
-                                  <p className="mt-3 text-sm leading-6 text-neutral-600">
-                                    {[a.address, a.city, a.state, a.zip_code]
-                                      .filter(Boolean)
-                                      .join(", ")}
-                                  </p>
-
-                                  {a.review_count ? (
-                                    <p className="mt-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
-                                      {a.review_count} reviews
-                                    </p>
-                                  ) : null}
-
-                                  {a.primary_tag && (
-                                    <p className="mt-4 text-sm font-black text-black">
-                                      ✨ {a.primary_tag}
-                                    </p>
-                                  )}
-
-                                  {a.date_style_tags?.length ? (
-                                    <div className="mt-4 flex flex-wrap gap-2">
-                                      {a.date_style_tags
-                                        .slice(0, 3)
-                                        .map((tag) => (
-                                          <span
-                                            key={tag}
-                                            className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"
-                                          >
-                                            {tag}
-                                          </span>
-                                        ))}
-                                    </div>
-                                  ) : null}
-
-                                  <div className="mt-5 flex flex-wrap gap-3">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setSelectedActivity(
-                                          selectedActivity?.id === a.id
-                                            ? null
-                                            : a
-                                        )
-                                      }
-                                      className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
-                                        isSelected
-                                          ? "bg-yellow-500 text-black"
-                                          : "border border-black text-black hover:bg-black hover:text-white"
-                                      }`}
-                                    >
-                                      {isSelected ? "Selected" : "Select"}
-                                    </button>
-
-                                    <Link
-                                      href={`/locations/activities/${activityId}?from=/create`}
-                                      onClick={() => {
-                                        saveCreateState();
-                                        trackActivityClick(activityId);
-                                      }}
-                                      className="rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
-                                    >
-                                      View Details
-                                    </Link>
-
-                                    {a.website && (
-                                      <a
-                                        href={a.website}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={() =>
-                                          trackActivityClick(activityId)
-                                        }
-                                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
-                                      >
-                                        Website
-                                      </a>
-                                    )}
-
-                                    {reservationUrl && (
-                                      <a
-                                        href={reservationUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={() =>
-                                          trackActivityClick(activityId)
-                                        }
-                                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-bold text-black transition hover:border-black"
-                                      >
-                                        Book
-                                      </a>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+                          return (
+                            <ResultCard
+                              key={activityId || activityIndex}
+                              imageUrl={a.image_url}
+                              title={a.activity_name}
+                              eyebrow={a.activity_type || "Activity"}
+                              address={[a.address, a.city, a.state, a.zip_code]
+                                .filter(Boolean)
+                                .join(", ")}
+                              rating={a.rating}
+                              reviewCount={a.review_count}
+                              primaryTag={a.primary_tag}
+                              tags={a.date_style_tags}
+                              distance={a.distance_miles}
+                              score={safeScore}
+                              selected={isSelected}
+                              priority={activityIndex === 0}
+                              selectLabel={isSelected ? "Selected" : "Select"}
+                              onSelect={() =>
+                                setSelectedActivity(
+                                  selectedActivity?.id === a.id ? null : a
+                                )
+                              }
+                              detailsHref={`/locations/activities/${activityId}?from=/create`}
+                              onDetails={() => {
+                                saveCreateState();
+                                trackActivityClick(activityId);
+                              }}
+                              websiteUrl={a.website}
+                              onWebsite={() => trackActivityClick(activityId)}
+                              reservationUrl={reservationUrl}
+                              reservationLabel="Book"
+                              onReservation={() =>
+                                trackActivityClick(activityId)
+                              }
+                            />
+                          );
+                        })}
+                      </ResultSection>
                     )}
                   </>
                 ) : null}
 
-                {msg.role === "assistant" &&
-                  !hasRestaurants &&
-                  !hasActivities && (
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                  )}
+                {msg.role === "assistant" && !hasRestaurants && !hasActivities && (
+                  <p className="whitespace-pre-wrap text-white/75">
+                    {msg.content}
+                  </p>
+                )}
               </div>
             );
           })}
@@ -770,57 +600,20 @@ export default function CreatePage() {
         {loading && (
           <LuxuryLoading loadingText={loadingMessages[loadingTextIndex]} />
         )}
-
-        {error && (
-          <div className="mt-6 rounded-2xl bg-red-100 p-4 text-red-700">
-            {error}
-          </div>
-        )}
-
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={
-            messages.length
-              ? "Ask a follow-up question..."
-              : "Example: Romantic dinner near me within 10 miles"
-          }
-          className="mt-6 w-full rounded-[1.5rem] border border-white/10 bg-neutral-950 px-5 py-4 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
-        />
-
-        <button
-          onClick={sendMessage}
-          disabled={loading}
-          className="mt-4 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black transition hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading
-            ? "Finding matches..."
-            : messages.length
-            ? "Send"
-            : "Create Plan"}
-        </button>
-
-        <button
-          type="button"
-          onClick={requestUserLocation}
-          className={`mt-3 w-full rounded-full px-6 py-4 font-extrabold transition ${
-            locationSaved
-              ? "bg-green-500 text-black hover:bg-green-400"
-              : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
-          }`}
-        >
-          {locationSaved ? "✓ Location Saved" : "Use My Location"}
-        </button>
-      </div>
+      </section>
 
       {(selectedRestaurant || selectedActivity) && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
-          <div className="mx-auto max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-yellow-500">
-              Building your plan
-            </p>
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur-2xl">
+          <div className="mx-auto flex max-w-6xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
+                Building your plan
+              </p>
 
-            <p className="mt-1 text-sm font-bold">{selectedPlanText}</p>
+              <p className="mt-1 text-sm font-black text-white">
+                {selectedPlanText}
+              </p>
+            </div>
 
             <button
               type="button"
@@ -835,7 +628,7 @@ export default function CreatePage() {
 
                 window.location.href = "/plan";
               }}
-              className="mt-3 w-full rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black transition hover:bg-yellow-400"
+              className="rounded-2xl bg-[#e1062a] px-7 py-3 text-sm font-black text-white shadow-lg shadow-red-500/25 transition hover:bg-red-500"
             >
               {getPlanButtonText()}
             </button>
@@ -846,11 +639,231 @@ export default function CreatePage() {
   );
 }
 
+function PromptPill({
+  text,
+  setInput,
+}: {
+  text: string;
+  setInput: (value: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => setInput(text)}
+      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/55 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"
+    >
+      {text}
+    </button>
+  );
+}
+
+function ResultSection({
+  title,
+  label,
+  children,
+}: {
+  title: string;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-10">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-black uppercase tracking-[0.25em] text-white/40">
+          {title}
+        </h2>
+
+        <span className="rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white">
+          {label}
+        </span>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">{children}</div>
+    </div>
+  );
+}
+
+function ResultCard({
+  imageUrl,
+  title,
+  eyebrow,
+  address,
+  rating,
+  reviewCount,
+  primaryTag,
+  tags,
+  distance,
+  score,
+  selected,
+  priority,
+  selectLabel,
+  onSelect,
+  detailsHref,
+  onDetails,
+  websiteUrl,
+  onWebsite,
+  reservationUrl,
+  reservationLabel,
+  onReservation,
+}: {
+  imageUrl?: string;
+  title: string;
+  eyebrow: string;
+  address: string;
+  rating?: number | null;
+  reviewCount?: number | null;
+  primaryTag?: string | null;
+  tags?: string[];
+  distance?: number | null;
+  score: number;
+  selected: boolean;
+  priority: boolean;
+  selectLabel: string;
+  onSelect: () => void;
+  detailsHref: string;
+  onDetails: () => void;
+  websiteUrl?: string;
+  onWebsite?: () => void;
+  reservationUrl?: string;
+  reservationLabel?: string;
+  onReservation?: () => void;
+}) {
+  return (
+    <div
+      className={`group overflow-hidden rounded-[2rem] border bg-[#111] shadow-2xl shadow-black/30 transition duration-300 hover:-translate-y-1 ${
+        selected
+          ? "border-red-500 ring-2 ring-red-500/50"
+          : "border-white/10 hover:border-red-500/50"
+      }`}
+    >
+      <div className="relative">
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={title}
+            width={900}
+            height={520}
+            className="h-64 w-full object-cover transition duration-700 group-hover:scale-105"
+            priority={priority}
+          />
+        ) : (
+          <div className="flex h-64 items-center justify-center bg-neutral-900 text-neutral-500">
+            No image available
+          </div>
+        )}
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
+
+        <div className="absolute left-4 top-4 origin-top-left scale-75 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
+          <ScoreBadge score={score} />
+        </div>
+
+        {distance !== null && distance !== undefined && (
+          <div className="absolute bottom-4 left-4 rounded-full bg-black/70 px-3 py-1 text-xs font-black text-white backdrop-blur">
+            {distance} mi away
+          </div>
+        )}
+
+        {rating && (
+          <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
+            ⭐ {rating}
+          </div>
+        )}
+      </div>
+
+      <div className="p-5">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#e1062a]">
+          {eyebrow}
+        </p>
+
+        <h3 className="mt-2 line-clamp-1 text-2xl font-black tracking-tight text-white">
+          {title}
+        </h3>
+
+        <p className="mt-3 line-clamp-2 text-sm leading-6 text-white/50">
+          {address}
+        </p>
+
+        {reviewCount ? (
+          <p className="mt-2 text-xs font-bold uppercase tracking-wide text-white/35">
+            {reviewCount} reviews
+          </p>
+        ) : null}
+
+        {primaryTag && (
+          <p className="mt-4 text-sm font-black text-white">
+            ✨ {primaryTag}
+          </p>
+        )}
+
+        {tags?.length ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/55"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={onSelect}
+            className={`rounded-full px-5 py-2.5 text-sm font-black transition ${
+              selected
+                ? "bg-[#e1062a] text-white"
+                : "border border-white/15 text-white hover:bg-white hover:text-black"
+            }`}
+          >
+            {selectLabel}
+          </button>
+
+          <Link
+            href={detailsHref}
+            onClick={onDetails}
+            className="rounded-full bg-white px-5 py-2.5 text-sm font-black text-black transition hover:bg-red-100"
+          >
+            View Details
+          </Link>
+
+          {websiteUrl && (
+            <a
+              href={websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onWebsite}
+              className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-black text-white transition hover:bg-white hover:text-black"
+            >
+              Website
+            </a>
+          )}
+
+          {reservationUrl && (
+            <a
+              href={reservationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onReservation}
+              className="rounded-full border border-red-500/40 bg-red-500/10 px-5 py-2.5 text-sm font-black text-red-100 transition hover:bg-[#e1062a] hover:text-white"
+            >
+              {reservationLabel || "Book"}
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LuxuryLoading({ loadingText }: { loadingText: string }) {
   return (
-    <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-[#f7f3ed] p-5 text-black shadow-2xl">
+    <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-5 text-white shadow-2xl shadow-black/40">
       <div className="mb-5 text-center">
-        <p className="text-xs font-black uppercase tracking-[0.35em] text-neutral-500">
+        <p className="text-xs font-black uppercase tracking-[0.35em] text-[#e1062a]">
           RoseOut is searching
         </p>
 
@@ -859,58 +872,32 @@ function LuxuryLoading({ loadingText }: { loadingText: string }) {
         </h2>
 
         <div className="mt-4 flex justify-center gap-2">
-          <span className="h-2 w-2 animate-bounce rounded-full bg-yellow-500" />
-          <span className="h-2 w-2 animate-bounce rounded-full bg-yellow-500 [animation-delay:150ms]" />
-          <span className="h-2 w-2 animate-bounce rounded-full bg-yellow-500 [animation-delay:300ms]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-[#e1062a]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-[#e1062a] [animation-delay:150ms]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-[#e1062a] [animation-delay:300ms]" />
         </div>
       </div>
 
-      <div className="grid gap-5">
+      <div className="grid gap-5 md:grid-cols-2">
         {[1, 2].map((item) => (
           <div
             key={item}
-            className="overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white shadow-xl"
+            className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-black shadow-xl"
           >
-            <div className="relative h-72 overflow-hidden bg-neutral-200">
-              <div className="absolute inset-0 bg-gradient-to-br from-neutral-300 via-neutral-200 to-neutral-400 blur-sm" />
-
-              <div className="absolute inset-0 -translate-x-full animate-[roseoutShimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent" />
-
-              <div className="absolute left-4 top-4 rounded-[1rem] bg-white/90 p-3 shadow-xl">
-                <div className="flex items-center gap-2">
-                  <div className="relative h-12 w-12">
-                    <div className="absolute inset-0 rounded-full border-[5px] border-neutral-200" />
-                    <div className="absolute inset-0 animate-spin rounded-full border-[5px] border-yellow-500 border-r-transparent" />
-                    <div className="absolute inset-0 flex items-center justify-center text-xs font-black">
-                      AI
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="h-3 w-16 animate-pulse rounded-full bg-neutral-300" />
-                    <div className="mt-2 h-4 w-20 animate-pulse rounded-full bg-neutral-300" />
-                    <div className="mt-2 h-5 w-14 animate-pulse rounded-full bg-yellow-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="absolute bottom-4 right-4 h-10 w-24 animate-pulse rounded-full bg-white/90" />
+            <div className="relative h-64 overflow-hidden bg-neutral-900">
+              <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 via-neutral-900 to-black blur-sm" />
+              <div className="absolute inset-0 -translate-x-full animate-[roseoutShimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
             </div>
 
             <div className="p-5">
-              <div className="h-3 w-28 animate-pulse rounded-full bg-neutral-300" />
-              <div className="mt-4 h-8 w-64 animate-pulse rounded-full bg-neutral-300" />
-              <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-neutral-200" />
-              <div className="mt-2 h-4 w-2/3 animate-pulse rounded-full bg-neutral-200" />
-
-              <div className="mt-5 flex gap-2">
-                <div className="h-8 w-24 animate-pulse rounded-full bg-neutral-200" />
-                <div className="h-8 w-20 animate-pulse rounded-full bg-neutral-200" />
-              </div>
+              <div className="h-3 w-28 animate-pulse rounded-full bg-white/10" />
+              <div className="mt-4 h-8 w-64 animate-pulse rounded-full bg-white/10" />
+              <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-white/10" />
+              <div className="mt-2 h-4 w-2/3 animate-pulse rounded-full bg-white/10" />
 
               <div className="mt-6 flex gap-3">
-                <div className="h-11 w-28 animate-pulse rounded-full border border-neutral-300" />
-                <div className="h-11 w-36 animate-pulse rounded-full bg-black" />
+                <div className="h-11 w-28 animate-pulse rounded-full border border-white/10" />
+                <div className="h-11 w-36 animate-pulse rounded-full bg-red-500/20" />
               </div>
             </div>
           </div>
