@@ -1,227 +1,164 @@
-import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { requireAdminRole } from "@/lib/admin-auth";
-import AdminUsersClient from "./AdminUsersClient";
-
-export default async function AdminUsersPage() {
-  await requireAdminRole(["superuser"]);
-
-  return <AdminUsersClient />;
-}
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{
-  q?: string;
-  status?: string;
-  role?: string;
-}>;
-
-type PageProps = {
-  searchParams: SearchParams;
+type AppUser = {
+  id: string;
+  email: string | null;
+  role: string | null;
+  is_superadmin?: boolean | null;
+  created_at: string | null;
 };
 
-function adminSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        persistSession: false,
-      },
-    }
-  );
-}
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+);
 
-export default async function AdminUsersPage({ searchParams }: PageProps) {
-  const params = await searchParams;
-
-  const q = params.q || "";
-  const status = params.status || "all";
-  const role = params.role || "all";
-
-  const supabase = adminSupabase();
-
-  let query = supabase
+export default async function AdminUsersPage() {
+  const { data: users, error } = await supabaseAdmin
     .from("users")
-    .select(
-      "id,email,full_name,phone,role,subscription_status,stripe_customer_id,stripe_subscription_id,created_at"
-    )
+    .select("*")
     .order("created_at", { ascending: false });
 
-  if (q) {
-    query = query.or(
-      `email.ilike.%${q}%,full_name.ilike.%${q}%,phone.ilike.%${q}%`
+  if (error) {
+    return (
+      <main className="min-h-screen bg-[#0b0b0f] px-6 py-10 text-white">
+        <div className="mx-auto max-w-6xl">
+          <h1 className="text-3xl font-bold">Admin Users</h1>
+
+          <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-red-200">
+            <p className="font-semibold">Database Error</p>
+            <p className="mt-2 text-sm">{error.message}</p>
+          </div>
+        </div>
+      </main>
     );
   }
 
-  if (status !== "all") {
-    query = query.eq("subscription_status", status);
-  }
-
-  if (role !== "all") {
-    query = query.eq("role", role);
-  }
-
-  const { data: users } = await query;
-
-  const { count: totalUsers } = await supabase
-    .from("users")
-    .select("*", { count: "exact", head: true });
-
-  const { count: activeUsers } = await supabase
-    .from("users")
-    .select("*", { count: "exact", head: true })
-    .eq("subscription_status", "active");
-
-  const { count: freeUsers } = await supabase
-    .from("users")
-    .select("*", { count: "exact", head: true })
-    .or("subscription_status.eq.free,subscription_status.is.null");
-
-  const { count: superusers } = await supabase
-    .from("users")
-    .select("*", { count: "exact", head: true })
-    .eq("role", "superuser");
+  const totalUsers = users?.length ?? 0;
+  const admins =
+    users?.filter((user: AppUser) => user.role === "admin" || user.is_superadmin)
+      .length ?? 0;
+  const owners = users?.filter((user: AppUser) => user.role === "owner").length ?? 0;
+  const regularUsers =
+    users?.filter((user: AppUser) => user.role === "user").length ?? 0;
 
   return (
-    <main className="min-h-screen bg-[#080406] px-6 py-8 text-white">
+    <main className="min-h-screen bg-[#0b0b0f] px-6 py-10 text-white">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-rose-300">
               RoseOut Admin
             </p>
-            <h1 className="mt-2 text-4xl font-bold">User Management</h1>
-            <p className="mt-2 text-white/50">
-              View users, subscriptions, saved activity, and login as users.
+            <h1 className="mt-2 text-4xl font-bold">Users</h1>
+            <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+              Manage platform users, admin access, owner accounts, and customer
+              profiles.
             </p>
           </div>
 
-          <Link
+          <a
             href="/admin"
-            className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold hover:bg-white hover:text-black"
+            className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"
           >
-            Back to Admin
-          </Link>
+            Back to Dashboard
+          </a>
         </div>
 
         <section className="mb-8 grid gap-4 md:grid-cols-4">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5">
-            <p className="text-sm text-white/50">Total Users</p>
-            <h2 className="mt-2 text-3xl font-bold">{totalUsers || 0}</h2>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+            <p className="text-sm text-zinc-400">Total Users</p>
+            <p className="mt-2 text-3xl font-bold">{totalUsers}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5">
-            <p className="text-sm text-white/50">Active Subscribers</p>
-            <h2 className="mt-2 text-3xl font-bold">{activeUsers || 0}</h2>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+            <p className="text-sm text-zinc-400">Admins</p>
+            <p className="mt-2 text-3xl font-bold">{admins}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5">
-            <p className="text-sm text-white/50">Free Users</p>
-            <h2 className="mt-2 text-3xl font-bold">{freeUsers || 0}</h2>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+            <p className="text-sm text-zinc-400">Owners</p>
+            <p className="mt-2 text-3xl font-bold">{owners}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5">
-            <p className="text-sm text-white/50">Superusers</p>
-            <h2 className="mt-2 text-3xl font-bold">{superusers || 0}</h2>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+            <p className="text-sm text-zinc-400">Customers</p>
+            <p className="mt-2 text-3xl font-bold">{regularUsers}</p>
           </div>
         </section>
 
-        <form className="mb-6 grid gap-3 rounded-3xl border border-white/10 bg-white/[0.04] p-4 md:grid-cols-4">
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="Search name, email, phone..."
-            className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 md:col-span-2"
-          />
-
-          <select
-            name="status"
-            defaultValue={status}
-            className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none"
-          >
-            <option value="all">All Statuses</option>
-            <option value="free">Free</option>
-            <option value="active">Active</option>
-            <option value="trialing">Trialing</option>
-            <option value="past_due">Past Due</option>
-            <option value="canceled">Canceled</option>
-          </select>
-
-          <select
-            name="role"
-            defaultValue={role}
-            className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none"
-          >
-            <option value="all">All Roles</option>
-            <option value="user">User</option>
-            <option value="superuser">Superuser</option>
-            <option value="owner">Owner</option>
-          </select>
-
-          <button className="rounded-2xl bg-rose-500 px-5 py-3 text-sm font-bold text-white hover:bg-rose-400 md:col-span-4">
-            Search Users
-          </button>
-        </form>
-
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]">
-          <div className="grid grid-cols-12 border-b border-white/10 px-5 py-4 text-xs font-bold uppercase tracking-[0.2em] text-white/40">
-            <div className="col-span-4">User</div>
-            <div className="col-span-2">Role</div>
-            <div className="col-span-2">Status</div>
-            <div className="col-span-2">Stripe</div>
-            <div className="col-span-2 text-right">Action</div>
+          <div className="border-b border-white/10 px-6 py-5">
+            <h2 className="text-xl font-bold">User Accounts</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Showing all users from your public users table.
+            </p>
           </div>
 
           {!users || users.length === 0 ? (
-            <div className="p-10 text-center text-white/50">
+            <div className="p-8 text-center text-zinc-400">
               No users found.
             </div>
           ) : (
-            users.map((user: any) => (
-              <div
-                key={user.id}
-                className="grid grid-cols-12 items-center border-b border-white/10 px-5 py-5 last:border-b-0 hover:bg-white/[0.03]"
-              >
-                <div className="col-span-4">
-                  <p className="font-bold">
-                    {user.full_name || "Unnamed User"}
-                  </p>
-                  <p className="mt-1 text-sm text-white/50">{user.email}</p>
-                  {user.phone && (
-                    <p className="mt-1 text-xs text-white/35">{user.phone}</p>
-                  )}
-                </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[800px] text-left text-sm">
+                <thead className="bg-white/[0.03] text-xs uppercase tracking-wider text-zinc-400">
+                  <tr>
+                    <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Role</th>
+                    <th className="px-6 py-4">Super Admin</th>
+                    <th className="px-6 py-4">Created</th>
+                    <th className="px-6 py-4">User ID</th>
+                  </tr>
+                </thead>
 
-                <div className="col-span-2">
-                  <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-bold capitalize">
-                    {user.role || "user"}
-                  </span>
-                </div>
+                <tbody className="divide-y divide-white/10">
+                  {users.map((user: AppUser) => (
+                    <tr key={user.id} className="hover:bg-white/[0.03]">
+                      <td className="px-6 py-4 font-medium text-white">
+                        {user.email || "No email"}
+                      </td>
 
-                <div className="col-span-2">
-                  <span className="rounded-full bg-rose-500/15 px-3 py-1 text-xs font-bold capitalize text-rose-200">
-                    {user.subscription_status || "free"}
-                  </span>
-                </div>
+                      <td className="px-6 py-4">
+                        <span className="rounded-full border border-rose-400/30 bg-rose-400/10 px-3 py-1 text-xs font-semibold text-rose-200">
+                          {user.role || "user"}
+                        </span>
+                      </td>
 
-                <div className="col-span-2">
-                  <p className="text-xs text-white/50">
-                    {user.stripe_subscription_id ? "Connected" : "None"}
-                  </p>
-                </div>
+                      <td className="px-6 py-4">
+                        {user.is_superadmin ? (
+                          <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-200">
+                            Yes
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-400">
+                            No
+                          </span>
+                        )}
+                      </td>
 
-                <div className="col-span-2 text-right">
-                  <Link
-                    href={`/admin/users/${user.id}`}
-                    className="rounded-full bg-white px-4 py-2 text-xs font-bold text-black hover:bg-rose-100"
-                  >
-                    View User
-                  </Link>
-                </div>
-              </div>
-            ))
+                      <td className="px-6 py-4 text-zinc-400">
+                        {user.created_at
+                          ? new Date(user.created_at).toLocaleDateString()
+                          : "—"}
+                      </td>
+
+                      <td className="px-6 py-4 font-mono text-xs text-zinc-500">
+                        {user.id}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       </div>
