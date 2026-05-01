@@ -24,6 +24,9 @@ type RestaurantCard = {
   image_url?: string;
   rating?: number | null;
   review_count?: number | null;
+  review_score?: number | null;
+  review_keywords?: string[] | null;
+  review_snippet?: string | null;
   primary_tag?: string | null;
   date_style_tags?: string[];
   distance_miles?: number | null;
@@ -47,6 +50,9 @@ type ActivityCard = {
   image_url?: string;
   rating?: number | null;
   review_count?: number | null;
+  review_score?: number | null;
+  review_keywords?: string[] | null;
+  review_snippet?: string | null;
   primary_tag?: string | null;
   date_style_tags?: string[];
   distance_miles?: number | null;
@@ -551,6 +557,9 @@ export default function CreatePage() {
                                   .join(", ")}
                                 rating={r.rating}
                                 reviewCount={r.review_count}
+                                reviewScore={r.review_score}
+                                reviewKeywords={r.review_keywords}
+                                reviewSnippet={r.review_snippet}
                                 primaryTag={r.primary_tag}
                                 tags={r.date_style_tags}
                                 distance={r.distance_miles}
@@ -604,6 +613,9 @@ export default function CreatePage() {
                                   .join(", ")}
                                 rating={a.rating}
                                 reviewCount={a.review_count}
+                                reviewScore={a.review_score}
+                                reviewKeywords={a.review_keywords}
+                                reviewSnippet={a.review_snippet}
                                 primaryTag={a.primary_tag}
                                 tags={a.date_style_tags}
                                 distance={a.distance_miles}
@@ -842,6 +854,9 @@ function ResultCard({
   address,
   rating,
   reviewCount,
+  reviewScore,
+  reviewKeywords,
+  reviewSnippet,
   primaryTag,
   tags,
   distance,
@@ -865,6 +880,9 @@ function ResultCard({
   address: string;
   rating?: number | null;
   reviewCount?: number | null;
+  reviewScore?: number | null;
+  reviewKeywords?: string[] | null;
+  reviewSnippet?: string | null;
   primaryTag?: string | null;
   tags?: string[];
   distance?: number | null;
@@ -885,6 +903,16 @@ function ResultCard({
     onDetails();
     window.location.href = detailsHref;
   };
+
+  const cleanReviewKeywords = Array.isArray(reviewKeywords)
+    ? reviewKeywords.filter(Boolean).slice(0, 4)
+    : [];
+
+  const hasReviewSignals =
+    cleanReviewKeywords.length > 0 || Boolean(reviewSnippet) || Boolean(reviewCount);
+
+  const isReviewFavorite =
+    typeof reviewScore === "number" && reviewScore >= 85 && Boolean(reviewCount);
 
   return (
     <div
@@ -945,6 +973,12 @@ function ResultCard({
           </div>
         </div>
 
+        {isReviewFavorite && (
+          <div className="absolute right-4 top-4 rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white shadow-lg shadow-red-950/30">
+            🌹 Review Favorite
+          </div>
+        )}
+
         {distance !== null && distance !== undefined && (
           <div className="absolute bottom-4 left-4 rounded-full bg-black/70 px-3 py-1 text-xs font-black text-white backdrop-blur">
             {distance} mi away
@@ -974,11 +1008,35 @@ function ResultCard({
           {address}
         </p>
 
-        {reviewCount ? (
-          <p className="mt-2 break-words text-xs font-bold uppercase tracking-wide text-white/35">
-            {reviewCount} reviews
-          </p>
-        ) : null}
+        {hasReviewSignals && (
+          <div className="mt-4 rounded-[1.25rem] border border-red-500/15 bg-red-500/[0.07] p-4">
+            {cleanReviewKeywords.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {cleanReviewKeywords.map((keyword) => (
+                  <span
+                    key={keyword}
+                    className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100"
+                  >
+                    {keyword}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {reviewSnippet && (
+              <p className="mt-3 line-clamp-2 text-xs font-semibold leading-5 text-white/65">
+                “{reviewSnippet}”
+              </p>
+            )}
+
+            {reviewCount ? (
+              <p className="mt-3 text-xs font-bold uppercase tracking-wide text-white/40">
+                🌸 Based on {reviewCount} customer review
+                {reviewCount === 1 ? "" : "s"}
+              </p>
+            ) : null}
+          </div>
+        )}
 
         {primaryTag && (
           <p className="mt-4 break-words text-sm font-black text-white">
