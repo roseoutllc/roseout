@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import AdminTopBar from "@/components/AdminTopBar";
+import AdminTopBar from "@/components/admin/AdminTopBar";
 
 type EventItem = {
   id: string;
