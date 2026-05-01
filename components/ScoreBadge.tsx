@@ -8,59 +8,53 @@ export default function ScoreBadge({ score }: { score: number }) {
   const [displayScore, setDisplayScore] = useState(0);
 
   useEffect(() => {
-    let start = 0;
-    const duration = 800;
-    const stepTime = 16;
-    const steps = duration / stepTime;
-    const increment = safeScore / steps;
+    let current = 0;
 
     const interval = setInterval(() => {
-      start += increment;
-      if (start >= safeScore) {
+      current += 4;
+
+      if (current >= safeScore) {
         setDisplayScore(safeScore);
         clearInterval(interval);
       } else {
-        setDisplayScore(Math.floor(start));
+        setDisplayScore(current);
       }
-    }, stepTime);
+    }, 14);
 
     return () => clearInterval(interval);
   }, [safeScore]);
 
-  const getTier = () => {
-    if (safeScore >= 90) return { label: "Elite", color: "bg-black text-white" };
-    if (safeScore >= 80) return { label: "Top Pick", color: "bg-yellow-500 text-black" };
-    if (safeScore >= 65) return { label: "Great Match", color: "bg-neutral-200 text-black" };
-    return { label: "Match", color: "bg-neutral-300 text-black" };
-  };
+  const tier =
+    safeScore >= 90
+      ? "Elite"
+      : safeScore >= 80
+      ? "Top Pick"
+      : safeScore >= 65
+      ? "Great"
+      : "Match";
 
-  const tier = getTier();
-
-  const radius = 28;
+  const radius = 22;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (displayScore / 100) * circumference;
 
   return (
-    <div className="flex items-center gap-3">
-
-      {/* RING */}
-      <div className="relative h-16 w-16">
-        <svg className="rotate-[-90deg]" width="64" height="64">
+    <div className="flex items-center gap-2">
+      <div className="relative h-12 w-12">
+        <svg className="-rotate-90" width="48" height="48">
           <circle
-            cx="32"
-            cy="32"
+            cx="24"
+            cy="24"
             r={radius}
-            stroke="#e5e5e5"
-            strokeWidth="6"
+            stroke="rgba(0,0,0,0.12)"
+            strokeWidth="5"
             fill="transparent"
           />
-
           <circle
-            cx="32"
-            cy="32"
+            cx="24"
+            cy="24"
             r={radius}
-            stroke="#000"
-            strokeWidth="6"
+            stroke="#eab308"
+            strokeWidth="5"
             fill="transparent"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
@@ -68,16 +62,20 @@ export default function ScoreBadge({ score }: { score: number }) {
           />
         </svg>
 
-        <div className="absolute inset-0 flex items-center justify-center text-xs font-black">
-          {displayScore}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-black">{displayScore}</span>
         </div>
       </div>
 
-      {/* LABEL */}
       <div>
-        <p className="text-lg font-black">{safeScore}/100</p>
-        <span className={`text-xs font-bold px-2 py-1 rounded-full ${tier.color}`}>
-          {tier.label}
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">
+          Score
+        </p>
+
+        <p className="text-sm font-black">{safeScore}/100</p>
+
+        <span className="inline-block rounded-full bg-yellow-500 px-2 py-0.5 text-[10px] font-black text-black">
+          {tier}
         </span>
       </div>
     </div>

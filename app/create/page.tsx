@@ -146,6 +146,19 @@ export default function CreatePage() {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   };
 
+  const resetSearch = () => {
+    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("roseout_plan");
+
+    setInput("");
+    setMessages([]);
+    setSelectedRestaurant(null);
+    setSelectedActivity(null);
+    setError("");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   useEffect(() => {
     setLocationSaved(!!getSavedUserLocation());
 
@@ -318,53 +331,35 @@ export default function CreatePage() {
         selectedActivity?.activity_name ||
         "";
 
-  const resetSearch = () => {
-    sessionStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("roseout_plan");
-
-    setInput("");
-    setMessages([]);
-    setSelectedRestaurant(null);
-    setSelectedActivity(null);
-    setError("");
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   return (
-    <main className="min-h-screen bg-[#070707] px-5 py-10 pb-40 text-white">
+    <main className="min-h-screen bg-[#070707] px-5 py-8 pb-40 text-white">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-8 rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-2xl">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.35em] text-yellow-500">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
             RoseOut
           </p>
 
+          <button
+            type="button"
+            onClick={resetSearch}
+            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-extrabold text-white transition hover:bg-white/15"
+          >
+            Start New Search
+          </button>
+        </div>
+
+        <div className="mb-8 rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-2xl">
           <h1 className="text-4xl font-black tracking-tight md:text-5xl">
             Plan Your Outing
           </h1>
 
           <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-300">
             Tell RoseOut what kind of experience you want, and get curated
-            restaurants and activities with a polished date-night feel.
+            restaurants and activities with a polished outing feel.
           </p>
 
-          <button
-            type="button"
-            onClick={requestUserLocation}
-            className={`mt-5 rounded-full px-5 py-3 text-sm font-extrabold transition ${
-              locationSaved
-                ? "bg-green-500 text-black hover:bg-green-400"
-                : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
-            }`}
-          >
-            {locationSaved
-              ? "Location Saved for Near Me Searches"
-              : "Use My Location for Near Me Searches"}
-          </button>
-
-          <p className="mt-2 text-xs text-neutral-400">
-            You can also search by zip code, like “romantic dinner near 11530”
-            or “bowling within 10 miles.”
+          <p className="mt-4 text-xs text-neutral-400">
+            You can search by city, zip code, vibe, activity, or nearby request.
           </p>
         </div>
 
@@ -455,20 +450,20 @@ export default function CreatePage() {
 
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
-                                  <div className="absolute left-4 top-4 rounded-[1.25rem] bg-white/95 p-3 text-black shadow-xl backdrop-blur">
+                                  <div className="absolute left-4 top-4 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
                                     <ScoreBadge score={safeScore} />
                                   </div>
 
                                   {r.distance_miles !== null &&
                                     r.distance_miles !== undefined && (
-                                      <div className="absolute left-4 bottom-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
+                                      <div className="absolute bottom-4 left-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
                                         {r.distance_miles} mi away
                                       </div>
                                     )}
 
                                   {safeScore >= 90 ? (
                                     <div className="absolute right-4 top-4 rounded-full bg-black px-3 py-1 text-xs font-extrabold text-white">
-                                      Elite Match
+                                      Elite
                                     </div>
                                   ) : safeScore >= 80 ? (
                                     <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
@@ -627,20 +622,20 @@ export default function CreatePage() {
 
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
-                                  <div className="absolute left-4 top-4 rounded-[1.25rem] bg-white/95 p-3 text-black shadow-xl backdrop-blur">
+                                  <div className="absolute left-4 top-4 rounded-[1rem] bg-white/95 p-2 text-black shadow-xl backdrop-blur">
                                     <ScoreBadge score={safeScore} />
                                   </div>
 
                                   {a.distance_miles !== null &&
                                     a.distance_miles !== undefined && (
-                                      <div className="absolute left-4 bottom-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
+                                      <div className="absolute bottom-4 left-4 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
                                         {a.distance_miles} mi away
                                       </div>
                                     )}
 
                                   {safeScore >= 90 ? (
                                     <div className="absolute right-4 top-4 rounded-full bg-black px-3 py-1 text-xs font-extrabold text-white">
-                                      Elite Match
+                                      Elite
                                     </div>
                                   ) : safeScore >= 80 ? (
                                     <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
@@ -821,15 +816,19 @@ export default function CreatePage() {
 
         <button
           type="button"
-          onClick={resetSearch}
-          className="mt-3 w-full rounded-full border border-white/15 bg-white/10 px-6 py-4 font-extrabold text-white transition hover:bg-white/15"
+          onClick={requestUserLocation}
+          className={`mt-3 w-full rounded-full px-6 py-4 font-extrabold transition ${
+            locationSaved
+              ? "bg-green-500 text-black hover:bg-green-400"
+              : "border border-white/15 bg-white/10 text-white hover:bg-white/15"
+          }`}
         >
-          Start New Search
+          {locationSaved ? "✓ Location Saved" : "Use My Location"}
         </button>
       </div>
 
       {(selectedRestaurant || selectedActivity) && (
-        <div className="fixed bottom-0 left-0 right-0 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur">
           <div className="mx-auto max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-yellow-500">
               Building your plan
