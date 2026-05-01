@@ -28,7 +28,6 @@ export default function SignupPage() {
   const widgetIdRef = useRef<string | null | undefined>(null);
 
   const [step, setStep] = useState<1 | 2>(1);
-
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,8 +40,8 @@ export default function SignupPage() {
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
-
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -100,7 +99,6 @@ export default function SignupPage() {
 
   const resetCaptcha = () => {
     const turnstile = (window as TurnstileWindow).turnstile;
-
     setCaptchaToken(null);
 
     if (turnstile && widgetIdRef.current) {
@@ -112,31 +110,19 @@ export default function SignupPage() {
     setErrorMessage("");
     setMessage("");
 
-    if (!fullName.trim()) {
-      setErrorMessage("Please enter your full name.");
-      return;
-    }
-
-    if (!email.trim()) {
-      setErrorMessage("Please enter your email address.");
-      return;
-    }
+    if (!fullName.trim()) return setErrorMessage("Please enter your full name.");
+    if (!email.trim()) return setErrorMessage("Please enter your email address.");
 
     if (!isPasswordValid) {
-      setErrorMessage(
+      return setErrorMessage(
         "Password must be at least 8 characters and include an uppercase letter, number, and symbol."
       );
-      return;
     }
 
-    if (!passwordsMatch) {
-      setErrorMessage("Passwords do not match.");
-      return;
-    }
+    if (!passwordsMatch) return setErrorMessage("Passwords do not match.");
 
     if (!acceptedTerms) {
-      setErrorMessage("Please agree to the Terms and Privacy Policy.");
-      return;
+      return setErrorMessage("Please agree to the Terms and Privacy Policy.");
     }
 
     setStep(2);
@@ -164,9 +150,7 @@ export default function SignupPage() {
     try {
       const captchaResponse = await fetch("/api/verify-captcha", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: captchaToken }),
       });
 
@@ -174,8 +158,7 @@ export default function SignupPage() {
 
       if (!captchaResponse.ok || !captchaResult.success) {
         setErrorMessage(
-          captchaResult.error ||
-            "Captcha verification failed. Please try again."
+          captchaResult.error || "Captcha verification failed. Please try again."
         );
         resetCaptcha();
         setLoading(false);
@@ -229,7 +212,7 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0b0b0f] px-6 py-8 text-white">
+    <main className="h-screen overflow-hidden bg-[#0b0b0f] px-6 py-5 text-white">
       <Script
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         async
@@ -239,37 +222,37 @@ export default function SignupPage() {
         }}
       />
 
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-10 flex items-center justify-between">
+      <div className="mx-auto flex h-full max-w-7xl flex-col">
+        <header className="mb-4 flex items-center justify-between">
           <Link href="/" className="text-2xl font-black tracking-tight">
             RoseOut
           </Link>
 
           <Link
             href="/login"
-            className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white"
+            className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white"
           >
             Log in
           </Link>
         </header>
 
-        <section className="grid min-h-[calc(100vh-120px)] items-center gap-10 lg:grid-cols-[1fr_500px]">
-          <div>
-            <div className="mb-5 inline-flex rounded-full border border-rose-400/20 bg-rose-400/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-rose-200">
+        <section className="grid flex-1 items-center gap-8 overflow-hidden lg:grid-cols-[1fr_500px]">
+          <div className="hidden lg:block">
+            <div className="mb-4 inline-flex rounded-full border border-rose-400/20 bg-rose-400/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-rose-200">
               RoseOut AI
             </div>
 
-            <h1 className="max-w-3xl text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
+            <h1 className="max-w-3xl text-5xl font-black leading-[0.95] tracking-tight xl:text-6xl">
               Build your perfect night out.
             </h1>
 
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-400">
+            <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
               Create your account, personalize your outing style, and let
               RoseOut recommend restaurants, activities, and full plans that
               match your vibe.
             </p>
 
-            <div className="mt-8 grid max-w-3xl gap-4 md:grid-cols-3">
+            <div className="mt-6 grid max-w-3xl gap-3 md:grid-cols-3">
               {[
                 ["01", "Create your RoseOut account."],
                 ["02", "Tell us your outing preferences."],
@@ -277,28 +260,26 @@ export default function SignupPage() {
               ].map(([num, text]) => (
                 <div
                   key={num}
-                  className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
                 >
-                  <p className="text-2xl font-black text-white">{num}</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">
-                    {text}
-                  </p>
+                  <p className="text-xl font-black text-white">{num}</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-400">{text}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl">
-            <div className="border-b border-white/10 px-7 py-6">
+          <div className="max-h-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.04] shadow-2xl">
+            <div className="border-b border-white/10 px-6 py-4">
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-rose-300">
                 Step {step} of 2
               </p>
 
-              <h2 className="mt-2 text-3xl font-black">
+              <h2 className="mt-1 text-2xl font-black">
                 {step === 1 ? "Create account" : "Personalize RoseOut"}
               </h2>
 
-              <div className="mt-5 flex gap-2">
+              <div className="mt-4 flex gap-2">
                 <div
                   className={`h-2 flex-1 rounded-full ${
                     step >= 1 ? "bg-rose-400" : "bg-white/10"
@@ -313,13 +294,13 @@ export default function SignupPage() {
             </div>
 
             {step === 1 ? (
-              <div className="space-y-5 p-7">
+              <div className="space-y-3 p-6">
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Full name"
-                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
                 />
 
                 <input
@@ -327,7 +308,7 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email address"
-                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
                 />
 
                 <input
@@ -335,7 +316,7 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
-                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
                 />
 
                 <input
@@ -343,28 +324,28 @@ export default function SignupPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm password"
-                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
                 />
 
-                <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-xs">
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-3 text-xs">
                   <p className={hasMinLength ? "text-emerald-300" : "text-zinc-500"}>
                     ✓ At least 8 characters
                   </p>
-                  <p className={hasUppercase ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"}>
+                  <p className={hasUppercase ? "text-emerald-300" : "text-zinc-500"}>
                     ✓ One uppercase letter
                   </p>
-                  <p className={hasNumber ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"}>
+                  <p className={hasNumber ? "text-emerald-300" : "text-zinc-500"}>
                     ✓ One number
                   </p>
-                  <p className={hasSymbol ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"}>
+                  <p className={hasSymbol ? "text-emerald-300" : "text-zinc-500"}>
                     ✓ One symbol
                   </p>
-                  <p className={passwordsMatch ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"}>
+                  <p className={passwordsMatch ? "text-emerald-300" : "text-zinc-500"}>
                     ✓ Passwords match
                   </p>
                 </div>
 
-                <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-zinc-400">
+                <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-3 text-xs text-zinc-400">
                   <input
                     type="checkbox"
                     checked={acceptedTerms}
@@ -385,7 +366,7 @@ export default function SignupPage() {
                 </label>
 
                 {errorMessage && (
-                  <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-2 text-sm text-red-200">
                     {errorMessage}
                   </div>
                 )}
@@ -393,12 +374,12 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={handleNextStep}
-                  className="w-full rounded-2xl bg-white px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-rose-100"
+                  className="w-full rounded-2xl bg-white px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-rose-100"
                 >
                   Continue
                 </button>
 
-                <p className="text-center text-sm text-zinc-500">
+                <p className="text-center text-xs text-zinc-500">
                   Already have an account?{" "}
                   <Link
                     href="/login"
@@ -409,11 +390,11 @@ export default function SignupPage() {
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSignup} className="space-y-5 p-7">
+              <form onSubmit={handleSignup} className="space-y-3 p-6">
                 <select
                   value={planningFor}
                   onChange={(e) => setPlanningFor(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none focus:border-rose-400"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-rose-400"
                 >
                   <option value="">What are you using RoseOut for?</option>
                   <option value="date_nights">Date nights</option>
@@ -428,13 +409,13 @@ export default function SignupPage() {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="City or borough, example: Queens"
-                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
                 />
 
                 <select
                   value={preferredVibe}
                   onChange={(e) => setPreferredVibe(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none focus:border-rose-400"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-rose-400"
                 >
                   <option value="">Preferred vibe</option>
                   <option value="romantic">Romantic</option>
@@ -448,7 +429,7 @@ export default function SignupPage() {
                 <select
                   value={budgetRange}
                   onChange={(e) => setBudgetRange(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none focus:border-rose-400"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-rose-400"
                 >
                   <option value="">Budget range</option>
                   <option value="budget">$</option>
@@ -457,7 +438,7 @@ export default function SignupPage() {
                   <option value="luxury">$$$$</option>
                 </select>
 
-                <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-zinc-400">
+                <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-3 text-xs text-zinc-400">
                   <input
                     type="checkbox"
                     checked={marketingOptIn}
@@ -465,23 +446,22 @@ export default function SignupPage() {
                     className="mt-1 h-4 w-4"
                   />
                   <span>
-                    Send me RoseOut updates, recommendations, and offers by
-                    email.
+                    Send me RoseOut updates, recommendations, and offers by email.
                   </span>
                 </label>
 
-                <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
                   <div ref={turnstileRef} />
                 </div>
 
                 {errorMessage && (
-                  <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-2 text-sm text-red-200">
                     {errorMessage}
                   </div>
                 )}
 
                 {message && (
-                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">
                     {message}
                   </div>
                 )}
@@ -490,7 +470,7 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="w-1/3 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-white hover:bg-white/10"
+                    className="w-1/3 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white hover:bg-white/10"
                   >
                     Back
                   </button>
@@ -498,7 +478,7 @@ export default function SignupPage() {
                   <button
                     type="submit"
                     disabled={!canSubmit}
-                    className="w-2/3 rounded-2xl bg-white px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-2/3 rounded-2xl bg-white px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {loading ? "Creating..." : "Create"}
                   </button>
