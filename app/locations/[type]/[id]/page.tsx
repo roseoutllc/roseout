@@ -1,20 +1,27 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import { clampScore } from "@/lib/clampScore";
 import ScoreBadge from "@/components/ScoreBadge";
-import BackButton from "@/components/BackButton";
+import { trackActivity } from "@/lib/trackActivity";
 
 function toArray(value: any): string[] {
   if (!value) return [];
-  if (Array.isArray(value)) return value.map(String);
-  if (typeof value === "string") {
-    return value.split(",").map((v) => v.trim()).filter(Boolean);
+
+  if (Array.isArray(value)) {
+    return value.map(String);
   }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+
   return [];
 }
 
@@ -57,7 +64,9 @@ export default function LocationDetailPage() {
     location?.name ||
     "RoseOut Location";
 
-  const score = clampScore(location?.roseout_score ?? location?.quality_score ?? 0);
+  const score = clampScore(
+    location?.roseout_score ?? location?.quality_score ?? 0
+  );
 
   const address = [
     location?.address,
@@ -69,7 +78,10 @@ export default function LocationDetailPage() {
     .join(", ");
 
   const reservationUrl =
-    location?.reservation_url || location?.reservation_link || "";
+    location?.reservation_url ||
+    location?.reservation_link ||
+    location?.booking_url ||
+    "";
 
   const mapsUrl = useMemo(() => {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -81,6 +93,30 @@ export default function LocationDetailPage() {
   const bestFor = toArray(location?.best_for);
   const specialFeatures = toArray(location?.special_features);
   const signatureItems = toArray(location?.signature_items);
+
+  const baseMetadata = {
+    location_id: id,
+    location_type: isActivity ? "activities" : "restaurants",
+    restaurant_id: !isActivity ? id : undefined,
+    activity_id: isActivity ? id : undefined,
+    location_name: name,
+    restaurant_name: !isActivity ? name : undefined,
+    activity_name: isActivity ? name : undefined,
+  };
+
+  const trackAndGoBack = () => {
+    trackActivity({
+      eventType: "navigation",
+      eventName: "Back To Results",
+      pagePath: window.location.pathname,
+      metadata: {
+        ...baseMetadata,
+        source: "location_detail_page",
+      },
+    });
+
+    router.push(from);
+  };
 
   if (loading) {
     return (
@@ -99,10 +135,13 @@ export default function LocationDetailPage() {
           <p className="text-xs font-black uppercase tracking-[0.3em] text-yellow-500">
             RoseOut
           </p>
+
           <h1 className="mt-3 text-3xl font-black">Location Not Found</h1>
+
           <p className="mt-3 text-sm text-neutral-400">
             This listing may have been removed or is no longer available.
           </p>
+
           <button
             onClick={() => router.push(from)}
             className="mt-6 rounded-full bg-yellow-500 px-6 py-3 text-sm font-black text-black"
@@ -134,7 +173,7 @@ export default function LocationDetailPage() {
         <div className="relative z-10 mx-auto flex min-h-[78vh] max-w-6xl flex-col justify-between px-5 py-6">
           <div className="flex items-center justify-between gap-3">
             <button
-              onClick={() => router.push(from)}
+              onClick={trackAndGoBack}
               className="rounded-full border border-white/15 bg-black/65 px-4 py-2 text-sm font-bold text-white backdrop-blur transition hover:bg-white hover:text-black"
             >
               ← Back
@@ -195,6 +234,19 @@ export default function LocationDetailPage() {
                     href={reservationUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() =>
+                      trackActivity({
+                        eventType: "conversion",
+                        eventName: isActivity
+                          ? "Activity Booking Click"
+                          : "Reservation Click",
+                        pagePath: window.location.pathname,
+                        metadata: {
+                          ...baseMetadata,
+                          source: "hero_section",
+                        },
+                      })
+                    }
                     className="rounded-full bg-yellow-500 px-7 py-3 text-sm font-black text-black transition hover:bg-yellow-400"
                   >
                     {isActivity ? "Book Now" : "Reserve"}
@@ -206,6 +258,21 @@ export default function LocationDetailPage() {
                     href={location.website}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() =>
+                      trackActivity({
+                        eventType: isActivity
+                          ? "activity_click"
+                          : "restaurant_click",
+                        eventName: isActivity
+                          ? "Activity Website Click"
+                          : "Restaurant Website Click",
+                        pagePath: window.location.pathname,
+                        metadata: {
+                          ...baseMetadata,
+                          source: "hero_section",
+                        },
+                      })
+                    }
                     className="rounded-full border border-white/20 bg-white/10 px-7 py-3 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-black"
                   >
                     Website
@@ -216,6 +283,17 @@ export default function LocationDetailPage() {
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() =>
+                    trackActivity({
+                      eventType: "map_click",
+                      eventName: "Directions Click",
+                      pagePath: window.location.pathname,
+                      metadata: {
+                        ...baseMetadata,
+                        source: "hero_section",
+                      },
+                    })
+                  }
                   className="rounded-full border border-white/20 bg-white/10 px-7 py-3 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-black"
                 >
                   Directions
@@ -266,63 +344,97 @@ export default function LocationDetailPage() {
               )}
             </section>
 
-            <section className="grid gap-6 md:grid-cols-2">
-              <InfoCard title="Atmosphere" value={location.atmosphere || "Not listed"} />
-              <InfoCard title="Noise Level" value={location.noise_level || "Not listed"} />
-              <InfoCard title="Dress Code" value={location.dress_code || "Not listed"} />
-              <InfoCard title="Parking" value={location.parking_info || "Not listed"} />
-            </section>
+            {bestFor.length > 0 && (
+              <section className="rounded-[2rem] bg-white p-6 text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
+                  Best For
+                </p>
 
-            {bestFor.length > 0 && <ListSection title="Best For" items={bestFor} />}
-            {specialFeatures.length > 0 && (
-              <ListSection title="Special Features" items={specialFeatures} />
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {bestFor.map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm font-bold text-neutral-700"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </section>
             )}
+
+            {specialFeatures.length > 0 && (
+              <section className="rounded-[2rem] bg-white p-6 text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
+                  Special Features
+                </p>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {specialFeatures.map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm font-bold text-neutral-700"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {signatureItems.length > 0 && (
-              <ListSection
-                title={isActivity ? "Experience Highlights" : "Signature Items"}
-                items={signatureItems}
-              />
+              <section className="rounded-[2rem] bg-white p-6 text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
+                  Signature Picks
+                </p>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {signatureItems.map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm font-bold text-neutral-700"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </section>
             )}
           </div>
 
-          <aside className="space-y-6 lg:sticky lg:top-6 lg:self-start">
-            <section className="rounded-[2rem] bg-white p-6 text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
-                Quick Details
-              </p>
-
-              <div className="mt-5 space-y-4 text-sm">
-                <DetailRow label="Type" value={isActivity ? "Activity" : "Restaurant"} />
-                <DetailRow label="City" value={location.city || "Not listed"} />
-                <DetailRow label="Neighborhood" value={location.neighborhood || "Not listed"} />
-                <DetailRow label="Price" value={location.price_range || "Not listed"} />
-                <DetailRow label="Hours" value={location.hours || "Not listed"} />
-                <DetailRow label="Phone" value={location.phone || "Not listed"} />
-
-                {!isActivity && (
-                  <DetailRow label="Cuisine" value={location.cuisine || "Not listed"} />
-                )}
-
-                {isActivity && (
-                  <DetailRow
-                    label="Activity Type"
-                    value={location.activity_type || "Not listed"}
-                  />
-                )}
-              </div>
-            </section>
-
+          <aside className="space-y-6">
             <section className="rounded-[2rem] bg-white p-6 text-black shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
               <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
                 Plan Your Visit
               </p>
 
-              <div className="mt-5 grid gap-3">
+              <h2 className="mt-3 text-3xl font-black">
+                {isActivity ? "Book the experience." : "Reserve the table."}
+              </h2>
+
+              <p className="mt-3 text-sm leading-6 text-neutral-600">
+                Use these actions to continue planning your RoseOut experience.
+              </p>
+
+              <div className="mt-6 grid gap-3">
                 {reservationUrl && (
                   <a
                     href={reservationUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() =>
+                      trackActivity({
+                        eventType: "conversion",
+                        eventName: isActivity
+                          ? "Activity Booking Click"
+                          : "Reservation Click",
+                        pagePath: window.location.pathname,
+                        metadata: {
+                          ...baseMetadata,
+                          source: "sidebar",
+                        },
+                      })
+                    }
                     className="rounded-full bg-black px-5 py-3 text-center text-sm font-black text-white"
                   >
                     {isActivity ? "Book Activity" : "Reserve Table"}
@@ -334,6 +446,21 @@ export default function LocationDetailPage() {
                     href={location.website}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() =>
+                      trackActivity({
+                        eventType: isActivity
+                          ? "activity_click"
+                          : "restaurant_click",
+                        eventName: isActivity
+                          ? "Activity Website Click"
+                          : "Restaurant Website Click",
+                        pagePath: window.location.pathname,
+                        metadata: {
+                          ...baseMetadata,
+                          source: "sidebar",
+                        },
+                      })
+                    }
                     className="rounded-full border border-black px-5 py-3 text-center text-sm font-black text-black"
                   >
                     Visit Website
@@ -344,17 +471,65 @@ export default function LocationDetailPage() {
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() =>
+                    trackActivity({
+                      eventType: "map_click",
+                      eventName: "Directions Click",
+                      pagePath: window.location.pathname,
+                      metadata: {
+                        ...baseMetadata,
+                        source: "sidebar",
+                      },
+                    })
+                  }
                   className="rounded-full border border-black px-5 py-3 text-center text-sm font-black text-black"
                 >
                   Get Directions
                 </a>
 
                 <button
-                  onClick={() => router.push(from)}
+                  onClick={trackAndGoBack}
                   className="rounded-full border border-black px-5 py-3 text-center text-sm font-black text-black"
                 >
                   Back to Results
                 </button>
+              </div>
+            </section>
+
+            <section className="rounded-[2rem] bg-black p-6 text-white shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-yellow-500">
+                Location Info
+              </p>
+
+              <div className="mt-5 space-y-4 text-sm">
+                <InfoRow
+                  label="Type"
+                  value={isActivity ? "Activity" : "Restaurant"}
+                />
+
+                <InfoRow
+                  label="Category"
+                  value={
+                    isActivity
+                      ? location.activity_type || "Activity"
+                      : location.cuisine || "Restaurant"
+                  }
+                />
+
+                <InfoRow
+                  label="Address"
+                  value={address || "Not provided"}
+                />
+
+                <InfoRow
+                  label="Phone"
+                  value={location.phone || "Not provided"}
+                />
+
+                <InfoRow
+                  label="Website"
+                  value={location.website ? "Available" : "Not provided"}
+                />
               </div>
             </section>
           </aside>
@@ -364,43 +539,19 @@ export default function LocationDetailPage() {
   );
 }
 
-function InfoCard({ title, value }: { title: string; value: string }) {
+function InfoRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
   return (
-    <div className="rounded-[2rem] bg-white p-6 text-black shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
-      <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
-        {title}
+    <div>
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-500">
+        {label}
       </p>
-      <p className="mt-3 text-lg font-black">{value}</p>
-    </div>
-  );
-}
-
-function ListSection({ title, items }: { title: string; items: string[] }) {
-  return (
-    <section className="rounded-[2rem] bg-white p-6 text-black shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
-      <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
-        {title}
-      </p>
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        {items.map((item) => (
-          <div
-            key={item}
-            className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm font-bold text-neutral-700"
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4 border-b border-neutral-200 pb-3">
-      <span className="font-bold text-neutral-500">{label}</span>
-      <span className="text-right font-black">{value}</span>
+      <p className="mt-1 break-words font-bold">{value}</p>
     </div>
   );
 }
