@@ -65,14 +65,6 @@ type UserLocation = {
   longitude: number;
 };
 
-type SavedCreateState = {
-  input: string;
-  messages: Message[];
-  selectedRestaurant: RestaurantCard | null;
-  selectedActivity: ActivityCard | null;
-  scrollY: number;
-};
-
 const STORAGE_KEY = "roseout_create_state";
 const LOCATION_KEY = "roseout_user_location";
 
@@ -169,18 +161,6 @@ export default function CreatePage() {
     );
   };
 
-  const saveCreateState = () => {
-    const state: SavedCreateState = {
-      input,
-      messages,
-      selectedRestaurant,
-      selectedActivity,
-      scrollY: window.scrollY,
-    };
-
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  };
-
   const resetSearch = () => {
     sessionStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem("roseout_plan");
@@ -198,43 +178,18 @@ export default function CreatePage() {
   useEffect(() => {
     setLocationSaved(!!getSavedUserLocation());
 
-    const saved = sessionStorage.getItem(STORAGE_KEY);
+    // Fresh page every browser refresh/reload
+    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("roseout_plan");
 
-    if (!saved) {
-      setTimeout(() => inputRef.current?.focus(), 300);
-      return;
-    }
+    setInput("");
+    setMessages([]);
+    setSelectedRestaurant(null);
+    setSelectedActivity(null);
+    setError("");
 
-    try {
-      const parsed = JSON.parse(saved) as SavedCreateState;
-
-      setInput(parsed.input || "");
-      setMessages(parsed.messages || []);
-      setSelectedRestaurant(parsed.selectedRestaurant || null);
-      setSelectedActivity(parsed.selectedActivity || null);
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          window.scrollTo({
-            top: parsed.scrollY || 0,
-            behavior: "instant" as ScrollBehavior,
-          });
-        });
-      });
-    } catch {
-      sessionStorage.removeItem(STORAGE_KEY);
-    }
+    setTimeout(() => inputRef.current?.focus(), 300);
   }, []);
-
-  useEffect(() => {
-    const handleBeforeUnload = () => saveCreateState();
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  });
 
   useEffect(() => {
     if (!loading) return;
@@ -305,15 +260,19 @@ export default function CreatePage() {
   useEffect(() => {
     if (!hasSearched) return;
 
+    const latestMessage = messages[messages.length - 1];
+
+    // Only scroll when user submits a new search/follow-up.
+    // Do not scroll again when assistant results replace loading.
+    if (latestMessage?.role !== "user") return;
+
     setTimeout(() => {
       resultsRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
-    }, 250);
-
-    setTimeout(() => followUpRef.current?.focus(), 600);
-  }, [messages.length, hasSearched]);
+    }, 150);
+  }, [messages.length, hasSearched, messages]);
 
   const trackRestaurantClick = (id: string) => {
     trackAnalytics({
@@ -394,17 +353,6 @@ export default function CreatePage() {
       ];
 
       setMessages(updatedMessages);
-
-      sessionStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          input: "",
-          messages: updatedMessages,
-          selectedRestaurant: null,
-          selectedActivity: null,
-          scrollY: window.scrollY,
-        })
-      );
     } catch {
       setError("Could not create response. Please try again.");
     } finally {
@@ -632,7 +580,6 @@ export default function CreatePage() {
                                 }
                                 detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
                                 onDetails={() => {
-                                  saveCreateState();
                                   trackRestaurantClick(restaurantId);
                                 }}
                                 reservationUrl={reservationUrl}
@@ -685,7 +632,6 @@ export default function CreatePage() {
                                 }
                                 detailsHref={`/locations/activities/${activityId}?from=/create`}
                                 onDetails={() => {
-                                  saveCreateState();
                                   trackActivityClick(activityId);
                                 }}
                                 websiteUrl={a.website}
