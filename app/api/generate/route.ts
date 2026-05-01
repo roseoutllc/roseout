@@ -13,12 +13,10 @@ const EXPERIENCE_KEYWORDS = [
   "food",
   "eat",
   "restaurant",
-  "place to eat",
   "breakfast",
   "brunch",
   "lunch",
   "dinner",
-  "late night food",
   "pizza",
   "burger",
   "steak",
@@ -41,10 +39,6 @@ const EXPERIENCE_KEYWORDS = [
   "jamaican",
   "soul food",
   "african",
-  "fine dining",
-  "casual dining",
-  "romantic dinner",
-  "date night dinner",
   "wine",
   "cocktail",
   "cocktails",
@@ -53,122 +47,17 @@ const EXPERIENCE_KEYWORDS = [
   "rooftop",
   "lounge",
   "dessert",
-  "ice cream",
-  "bakery",
   "coffee",
   "cafe",
   "hookah",
-  "hookah restaurant",
   "hookah lounge",
+  "hookah restaurant",
   "shisha",
   "shisha lounge",
   "cigar",
   "cigar bar",
   "cigar lounge",
   "cigar friendly",
-];
-
-const QUEENS_CITIES = [
-  "Queens",
-  "Astoria",
-  "Flushing",
-  "Jamaica",
-  "Long Island City",
-  "Forest Hills",
-  "Bayside",
-  "Queens Village",
-  "Jackson Heights",
-  "Corona",
-  "Elmhurst",
-  "Ridgewood",
-  "Woodside",
-  "Sunnyside",
-  "Kew Gardens",
-  "Rego Park",
-  "Fresh Meadows",
-  "College Point",
-  "Whitestone",
-  "Howard Beach",
-  "Ozone Park",
-  "South Ozone Park",
-  "Far Rockaway",
-  "Rockaway Beach",
-  "Laurelton",
-  "Rosedale",
-  "Springfield Gardens",
-  "Cambria Heights",
-  "St. Albans",
-  "Maspeth",
-  "Middle Village",
-  "Glendale",
-  "Bellerose",
-  "Little Neck",
-  "Douglaston",
-];
-
-const NASSAU_CITIES = [
-  "Hempstead",
-  "Freeport",
-  "Garden City",
-  "Mineola",
-  "Uniondale",
-  "Westbury",
-  "Rockville Centre",
-  "Oceanside",
-  "Levittown",
-  "East Meadow",
-  "Plainview",
-  "Syosset",
-  "Jericho",
-  "Bethpage",
-  "Massapequa",
-  "Massapequa Park",
-  "Bellmore",
-  "Wantagh",
-  "Merrick",
-  "Great Neck",
-  "Port Washington",
-  "New Hyde Park",
-  "Floral Park",
-  "Long Beach",
-  "Baldwin",
-  "Glen Cove",
-  "Roslyn",
-  "Woodbury",
-  "Carle Place",
-];
-
-const SUFFOLK_CITIES = [
-  "Huntington",
-  "Huntington Station",
-  "Melville",
-  "Smithtown",
-  "Kings Park",
-  "Commack",
-  "Stony Brook",
-  "Port Jefferson",
-  "Patchogue",
-  "Medford",
-  "Ronkonkoma",
-  "Lake Grove",
-  "Centereach",
-  "Selden",
-  "Farmingville",
-  "Holbrook",
-  "Islip",
-  "East Islip",
-  "West Islip",
-  "Bay Shore",
-  "Brentwood",
-  "Deer Park",
-  "Babylon",
-  "Lindenhurst",
-  "Amityville",
-  "Sayville",
-  "Riverhead",
-  "Southampton",
-  "East Hampton",
-  "Montauk",
 ];
 
 function normalizeQuery(input: string) {
@@ -181,10 +70,7 @@ function normalizeQuery(input: string) {
 
 function toArray(value: any): string[] {
   if (!value) return [];
-
-  if (Array.isArray(value)) {
-    return value.map(String).filter(Boolean);
-  }
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
 
   if (typeof value === "string") {
     return value
@@ -196,7 +82,7 @@ function toArray(value: any): string[] {
   return [];
 }
 
-function locationText(item: any) {
+function itemText(item: any) {
   return [
     item.restaurant_name,
     item.activity_name,
@@ -229,8 +115,7 @@ function locationText(item: any) {
 }
 
 function keywordBoost(item: any, input: string) {
-  const searchable = locationText(item);
-
+  const searchable = itemText(item);
   const words = normalizeQuery(input)
     .split(" ")
     .filter((word) => word.length > 2);
@@ -242,226 +127,29 @@ function keywordBoost(item: any, input: string) {
   });
 
   const phrase = normalizeQuery(input);
-
-  if (phrase.length > 2 && searchable.includes(phrase)) {
-    boost += 35;
-  }
+  if (phrase.length > 2 && searchable.includes(phrase)) boost += 35;
 
   return boost;
 }
 
-function reviewBoost(item: any, input: string) {
-  const text = normalizeQuery(input);
-  const keywords = toArray(item.review_keywords).join(" ").toLowerCase();
-
-  if (!keywords) return 0;
-
-  let boost = 0;
-
-  const highIntentWords = [
-    "romantic",
-    "quiet",
-    "fun",
-    "upscale",
-    "cozy",
-    "date",
-    "date night",
-    "lively",
-    "intimate",
-    "classy",
-    "great food",
-    "good service",
-    "drinks",
-    "music",
-    "hookah",
-    "shisha",
-    "cigar",
-    "lounge",
-    "steak",
-    "steakhouse",
-  ];
-
-  highIntentWords.forEach((word) => {
-    if (text.includes(word) && keywords.includes(word)) {
-      boost += 12;
-    }
-  });
-
-  if (Number(item.review_score || 0) >= 85) boost += 10;
-  if (Number(item.review_count || 0) >= 5) boost += 5;
-
-  return boost;
-}
-
-function getRegion(input: string) {
-  const text = normalizeQuery(input);
-
-  if (text.includes("queens")) return "queens";
-  if (text.includes("nassau")) return "nassau";
-  if (text.includes("suffolk")) return "suffolk";
-
-  if (
-    text.includes("long island") ||
-    text.includes("long island ny") ||
-    text.includes("li ny")
-  ) {
-    return "long_island";
-  }
-
-  return null;
-}
-
-function getRegionCities(region: string | null) {
-  if (region === "queens") return QUEENS_CITIES;
-  if (region === "nassau") return NASSAU_CITIES;
-  if (region === "suffolk") return SUFFOLK_CITIES;
-  if (region === "long_island") return [...NASSAU_CITIES, ...SUFFOLK_CITIES];
-
-  return [];
-}
-
-function isRegionMatch(
-  region: string | null,
-  city?: string | null,
-  neighborhood?: string | null
-) {
-  const cityText = city?.toLowerCase().trim() || "";
-  const neighborhoodText = neighborhood?.toLowerCase().trim() || "";
-  const places = getRegionCities(region);
-
-  return places.some((place) => {
-    const normalized = place.toLowerCase();
-    return cityText === normalized || neighborhoodText === normalized;
-  });
-}
-
-function extractZipCode(input: string) {
-  const match = input.match(/\b\d{5}\b/);
-  return match ? match[0] : null;
-}
-
-function wantsNearMe(input: string) {
-  const text = normalizeQuery(input);
-
-  return (
-    text.includes("near me") ||
-    text.includes("nearby") ||
-    text.includes("close to me") ||
-    text.includes("around me") ||
-    text.includes("my location")
-  );
-}
-
-function extractRadiusMiles(input: string) {
+function scoreRestaurant(item: any, input: string) {
   const text = input.toLowerCase();
-
-  const match =
-    text.match(/within\s+(\d+)\s*miles?/) ||
-    text.match(/(\d+)\s*miles?\s*(away|radius|from me|near me)?/);
-
-  if (!match) return 15;
-
-  const miles = Number(match[1]);
-
-  if (!Number.isFinite(miles) || miles <= 0) return 15;
-
-  return Math.min(miles, 50);
-}
-
-function distanceMiles(
-  lat1: number,
-  lon1: number,
-  lat2?: number | null,
-  lon2?: number | null
-) {
-  if (!lat2 || !lon2) return null;
-
-  const R = 3958.8;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
-
-function scoreRestaurant(
-  restaurant: any,
-  input: string,
-  userLocation?: { latitude: number; longitude: number } | null
-) {
-  const text = input.toLowerCase();
-  const region = getRegion(input);
-  const zipCode = extractZipCode(input);
-  const searchable = locationText(restaurant);
-  const cuisine = restaurant.cuisine || restaurant.cuisine_type;
+  const searchable = itemText(item);
+  const cuisine = String(item.cuisine || item.cuisine_type || "").toLowerCase();
 
   let score = 0;
 
-  score += keywordBoost(restaurant, input);
-  score += reviewBoost(restaurant, input);
-
-  if (region && isRegionMatch(region, restaurant.city, restaurant.neighborhood)) {
-    score += 35;
-  }
-
-  if (zipCode && restaurant.zip_code === zipCode) {
-    score += 45;
-  }
-
-  if (userLocation && wantsNearMe(input)) {
-    const distance = distanceMiles(
-      userLocation.latitude,
-      userLocation.longitude,
-      restaurant.latitude,
-      restaurant.longitude
-    );
-
-    if (distance !== null) {
-      if (distance <= 3) score += 45;
-      else if (distance <= 7) score += 35;
-      else if (distance <= 15) score += 20;
-    }
-  }
-
-  if (restaurant.city && text.includes(String(restaurant.city).toLowerCase())) {
-    score += 25;
-  }
-
-  if (
-    restaurant.neighborhood &&
-    text.includes(String(restaurant.neighborhood).toLowerCase())
-  ) {
-    score += 25;
-  }
-
-  if (cuisine && text.includes(String(cuisine).toLowerCase())) score += 20;
-
-  if (
-    restaurant.atmosphere &&
-    text.includes(String(restaurant.atmosphere).toLowerCase())
-  ) {
-    score += 15;
-  }
+  score += keywordBoost(item, input);
 
   EXPERIENCE_KEYWORDS.forEach((keyword) => {
-    if (text.includes(keyword) && searchable.includes(keyword)) {
-      score += 25;
-    }
+    if (text.includes(keyword) && searchable.includes(keyword)) score += 25;
   });
 
   if (text.includes("steak") || text.includes("steakhouse")) {
     if (
       searchable.includes("steak") ||
       searchable.includes("steakhouse") ||
-      String(cuisine || "").toLowerCase().includes("steak")
+      cuisine.includes("steak")
     ) {
       score += 180;
     } else {
@@ -469,154 +157,66 @@ function scoreRestaurant(
     }
   }
 
-  if (
-    (text.includes("hookah") || text.includes("shisha")) &&
-    (searchable.includes("hookah") || searchable.includes("shisha"))
-  ) {
-    score += 160;
-  } else if (text.includes("hookah") || text.includes("shisha")) {
-    score += 25;
-  }
-
-  if (
-    (text.includes("hookah") || text.includes("shisha")) &&
-    text.includes("lounge") &&
-    (searchable.includes("hookah") || searchable.includes("shisha")) &&
-    searchable.includes("lounge")
-  ) {
-    score += 190;
-  }
-
-  if (
-    text.includes("cigar") &&
-    (searchable.includes("cigar") ||
-      searchable.includes("cigar bar") ||
-      searchable.includes("cigar lounge") ||
-      searchable.includes("cigar friendly"))
-  ) {
-    score += 160;
-  } else if (text.includes("cigar")) {
-    score += 25;
-  }
-
-  if (text.includes("lounge") && searchable.includes("lounge")) {
-    score += 90;
-  } else if (text.includes("lounge")) {
-    score += 20;
-  }
-
-  if (text.includes("breakfast") && searchable.includes("breakfast")) score += 40;
-  if (text.includes("brunch") && searchable.includes("brunch")) score += 40;
-  if (text.includes("lunch") && searchable.includes("lunch")) score += 35;
-  if (text.includes("dinner")) score += 30;
-
-  if (text.includes("wine") && searchable.includes("wine")) score += 60;
-  if (text.includes("cocktail") && searchable.includes("cocktail")) score += 50;
-  if (text.includes("cocktails") && searchable.includes("cocktail")) score += 50;
-  if (text.includes("drinks") && searchable.includes("drink")) score += 40;
-  if (text.includes("bar") && searchable.includes("bar")) score += 40;
-
-  return score;
-}
-
-function scoreActivity(
-  activity: any,
-  input: string,
-  userLocation?: { latitude: number; longitude: number } | null
-) {
-  const text = input.toLowerCase();
-  const region = getRegion(input);
-  const zipCode = extractZipCode(input);
-  const searchable = locationText(activity);
-
-  let score = 0;
-
-  score += keywordBoost(activity, input);
-  score += reviewBoost(activity, input);
-
-  if (region && isRegionMatch(region, activity.city, activity.neighborhood)) {
-    score += 35;
-  }
-
-  if (zipCode && activity.zip_code === zipCode) {
-    score += 45;
-  }
-
-  if (userLocation && wantsNearMe(input)) {
-    const distance = distanceMiles(
-      userLocation.latitude,
-      userLocation.longitude,
-      activity.latitude,
-      activity.longitude
-    );
-
-    if (distance !== null) {
-      if (distance <= 3) score += 45;
-      else if (distance <= 7) score += 35;
-      else if (distance <= 15) score += 20;
+  if (text.includes("hookah") || text.includes("shisha")) {
+    if (searchable.includes("hookah") || searchable.includes("shisha")) {
+      score += 180;
+    } else if (searchable.includes("lounge") || searchable.includes("bar")) {
+      score += 60;
+    } else {
+      score += 25;
     }
   }
 
-  if (activity.city && text.includes(String(activity.city).toLowerCase())) {
-    score += 25;
+  if (text.includes("cigar")) {
+    if (searchable.includes("cigar")) {
+      score += 180;
+    } else if (searchable.includes("lounge") || searchable.includes("bar")) {
+      score += 60;
+    } else {
+      score += 25;
+    }
   }
 
-  if (
-    activity.activity_type &&
-    text.includes(String(activity.activity_type).toLowerCase())
-  ) {
-    score += 30;
-  }
+  if (text.includes("lounge") && searchable.includes("lounge")) score += 90;
+  if (text.includes("dinner")) score += 30;
+  if (text.includes("breakfast") && searchable.includes("breakfast")) score += 45;
+  if (text.includes("brunch") && searchable.includes("brunch")) score += 45;
+  if (text.includes("lunch") && searchable.includes("lunch")) score += 35;
+  if (text.includes("wine") && searchable.includes("wine")) score += 60;
+  if (text.includes("cocktail") && searchable.includes("cocktail")) score += 50;
+  if (text.includes("drinks") && searchable.includes("drink")) score += 40;
+  if (text.includes("bar") && searchable.includes("bar")) score += 40;
 
-  if (
-    text.includes("museum") &&
-    String(activity.activity_type || "").toLowerCase().includes("museum")
-  ) {
-    score += 100;
-  }
+  score += clampScore(item.roseout_score || 0) * 0.25;
+  score += clampScore(item.quality_score || 0) * 0.15;
+  score += clampScore(item.popularity_score || 0) * 0.1;
+  score += clampScore(item.review_score || 0) * 0.15;
 
-  if (
-    text.includes("bowling") &&
-    String(activity.activity_type || "").toLowerCase().includes("bowling")
-  ) {
-    score += 100;
-  }
-
-  if (
-    text.includes("arcade") &&
-    String(activity.activity_type || "").toLowerCase().includes("arcade")
-  ) {
-    score += 100;
-  }
-
-  if (
-    text.includes("karaoke") &&
-    String(activity.activity_type || "").toLowerCase().includes("karaoke")
-  ) {
-    score += 100;
-  }
-
-  if (text.includes("lounge") && searchable.includes("lounge")) score += 80;
-  if (text.includes("hookah") && searchable.includes("hookah")) score += 120;
-  if (text.includes("cigar") && searchable.includes("cigar")) score += 120;
-
-  return score;
+  return clampScore(score);
 }
 
-function normalizeLocationRows(locations: any[]) {
-  return (locations || []).map((item: any) => {
-    const normalizedName = item.name || item.restaurant_name || item.activity_name;
+function scoreActivity(item: any, input: string) {
+  const text = input.toLowerCase();
+  const searchable = itemText(item);
 
-    return {
-      ...item,
-      name: normalizedName,
-      restaurant_name: item.restaurant_name || normalizedName,
-      activity_name: item.activity_name || normalizedName,
-      location_type:
-        item.location_type ||
-        (item.activity_type || item.activity_name ? "activity" : "restaurant"),
-    };
-  });
+  let score = 0;
+
+  score += keywordBoost(item, input);
+
+  if (text.includes("museum") && searchable.includes("museum")) score += 100;
+  if (text.includes("bowling") && searchable.includes("bowling")) score += 100;
+  if (text.includes("arcade") && searchable.includes("arcade")) score += 100;
+  if (text.includes("karaoke") && searchable.includes("karaoke")) score += 100;
+  if (text.includes("escape") && searchable.includes("escape")) score += 100;
+  if (text.includes("mini golf") && searchable.includes("mini golf")) score += 100;
+  if (text.includes("fun") && searchable.includes("fun")) score += 40;
+
+  score += clampScore(item.roseout_score || 0) * 0.25;
+  score += clampScore(item.quality_score || 0) * 0.15;
+  score += clampScore(item.popularity_score || 0) * 0.1;
+  score += clampScore(item.review_score || 0) * 0.15;
+
+  return clampScore(score);
 }
 
 export async function POST(req: Request) {
@@ -626,78 +226,13 @@ export async function POST(req: Request) {
     const messages = body.messages || [];
     const input = body.input || messages[messages.length - 1]?.content || "";
 
-    const userLocation =
-      body.userLocation?.latitude && body.userLocation?.longitude
-        ? {
-            latitude: Number(body.userLocation.latitude),
-            longitude: Number(body.userLocation.longitude),
-          }
-        : null;
-
     if (!input) {
       return Response.json({ error: "Missing input" }, { status: 400 });
     }
 
     const text = input.toLowerCase();
-    const region = getRegion(input);
-    const zipCode = extractZipCode(input);
-    const nearMe = wantsNearMe(input);
-    const radiusMiles = extractRadiusMiles(input);
 
-    const wantsHookah = text.includes("hookah") || text.includes("shisha");
-    const wantsCigar = text.includes("cigar");
-    const wantsLounge = text.includes("lounge");
-
-    const wantsDinner = EXPERIENCE_KEYWORDS.some((keyword) =>
-      text.includes(keyword)
-    );
-
-    const wantsMuseum = text.includes("museum");
-    const wantsBowling = text.includes("bowling");
-    const wantsAxe = text.includes("axe");
-    const wantsArcade = text.includes("arcade");
-    const wantsKaraoke = text.includes("karaoke");
-    const wantsEscape = text.includes("escape");
-    const wantsMiniGolf = text.includes("mini golf");
-
-    const wantsSpecificActivity =
-      wantsMuseum ||
-      wantsBowling ||
-      wantsAxe ||
-      wantsArcade ||
-      wantsKaraoke ||
-      wantsEscape ||
-      wantsMiniGolf;
-
-    const wantsActivity =
-      wantsSpecificActivity ||
-      text.includes("activity") ||
-      text.includes("activities");
-
-    const wantsFullOuting =
-      text.includes("date night") ||
-      text.includes("night out") ||
-      text.includes("outing") ||
-      text.includes("plan a date") ||
-      text.includes("full plan");
-
-    const shouldReturnRestaurants =
-      wantsDinner ||
-      wantsHookah ||
-      wantsCigar ||
-      wantsLounge ||
-      wantsFullOuting ||
-      !wantsActivity;
-
-    const shouldReturnActivities = wantsActivity || wantsFullOuting;
-
-    const cacheKey = normalizeQuery(
-      `${input} unified-locations-v6-hard-fallback ${region || ""} ${
-        zipCode || ""
-      } ${
-        userLocation ? `${userLocation.latitude},${userLocation.longitude}` : ""
-      } ${radiusMiles}`
-    );
+    const cacheKey = normalizeQuery(`stable-restaurant-activity-search-${input}`);
 
     const { data: cached } = await supabase
       .from("ai_response_cache")
@@ -714,277 +249,103 @@ export async function POST(req: Request) {
       }
     }
 
-    const { data: locations, error: locationError } = await supabase
-      .from("locations")
-      .select("*");
+    const wantsFood = EXPERIENCE_KEYWORDS.some((keyword) =>
+      text.includes(keyword)
+    );
 
-    if (locationError) {
-      return Response.json({ error: locationError.message }, { status: 500 });
+    const wantsActivity =
+      text.includes("activity") ||
+      text.includes("activities") ||
+      text.includes("museum") ||
+      text.includes("bowling") ||
+      text.includes("arcade") ||
+      text.includes("karaoke") ||
+      text.includes("escape") ||
+      text.includes("mini golf");
+
+    const wantsFullOuting =
+      text.includes("date night") ||
+      text.includes("outing") ||
+      text.includes("night out") ||
+      text.includes("full plan");
+
+    const shouldReturnRestaurants =
+      wantsFood || wantsFullOuting || !wantsActivity;
+
+    const shouldReturnActivities = wantsActivity || wantsFullOuting;
+
+    const { data: restaurantsData, error: restaurantError } = await supabase
+      .from("restaurants")
+      .select("*")
+      .or("status.eq.approved,status.is.null,status.eq.active");
+
+    if (restaurantError) {
+      return Response.json({ error: restaurantError.message }, { status: 500 });
     }
 
-    const allLocations = normalizeLocationRows(locations || []);
+    const { data: activitiesData, error: activityError } = await supabase
+      .from("activities")
+      .select("*")
+      .or("status.eq.approved,status.is.null,status.eq.active");
 
-    console.log("TOTAL LOCATIONS:", allLocations.length);
-
-    let filteredRestaurants = allLocations.filter((item: any) => {
-      const type = String(item.location_type || "").toLowerCase();
-
-      return (
-        type === "restaurant" ||
-        Boolean(item.restaurant_name) ||
-        Boolean(item.name) ||
-        Boolean(item.cuisine) ||
-        Boolean(item.cuisine_type)
-      );
-    });
-
-    let filteredActivities = allLocations.filter((item: any) => {
-      const type = String(item.location_type || "").toLowerCase();
-
-      return (
-        type === "activity" ||
-        Boolean(item.activity_name) ||
-        Boolean(item.name) ||
-        Boolean(item.activity_type)
-      );
-    });
-
-    console.log("RESTAURANTS BEFORE FILTER:", filteredRestaurants.length);
-    console.log("ACTIVITIES BEFORE FILTER:", filteredActivities.length);
-
-    if (region) {
-      const regionRestaurants = filteredRestaurants.filter((r: any) =>
-        isRegionMatch(region, r.city, r.neighborhood)
-      );
-
-      const regionActivities = filteredActivities.filter((a: any) =>
-        isRegionMatch(region, a.city, a.neighborhood)
-      );
-
-      if (regionRestaurants.length > 0) filteredRestaurants = regionRestaurants;
-      if (regionActivities.length > 0) filteredActivities = regionActivities;
+    if (activityError) {
+      return Response.json({ error: activityError.message }, { status: 500 });
     }
 
-    if (zipCode) {
-      const zipRestaurants = filteredRestaurants.filter(
-        (r: any) => String(r.zip_code || "") === zipCode
-      );
+    const restaurants = restaurantsData || [];
+    const activities = activitiesData || [];
 
-      const zipActivities = filteredActivities.filter(
-        (a: any) => String(a.zip_code || "") === zipCode
-      );
+    const rankedRestaurants = restaurants
+      .map((restaurant: any) => ({
+        ...restaurant,
+        roseout_score: scoreRestaurant(restaurant, input),
+      }))
+      .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
-      if (zipRestaurants.length > 0) filteredRestaurants = zipRestaurants;
-      if (zipActivities.length > 0) filteredActivities = zipActivities;
-    }
-
-    if (nearMe && userLocation) {
-      const nearbyRestaurants = filteredRestaurants
-        .map((r: any) => ({
-          ...r,
-          distance_miles: distanceMiles(
-            userLocation.latitude,
-            userLocation.longitude,
-            r.latitude,
-            r.longitude
-          ),
-        }))
-        .filter(
-          (r: any) =>
-            r.distance_miles !== null && r.distance_miles <= radiusMiles
-        );
-
-      const nearbyActivities = filteredActivities
-        .map((a: any) => ({
-          ...a,
-          distance_miles: distanceMiles(
-            userLocation.latitude,
-            userLocation.longitude,
-            a.latitude,
-            a.longitude
-          ),
-        }))
-        .filter(
-          (a: any) =>
-            a.distance_miles !== null && a.distance_miles <= radiusMiles
-        );
-
-      if (nearbyRestaurants.length > 0) filteredRestaurants = nearbyRestaurants;
-      if (nearbyActivities.length > 0) filteredActivities = nearbyActivities;
-    }
-
-    const rankedRestaurants = filteredRestaurants
-      .map((restaurant: any) => {
-        const ruleScore = scoreRestaurant(restaurant, input, userLocation);
-        const savedScore = clampScore(restaurant.roseout_score);
-        const qualityScore = clampScore(restaurant.quality_score);
-        const popularityScore = clampScore(restaurant.popularity_score);
-        const customerReviewScore = clampScore(restaurant.review_score);
-
-        let distanceBoost = 0;
-
-        if (
-          restaurant.distance_miles !== null &&
-          restaurant.distance_miles !== undefined
-        ) {
-          if (restaurant.distance_miles <= 3) distanceBoost = 15;
-          else if (restaurant.distance_miles <= 7) distanceBoost = 10;
-          else if (restaurant.distance_miles <= 15) distanceBoost = 5;
-        }
-
-        const finalScore =
-          ruleScore * 0.58 +
-          savedScore * 0.14 +
-          qualityScore * 0.1 +
-          customerReviewScore * 0.12 +
-          popularityScore * 0.06 +
-          distanceBoost;
-
-        return {
-          ...restaurant,
-          restaurant_name: restaurant.restaurant_name || restaurant.name,
-          roseout_score: clampScore(finalScore),
-        };
-      })
-      .sort((a: any, b: any) => {
-        if (nearMe && userLocation) {
-          return (a.distance_miles || 999) - (b.distance_miles || 999);
-        }
-
-        return b.roseout_score - a.roseout_score;
-      });
-
-    const rankedActivities = filteredActivities
-      .map((activity: any) => {
-        const ruleScore = scoreActivity(activity, input, userLocation);
-        const savedScore = clampScore(activity.roseout_score);
-        const qualityScore = clampScore(activity.quality_score);
-        const popularityScore = clampScore(activity.popularity_score);
-        const customerReviewScore = clampScore(activity.review_score);
-
-        let distanceBoost = 0;
-
-        if (
-          activity.distance_miles !== null &&
-          activity.distance_miles !== undefined
-        ) {
-          if (activity.distance_miles <= 3) distanceBoost = 15;
-          else if (activity.distance_miles <= 7) distanceBoost = 10;
-          else if (activity.distance_miles <= 15) distanceBoost = 5;
-        }
-
-        const finalScore =
-          ruleScore * 0.58 +
-          savedScore * 0.14 +
-          qualityScore * 0.1 +
-          customerReviewScore * 0.12 +
-          popularityScore * 0.06 +
-          distanceBoost;
-
-        return {
-          ...activity,
-          activity_name: activity.activity_name || activity.name,
-          roseout_score: clampScore(finalScore),
-        };
-      })
-      .sort((a: any, b: any) => {
-        if (nearMe && userLocation) {
-          return (a.distance_miles || 999) - (b.distance_miles || 999);
-        }
-
-        return b.roseout_score - a.roseout_score;
-      });
-
-    const fallbackRestaurantsSource =
-      filteredRestaurants.length > 0
-        ? filteredRestaurants
-        : allLocations.filter((item: any) => {
-            const type = String(item.location_type || "").toLowerCase();
-            return (
-              type === "restaurant" ||
-              Boolean(item.restaurant_name) ||
-              Boolean(item.cuisine) ||
-              Boolean(item.cuisine_type) ||
-              Boolean(item.name)
-            );
-          });
-
-    const fallbackActivitiesSource =
-      filteredActivities.length > 0
-        ? filteredActivities
-        : allLocations.filter((item: any) => {
-            const type = String(item.location_type || "").toLowerCase();
-            return (
-              type === "activity" ||
-              Boolean(item.activity_name) ||
-              Boolean(item.activity_type) ||
-              Boolean(item.name)
-            );
-          });
-
-    const fallbackRestaurants = fallbackRestaurantsSource
-      .slice(0, 5)
-      .map((r: any) => ({
-        ...r,
-        restaurant_name: r.restaurant_name || r.name,
-        roseout_score: clampScore(r.roseout_score || 50),
-      }));
-
-    const fallbackActivities = fallbackActivitiesSource
-      .slice(0, 5)
-      .map((a: any) => ({
-        ...a,
-        activity_name: a.activity_name || a.name,
-        roseout_score: clampScore(a.roseout_score || 50),
-      }));
+    const rankedActivities = activities
+      .map((activity: any) => ({
+        ...activity,
+        roseout_score: scoreActivity(activity, input),
+      }))
+      .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
     const topRestaurants = shouldReturnRestaurants
       ? rankedRestaurants.length > 0
         ? rankedRestaurants.slice(0, 5)
-        : fallbackRestaurants
+        : restaurants.slice(0, 5)
       : [];
 
     const topActivities = shouldReturnActivities
       ? rankedActivities.length > 0
         ? rankedActivities.slice(0, 5)
-        : fallbackActivities
+        : activities.slice(0, 5)
       : [];
 
     const slimRestaurants = topRestaurants.map((r: any) => ({
       name: r.restaurant_name || r.name,
       city: r.city,
-      neighborhood: r.neighborhood,
       cuisine: r.cuisine || r.cuisine_type,
-      rating: r.rating,
       score: clampScore(r.roseout_score),
-      review_keywords: toArray(r.review_keywords).slice(0, 5),
       tag: r.primary_tag,
+      review_keywords: toArray(r.review_keywords).slice(0, 5),
     }));
 
     const slimActivities = topActivities.map((a: any) => ({
       name: a.activity_name || a.name,
       city: a.city,
-      neighborhood: a.neighborhood,
       type: a.activity_type,
-      rating: a.rating,
       score: clampScore(a.roseout_score),
-      review_keywords: toArray(a.review_keywords).slice(0, 5),
       tag: a.primary_tag,
+      review_keywords: toArray(a.review_keywords).slice(0, 5),
     }));
-
-    const hasAnyResults = topRestaurants.length > 0 || topActivities.length > 0;
 
     const shortConversation = messages
       .slice(-4)
       .map((m: any) => `${m.role}: ${m.content}`)
       .join("\n");
 
-    const isFollowUp = messages.length > 1;
-
     const prompt = `
 You are RoseOut, a concise AI outing planner.
-
-${isFollowUp ? "This is a follow-up. Answer only the latest user request." : ""}
 
 Conversation:
 ${shortConversation}
@@ -1001,40 +362,28 @@ ${JSON.stringify(slimActivities)}
 STRICT RULES:
 - Keep the answer short and direct.
 - Use ONLY the listed restaurants and activities.
-- Never ask the user to provide a list of restaurants or activities.
 - Never say “I don’t have any.”
 - Never say “I currently don’t have any.”
 - Never say “Would you like to explore other options.”
-- Never say “let me know.”
-- Never ask a follow-up question when results are listed.
-- If exact matches are weak, recommend the closest available matches from the provided list.
+- Never ask the user to provide a list.
+- If exact matches are weak, recommend the closest available matches from the list.
 - If the user asks for steak and no steakhouse appears, recommend the closest upscale dinner restaurants from the list.
-- If the user asks for hookah/shisha and no exact hookah venue appears, recommend the closest lounge/nightlife/dining matches from the list.
+- If the user asks for hookah/shisha/cigar and no exact venue appears, recommend the closest lounge/nightlife/dining matches from the list.
 - Do NOT invent business details.
 - Do NOT add times unless asked.
-- Do NOT add dessert, drinks, walks, or extra stops unless asked.
-- Do NOT say “take your time,” “enjoy the meal,” or “chat.”
-- Use review_keywords only as support for why something matches.
-- Hookah lounges, hookah restaurants, cigar bars, cigar-friendly lounges, and lounges count as valid dining/nightlife options.
 - If dinner only, recommend restaurants only.
 - If activity only, recommend activities only.
 - If full outing/date night, recommend one restaurant and one activity.
 `;
 
-    const response = hasAnyResults
-      ? await openai.responses.create({
-          model: AI_MODEL,
-          input: prompt,
-          max_output_tokens: 350,
-        })
-      : null;
+    const response = await openai.responses.create({
+      model: AI_MODEL,
+      input: prompt,
+      max_output_tokens: 350,
+    });
 
     const responsePayload = {
-      reply:
-        nearMe && !userLocation
-          ? "To show nearby results, please allow location access or search by zip code."
-          : response?.output_text ||
-            "Here are the closest available RoseOut matches.",
+      reply: response.output_text || "Here are the closest RoseOut matches.",
 
       restaurants: topRestaurants.map((r: any) => ({
         id: String(r.id),
@@ -1048,7 +397,7 @@ STRICT RULES:
         price_range: r.price_range || null,
         roseout_score: clampScore(r.roseout_score),
         reservation_link: r.reservation_link,
-        reservation_url: r.reservation_url || r.booking_url,
+        reservation_url: r.reservation_url,
         website: r.website,
         image_url: r.image_url || null,
         rating: r.rating || null,
@@ -1058,9 +407,7 @@ STRICT RULES:
         review_snippet: r.review_snippet || null,
         primary_tag: r.primary_tag || null,
         date_style_tags: toArray(r.date_style_tags),
-        distance_miles: r.distance_miles
-          ? Number(r.distance_miles.toFixed(1))
-          : null,
+        distance_miles: r.distance_miles || null,
       })),
 
       activities: topActivities.map((a: any) => ({
@@ -1076,7 +423,7 @@ STRICT RULES:
         group_friendly: a.group_friendly,
         roseout_score: clampScore(a.roseout_score),
         reservation_link: a.reservation_link,
-        reservation_url: a.reservation_url || a.booking_url,
+        reservation_url: a.reservation_url,
         website: a.website,
         image_url: a.image_url || null,
         rating: a.rating || null,
@@ -1086,9 +433,7 @@ STRICT RULES:
         review_snippet: a.review_snippet || null,
         primary_tag: a.primary_tag || null,
         date_style_tags: toArray(a.date_style_tags),
-        distance_miles: a.distance_miles
-          ? Number(a.distance_miles.toFixed(1))
-          : null,
+        distance_miles: a.distance_miles || null,
       })),
     };
 
