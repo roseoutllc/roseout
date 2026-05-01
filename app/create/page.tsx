@@ -178,7 +178,6 @@ export default function CreatePage() {
   useEffect(() => {
     setLocationSaved(!!getSavedUserLocation());
 
-    // Clear results on browser refresh/reload.
     sessionStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem("roseout_plan");
 
@@ -262,7 +261,6 @@ export default function CreatePage() {
 
     const latestMessage = messages[messages.length - 1];
 
-    // Scroll only when the user submits. Do not focus follow-up box.
     if (latestMessage?.role !== "user") return;
 
     setTimeout(() => {
@@ -355,7 +353,6 @@ export default function CreatePage() {
     } catch {
       setError("Could not create response. Please try again.");
     } finally {
-      // Do not auto-focus the follow-up textarea. That caused the page jump.
       setLoading(false);
     }
   };
@@ -382,7 +379,7 @@ export default function CreatePage() {
         "";
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen w-full overflow-x-hidden bg-black text-white">
       <RoseOutHeader />
 
       <section
@@ -396,7 +393,7 @@ export default function CreatePage() {
           <div className="absolute right-0 top-20 hidden h-[520px] w-[46vw] rounded-bl-[14rem] border-l border-t border-red-500/20 bg-[radial-gradient(circle_at_center,rgba(225,6,42,0.18),transparent_50%)] lg:block" />
         )}
 
-        <div className="relative mx-auto max-w-6xl px-5 py-4">
+        <div className="relative mx-auto w-full max-w-6xl px-4 py-4 sm:px-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <Link
               href="/"
@@ -415,13 +412,13 @@ export default function CreatePage() {
           </div>
 
           {!hasSearched && (
-            <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.38em] text-[#e1062a]">
+            <div className="grid w-full gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+              <div className="max-w-full">
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#e1062a] sm:tracking-[0.38em]">
                   AI-powered outing planner
                 </p>
 
-                <h1 className="mt-5 text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
+                <h1 className="mt-5 max-w-full break-words text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
                   What are we
                   <br />
                   <span className="text-[#e1062a]">planning?</span>
@@ -433,7 +430,7 @@ export default function CreatePage() {
                 </p>
               </div>
 
-              <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur">
+              <div className="w-full max-w-full rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur">
                 <div className="relative">
                   {!input && (
                     <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-semibold leading-7 text-white">
@@ -450,7 +447,7 @@ export default function CreatePage() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleInputKeyDown}
                     rows={5}
-                    className="relative z-20 min-h-[170px] w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-transparent focus:border-[#e1062a]/70"
+                    className="relative z-20 min-h-[170px] w-full max-w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-transparent focus:border-[#e1062a]/70"
                   />
                 </div>
 
@@ -494,7 +491,7 @@ export default function CreatePage() {
 
       <section
         ref={resultsRef}
-        className="mx-auto max-w-6xl scroll-mt-40 px-5 py-8"
+        className="mx-auto w-full max-w-6xl scroll-mt-40 overflow-x-hidden px-4 py-8 sm:px-5"
       >
         {loading ? (
           <LuxuryLoading
@@ -503,7 +500,7 @@ export default function CreatePage() {
             expectedActivities={2}
           />
         ) : (
-          <div className="space-y-5">
+          <div className="w-full max-w-full space-y-5">
             {messages.map((msg, index) => {
               const hasRestaurants = !!msg.restaurants?.length;
               const hasActivities = !!msg.activities?.length;
@@ -511,14 +508,14 @@ export default function CreatePage() {
               return (
                 <div
                   key={index}
-                  className={`rounded-[2rem] border p-5 shadow-2xl ${
+                  className={`max-w-full rounded-[2rem] border p-4 shadow-2xl sm:p-5 ${
                     msg.role === "user"
                       ? "ml-auto max-w-4xl animate-[resultFadeIn_450ms_ease-out_both] border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
                       : "animate-[resultFadeIn_550ms_ease-out_both] border-white/10 bg-[#0d0d0d] text-white shadow-black/30"
                   }`}
                 >
                   {msg.role === "user" && (
-                    <p className="whitespace-pre-wrap font-black">
+                    <p className="whitespace-pre-wrap break-words font-black">
                       {msg.content}
                     </p>
                   )}
@@ -526,16 +523,16 @@ export default function CreatePage() {
                   {msg.role === "assistant" &&
                   (hasRestaurants || hasActivities) ? (
                     <>
-                      <div className="mb-6">
-                        <p className="text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
+                      <div className="mb-6 max-w-full">
+                        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#e1062a] sm:tracking-[0.3em]">
                           Results / Recommendations
                         </p>
 
-                        <h2 className="mt-2 text-3xl font-black">
+                        <h2 className="mt-2 max-w-full break-words text-3xl font-black leading-tight sm:text-5xl">
                           Your perfect outing ✨
                         </h2>
 
-                        <p className="mt-1 text-sm font-medium text-white/45">
+                        <p className="mt-2 break-words text-sm font-medium text-white/45">
                           Select your favorites or view full details.
                         </p>
                       </div>
@@ -653,7 +650,7 @@ export default function CreatePage() {
                   {msg.role === "assistant" &&
                     !hasRestaurants &&
                     !hasActivities && (
-                      <p className="whitespace-pre-wrap text-white/75">
+                      <p className="whitespace-pre-wrap break-words text-white/75">
                         {msg.content}
                       </p>
                     )}
@@ -665,14 +662,14 @@ export default function CreatePage() {
       </section>
 
       {hasSearched && !loading && (
-        <section className="mx-auto max-w-4xl px-5 pb-28">
-          <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl shadow-black/40">
+        <section className="mx-auto w-full max-w-4xl overflow-x-hidden px-4 pb-28 sm:px-5">
+          <div className="w-full max-w-full rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl shadow-black/40">
             <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
               Ask a follow-up
             </p>
 
             {suggestedFollowUps.length > 0 && (
-              <div className="mb-4 flex flex-wrap gap-2">
+              <div className="mb-4 flex max-w-full flex-wrap gap-2">
                 {suggestedFollowUps.map((suggestion) => (
                   <button
                     key={suggestion}
@@ -687,7 +684,7 @@ export default function CreatePage() {
               </div>
             )}
 
-            <div className="relative">
+            <div className="relative max-w-full">
               {!input && (
                 <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-semibold leading-7 text-white">
                   <span className="bg-gradient-to-r from-white via-white/90 to-white/60 bg-clip-text text-transparent">
@@ -703,7 +700,7 @@ export default function CreatePage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleInputKeyDown}
                 rows={2}
-                className="relative z-20 min-h-[76px] w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none focus:border-[#e1062a]/70"
+                className="relative z-20 min-h-[76px] w-full max-w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none focus:border-[#e1062a]/70"
               />
             </div>
 
@@ -713,7 +710,7 @@ export default function CreatePage() {
               </div>
             )}
 
-            <div className="mt-4 flex items-center justify-between gap-3">
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs font-bold text-white/40">
                 Press Enter to send • Shift + Enter for new line
               </p>
@@ -733,12 +730,12 @@ export default function CreatePage() {
       {(selectedRestaurant || selectedActivity) && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur-2xl">
           <div className="mx-auto flex max-w-6xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
                 Building your plan
               </p>
 
-              <p className="mt-1 text-sm font-black text-white">
+              <p className="mt-1 break-words text-sm font-black text-white">
                 {selectedPlanText}
               </p>
             </div>
@@ -853,18 +850,20 @@ function ResultSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-10">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="mb-10 max-w-full overflow-x-hidden">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-sm font-black uppercase tracking-[0.25em] text-white/40">
           {title}
         </h2>
 
-        <span className="rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white">
+        <span className="shrink-0 rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white">
           {label}
         </span>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">{children}</div>
+      <div className="grid w-full max-w-full gap-5 lg:grid-cols-2">
+        {children}
+      </div>
     </div>
   );
 }
@@ -918,7 +917,7 @@ function ResultCard({
 }) {
   return (
     <div
-      className={`group overflow-hidden rounded-[2rem] border bg-[#111] shadow-2xl shadow-black/30 transition duration-300 hover:-translate-y-1 ${
+      className={`group w-full max-w-full overflow-hidden rounded-[2rem] border bg-[#111] shadow-2xl shadow-black/30 transition duration-300 hover:-translate-y-1 ${
         selected
           ? "border-red-500 ring-2 ring-red-500/50"
           : "border-white/10 hover:border-red-500/50"
@@ -927,18 +926,18 @@ function ResultCard({
         animation: `cardReveal 560ms ease-out ${index * 120}ms both`,
       }}
     >
-      <div className="relative">
+      <div className="relative max-w-full">
         {imageUrl ? (
           <Image
             src={imageUrl}
             alt={title}
             width={900}
             height={520}
-            className="h-64 w-full object-cover transition duration-700 group-hover:scale-105"
+            className="h-64 w-full max-w-full object-cover transition duration-700 group-hover:scale-105"
             priority={priority}
           />
         ) : (
-          <div className="flex h-64 items-center justify-center bg-neutral-900 text-neutral-500">
+          <div className="flex h-64 w-full max-w-full items-center justify-center bg-neutral-900 text-neutral-500">
             No image available
           </div>
         )}
@@ -962,37 +961,37 @@ function ResultCard({
         )}
       </div>
 
-      <div className="p-5">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#e1062a]">
+      <div className="max-w-full p-5">
+        <p className="break-words text-xs font-black uppercase tracking-[0.22em] text-[#e1062a]">
           {eyebrow}
         </p>
 
-        <h3 className="mt-2 line-clamp-1 text-2xl font-black tracking-tight text-white">
+        <h3 className="mt-2 break-words text-2xl font-black tracking-tight text-white">
           {title}
         </h3>
 
-        <p className="mt-3 line-clamp-2 text-sm leading-6 text-white/50">
+        <p className="mt-3 break-words text-sm leading-6 text-white/50">
           {address}
         </p>
 
         {reviewCount ? (
-          <p className="mt-2 text-xs font-bold uppercase tracking-wide text-white/35">
+          <p className="mt-2 break-words text-xs font-bold uppercase tracking-wide text-white/35">
             {reviewCount} reviews
           </p>
         ) : null}
 
         {primaryTag && (
-          <p className="mt-4 text-sm font-black text-white">
+          <p className="mt-4 break-words text-sm font-black text-white">
             ✨ {primaryTag}
           </p>
         )}
 
         {tags?.length ? (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex max-w-full flex-wrap gap-2">
             {tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/55"
+                className="max-w-full break-words rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/55"
               >
                 {tag}
               </span>
@@ -1000,7 +999,7 @@ function ResultCard({
           </div>
         ) : null}
 
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-5 flex max-w-full flex-wrap gap-3">
           <button
             type="button"
             onClick={onSelect}
@@ -1060,13 +1059,13 @@ function LuxuryLoading({
   expectedActivities?: number;
 }) {
   return (
-    <div className="mt-6 animate-fadeIn space-y-10">
+    <div className="mt-6 max-w-full animate-fadeIn space-y-10 overflow-x-hidden">
       <div className="text-center">
         <p className="text-xs font-black uppercase tracking-[0.35em] text-[#e1062a]">
           RoseOut is searching
         </p>
 
-        <h2 className="mt-2 text-2xl font-black">{loadingText}</h2>
+        <h2 className="mt-2 break-words text-2xl font-black">{loadingText}</h2>
 
         <p className="mt-2 text-sm font-semibold text-white/40">
           Building restaurant and activity cards...
@@ -1102,18 +1101,18 @@ function SkeletonSection({
   type: "restaurant" | "activity";
 }) {
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
+    <div className="max-w-full overflow-x-hidden">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-sm font-black uppercase tracking-[0.25em] text-white/40">
           {title}
         </h2>
 
-        <span className="rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white">
+        <span className="shrink-0 rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white">
           {label}
         </span>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid w-full max-w-full gap-5 lg:grid-cols-2">
         {Array.from({ length: count }).map((_, index) => (
           <SkeletonCard key={`${type}-${index}`} index={index} type={type} />
         ))}
@@ -1133,12 +1132,12 @@ function SkeletonCard({
 
   return (
     <div
-      className="group overflow-hidden rounded-[2rem] border border-white/5 bg-[#0b0b0b] shadow-2xl shadow-black/30"
+      className="group w-full max-w-full overflow-hidden rounded-[2rem] border border-white/5 bg-[#0b0b0b] shadow-2xl shadow-black/30"
       style={{
         animation: `skeletonReveal 520ms ease-out ${delay} both`,
       }}
     >
-      <div className="relative h-64 overflow-hidden bg-[#080808]">
+      <div className="relative h-64 w-full max-w-full overflow-hidden bg-[#080808]">
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 via-black to-[#050505] blur-sm" />
 
         <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/[0.045] to-transparent" />
@@ -1152,7 +1151,7 @@ function SkeletonCard({
         <div className="absolute bottom-4 right-4 h-7 w-16 rounded-full bg-white/10" />
       </div>
 
-      <div className="space-y-3 p-5">
+      <div className="max-w-full space-y-3 p-5">
         <div className="h-3 w-24 animate-pulse rounded-full bg-red-500/15" />
 
         <div
@@ -1168,15 +1167,15 @@ function SkeletonCard({
 
         <div className="mt-3 h-3 w-28 animate-pulse rounded-full bg-white/[0.045]" />
 
-        <div className="mt-4 h-5 w-48 animate-pulse rounded-full bg-white/[0.05]" />
+        <div className="mt-4 h-5 w-48 max-w-full animate-pulse rounded-full bg-white/[0.05]" />
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex max-w-full flex-wrap gap-2">
           <div className="h-7 w-24 animate-pulse rounded-full bg-white/[0.045]" />
           <div className="h-7 w-20 animate-pulse rounded-full bg-white/[0.04]" />
           <div className="h-7 w-28 animate-pulse rounded-full bg-white/[0.045]" />
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-5 flex max-w-full flex-wrap gap-3">
           <div className="h-10 w-20 animate-pulse rounded-full border border-white/5 bg-white/[0.035]" />
           <div className="h-10 w-28 animate-pulse rounded-full bg-white/[0.08]" />
 
