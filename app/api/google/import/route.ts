@@ -1,168 +1,157 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+const LOCATIONS = [
+  "Queens NY",
+  "Brooklyn NY",
+  "Manhattan NY",
+  "Bronx NY",
+  "Staten Island NY",
+  "Nassau County NY",
+  "Suffolk County NY",
+  "Westchester NY",
+  "Jersey City NJ",
+  "Hoboken NJ",
+];
+
+const CATEGORIES = [
+  { query: "restaurants", type: "restaurant" },
+  { query: "date night restaurants", type: "restaurant" },
+  { query: "romantic restaurants", type: "restaurant" },
+  { query: "brunch restaurants", type: "restaurant" },
+  { query: "breakfast spots", type: "restaurant" },
+  { query: "coffee shops", type: "restaurant" },
+  { query: "upscale restaurants", type: "restaurant" },
+  { query: "rooftop restaurants", type: "restaurant" },
+  { query: "lounges", type: "restaurant" },
+  { query: "fun activities", type: "activity" },
+  { query: "things to do", type: "activity" },
+  { query: "date activities", type: "activity" },
+  { query: "museums", type: "activity" },
+  { query: "live music venues", type: "activity" },
+  { query: "comedy clubs", type: "activity" },
+];
+
+const BATCH_SIZE = 3;
+
+function getDailyBatch() {
+  const today = new Date();
+  const dayOfYear = Math.floor(
+    (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) /
+      1000 /
+      60 /
+      60 /
+      24
+  );
+
+  const location = LOCATIONS[dayOfYear % LOCATIONS.length];
+
+  const start = (dayOfYear * BATCH_SIZE) % CATEGORIES.length;
+
+  const selectedCategories = [
+    ...CATEGORIES.slice(start, start + BATCH_SIZE),
+    ...CATEGORIES.slice(0, Math.max(0, start + BATCH_SIZE - CATEGORIES.length)),
+  ].slice(0, BATCH_SIZE);
+
+  return selectedCategories.map((item) => ({
+    query: `${item.query} in ${location}`,
+    type: item.type,
+    location,
+    category: item.query,
+  }));
+}
+
+export async function GET(request: Request) {
+  const authHeader = request.headers.get("authorization");
+
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-);
 
-const supabaseAuth = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
-export async function POST(req: NextRequest) {
-  let query = "restaurants in Queens NY";
-  let imported = 0;
-  let skipped = 0;
-
-  try {
-    const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace("Bearer ", "");
-
-    if (!token) {
-      return NextResponse.json(
-        { error: "Unauthorized: missing token" },
-        { status: 401 }
-      );
-    }
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseAuth.auth.getUser(token);
-
-    if (userError || !user?.email) {
-      return NextResponse.json(
-        { error: "Unauthorized: invalid user" },
-        { status: 401 }
-      );
-    }
-
-    const { data: adminUser } = await supabaseAdmin
-      .from("admin_users")
-      .select("role")
-      .eq("email", user.email.toLowerCase())
-      .maybeSingle();
-
-    if (!adminUser || !["superuser", "admin"].includes(adminUser.role)) {
-      return NextResponse.json(
-        { error: "Unauthorized: not admin" },
-        { status: 401 }
-      );
-    }
-
-    const body = await req.json();
-    query = body.query || query;
-
-    const googleKey = process.env.GOOGLE_PLACES_API_KEY;
-
-    if (!googleKey) {
-      return NextResponse.json(
-        { error: "Missing GOOGLE_PLACES_API_KEY" },
-        { status: 500 }
-      );
-    }
-
-    const googleUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
-      query
-    )}&key=${googleKey}`;
-
-    const googleRes = await fetch(googleUrl);
-    const googleData = await googleRes.json();
-
-    if (!googleData.results || !Array.isArray(googleData.results)) {
-      return NextResponse.json(
-        {
-          error: "No Google results found",
-          googleStatus: googleData.status,
-          googleMessage: googleData.error_message,
-        },
-        { status: 400 }
-      );
-    }
-
-    for (const place of googleData.results.slice(0, 20)) {
-      const { data: existing, error: existingError } = await supabaseAdmin
-        .from("restaurants")
-        .select("id")
-        .eq("google_place_id", place.place_id)
-        .maybeSingle();
-
-      if (existingError) {
-        throw new Error(`Duplicate check failed: ${existingError.message}`);
-      }
-
-      if (existing) {
-        skipped++;
-        continue;
-      }
-
-      const photoUrl = place.photos?.[0]?.photo_reference
-        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${place.photos[0].photo_reference}&key=${googleKey}`
-        : null;
-
-      const { error: insertError } = await supabaseAdmin
-        .from("restaurants")
-        .insert({
-          restaurant_name: place.name || "Unnamed Restaurant",
-          address: place.formatted_address || "",
-          google_place_id: place.place_id,
-          rating: Number(place.rating || 0),
-          user_ratings_total: Number(place.user_ratings_total || 0),
-          image_url: photoUrl,
-          source: "google",
-          claim_status: "unclaimed",
-          roseout_score: Number(place.rating || 0) * 20,
-          view_count: 0,
-          click_count: 0,
-        });
-
-      if (insertError) {
-        throw new Error(`Restaurant insert failed: ${insertError.message}`);
-      }
-
-      imported++;
-    }
-
-    const today = new Date().toISOString().split("T")[0];
-
-    await supabaseAdmin.from("import_logs").insert({
-      job_name: "Google Import",
-      run_date: today,
-      imported_count: imported,
-    });
-
-    return NextResponse.json({
-      success: true,
-      imported,
-      skipped,
-      totalGoogleResults: googleData.results.length,
-      query,
-    });
-  } catch (error: any) {
-    const today = new Date().toISOString().split("T")[0];
-
-    await supabaseAdmin.from("import_logs").insert({
-      job_name: "Google Import Failed",
-      run_date: today,
-      imported_count: imported,
-    });
-
+  if (!baseUrl) {
     return NextResponse.json(
-      {
-        error: error.message || "Import failed",
-        imported,
-        skipped,
-        query,
-      },
+      { error: "Missing NEXT_PUBLIC_SITE_URL" },
       { status: 500 }
     );
   }
+
+  const queries = getDailyBatch();
+  const results = [];
+
+  for (const item of queries) {
+    try {
+      const res = await fetch(`${baseUrl}/api/google/import`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-import-secret": process.env.IMPORT_SECRET || "",
+        },
+        body: JSON.stringify({
+          query: item.query,
+          type: item.type,
+        }),
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      results.push({
+        query: item.query,
+        type: item.type,
+        location: item.location,
+        category: item.category,
+        status: res.status,
+        imported: data.imported ?? 0,
+        skipped: data.skipped ?? 0,
+        result: data,
+      });
+    } catch (error: any) {
+      results.push({
+        query: item.query,
+        type: item.type,
+        location: item.location,
+        category: item.category,
+        status: 500,
+        imported: 0,
+        skipped: 0,
+        error: error.message || "Import failed",
+      });
+    }
+  }
+
+  const totalImported = results.reduce(
+    (sum, item) => sum + Number(item.imported || 0),
+    0
+  );
+
+  const totalSkipped = results.reduce(
+    (sum, item) => sum + Number(item.skipped || 0),
+    0
+  );
+
+  return NextResponse.json({
+    success: true,
+    message: "Daily Google expansion import completed.",
+    totalImported,
+    totalSkipped,
+    queriesRun: results.length,
+    results,
+  });
+}
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({}));
+
+  if (body.secret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  return GET(
+    new Request(request.url, {
+      headers: {
+        authorization: `Bearer ${process.env.CRON_SECRET}`,
+      },
+    })
+  );
 }
