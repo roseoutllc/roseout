@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import AdminTopBar from "@/app/admin/components/AdminTopBar";
 
 type ImportLog = {
@@ -10,6 +11,13 @@ type ImportLog = {
   created_at: string | null;
 };
 
+type PageProps = {
+  searchParams?: Promise<{
+    message?: string;
+    error?: string;
+  }>;
+};
+
 function getTodayDate() {
   return new Date().toISOString().split("T")[0];
 }
@@ -17,42 +25,60 @@ function getTodayDate() {
 async function runGoogleImport() {
   "use server";
 
-  await requireAdminRole(["superuser", "admin"]);
+  try {
+    await requireAdminRole(["superuser", "admin"]);
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    const importSecret = process.env.IMPORT_SECRET;
 
-  if (!baseUrl) {
-    throw new Error("Missing NEXT_PUBLIC_SITE_URL");
+    if (!baseUrl) {
+      redirect("/admin/import-history?error=Missing NEXT_PUBLIC_SITE_URL");
+    }
+
+    if (!importSecret) {
+      redirect("/admin/import-history?error=Missing IMPORT_SECRET");
+    }
+
+    const res = await fetch(`${baseUrl}/api/google/import`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-import-secret": importSecret,
+      },
+      body: JSON.stringify({
+        query: "restaurants in Queens NY",
+        type: "restaurant",
+      }),
+      cache: "no-store",
+    });
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      redirect(
+        `/admin/import-history?error=${encodeURIComponent(
+          `Import failed: ${text}`
+        )}`
+      );
+    }
+
+    revalidatePath("/admin/import-history");
+    redirect("/admin/import-history?message=Google import started successfully");
+  } catch (error: any) {
+    redirect(
+      `/admin/import-history?error=${encodeURIComponent(
+        error?.message || "Import failed"
+      )}`
+    );
   }
-
-  if (!process.env.IMPORT_SECRET) {
-    throw new Error("Missing IMPORT_SECRET");
-  }
-
-  const res = await fetch(`${baseUrl}/api/google/import`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-internal-import-secret": process.env.IMPORT_SECRET,
-    },
-    body: JSON.stringify({
-      query: "restaurants in Queens NY",
-      type: "restaurant",
-    }),
-    cache: "no-store",
-  });
-
-  const text = await res.text();
-
-  if (!res.ok) {
-    throw new Error(`Google import failed: ${text}`);
-  }
-
-  revalidatePath("/admin/import-history");
 }
 
-export default async function ImportHistoryPage() {
+export default async function ImportHistoryPage({ searchParams }: PageProps) {
   await requireAdminRole(["superuser", "admin", "viewer"]);
+
+  const params = await searchParams;
+  const message = params?.message;
+  const pageError = params?.error;
 
   const today = getTodayDate();
 
@@ -107,6 +133,24 @@ export default async function ImportHistoryPage() {
           </div>
         </div>
 
+        {message && (
+          <div className="mb-6 rounded-2xl bg-green-100 p-4 text-green-700">
+            {message}
+          </div>
+        )}
+
+        {pageError && (
+          <div className="mb-6 rounded-2xl bg-red-100 p-4 text-red-700">
+            {pageError}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 rounded-2xl bg-red-100 p-4 text-red-700">
+            {error.message}
+          </div>
+        )}
+
         <div className="mb-6 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">
@@ -134,17 +178,9 @@ export default async function ImportHistoryPage() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">
               Total Logs
             </p>
-            <p className="mt-2 text-2xl font-extrabold">
-              {logs?.length || 0}
-            </p>
+            <p className="mt-2 text-2xl font-extrabold">{logs?.length || 0}</p>
           </div>
         </div>
-
-        {error && (
-          <div className="mb-6 rounded-2xl bg-red-100 p-4 text-red-700">
-            {error.message}
-          </div>
-        )}
 
         <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white text-black shadow-2xl">
           <div className="border-b border-neutral-200 p-5">
@@ -209,17 +245,6 @@ export default async function ImportHistoryPage() {
               </table>
             </div>
           )}
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
-          <p className="text-sm text-neutral-400">
-            If clicking the button does nothing, check your Vercel logs. The
-            import route must allow the{" "}
-            <span className="font-bold text-yellow-400">
-              x-internal-import-secret
-            </span>{" "}
-            header.
-          </p>
         </div>
       </div>
     </main>
