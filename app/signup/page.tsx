@@ -16,7 +16,7 @@ type TurnstileWindow = Window & {
         "error-callback"?: () => void;
         theme?: "light" | "dark" | "auto";
       }
-    ) => string;
+    ) => string | undefined;
     reset: (widgetId?: string) => void;
   };
 };
@@ -24,16 +24,20 @@ type TurnstileWindow = Window & {
 export default function SignupPage() {
   const supabase = createClient();
 
- const turnstileRef = useRef<HTMLDivElement | null>(null);
-const widgetIdRef = useRef<string | null | undefined>(null);
+  const turnstileRef = useRef<HTMLDivElement | null>(null);
+  const widgetIdRef = useRef<string | null | undefined>(null);
+
+  const [step, setStep] = useState<1 | 2>(1);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [planningFor, setPlanningFor] = useState("");
-  const [city, setCity] = useState("");
-
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [planningFor, setPlanningFor] = useState("");
+  const [city, setCity] = useState("");
+  const [preferredVibe, setPreferredVibe] = useState("");
+  const [budgetRange, setBudgetRange] = useState("");
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
@@ -52,21 +56,19 @@ const widgetIdRef = useRef<string | null | undefined>(null);
   const isPasswordValid =
     hasMinLength && hasUppercase && hasNumber && hasSymbol;
 
-  const canSubmit =
+  const canGoStep2 =
     fullName.trim() &&
     email.trim() &&
     isPasswordValid &&
     passwordsMatch &&
-    acceptedTerms &&
-    captchaToken &&
-    !loading;
+    acceptedTerms;
+
+  const canSubmit = canGoStep2 && captchaToken && !loading;
 
   const renderTurnstile = () => {
     const turnstile = (window as TurnstileWindow).turnstile;
 
-    if (!turnstileRef.current || !turnstile || widgetIdRef.current) {
-      return;
-    }
+    if (!turnstileRef.current || !turnstile || widgetIdRef.current) return;
 
     const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -82,9 +84,7 @@ const widgetIdRef = useRef<string | null | undefined>(null);
         setCaptchaToken(token);
         setErrorMessage("");
       },
-      "expired-callback": () => {
-        setCaptchaToken(null);
-      },
+      "expired-callback": () => setCaptchaToken(null),
       "error-callback": () => {
         setCaptchaToken(null);
         setErrorMessage("Verification failed. Please try again.");
@@ -93,8 +93,10 @@ const widgetIdRef = useRef<string | null | undefined>(null);
   };
 
   useEffect(() => {
-    renderTurnstile();
-  }, []);
+    if (step === 2) {
+      setTimeout(renderTurnstile, 100);
+    }
+  }, [step]);
 
   const resetCaptcha = () => {
     const turnstile = (window as TurnstileWindow).turnstile;
@@ -106,9 +108,7 @@ const widgetIdRef = useRef<string | null | undefined>(null);
     }
   };
 
-  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
+  const handleNextStep = () => {
     setErrorMessage("");
     setMessage("");
 
@@ -139,6 +139,21 @@ const widgetIdRef = useRef<string | null | undefined>(null);
       return;
     }
 
+    setStep(2);
+  };
+
+  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    setErrorMessage("");
+    setMessage("");
+
+    if (!canGoStep2) {
+      setStep(1);
+      setErrorMessage("Please complete your account details first.");
+      return;
+    }
+
     if (!captchaToken) {
       setErrorMessage("Please complete the verification.");
       return;
@@ -152,9 +167,7 @@ const widgetIdRef = useRef<string | null | undefined>(null);
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          token: captchaToken,
-        }),
+        body: JSON.stringify({ token: captchaToken }),
       });
 
       const captchaResult = await captchaResponse.json();
@@ -173,12 +186,16 @@ const widgetIdRef = useRef<string | null | undefined>(null);
         email: email.trim().toLowerCase(),
         password,
         options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/dashboard`,
+          emailRedirectTo: `${
+            process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+          }/dashboard`,
           data: {
             full_name: fullName.trim(),
             role: "user",
             planning_for: planningFor || null,
             city: city.trim() || null,
+            preferred_vibe: preferredVibe || null,
+            budget_range: budgetRange || null,
             marketing_opt_in: marketingOptIn,
           },
         },
@@ -191,16 +208,15 @@ const widgetIdRef = useRef<string | null | undefined>(null);
         return;
       }
 
-      setMessage(
-        "Account created. Please check your email to confirm your account."
-      );
-
+      setMessage("Account created. Please check your email to confirm.");
       setFullName("");
       setEmail("");
-      setPlanningFor("");
-      setCity("");
       setPassword("");
       setConfirmPassword("");
+      setPlanningFor("");
+      setCity("");
+      setPreferredVibe("");
+      setBudgetRange("");
       setAcceptedTerms(false);
       setMarketingOptIn(false);
       resetCaptcha();
@@ -218,7 +234,9 @@ const widgetIdRef = useRef<string | null | undefined>(null);
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         async
         defer
-        onLoad={renderTurnstile}
+        onLoad={() => {
+          if (step === 2) renderTurnstile();
+        }}
       />
 
       <div className="mx-auto max-w-7xl">
@@ -235,26 +253,27 @@ const widgetIdRef = useRef<string | null | undefined>(null);
           </Link>
         </header>
 
-        <section className="grid min-h-[calc(100vh-120px)] items-center gap-10 lg:grid-cols-[1fr_460px]">
+        <section className="grid min-h-[calc(100vh-120px)] items-center gap-10 lg:grid-cols-[1fr_500px]">
           <div>
             <div className="mb-5 inline-flex rounded-full border border-rose-400/20 bg-rose-400/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-rose-200">
               RoseOut AI
             </div>
 
             <h1 className="max-w-3xl text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
-              Find the perfect outing faster.
+              Build your perfect night out.
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-400">
-              Create your RoseOut account to save curated restaurants,
-              activities, and full date-night plans in one clean dashboard.
+              Create your account, personalize your outing style, and let
+              RoseOut recommend restaurants, activities, and full plans that
+              match your vibe.
             </p>
 
             <div className="mt-8 grid max-w-3xl gap-4 md:grid-cols-3">
               {[
-                ["01", "Tell RoseOut what kind of night you want."],
-                ["02", "Get restaurants and activities that match."],
-                ["03", "Save your plan and come back anytime."],
+                ["01", "Create your RoseOut account."],
+                ["02", "Tell us your outing preferences."],
+                ["03", "Get better AI-powered plans."],
               ].map(([num, text]) => (
                 <div
                   key={num}
@@ -272,181 +291,220 @@ const widgetIdRef = useRef<string | null | undefined>(null);
           <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl">
             <div className="border-b border-white/10 px-7 py-6">
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-rose-300">
-                Create Account
+                Step {step} of 2
               </p>
-              <h2 className="mt-2 text-3xl font-black">Join RoseOut</h2>
-              <p className="mt-2 text-sm text-zinc-400">
-                Start building better outings today.
-              </p>
+
+              <h2 className="mt-2 text-3xl font-black">
+                {step === 1 ? "Create account" : "Personalize RoseOut"}
+              </h2>
+
+              <div className="mt-5 flex gap-2">
+                <div
+                  className={`h-2 flex-1 rounded-full ${
+                    step >= 1 ? "bg-rose-400" : "bg-white/10"
+                  }`}
+                />
+                <div
+                  className={`h-2 flex-1 rounded-full ${
+                    step >= 2 ? "bg-rose-400" : "bg-white/10"
+                  }`}
+                />
+              </div>
             </div>
 
-            <form onSubmit={handleSignup} className="space-y-5 p-7">
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                placeholder="Full name"
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
-              />
-
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="Email address"
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
-              />
-
-              <select
-                value={planningFor}
-                onChange={(e) => setPlanningFor(e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none focus:border-rose-400"
-              >
-                <option value="">What are you using RoseOut for?</option>
-                <option value="date_nights">Date nights</option>
-                <option value="friends">Going out with friends</option>
-                <option value="solo">Solo outings</option>
-                <option value="family">Family outings</option>
-                <option value="events">Events & experiences</option>
-              </select>
-
-              <input
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="City or borough (optional)"
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
-              />
-
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                placeholder="Password"
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
-              />
-
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={8}
-                placeholder="Confirm password"
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
-              />
-
-              <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-xs">
-                <p
-                  className={
-                    hasMinLength ? "text-emerald-300" : "text-zinc-500"
-                  }
-                >
-                  ✓ At least 8 characters
-                </p>
-                <p
-                  className={
-                    hasUppercase ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"
-                  }
-                >
-                  ✓ One uppercase letter
-                </p>
-                <p
-                  className={
-                    hasNumber ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"
-                  }
-                >
-                  ✓ One number
-                </p>
-                <p
-                  className={
-                    hasSymbol ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"
-                  }
-                >
-                  ✓ One symbol
-                </p>
-                <p
-                  className={
-                    passwordsMatch
-                      ? "mt-1 text-emerald-300"
-                      : "mt-1 text-zinc-500"
-                  }
-                >
-                  ✓ Passwords match
-                </p>
-              </div>
-
-              <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-zinc-400">
+            {step === 1 ? (
+              <div className="space-y-5 p-7">
                 <input
-                  type="checkbox"
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  className="mt-1 h-4 w-4"
-                  required
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Full name"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
                 />
-                <span>
-                  I agree to the{" "}
-                  <Link href="/terms" className="font-bold text-rose-300">
-                    Terms
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" className="font-bold text-rose-300">
-                    Privacy Policy
+
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email address"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
+                />
+
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
+                />
+
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm password"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
+                />
+
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-xs">
+                  <p className={hasMinLength ? "text-emerald-300" : "text-zinc-500"}>
+                    ✓ At least 8 characters
+                  </p>
+                  <p className={hasUppercase ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"}>
+                    ✓ One uppercase letter
+                  </p>
+                  <p className={hasNumber ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"}>
+                    ✓ One number
+                  </p>
+                  <p className={hasSymbol ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"}>
+                    ✓ One symbol
+                  </p>
+                  <p className={passwordsMatch ? "mt-1 text-emerald-300" : "mt-1 text-zinc-500"}>
+                    ✓ Passwords match
+                  </p>
+                </div>
+
+                <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-1 h-4 w-4"
+                  />
+                  <span>
+                    I agree to the{" "}
+                    <Link href="/terms" className="font-bold text-rose-300">
+                      Terms
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="/privacy" className="font-bold text-rose-300">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </span>
+                </label>
+
+                {errorMessage && (
+                  <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                    {errorMessage}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="w-full rounded-2xl bg-white px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-rose-100"
+                >
+                  Continue
+                </button>
+
+                <p className="text-center text-sm text-zinc-500">
+                  Already have an account?{" "}
+                  <Link
+                    href="/login"
+                    className="font-bold text-rose-300 hover:text-rose-200"
+                  >
+                    Log in
                   </Link>
-                  .
-                </span>
-              </label>
-
-              <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-zinc-400">
-                <input
-                  type="checkbox"
-                  checked={marketingOptIn}
-                  onChange={(e) => setMarketingOptIn(e.target.checked)}
-                  className="mt-1 h-4 w-4"
-                />
-                <span>
-                  Send me RoseOut updates, recommendations, and offers by email.
-                </span>
-              </label>
-
-              <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                <div ref={turnstileRef} />
+                </p>
               </div>
-
-              {errorMessage && (
-                <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                  {errorMessage}
-                </div>
-              )}
-
-              {message && (
-                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                  {message}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className="w-full rounded-2xl bg-white px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loading ? "Creating account..." : "Create account"}
-              </button>
-
-              <p className="text-center text-sm text-zinc-500">
-                Already have an account?{" "}
-                <Link
-                  href="/login"
-                  className="font-bold text-rose-300 hover:text-rose-200"
+            ) : (
+              <form onSubmit={handleSignup} className="space-y-5 p-7">
+                <select
+                  value={planningFor}
+                  onChange={(e) => setPlanningFor(e.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none focus:border-rose-400"
                 >
-                  Log in
-                </Link>
-              </p>
-            </form>
+                  <option value="">What are you using RoseOut for?</option>
+                  <option value="date_nights">Date nights</option>
+                  <option value="friends">Going out with friends</option>
+                  <option value="solo">Solo outings</option>
+                  <option value="family">Family outings</option>
+                  <option value="events">Events & experiences</option>
+                </select>
+
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="City or borough, example: Queens"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
+                />
+
+                <select
+                  value={preferredVibe}
+                  onChange={(e) => setPreferredVibe(e.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none focus:border-rose-400"
+                >
+                  <option value="">Preferred vibe</option>
+                  <option value="romantic">Romantic</option>
+                  <option value="upscale">Upscale</option>
+                  <option value="fun">Fun & energetic</option>
+                  <option value="cozy">Cozy</option>
+                  <option value="quiet">Quiet</option>
+                  <option value="trendy">Trendy</option>
+                </select>
+
+                <select
+                  value={budgetRange}
+                  onChange={(e) => setBudgetRange(e.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-white outline-none focus:border-rose-400"
+                >
+                  <option value="">Budget range</option>
+                  <option value="budget">$</option>
+                  <option value="moderate">$$</option>
+                  <option value="premium">$$$</option>
+                  <option value="luxury">$$$$</option>
+                </select>
+
+                <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={marketingOptIn}
+                    onChange={(e) => setMarketingOptIn(e.target.checked)}
+                    className="mt-1 h-4 w-4"
+                  />
+                  <span>
+                    Send me RoseOut updates, recommendations, and offers by
+                    email.
+                  </span>
+                </label>
+
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                  <div ref={turnstileRef} />
+                </div>
+
+                {errorMessage && (
+                  <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                    {errorMessage}
+                  </div>
+                )}
+
+                {message && (
+                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                    {message}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="w-1/3 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-white hover:bg-white/10"
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={!canSubmit}
+                    className="w-2/3 rounded-2xl bg-white px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {loading ? "Creating..." : "Create"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </section>
       </div>
