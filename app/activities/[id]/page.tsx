@@ -1,21 +1,11 @@
-import { supabase } from "@/lib/supabase";
-import ActivityClient from "./ActivityClient";
-import BackButton from "@/components/BackButton";
+import { redirect } from "next/navigation";
 
-export default async function ActivityPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const { data: activity } = await supabase
-    .from("activities")
-    .select("*")
-    .eq("id", params.id)
-    .single();
+type PageProps = {
+  params: Promise<{ id: string }>;
+};
 
-  if (!activity) {
-    return <div className="text-white p-10">Activity not found</div>;
-  }
+export default async function ActivityRedirectPage({ params }: PageProps) {
+  const { id } = await params;
 
-  return <ActivityClient activity={activity} />;
+  redirect(`/locations/activities/${id}`);
 }

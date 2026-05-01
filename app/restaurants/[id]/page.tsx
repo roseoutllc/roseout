@@ -1,21 +1,11 @@
-import { supabase } from "@/lib/supabase";
-import RestaurantClient from "./RestaurantClient";
-import BackButton from "@/components/BackButton";
+import { redirect } from "next/navigation";
 
-export default async function RestaurantPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const { data: restaurant } = await supabase
-    .from("restaurants")
-    .select("*")
-    .eq("id", params.id)
-    .single();
+type PageProps = {
+  params: Promise<{ id: string }>;
+};
 
-  if (!restaurant) {
-    return <div className="text-white p-10">Restaurant not found</div>;
-  }
+export default async function RestaurantRedirectPage({ params }: PageProps) {
+  const { id } = await params;
 
-  return <RestaurantClient restaurant={restaurant} />;
+  redirect(`/locations/restaurants/${id}`);
 }
