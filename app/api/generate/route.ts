@@ -270,7 +270,7 @@ export async function POST(req: Request) {
 
     const text = input.toLowerCase();
 
-    const cacheKey = normalizeQuery(`unified-locations-v1-${input}`);
+    const cacheKey = normalizeQuery(`unified-locations-debug-v2-${input}`);
 
     const { data: cached } = await supabase
       .from("ai_response_cache")
@@ -315,29 +315,48 @@ export async function POST(req: Request) {
 
     const { data: locationsData, error: locationsError } = await supabase
       .from("locations")
-      .select("*")
-      .or("status.eq.approved,status.eq.active,status.is.null");
+      .select("*");
+
+    console.log("LOCATIONS FROM API:", locationsData?.length || 0);
+    console.log("LOCATIONS ERROR:", locationsError);
 
     if (locationsError) {
-      return Response.json({ error: locationsError.message }, { status: 500 });
+      return Response.json(
+        {
+          error: locationsError.message,
+          restaurants: [],
+          activities: [],
+          reply: "RoseOut could not load locations right now.",
+        },
+        { status: 500 }
+      );
     }
 
     const locations = (locationsData || []).map(normalizeLocation);
 
-    const restaurants = locations.filter(
-      (item: any) =>
-        item.location_type === "restaurant" ||
-        item.restaurant_name ||
-        item.cuisine ||
-        item.cuisine_type
-    );
+    const restaurants = locations.filter((item: any) => {
+      const type = String(item.location_type || "").toLowerCase();
 
-    const activities = locations.filter(
-      (item: any) =>
-        item.location_type === "activity" ||
-        item.activity_name ||
-        item.activity_type
-    );
+      return (
+        type === "restaurant" ||
+        Boolean(item.restaurant_name) ||
+        Boolean(item.cuisine) ||
+        Boolean(item.cuisine_type)
+      );
+    });
+
+    const activities = locations.filter((item: any) => {
+      const type = String(item.location_type || "").toLowerCase();
+
+      return (
+        type === "activity" ||
+        Boolean(item.activity_name) ||
+        Boolean(item.activity_type)
+      );
+    });
+
+    console.log("RESTAURANTS FILTERED:", restaurants.length);
+    console.log("ACTIVITIES FILTERED:", activities.length);
 
     const rankedRestaurants = restaurants
       .map((restaurant: any) => ({
@@ -439,10 +458,10 @@ STRICT RULES:
     const responsePayload = {
       reply:
         response?.output_text ||
-        "Here are the closest RoseOut matches I found.",
+        "RoseOut could not find any locations. Check the locations table RLS policy and rows.",
 
       restaurants: topRestaurants.map((r: any) => ({
-        id: String(r.id), // IMPORTANT: this is locations.id
+        id: String(r.id),
         restaurant_name: r.restaurant_name || r.name,
         address: r.address,
         city: r.city,
@@ -467,7 +486,7 @@ STRICT RULES:
       })),
 
       activities: topActivities.map((a: any) => ({
-        id: String(a.id), // IMPORTANT: this is locations.id
+        id: String(a.id),
         activity_name: a.activity_name || a.name,
         activity_type: a.activity_type,
         address: a.address,
@@ -492,6 +511,9 @@ STRICT RULES:
         distance_miles: a.distance_miles || null,
       })),
     };
+
+    console.log("RESTAURANTS RETURNED:", responsePayload.restaurants.length);
+    console.log("ACTIVITIES RETURNED:", responsePayload.activities.length);
 
     await supabase.from("ai_response_cache").upsert({
       cache_key: cacheKey,
