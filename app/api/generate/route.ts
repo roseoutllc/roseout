@@ -9,107 +9,40 @@ const AI_MODEL = "gpt-4o-mini";
 const CACHE_HOURS = 6;
 
 const QUEENS_CITIES = [
-  "Queens",
-  "Astoria",
-  "Flushing",
-  "Jamaica",
-  "Long Island City",
-  "Forest Hills",
-  "Bayside",
-  "Queens Village",
-  "Jackson Heights",
-  "Corona",
-  "Elmhurst",
-  "Ridgewood",
-  "Woodside",
-  "Sunnyside",
-  "Kew Gardens",
-  "Rego Park",
-  "Fresh Meadows",
-  "College Point",
-  "Whitestone",
-  "Howard Beach",
-  "Ozone Park",
-  "South Ozone Park",
-  "Far Rockaway",
-  "Rockaway Beach",
-  "Laurelton",
-  "Rosedale",
-  "Springfield Gardens",
-  "Cambria Heights",
-  "St. Albans",
-  "Maspeth",
-  "Middle Village",
-  "Glendale",
-  "Bellerose",
-  "Little Neck",
-  "Douglaston",
+  "Queens", "Astoria", "Flushing", "Jamaica", "Long Island City",
+  "Forest Hills", "Bayside", "Queens Village", "Jackson Heights", "Corona",
+  "Elmhurst", "Ridgewood", "Woodside", "Sunnyside", "Kew Gardens",
+  "Rego Park", "Fresh Meadows", "College Point", "Whitestone",
+  "Howard Beach", "Ozone Park", "South Ozone Park", "Far Rockaway",
+  "Rockaway Beach", "Laurelton", "Rosedale", "Springfield Gardens",
+  "Cambria Heights", "St. Albans", "Maspeth", "Middle Village",
+  "Glendale", "Bellerose", "Little Neck", "Douglaston",
 ];
 
 const NASSAU_CITIES = [
-  "Hempstead",
-  "Freeport",
-  "Garden City",
-  "Mineola",
-  "Uniondale",
-  "Westbury",
-  "Rockville Centre",
-  "Oceanside",
-  "Levittown",
-  "East Meadow",
-  "Plainview",
-  "Syosset",
-  "Jericho",
-  "Bethpage",
-  "Massapequa",
-  "Massapequa Park",
-  "Bellmore",
-  "Wantagh",
-  "Merrick",
-  "Great Neck",
-  "Port Washington",
-  "New Hyde Park",
-  "Floral Park",
-  "Long Beach",
-  "Baldwin",
-  "Glen Cove",
-  "Roslyn",
-  "Woodbury",
+  "Hempstead", "Freeport", "Garden City", "Mineola", "Uniondale",
+  "Westbury", "Rockville Centre", "Oceanside", "Levittown",
+  "East Meadow", "Plainview", "Syosset", "Jericho", "Bethpage",
+  "Massapequa", "Massapequa Park", "Bellmore", "Wantagh", "Merrick",
+  "Great Neck", "Port Washington", "New Hyde Park", "Floral Park",
+  "Long Beach", "Baldwin", "Glen Cove", "Roslyn", "Woodbury",
   "Carle Place",
 ];
 
 const SUFFOLK_CITIES = [
-  "Huntington",
-  "Huntington Station",
-  "Melville",
-  "Smithtown",
-  "Kings Park",
-  "Commack",
-  "Stony Brook",
-  "Port Jefferson",
-  "Patchogue",
-  "Medford",
-  "Ronkonkoma",
-  "Lake Grove",
-  "Centereach",
-  "Selden",
-  "Farmingville",
-  "Holbrook",
-  "Islip",
-  "East Islip",
-  "West Islip",
-  "Bay Shore",
-  "Brentwood",
-  "Deer Park",
-  "Babylon",
-  "Lindenhurst",
-  "Amityville",
-  "Sayville",
-  "Riverhead",
-  "Southampton",
-  "East Hampton",
+  "Huntington", "Huntington Station", "Melville", "Smithtown",
+  "Kings Park", "Commack", "Stony Brook", "Port Jefferson", "Patchogue",
+  "Medford", "Ronkonkoma", "Lake Grove", "Centereach", "Selden",
+  "Farmingville", "Holbrook", "Islip", "East Islip", "West Islip",
+  "Bay Shore", "Brentwood", "Deer Park", "Babylon", "Lindenhurst",
+  "Amityville", "Sayville", "Riverhead", "Southampton", "East Hampton",
   "Montauk",
 ];
+
+function clampScore(score: number) {
+  if (!Number.isFinite(score)) return 0;
+  return Math.max(0, Math.min(Math.round(score), 100));
+}
 
 function normalizeQuery(input: string) {
   return input
@@ -176,9 +109,7 @@ function keywordBoost(item: any, input: string) {
   });
 
   const phrase = normalizeQuery(input);
-  if (phrase.length > 2 && searchable.includes(phrase)) {
-    boost += 35;
-  }
+  if (phrase.length > 2 && searchable.includes(phrase)) boost += 35;
 
   return boost;
 }
@@ -189,7 +120,6 @@ function getRegion(input: string) {
   if (text.includes("queens")) return "queens";
   if (text.includes("nassau")) return "nassau";
   if (text.includes("suffolk")) return "suffolk";
-
   if (
     text.includes("long island") ||
     text.includes("long island ny") ||
@@ -221,7 +151,6 @@ function isRegionMatch(
 
   return places.some((place) => {
     const normalized = place.toLowerCase();
-
     return cityText === normalized || neighborhoodText === normalized;
   });
 }
@@ -469,7 +398,19 @@ export async function POST(req: Request) {
       const cacheLimit = 1000 * 60 * 60 * CACHE_HOURS;
 
       if (cacheAge < cacheLimit) {
-        return Response.json(cached.response);
+        const cachedResponse = cached.response;
+
+        return Response.json({
+          ...cachedResponse,
+          restaurants: (cachedResponse.restaurants || []).map((r: any) => ({
+            ...r,
+            roseout_score: clampScore(Number(r.roseout_score || 0)),
+          })),
+          activities: (cachedResponse.activities || []).map((a: any) => ({
+            ...a,
+            roseout_score: clampScore(Number(a.roseout_score || 0)),
+          })),
+        });
       }
     }
 
@@ -689,9 +630,9 @@ export async function POST(req: Request) {
     const rankedRestaurants = (filteredRestaurants || [])
       .map((restaurant: any) => {
         const ruleScore = scoreRestaurant(restaurant, input, userLocation);
-        const savedScore = restaurant.roseout_score || 0;
-        const qualityScore = restaurant.quality_score || 0;
-        const popularityScore = restaurant.popularity_score || 0;
+        const savedScore = clampScore(Number(restaurant.roseout_score || 0));
+        const qualityScore = clampScore(Number(restaurant.quality_score || 0));
+        const popularityScore = clampScore(Number(restaurant.popularity_score || 0));
 
         let distanceBoost = 0;
 
@@ -713,7 +654,7 @@ export async function POST(req: Request) {
 
         return {
           ...restaurant,
-          roseout_score: Math.round(Math.min(finalScore, 100)),
+          roseout_score: clampScore(finalScore),
         };
       })
       .filter((restaurant: any) => restaurant.roseout_score > 0)
@@ -728,9 +669,9 @@ export async function POST(req: Request) {
     const rankedActivities = (filteredActivities || [])
       .map((activity: any) => {
         const ruleScore = scoreActivity(activity, input, userLocation);
-        const savedScore = activity.roseout_score || 0;
-        const qualityScore = activity.quality_score || 0;
-        const popularityScore = activity.popularity_score || 0;
+        const savedScore = clampScore(Number(activity.roseout_score || 0));
+        const qualityScore = clampScore(Number(activity.quality_score || 0));
+        const popularityScore = clampScore(Number(activity.popularity_score || 0));
 
         let distanceBoost = 0;
 
@@ -752,7 +693,7 @@ export async function POST(req: Request) {
 
         return {
           ...activity,
-          roseout_score: Math.round(Math.min(finalScore, 100)),
+          roseout_score: clampScore(finalScore),
         };
       })
       .filter((activity: any) => activity.roseout_score > 0)
@@ -778,7 +719,7 @@ export async function POST(req: Request) {
       neighborhood: r.neighborhood,
       cuisine: r.cuisine || r.cuisine_type,
       rating: r.rating,
-      score: r.roseout_score,
+      score: clampScore(Number(r.roseout_score || 0)),
       distance_miles: r.distance_miles
         ? Number(r.distance_miles.toFixed(1))
         : null,
@@ -791,7 +732,7 @@ export async function POST(req: Request) {
       neighborhood: a.neighborhood,
       type: a.activity_type,
       rating: a.rating,
-      score: a.roseout_score,
+      score: clampScore(Number(a.roseout_score || 0)),
       distance_miles: a.distance_miles
         ? Number(a.distance_miles.toFixed(1))
         : null,
@@ -854,7 +795,7 @@ STRICT RULES:
         city: r.city,
         state: r.state,
         zip_code: r.zip_code,
-        roseout_score: r.roseout_score,
+        roseout_score: clampScore(Number(r.roseout_score || 0)),
         reservation_link: r.reservation_link,
         reservation_url: r.reservation_url,
         website: r.website,
@@ -879,7 +820,7 @@ STRICT RULES:
         price_range: a.price_range,
         atmosphere: a.atmosphere,
         group_friendly: a.group_friendly,
-        roseout_score: a.roseout_score,
+        roseout_score: clampScore(Number(a.roseout_score || 0)),
         reservation_link: a.reservation_link,
         reservation_url: a.reservation_url,
         website: a.website,
