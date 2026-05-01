@@ -549,161 +549,175 @@ export default function CreatePage() {
         ref={resultsRef}
         className="mx-auto max-w-6xl scroll-mt-40 px-5 py-8"
       >
-        <div className="space-y-5">
-          {messages.map((msg, index) => {
-            const hasRestaurants = !!msg.restaurants?.length;
-            const hasActivities = !!msg.activities?.length;
+        {loading ? (
+          <LuxuryLoading
+            loadingText={loadingMessages[loadingTextIndex]}
+            expectedRestaurants={2}
+            expectedActivities={2}
+          />
+        ) : (
+          <div className="space-y-5">
+            {messages.map((msg, index) => {
+              const hasRestaurants = !!msg.restaurants?.length;
+              const hasActivities = !!msg.activities?.length;
 
-            return (
-              <div
-                key={index}
-                className={`rounded-[2rem] border p-5 shadow-2xl ${
-                  msg.role === "user"
-                    ? "ml-auto max-w-4xl border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
-                    : "border-white/10 bg-[#0d0d0d] text-white shadow-black/30"
-                }`}
-              >
-                {msg.role === "user" && (
-                  <p className="whitespace-pre-wrap font-black">
-                    {msg.content}
-                  </p>
-                )}
-
-                {msg.role === "assistant" &&
-                (hasRestaurants || hasActivities) ? (
-                  <>
-                    <div className="mb-6">
-                      <p className="text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
-                        Results / Recommendations
-                      </p>
-
-                      <h2 className="mt-2 text-3xl font-black">
-                        Your perfect outing ✨
-                      </h2>
-
-                      <p className="mt-1 text-sm font-medium text-white/45">
-                        Select your favorites or view full details.
-                      </p>
-                    </div>
-
-                    {hasRestaurants && (
-                      <ResultSection title="Dinner" label="Restaurant Picks">
-                        {msg.restaurants?.map((r, restaurantIndex) => {
-                          const restaurantId = String(r.id);
-                          const isSelected = selectedRestaurant?.id === r.id;
-                          const reservationUrl =
-                            r.reservation_url || r.reservation_link;
-                          const safeScore = clampScore(r.roseout_score);
-
-                          return (
-                            <ResultCard
-                              key={restaurantId || restaurantIndex}
-                              imageUrl={r.image_url}
-                              title={r.restaurant_name}
-                              eyebrow="Restaurant"
-                              address={[r.address, r.city, r.state, r.zip_code]
-                                .filter(Boolean)
-                                .join(", ")}
-                              rating={r.rating}
-                              reviewCount={r.review_count}
-                              primaryTag={r.primary_tag}
-                              tags={r.date_style_tags}
-                              distance={r.distance_miles}
-                              score={safeScore}
-                              selected={isSelected}
-                              priority={restaurantIndex === 0}
-                              selectLabel={isSelected ? "Selected" : "Select"}
-                              onSelect={() =>
-                                setSelectedRestaurant(
-                                  selectedRestaurant?.id === r.id ? null : r
-                                )
-                              }
-                              detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
-                              onDetails={() => {
-                                saveCreateState();
-                                trackRestaurantClick(restaurantId);
-                              }}
-                              reservationUrl={reservationUrl}
-                              reservationLabel="Reserve"
-                              onReservation={() =>
-                                trackRestaurantClick(restaurantId)
-                              }
-                            />
-                          );
-                        })}
-                      </ResultSection>
-                    )}
-
-                    {hasActivities && (
-                      <ResultSection title="Activity" label="Experience Picks">
-                        {msg.activities?.map((a, activityIndex) => {
-                          const activityId = String(a.id);
-                          const isSelected = selectedActivity?.id === a.id;
-                          const reservationUrl =
-                            a.reservation_url || a.reservation_link;
-                          const safeScore = clampScore(a.roseout_score);
-
-                          return (
-                            <ResultCard
-                              key={activityId || activityIndex}
-                              imageUrl={a.image_url}
-                              title={a.activity_name}
-                              eyebrow={a.activity_type || "Activity"}
-                              address={[a.address, a.city, a.state, a.zip_code]
-                                .filter(Boolean)
-                                .join(", ")}
-                              rating={a.rating}
-                              reviewCount={a.review_count}
-                              primaryTag={a.primary_tag}
-                              tags={a.date_style_tags}
-                              distance={a.distance_miles}
-                              score={safeScore}
-                              selected={isSelected}
-                              priority={activityIndex === 0}
-                              selectLabel={isSelected ? "Selected" : "Select"}
-                              onSelect={() =>
-                                setSelectedActivity(
-                                  selectedActivity?.id === a.id ? null : a
-                                )
-                              }
-                              detailsHref={`/locations/activities/${activityId}?from=/create`}
-                              onDetails={() => {
-                                saveCreateState();
-                                trackActivityClick(activityId);
-                              }}
-                              websiteUrl={a.website}
-                              onWebsite={() => trackActivityClick(activityId)}
-                              reservationUrl={reservationUrl}
-                              reservationLabel="Book"
-                              onReservation={() =>
-                                trackActivityClick(activityId)
-                              }
-                            />
-                          );
-                        })}
-                      </ResultSection>
-                    )}
-                  </>
-                ) : null}
-
-                {msg.role === "assistant" &&
-                  !hasRestaurants &&
-                  !hasActivities && (
-                    <p className="whitespace-pre-wrap text-white/75">
+              return (
+                <div
+                  key={index}
+                  className={`rounded-[2rem] border p-5 shadow-2xl ${
+                    msg.role === "user"
+                      ? "ml-auto max-w-4xl border-red-500/30 bg-[#e1062a] text-white shadow-red-500/10"
+                      : "border-white/10 bg-[#0d0d0d] text-white shadow-black/30"
+                  }`}
+                >
+                  {msg.role === "user" && (
+                    <p className="whitespace-pre-wrap font-black">
                       {msg.content}
                     </p>
                   )}
-              </div>
-            );
-          })}
-        </div>
 
-        {loading && (
-          <LuxuryLoading loadingText={loadingMessages[loadingTextIndex]} />
+                  {msg.role === "assistant" &&
+                  (hasRestaurants || hasActivities) ? (
+                    <>
+                      <div className="mb-6">
+                        <p className="text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
+                          Results / Recommendations
+                        </p>
+
+                        <h2 className="mt-2 text-3xl font-black">
+                          Your perfect outing ✨
+                        </h2>
+
+                        <p className="mt-1 text-sm font-medium text-white/45">
+                          Select your favorites or view full details.
+                        </p>
+                      </div>
+
+                      {hasRestaurants && (
+                        <ResultSection title="Dinner" label="Restaurant Picks">
+                          {msg.restaurants?.map((r, restaurantIndex) => {
+                            const restaurantId = String(r.id);
+                            const isSelected = selectedRestaurant?.id === r.id;
+                            const reservationUrl =
+                              r.reservation_url || r.reservation_link;
+                            const safeScore = clampScore(r.roseout_score);
+
+                            return (
+                              <ResultCard
+                                key={restaurantId || restaurantIndex}
+                                imageUrl={r.image_url}
+                                title={r.restaurant_name}
+                                eyebrow="Restaurant"
+                                address={[
+                                  r.address,
+                                  r.city,
+                                  r.state,
+                                  r.zip_code,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                                rating={r.rating}
+                                reviewCount={r.review_count}
+                                primaryTag={r.primary_tag}
+                                tags={r.date_style_tags}
+                                distance={r.distance_miles}
+                                score={safeScore}
+                                selected={isSelected}
+                                priority={restaurantIndex === 0}
+                                selectLabel={isSelected ? "Selected" : "Select"}
+                                onSelect={() =>
+                                  setSelectedRestaurant(
+                                    selectedRestaurant?.id === r.id ? null : r
+                                  )
+                                }
+                                detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
+                                onDetails={() => {
+                                  saveCreateState();
+                                  trackRestaurantClick(restaurantId);
+                                }}
+                                reservationUrl={reservationUrl}
+                                reservationLabel="Reserve"
+                                onReservation={() =>
+                                  trackRestaurantClick(restaurantId)
+                                }
+                              />
+                            );
+                          })}
+                        </ResultSection>
+                      )}
+
+                      {hasActivities && (
+                        <ResultSection title="Activity" label="Experience Picks">
+                          {msg.activities?.map((a, activityIndex) => {
+                            const activityId = String(a.id);
+                            const isSelected = selectedActivity?.id === a.id;
+                            const reservationUrl =
+                              a.reservation_url || a.reservation_link;
+                            const safeScore = clampScore(a.roseout_score);
+
+                            return (
+                              <ResultCard
+                                key={activityId || activityIndex}
+                                imageUrl={a.image_url}
+                                title={a.activity_name}
+                                eyebrow={a.activity_type || "Activity"}
+                                address={[
+                                  a.address,
+                                  a.city,
+                                  a.state,
+                                  a.zip_code,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                                rating={a.rating}
+                                reviewCount={a.review_count}
+                                primaryTag={a.primary_tag}
+                                tags={a.date_style_tags}
+                                distance={a.distance_miles}
+                                score={safeScore}
+                                selected={isSelected}
+                                priority={activityIndex === 0}
+                                selectLabel={isSelected ? "Selected" : "Select"}
+                                onSelect={() =>
+                                  setSelectedActivity(
+                                    selectedActivity?.id === a.id ? null : a
+                                  )
+                                }
+                                detailsHref={`/locations/activities/${activityId}?from=/create`}
+                                onDetails={() => {
+                                  saveCreateState();
+                                  trackActivityClick(activityId);
+                                }}
+                                websiteUrl={a.website}
+                                onWebsite={() => trackActivityClick(activityId)}
+                                reservationUrl={reservationUrl}
+                                reservationLabel="Book"
+                                onReservation={() =>
+                                  trackActivityClick(activityId)
+                                }
+                              />
+                            );
+                          })}
+                        </ResultSection>
+                      )}
+                    </>
+                  ) : null}
+
+                  {msg.role === "assistant" &&
+                    !hasRestaurants &&
+                    !hasActivities && (
+                      <p className="whitespace-pre-wrap text-white/75">
+                        {msg.content}
+                      </p>
+                    )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
 
-      {hasSearched && (
+      {hasSearched && !loading && (
         <section className="mx-auto max-w-4xl px-5 pb-28">
           <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl shadow-black/40">
             <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
@@ -762,7 +776,7 @@ export default function CreatePage() {
                 disabled={loading}
                 className="rounded-full bg-[#e1062a] px-6 py-2 text-sm font-black text-white transition hover:bg-red-500 disabled:opacity-50"
               >
-                {loading ? "Sending..." : "Send"}
+                Send
               </button>
             </div>
           </div>
@@ -827,15 +841,7 @@ function getSuggestedFollowUps(message?: Message) {
     suggestions.push(`More ${cuisine} options`);
   }
 
-  if (
-    allTags.includes("rooftop") ||
-    allTags.includes("views") ||
-    allTags.includes("skyline")
-  ) {
-    suggestions.push("Add rooftop vibes");
-  } else {
-    suggestions.push("Add rooftop vibes");
-  }
+  suggestions.push("Add rooftop vibes");
 
   if (
     allTags.includes("family") ||
@@ -1068,24 +1074,162 @@ function ResultCard({
   );
 }
 
-function LuxuryLoading({ loadingText }: { loadingText: string }) {
+function LuxuryLoading({
+  loadingText,
+  expectedRestaurants = 2,
+  expectedActivities = 2,
+}: {
+  loadingText: string;
+  expectedRestaurants?: number;
+  expectedActivities?: number;
+}) {
   return (
-    <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-5 text-white shadow-2xl shadow-black/40">
-      <div className="mb-5 text-center">
+    <div className="mt-6 animate-fadeIn space-y-10">
+      <div className="text-center">
         <p className="text-xs font-black uppercase tracking-[0.35em] text-[#e1062a]">
           RoseOut is searching
         </p>
 
-        <h2 className="mt-2 min-h-[32px] text-2xl font-black transition-all duration-500">
-          {loadingText}
+        <h2 className="mt-2 text-2xl font-black">{loadingText}</h2>
+
+        <p className="mt-2 text-sm font-semibold text-white/40">
+          Building restaurant and activity cards...
+        </p>
+      </div>
+
+      <SkeletonSection
+        title="Dinner"
+        label="Restaurant Picks"
+        count={expectedRestaurants}
+        type="restaurant"
+      />
+
+      <SkeletonSection
+        title="Activity"
+        label="Experience Picks"
+        count={expectedActivities}
+        type="activity"
+      />
+    </div>
+  );
+}
+
+function SkeletonSection({
+  title,
+  label,
+  count,
+  type,
+}: {
+  title: string;
+  label: string;
+  count: number;
+  type: "restaurant" | "activity";
+}) {
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-black uppercase tracking-[0.25em] text-white/40">
+          {title}
         </h2>
 
-        <div className="mt-4 flex justify-center gap-2">
-          <span className="h-2 w-2 animate-bounce rounded-full bg-[#e1062a]" />
-          <span className="h-2 w-2 animate-bounce rounded-full bg-[#e1062a] [animation-delay:150ms]" />
-          <span className="h-2 w-2 animate-bounce rounded-full bg-[#e1062a] [animation-delay:300ms]" />
+        <span className="rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white">
+          {label}
+        </span>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        {Array.from({ length: count }).map((_, index) => (
+          <SkeletonCard key={`${type}-${index}`} index={index} type={type} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SkeletonCard({
+  index,
+  type,
+}: {
+  index: number;
+  type: "restaurant" | "activity";
+}) {
+  const delay = `${index * 180}ms`;
+
+  return (
+    <div
+      className="group overflow-hidden rounded-[2rem] border border-white/10 bg-[#111] shadow-2xl shadow-black/30"
+      style={{
+        animation: `skeletonReveal 520ms ease-out ${delay} both`,
+      }}
+    >
+      <div className="relative h-64 overflow-hidden bg-neutral-900">
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 via-neutral-900 to-black blur-sm" />
+
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+        <div className="absolute left-4 top-4 rounded-[1rem] bg-white/95 p-2">
+          <div className="h-12 w-12 rounded-xl bg-black/10" />
+        </div>
+
+        <div className="absolute bottom-4 left-4 h-6 w-24 rounded-full bg-black/70" />
+
+        <div className="absolute bottom-4 right-4 h-7 w-16 rounded-full bg-white/80" />
+      </div>
+
+      <div className="p-5">
+        <div className="h-3 w-24 animate-pulse rounded-full bg-[#e1062a]/40" />
+
+        <div
+          className={`mt-3 h-7 animate-pulse rounded-full bg-white/10 ${
+            index % 2 === 0 ? "w-4/5" : "w-2/3"
+          }`}
+        />
+
+        <div className="mt-4 space-y-2">
+          <div className="h-4 w-full animate-pulse rounded-full bg-white/10" />
+          <div className="h-4 w-3/4 animate-pulse rounded-full bg-white/10" />
+        </div>
+
+        <div className="mt-3 h-3 w-28 animate-pulse rounded-full bg-white/10" />
+
+        <div className="mt-4 h-5 w-48 animate-pulse rounded-full bg-white/10" />
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <div className="h-7 w-24 animate-pulse rounded-full bg-white/10" />
+          <div className="h-7 w-20 animate-pulse rounded-full bg-white/10" />
+          <div className="h-7 w-28 animate-pulse rounded-full bg-white/10" />
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <div className="h-10 w-20 animate-pulse rounded-full border border-white/10 bg-white/5" />
+          <div className="h-10 w-28 animate-pulse rounded-full bg-white/80" />
+
+          {type === "activity" && (
+            <div className="h-10 w-24 animate-pulse rounded-full border border-white/10 bg-white/5" />
+          )}
+
+          <div className="h-10 w-24 animate-pulse rounded-full border border-red-500/30 bg-red-500/10" />
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes shimmer {
+          100% {
+            transform: translateX(100%);
+          }
+        }
+
+        @keyframes skeletonReveal {
+          from {
+            opacity: 0;
+            transform: translateY(18px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 }
