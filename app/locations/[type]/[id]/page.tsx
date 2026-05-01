@@ -39,39 +39,42 @@ export default function LocationDetailPage() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const isActivity = type === "activities" || type === "activity";
-
   useEffect(() => {
     const loadLocation = async () => {
       setLoading(true);
 
-      let locationQuery = supabase.from("locations").select("*");
+      const { data, error } = await supabase
+        .from("locations")
+        .select("*")
+        .eq("id", id)
+        .single();
 
-      if (type === "restaurants" || type === "restaurant") {
-        locationQuery = locationQuery.or(`id.eq.${id},restaurant_id.eq.${id}`);
-      } else if (type === "activities" || type === "activity") {
-        locationQuery = locationQuery.or(`id.eq.${id},activity_id.eq.${id}`);
-      } else {
-        locationQuery = locationQuery.eq("id", id);
+      if (error) {
+        console.error("Location fetch error:", error.message);
+        setLocation(null);
+        setReviews([]);
+        setLoading(false);
+        return;
       }
-
-      const { data: locationData } = await locationQuery.maybeSingle();
-
-      const foundLocationId = locationData?.id || id;
 
       const { data: reviewData } = await supabase
         .from("location_reviews")
         .select("*")
-        .eq("location_id", foundLocationId)
+        .eq("location_id", id)
         .order("created_at", { ascending: false });
 
-      setLocation(locationData || null);
+      setLocation(data);
       setReviews(reviewData || []);
       setLoading(false);
     };
 
     if (id) loadLocation();
-  }, [id, type, supabase]);
+  }, [id, supabase]);
+
+  const isActivity =
+    location?.location_type === "activity" ||
+    type === "activities" ||
+    type === "activity";
 
   const name =
     location?.restaurant_name ||
@@ -114,8 +117,8 @@ export default function LocationDetailPage() {
   const signatureItems = toArray(location?.signature_items);
 
   const baseMetadata = {
-    location_id: location?.id || id,
-    location_type: type,
+    location_id: id,
+    location_type: location?.location_type || type,
     location_name: name,
   };
 
@@ -168,8 +171,7 @@ export default function LocationDetailPage() {
           <h1 className="mt-4 text-3xl font-black">Location Not Found</h1>
 
           <p className="mt-3 text-sm leading-6 text-white/60">
-            This listing may have been removed or the result is still using an
-            old restaurant/activity ID.
+            This location could not be found in your unified locations table.
           </p>
 
           <button
@@ -303,21 +305,6 @@ export default function LocationDetailPage() {
                     href={location.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() =>
-                      trackActivity({
-                        eventType: isActivity
-                          ? "activity_click"
-                          : "restaurant_click",
-                        eventName: isActivity
-                          ? "Activity Website Click"
-                          : "Restaurant Website Click",
-                        pagePath: window.location.pathname,
-                        metadata: {
-                          ...baseMetadata,
-                          source: "hero_section",
-                        },
-                      })
-                    }
                     className="rounded-full border border-white/20 bg-white/10 px-7 py-3 text-sm font-black text-white backdrop-blur-xl transition hover:bg-white hover:text-black"
                   >
                     Website
@@ -328,17 +315,6 @@ export default function LocationDetailPage() {
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() =>
-                    trackActivity({
-                      eventType: "map_click",
-                      eventName: "Directions Click",
-                      pagePath: window.location.pathname,
-                      metadata: {
-                        ...baseMetadata,
-                        source: "hero_section",
-                      },
-                    })
-                  }
                   className="rounded-full border border-white/20 bg-white/10 px-7 py-3 text-sm font-black text-white backdrop-blur-xl transition hover:bg-white hover:text-black"
                 >
                   Directions
@@ -517,7 +493,10 @@ export default function LocationDetailPage() {
               </div>
             </LuxuryCard>
 
-            <LuxuryCard eyebrow="Review Intelligence" title="Powered by real words.">
+            <LuxuryCard
+              eyebrow="Review Intelligence"
+              title="Powered by real words."
+            >
               <div className="mt-5 space-y-4 text-sm">
                 <InfoRow label="Review Score" value={location.review_score || 0} />
 
