@@ -11,17 +11,12 @@ export default function AdminRankingsClient() {
     setLoading(true);
     setResult(null);
 
-    try {
-      const res = await fetch("/api/admin/rankings/recalculate", {
-        method: "POST",
-      });
+    const res = await fetch("/api/admin/rankings/recalculate", {
+      method: "POST",
+    });
 
-      const data = await res.json();
-      setResult(data);
-    } catch (err) {
-      setResult({ error: "Failed to run ranking engine" });
-    }
-
+    const data = await res.json();
+    setResult(data);
     setLoading(false);
   }
 
@@ -39,27 +34,21 @@ export default function AdminRankingsClient() {
         </h1>
 
         <p className="mt-4 max-w-2xl text-sm leading-7 text-white/55">
-          Recalculate scores, trends, conversions, and ranking badges based on real user activity.
+          Recalculate RoseOut scores, trends, conversions, and ranking badges.
         </p>
 
         <button
           onClick={recalculateRankings}
           disabled={loading}
-          className="mt-8 rounded-full bg-rose-500 px-7 py-3 text-sm font-black text-white shadow-lg hover:bg-rose-400 disabled:opacity-50"
+          className="mt-8 rounded-full bg-rose-500 px-7 py-3 text-sm font-black text-white hover:bg-rose-400 disabled:opacity-50"
         >
           {loading ? "Running..." : "Run Ranking Engine"}
         </button>
 
         {result && (
-          <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.05] p-6">
-            <h2 className="text-2xl font-black">
-              {result.success ? "Complete" : "Result"}
-            </h2>
-
-            <pre className="mt-4 overflow-x-auto rounded-xl bg-black/40 p-4 text-sm text-white/70">
-              {JSON.stringify(result, null, 2)}
-            </pre>
-          </div>
+          <pre className="mt-8 overflow-x-auto rounded-2xl bg-black/40 p-5 text-sm text-white/70">
+            {JSON.stringify(result, null, 2)}
+          </pre>
         )}
       </section>
     </main>
