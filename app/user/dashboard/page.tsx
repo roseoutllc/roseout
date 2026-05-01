@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import ActivityTracker from "@/components/ActivityTracker";
-
+import TrackedButton from "@/components/TrackedButton";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,7 @@ export default async function UserDashboardPage() {
 
   const supabase = adminSupabase();
 
-  let userId = impersonatedUserId || null;
+  const userId = impersonatedUserId || null;
 
   if (!userId) {
     redirect("/login");
@@ -56,6 +56,7 @@ export default async function UserDashboardPage() {
   return (
     <main className="min-h-screen bg-[#080407] text-white">
       <ActivityTracker userId={userId} />
+
       <section className="relative overflow-hidden border-b border-white/10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.28),transparent_34%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.18),transparent_30%)]" />
 
@@ -80,27 +81,25 @@ export default async function UserDashboardPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-             <button
-  onClick={() => {
-    trackActivity({
-      eventType: "button_click",
-      eventName: "Create New Outing Clicked",
-      pagePath: window.location.pathname,
-    });
+              <TrackedButton
+                href="/create"
+                eventType="button_click"
+                eventName="Create New Outing Clicked"
+                metadata={{ source: "user_dashboard_hero" }}
+                className="rounded-full bg-rose-500 px-6 py-3 text-center text-sm font-black text-white shadow-lg shadow-rose-500/25 transition hover:bg-rose-400"
+              >
+                Create New Outing
+              </TrackedButton>
 
-    window.location.href = "/create";
-  }}
-  className="rounded-full bg-rose-500 px-6 py-3 text-sm font-black text-white"
->
-  Create New Outing
-</button>
-
-              <Link
+              <TrackedButton
                 href="/user/saved"
+                eventType="button_click"
+                eventName="View Saved Plans Clicked"
+                metadata={{ source: "user_dashboard_hero" }}
                 className="rounded-full border border-white/15 bg-white/[0.06] px-6 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
               >
                 View Saved Plans
-              </Link>
+              </TrackedButton>
             </div>
           </div>
         </div>
@@ -155,12 +154,15 @@ export default async function UserDashboardPage() {
                 <h2 className="mt-2 text-2xl font-black">Saved Plans</h2>
               </div>
 
-              <Link
+              <TrackedButton
                 href="/user/saved"
+                eventType="button_click"
+                eventName="View All Saved Plans Clicked"
+                metadata={{ source: "saved_plans_section" }}
                 className="rounded-full border border-white/10 px-4 py-2 text-xs font-black text-white/70 transition hover:bg-white hover:text-black"
               >
                 View All
-              </Link>
+              </TrackedButton>
             </div>
 
             {!savedPlans || savedPlans.length === 0 ? (
@@ -178,12 +180,15 @@ export default async function UserDashboardPage() {
                   Your saved RoseOut results will show here.
                 </p>
 
-                <Link
+                <TrackedButton
                   href="/create"
+                  eventType="button_click"
+                  eventName="Start Planning Empty State Clicked"
+                  metadata={{ source: "empty_saved_plans_state" }}
                   className="mt-6 inline-flex rounded-full bg-rose-500 px-6 py-3 text-sm font-black text-white transition hover:bg-rose-400"
                 >
                   Start Planning
-                </Link>
+                </TrackedButton>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
@@ -219,12 +224,19 @@ export default async function UserDashboardPage() {
                           : ""}
                       </p>
 
-                      <Link
+                      <TrackedButton
                         href={`/user/saved/${plan.id}`}
+                        eventType="plan_click"
+                        eventName="View Saved Plan Clicked"
+                        metadata={{
+                          plan_id: plan.id,
+                          plan_title: plan.title || "RoseOut Plan",
+                          source: "user_dashboard_saved_plan_card",
+                        }}
                         className="rounded-full bg-white px-4 py-2 text-xs font-black text-black transition hover:bg-rose-100"
                       >
                         View Plan
-                      </Link>
+                      </TrackedButton>
                     </div>
                   </div>
                 ))}
@@ -276,12 +288,15 @@ export default async function UserDashboardPage() {
                 a polished plan in seconds.
               </p>
 
-              <Link
+              <TrackedButton
                 href="/create"
+                eventType="button_click"
+                eventName="Create Plan CTA Clicked"
+                metadata={{ source: "user_dashboard_next_outing_card" }}
                 className="mt-5 inline-flex w-full justify-center rounded-full bg-white px-5 py-3 text-sm font-black text-black transition hover:bg-rose-100"
               >
                 Create Plan
-              </Link>
+              </TrackedButton>
             </div>
           </aside>
         </div>
