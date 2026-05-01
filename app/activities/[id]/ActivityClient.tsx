@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { trackAnalytics } from "@/lib/trackAnalytics";
+import BackButton from "@/components/BackButton";
 
 export default function ActivityClient({ activity }: any) {
   useEffect(() => {

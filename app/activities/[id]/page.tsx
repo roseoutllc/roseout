@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import ActivityClient from "./ActivityClient";
+import BackButton from "@/components/BackButton";
 
 export default async function ActivityPage({
   params,
