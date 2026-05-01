@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase-browser";
 import { clampScore } from "@/lib/clampScore";
+import ScoreBadge from "@/components/ScoreBadge";
 
 type LocationType = "restaurant" | "activity";
 
@@ -18,23 +19,14 @@ type LocationItem = {
   address?: string;
   city?: string;
   state?: string;
-  zip_code?: string;
   image_url?: string;
-  rating?: number;
-  review_count?: number;
   roseout_score?: number;
   quality_score?: number;
-  status?: string;
-  claimed?: boolean;
   claim_status?: string;
   owner_name?: string;
   owner_email?: string;
   owner_phone?: string;
-  website?: string;
-  reservation_url?: string;
-  reservation_link?: string;
   primary_tag?: string;
-  date_style_tags?: string[];
 };
 
 export default function DashboardPage() {
@@ -42,12 +34,9 @@ export default function DashboardPage() {
 
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [selected, setSelected] = useState<LocationItem | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      setLoading(true);
-
       const { data: restaurants } = await supabase
         .from("restaurants")
         .select("*");
@@ -70,7 +59,6 @@ export default function DashboardPage() {
       ];
 
       setLocations(combined);
-      setLoading(false);
     };
 
     load();
@@ -79,36 +67,29 @@ export default function DashboardPage() {
   const stats = useMemo(() => {
     return {
       total: locations.length,
-      claimed: locations.filter(
-        (l) => l.claim_status === "claimed" || l.claimed
-      ).length,
-      unclaimed: locations.filter(
-        (l) => l.claim_status !== "claimed"
-      ).length,
+      claimed: locations.filter((l) => l.claim_status === "claimed").length,
+      unclaimed: locations.filter((l) => l.claim_status !== "claimed").length,
     };
   }, [locations]);
-
-  if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-black text-white">
-        Loading...
-      </main>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-black text-white p-6">
       <div className="mx-auto max-w-7xl">
 
+        {/* HEADER */}
+        <h1 className="text-3xl font-black mb-6">
+          Locations Dashboard
+        </h1>
+
         {/* STATS */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <StatCard label="Total" value={stats.total} />
-          <StatCard label="Claimed" value={stats.claimed} />
-          <StatCard label="Unclaimed" value={stats.unclaimed} />
+          <Stat label="Total" value={stats.total} />
+          <Stat label="Claimed" value={stats.claimed} />
+          <Stat label="Unclaimed" value={stats.unclaimed} />
         </div>
 
-        {/* GRID */}
-        <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+        {/* LAYOUT */}
+        <div className="grid lg:grid-cols-[340px_1fr] gap-6">
 
           {/* LEFT LIST */}
           <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
@@ -121,10 +102,11 @@ export default function DashboardPage() {
                 <div
                   key={loc.id}
                   onClick={() => setSelected(loc)}
-                  className="cursor-pointer rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10"
+                  className="cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition"
                 >
-                  <div className="flex gap-3">
-                    <div className="w-20 h-20 bg-neutral-800 rounded-lg overflow-hidden">
+                  <div className="flex gap-3 items-center">
+
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-neutral-800">
                       {loc.image_url && (
                         <Image
                           src={loc.image_url}
@@ -144,10 +126,6 @@ export default function DashboardPage() {
                       <p className="text-xs text-neutral-400">
                         {loc.city}
                       </p>
-
-                      <p className="text-xs font-bold text-yellow-400 mt-1">
-                        {score}/100
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -158,16 +136,16 @@ export default function DashboardPage() {
           {/* RIGHT PANEL */}
           <div>
             {selected ? (
-              <div className="rounded-2xl bg-white text-black p-6 shadow-2xl">
+              <div className="rounded-3xl bg-white text-black p-6 shadow-2xl">
 
                 {/* IMAGE */}
                 {selected.image_url && (
                   <Image
                     src={selected.image_url}
                     alt=""
-                    width={800}
+                    width={900}
                     height={400}
-                    className="rounded-xl mb-4"
+                    className="rounded-xl mb-5"
                   />
                 )}
 
@@ -177,26 +155,27 @@ export default function DashboardPage() {
                 </h2>
 
                 {/* SCORE */}
-                <p className="mt-2 font-bold">
-                  {clampScore(
-                    selected.roseout_score ??
-                      selected.quality_score ??
-                      0
-                  )}
-                  /100 Match
-                </p>
+                <div className="mt-5">
+                  <ScoreBadge
+                    score={clampScore(
+                      selected.roseout_score ??
+                        selected.quality_score ??
+                        0
+                    )}
+                  />
+                </div>
 
                 {/* TAG */}
                 {selected.primary_tag && (
-                  <p className="mt-2 text-sm">
+                  <p className="mt-3 font-bold">
                     ✨ {selected.primary_tag}
                   </p>
                 )}
 
-                {/* OWNER */}
+                {/* OWNER PANEL */}
                 <div className="mt-6 p-4 bg-neutral-100 rounded-xl">
                   <p className="text-xs font-black uppercase text-neutral-500">
-                    Owner
+                    Owner Info
                   </p>
 
                   <p className="mt-2 text-sm">
@@ -204,7 +183,9 @@ export default function DashboardPage() {
                   </p>
 
                   <p className="text-sm">
-                    {selected.owner_email || "Not set"}
+                    {selected.owner_email
+                      ? maskEmail(selected.owner_email)
+                      : "Not set"}
                   </p>
 
                   <p className="text-sm">
@@ -212,13 +193,13 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                {/* QR */}
+                {/* QR PANEL */}
                 <QRPanel id={selected.id} />
 
-                {/* EDIT */}
+                {/* ACTION */}
                 <Link
                   href={`/locations/edit/${selected.location_type}s/${selected.id}`}
-                  className="mt-6 inline-block rounded-full bg-black px-5 py-3 text-white font-bold"
+                  className="mt-6 inline-block rounded-full bg-black px-6 py-3 text-white font-bold"
                 >
                   Edit Location
                 </Link>
@@ -237,7 +218,7 @@ export default function DashboardPage() {
 
 /* COMPONENTS */
 
-function StatCard({ label, value }: any) {
+function Stat({ label, value }: any) {
   return (
     <div className="bg-white/10 p-4 rounded-xl text-center">
       <p className="text-xs uppercase text-neutral-400">{label}</p>
@@ -251,7 +232,6 @@ function QRPanel({ id }: { id: string }) {
 
   useEffect(() => {
     const url = `${window.location.origin}/claim?id=${id}`;
-
     QRCode.toDataURL(url).then(setQr);
   }, [id]);
 
@@ -270,4 +250,11 @@ function QRPanel({ id }: { id: string }) {
       )}
     </div>
   );
+}
+
+function maskEmail(email: string) {
+  const [name, domain] = email.split("@");
+  if (!name || !domain) return email;
+
+  return name[0] + "***@" + domain;
 }
