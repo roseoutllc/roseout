@@ -21,8 +21,6 @@ type TurnstileWindow = Window & {
   };
 };
 
-const gold = "#f5b700";
-
 export default function SignupPage() {
   const supabase = createClient();
 
@@ -277,24 +275,24 @@ export default function SignupPage() {
         <section className="grid flex-1 items-center gap-8 overflow-hidden lg:grid-cols-[1fr_500px]">
           <div className="hidden lg:block">
             <div className="mb-4 inline-flex rounded-full border border-[#f5b700]/30 bg-[#f5b700]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-[#f5b700]">
-              RoseOut AI
+              Curated by RoseOut AI
             </div>
 
             <h1 className="max-w-3xl text-5xl font-black leading-[0.95] tracking-tight text-white xl:text-6xl">
-              Build your perfect night out.
+              Curated outings, made effortless.
             </h1>
 
             <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
-              Create your account, personalize your outing style, and let
-              RoseOut recommend restaurants, activities, and full plans that
-              match your vibe.
+              From breakfast dates to late-night reservations, RoseOut helps you
+              discover polished restaurants, activities, and experiences that
+              match your mood, budget, and style.
             </p>
 
             <div className="mt-6 grid max-w-3xl gap-3 md:grid-cols-3">
               {[
-                ["01", "Create your RoseOut account."],
-                ["02", "Tell us your outing preferences."],
-                ["03", "Get better AI-powered plans."],
+                ["01", "Tell us the kind of outing you want."],
+                ["02", "Personalize your vibe, city, and budget."],
+                ["03", "Unlock better AI-powered recommendations."],
               ].map(([num, text]) => (
                 <div
                   key={num}
@@ -314,7 +312,7 @@ export default function SignupPage() {
               </p>
 
               <h2 className="mt-1 text-2xl font-black text-white">
-                {step === 1 ? "Create account" : "Personalize RoseOut"}
+                {step === 1 ? "Create your account" : "Set your preferences"}
               </h2>
 
               <div className="mt-4 flex gap-2">
@@ -440,11 +438,12 @@ export default function SignupPage() {
                   onChange={(e) => setPlanningFor(e.target.value)}
                   className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none focus:border-[#f5b700]"
                 >
-                  <option value="">What are you using RoseOut for?</option>
-                  <option value="date_nights">Date nights</option>
+                  <option value="">What are you planning?</option>
+                  <option value="date_nights">Date</option>
+                  <option value="breakfast">Breakfast or brunch</option>
                   <option value="friends">Going out with friends</option>
-                  <option value="solo">Solo outings</option>
-                  <option value="family">Family outings</option>
+                  <option value="solo">Solo outing</option>
+                  <option value="family">Family outing</option>
                   <option value="events">Events & experiences</option>
                 </select>
 
@@ -472,6 +471,7 @@ export default function SignupPage() {
                   <option value="">Preferred vibe</option>
                   <option value="romantic">Romantic</option>
                   <option value="upscale">Upscale</option>
+                  <option value="casual_chic">Casual chic</option>
                   <option value="fun">Fun & energetic</option>
                   <option value="cozy">Cozy</option>
                   <option value="quiet">Quiet</option>
