@@ -9,6 +9,65 @@ const openai = new OpenAI({
 const AI_MODEL = "gpt-4o-mini";
 const CACHE_HOURS = 6;
 
+const EXPERIENCE_KEYWORDS = [
+  "food",
+  "eat",
+  "restaurant",
+  "place to eat",
+  "breakfast",
+  "brunch",
+  "lunch",
+  "dinner",
+  "late night food",
+  "pizza",
+  "burger",
+  "steak",
+  "steakhouse",
+  "seafood",
+  "sushi",
+  "ramen",
+  "pasta",
+  "italian",
+  "mexican",
+  "chinese",
+  "thai",
+  "indian",
+  "mediterranean",
+  "greek",
+  "spanish",
+  "bbq",
+  "barbecue",
+  "caribbean",
+  "jamaican",
+  "soul food",
+  "african",
+  "fine dining",
+  "casual dining",
+  "romantic dinner",
+  "date night dinner",
+  "wine",
+  "cocktail",
+  "cocktails",
+  "drinks",
+  "bar",
+  "rooftop",
+  "lounge",
+  "dessert",
+  "ice cream",
+  "bakery",
+  "coffee",
+  "cafe",
+  "hookah",
+  "hookah restaurant",
+  "hookah lounge",
+  "shisha",
+  "shisha lounge",
+  "cigar",
+  "cigar bar",
+  "cigar lounge",
+  "cigar friendly",
+];
+
 const QUEENS_CITIES = [
   "Queens",
   "Astoria",
@@ -122,7 +181,10 @@ function normalizeQuery(input: string) {
 
 function toArray(value: any): string[] {
   if (!value) return [];
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+
+  if (Array.isArray(value)) {
+    return value.map(String).filter(Boolean);
+  }
 
   if (typeof value === "string") {
     return value
@@ -211,6 +273,10 @@ function reviewBoost(item: any, input: string) {
     "good service",
     "drinks",
     "music",
+    "hookah",
+    "shisha",
+    "cigar",
+    "lounge",
   ];
 
   highIntentWords.forEach((word) => {
@@ -417,9 +483,70 @@ function scoreRestaurant(
     score += 20;
   }
 
+  EXPERIENCE_KEYWORDS.forEach((keyword) => {
+    if (text.includes(keyword) && searchable.includes(keyword)) {
+      score += 25;
+    }
+  });
+
   if (text.includes("pizza") && cuisine?.toLowerCase().includes("pizza")) {
     score += 25;
   }
+
+  if (
+    (text.includes("steak") || text.includes("steakhouse")) &&
+    (cuisine?.toLowerCase().includes("steak") ||
+      searchable.includes("steak") ||
+      searchable.includes("steakhouse"))
+  ) {
+    score += 100;
+  }
+
+  if (
+    (text.includes("hookah") || text.includes("shisha")) &&
+    (searchable.includes("hookah") || searchable.includes("shisha"))
+  ) {
+    score += 140;
+  }
+
+  if (
+    (text.includes("hookah") || text.includes("shisha")) &&
+    text.includes("lounge") &&
+    (searchable.includes("hookah") || searchable.includes("shisha")) &&
+    searchable.includes("lounge")
+  ) {
+    score += 170;
+  }
+
+  if (
+    text.includes("cigar") &&
+    (searchable.includes("cigar") ||
+      searchable.includes("cigar bar") ||
+      searchable.includes("cigar lounge") ||
+      searchable.includes("cigar friendly"))
+  ) {
+    score += 140;
+  }
+
+  if (text.includes("lounge") && searchable.includes("lounge")) {
+    score += 80;
+  }
+
+  if (
+    (text.includes("restaurant") ||
+      text.includes("dinner") ||
+      text.includes("food")) &&
+    (searchable.includes("restaurant") ||
+      searchable.includes("dining") ||
+      searchable.includes("food"))
+  ) {
+    score += 60;
+  }
+
+  if (text.includes("breakfast") && searchable.includes("breakfast")) score += 40;
+  if (text.includes("brunch") && searchable.includes("brunch")) score += 40;
+  if (text.includes("lunch") && searchable.includes("lunch")) score += 35;
+  if (text.includes("dinner")) score += 20;
 
   if (text.includes("wine") && searchable.includes("wine")) score += 60;
   if (text.includes("cocktail") && searchable.includes("cocktail")) score += 50;
@@ -520,6 +647,27 @@ function scoreActivity(
     )
   ) {
     score += 20;
+  }
+
+  if (
+    (text.includes("hookah") || text.includes("shisha")) &&
+    (searchable.includes("hookah") || searchable.includes("shisha"))
+  ) {
+    score += 120;
+  }
+
+  if (
+    text.includes("cigar") &&
+    (searchable.includes("cigar") ||
+      searchable.includes("cigar bar") ||
+      searchable.includes("cigar lounge") ||
+      searchable.includes("cigar friendly"))
+  ) {
+    score += 120;
+  }
+
+  if (text.includes("lounge") && searchable.includes("lounge")) {
+    score += 80;
   }
 
   if (
@@ -635,8 +783,12 @@ export async function POST(req: Request) {
     const nearMe = wantsNearMe(input);
     const radiusMiles = extractRadiusMiles(input);
 
+    const wantsHookah = text.includes("hookah") || text.includes("shisha");
+    const wantsCigar = text.includes("cigar");
+    const wantsLounge = text.includes("lounge");
+
     const cacheKey = normalizeQuery(
-      `${input} unified-locations ${region || ""} ${zipCode || ""} ${
+      `${input} unified-locations-v3 ${region || ""} ${zipCode || ""} ${
         userLocation ? `${userLocation.latitude},${userLocation.longitude}` : ""
       } ${radiusMiles}`
     );
@@ -668,19 +820,9 @@ export async function POST(req: Request) {
       }
     }
 
-    const wantsDinner =
-      text.includes("dinner") ||
-      text.includes("restaurant") ||
-      text.includes("food") ||
-      text.includes("eat") ||
-      text.includes("pizza") ||
-      text.includes("lunch") ||
-      text.includes("brunch") ||
-      text.includes("wine") ||
-      text.includes("cocktail") ||
-      text.includes("cocktails") ||
-      text.includes("drinks") ||
-      text.includes("bar");
+    const wantsDinner = EXPERIENCE_KEYWORDS.some((keyword) =>
+      text.includes(keyword)
+    );
 
     const wantsMuseum = text.includes("museum");
     const wantsBowling = text.includes("bowling");
@@ -712,7 +854,12 @@ export async function POST(req: Request) {
       text.includes("full plan");
 
     const shouldReturnRestaurants =
-      wantsDinner || wantsFullOuting || (!wantsDinner && !wantsActivity);
+      wantsDinner ||
+      wantsHookah ||
+      wantsCigar ||
+      wantsLounge ||
+      wantsFullOuting ||
+      !wantsActivity;
 
     const shouldReturnActivities = wantsActivity || wantsFullOuting;
 
@@ -762,7 +909,7 @@ export async function POST(req: Request) {
         roseout_score,
         status
       `)
-      .eq("status", "approved");
+      .or("status.eq.approved,status.is.null,status.eq.active");
 
     if (locationError) {
       return Response.json({ error: locationError.message }, { status: 500 });
@@ -862,7 +1009,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const rankedRestaurants = (filteredRestaurants || [])
+    const rankedRestaurants = filteredRestaurants
       .map((restaurant: any) => {
         const ruleScore = scoreRestaurant(restaurant, input, userLocation);
         const savedScore = clampScore(restaurant.roseout_score);
@@ -895,7 +1042,7 @@ export async function POST(req: Request) {
           roseout_score: clampScore(finalScore),
         };
       })
-      .filter((restaurant: any) => restaurant.roseout_score > 0)
+      .filter((restaurant: any) => restaurant.roseout_score >= 0)
       .sort((a: any, b: any) => {
         if (nearMe && userLocation) {
           return (a.distance_miles || 999) - (b.distance_miles || 999);
@@ -904,7 +1051,7 @@ export async function POST(req: Request) {
         return b.roseout_score - a.roseout_score;
       });
 
-    const rankedActivities = (filteredActivities || [])
+    const rankedActivities = filteredActivities
       .map((activity: any) => {
         const ruleScore = scoreActivity(activity, input, userLocation);
         const savedScore = clampScore(activity.roseout_score);
@@ -937,7 +1084,7 @@ export async function POST(req: Request) {
           roseout_score: clampScore(finalScore),
         };
       })
-      .filter((activity: any) => activity.roseout_score > 0)
+      .filter((activity: any) => activity.roseout_score >= 0)
       .sort((a: any, b: any) => {
         if (nearMe && userLocation) {
           return (a.distance_miles || 999) - (b.distance_miles || 999);
@@ -1012,8 +1159,13 @@ STRICT RULES:
 - Do NOT add dessert, drinks, walks, or extra stops unless asked.
 - Do NOT say “take your time,” “enjoy the meal,” or “chat.”
 - Use ONLY the listed restaurants and activities.
+- If no restaurants or activities are listed, say: “I couldn’t find a strong match yet. Try adding a borough, city, zip code, cuisine, or activity type.”
+- Never ask the user to provide a list of restaurants or activities.
+- If the listed results are not perfect, recommend the closest available matches from the list.
 - Do NOT invent business details.
 - Use review_keywords only as support for why something matches.
+- Hookah lounges, hookah restaurants, cigar bars, cigar-friendly lounges, and lounges count as valid dining/nightlife options.
+- If the user asks for hookah, shisha, cigar, or lounge, prioritize venues that match those words.
 - If dinner only, recommend restaurants only.
 - If activity only, recommend activities only.
 - If full outing/date night, recommend one restaurant and one activity.

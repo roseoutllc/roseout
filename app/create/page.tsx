@@ -389,7 +389,9 @@ export default function CreatePage() {
 
       <section
         className={`relative overflow-hidden border-b border-white/10 transition-all duration-500 ${
-          hasSearched ? "pt-8 pb-3 sm:pt-24 sm:pb-4" : "pt-8 pb-10 sm:pt-28 sm:pb-16"
+          hasSearched
+            ? "pt-8 pb-3 sm:pt-24 sm:pb-4"
+            : "pt-8 pb-10 sm:pt-28 sm:pb-16"
         }`}
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(225,6,42,0.24),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(225,6,42,0.16),transparent_28%),linear-gradient(180deg,#050505,#000)]" />
@@ -574,6 +576,10 @@ export default function CreatePage() {
                                 }
                                 detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
                                 onDetails={() =>
+                                  trackRestaurantClick(restaurantId)
+                                }
+                                websiteUrl={r.website}
+                                onWebsite={() =>
                                   trackRestaurantClick(restaurantId)
                                 }
                                 reservationUrl={reservationUrl}
@@ -828,6 +834,14 @@ function getSuggestedFollowUps(message?: Message) {
     suggestions.push("Add drinks after");
   }
 
+  if (allTags.includes("hookah") || allTags.includes("shisha")) {
+    suggestions.push("More hookah lounges");
+  }
+
+  if (allTags.includes("cigar")) {
+    suggestions.push("More cigar-friendly spots");
+  }
+
   if (hasActivities) suggestions.push("Make the activity more fun");
 
   suggestions.push("Change to Brooklyn");
@@ -844,6 +858,69 @@ function ResultSection({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+function getNightlifeBadges({
+  title,
+  eyebrow,
+  primaryTag,
+  tags,
+  reviewKeywords,
+  reviewSnippet,
+}: {
+  title: string;
+  eyebrow: string;
+  primaryTag?: string | null;
+  tags?: string[];
+  reviewKeywords?: string[] | null;
+  reviewSnippet?: string | null;
+}) {
+  const text = [
+    title,
+    eyebrow,
+    primaryTag,
+    reviewSnippet,
+    ...(tags || []),
+    ...(reviewKeywords || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const badges: string[] = [];
+
+  if (text.includes("hookah") || text.includes("shisha")) {
+    badges.push("🌬 Hookah");
+  }
+
+  if (
+    text.includes("cigar") ||
+    text.includes("cigar bar") ||
+    text.includes("cigar lounge") ||
+    text.includes("cigar friendly")
+  ) {
+    badges.push("🥃 Cigar Friendly");
+  }
+
+  if (
+    text.includes("restaurant") ||
+    text.includes("dining") ||
+    text.includes("dinner") ||
+    text.includes("food")
+  ) {
+    badges.push("🍽 Full Dining");
+  }
+
+  if (
+    text.includes("lounge") ||
+    text.includes("music") ||
+    text.includes("dj") ||
+    text.includes("nightlife")
+  ) {
+    badges.push("🎶 Lounge Vibe");
+  }
+
+  return Array.from(new Set(badges));
 }
 
 function ResultCard({
@@ -909,10 +986,21 @@ function ResultCard({
     : [];
 
   const hasReviewSignals =
-    cleanReviewKeywords.length > 0 || Boolean(reviewSnippet) || Boolean(reviewCount);
+    cleanReviewKeywords.length > 0 ||
+    Boolean(reviewSnippet) ||
+    Boolean(reviewCount);
 
   const isReviewFavorite =
     typeof reviewScore === "number" && reviewScore >= 85 && Boolean(reviewCount);
+
+  const nightlifeBadges = getNightlifeBadges({
+    title,
+    eyebrow,
+    primaryTag,
+    tags,
+    reviewKeywords,
+    reviewSnippet,
+  });
 
   return (
     <div
@@ -997,7 +1085,11 @@ function ResultCard({
           {eyebrow}
         </p>
 
-        <Link href={detailsHref} onClick={onDetails} className="group/title block">
+        <Link
+          href={detailsHref}
+          onClick={onDetails}
+          className="group/title block"
+        >
           <h3 className="mt-2 break-words text-2xl font-black tracking-tight text-white transition duration-200 group-hover/title:text-[#e1062a]">
             {title}
           </h3>
@@ -1007,6 +1099,19 @@ function ResultCard({
         <p className="mt-3 break-words text-sm leading-6 text-white/50">
           {address}
         </p>
+
+        {nightlifeBadges.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {nightlifeBadges.map((badge) => (
+              <span
+                key={badge}
+                className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100"
+              >
+                {badge}
+              </span>
+            ))}
+          </div>
+        )}
 
         {hasReviewSignals && (
           <div className="mt-4 rounded-[1.25rem] border border-red-500/15 bg-red-500/[0.07] p-4">
