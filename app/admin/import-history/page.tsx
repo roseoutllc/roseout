@@ -25,14 +25,27 @@ export default function ImportHistoryPage() {
   const loadLogs = async () => {
     setLoading(true);
 
-    const { data } = await supabase
-      .from("import_logs")
-      .select("id, job_name, run_date, created_at")
-      .order("created_at", { ascending: false })
-      .limit(100);
+    try {
+      const res = await fetch("/api/admin/import-logs", {
+        method: "GET",
+        cache: "no-store",
+      });
 
-    setLogs(data || []);
-    setLoading(false);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMessage(data.error || "Could not load import logs.");
+        setLogs([]);
+        return;
+      }
+
+      setLogs(data.logs || []);
+    } catch {
+      setErrorMessage("Could not load import logs.");
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
