@@ -51,13 +51,8 @@ export default function AdminDashboardPage() {
     const load = async () => {
       setLoading(true);
 
-      const { data: restaurants } = await supabase
-        .from("restaurants")
-        .select("*");
-
-      const { data: activities } = await supabase
-        .from("activities")
-        .select("*");
+      const { data: restaurants } = await supabase.from("restaurants").select("*");
+      const { data: activities } = await supabase.from("activities").select("*");
 
       const r: LocationRow[] =
         restaurants?.map((x: any) => ({
@@ -72,8 +67,7 @@ export default function AdminDashboardPage() {
           view_count: Number(x.view_count || 0),
           click_count: Number(x.click_count || 0),
           claim_status:
-            x.claim_status ||
-            (x.owner_id || x.claimed ? "claimed" : "unclaimed"),
+            x.claim_status || (x.owner_id || x.claimed ? "claimed" : "unclaimed"),
           owner_name: x.owner_name || "",
           owner_email: x.owner_email || "",
         })) || [];
@@ -91,8 +85,7 @@ export default function AdminDashboardPage() {
           view_count: Number(x.view_count || 0),
           click_count: Number(x.click_count || 0),
           claim_status:
-            x.claim_status ||
-            (x.owner_id || x.claimed ? "claimed" : "unclaimed"),
+            x.claim_status || (x.owner_id || x.claimed ? "claimed" : "unclaimed"),
           owner_name: x.owner_name || "",
           owner_email: x.owner_email || "",
         })) || [];
@@ -120,8 +113,7 @@ export default function AdminDashboardPage() {
       const matchType = typeFilter === "all" || x.type === typeFilter;
 
       const matchClaim =
-        claimFilter === "all" ||
-        x.claim_status.toLowerCase() === claimFilter;
+        claimFilter === "all" || x.claim_status.toLowerCase() === claimFilter;
 
       return matchSearch && matchType && matchClaim;
     });
@@ -149,34 +141,21 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="mb-4 grid grid-cols-5 gap-3">
-          <div className="rounded-2xl border border-white/15 bg-[#181818]/90 p-4">
-            <p className="text-xs text-zinc-400">Total</p>
-            <p className="text-2xl font-black text-[#f5b700]">{total}</p>
-          </div>
-
-          <div className="rounded-2xl border border-white/15 bg-[#181818]/90 p-4">
-            <p className="text-xs text-zinc-400">Restaurants</p>
-            <p className="text-2xl font-black text-[#f5b700]">
-              {restaurantsCount}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/15 bg-[#181818]/90 p-4">
-            <p className="text-xs text-zinc-400">Activities</p>
-            <p className="text-2xl font-black text-[#f5b700]">
-              {activitiesCount}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/15 bg-[#181818]/90 p-4">
-            <p className="text-xs text-zinc-400">Claimed</p>
-            <p className="text-2xl font-black text-[#f5b700]">{claimed}</p>
-          </div>
-
-          <div className="rounded-2xl border border-white/15 bg-[#181818]/90 p-4">
-            <p className="text-xs text-zinc-400">Unclaimed</p>
-            <p className="text-2xl font-black text-[#f5b700]">{unclaimed}</p>
-          </div>
+          {[
+            ["Total", total],
+            ["Restaurants", restaurantsCount],
+            ["Activities", activitiesCount],
+            ["Claimed", claimed],
+            ["Unclaimed", unclaimed],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              className="rounded-2xl border border-white/15 bg-[#181818]/90 p-4"
+            >
+              <p className="text-xs text-zinc-400">{label}</p>
+              <p className="text-2xl font-black text-[#f5b700]">{value}</p>
+            </div>
+          ))}
         </div>
 
         <div className="mb-4 grid gap-3 lg:grid-cols-3">
@@ -189,9 +168,7 @@ export default function AdminDashboardPage() {
 
           <select
             value={typeFilter}
-            onChange={(e) =>
-              setTypeFilter(e.target.value as "all" | LocationType)
-            }
+            onChange={(e) => setTypeFilter(e.target.value as "all" | LocationType)}
             className="rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-sm text-white outline-none focus:border-[#f5b700]"
           >
             <option value="all">All Types</option>
@@ -212,7 +189,7 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex-1 overflow-hidden rounded-2xl border border-white/15 bg-[#181818]/90 shadow-2xl">
-          <div className="grid grid-cols-[80px_1fr_110px_110px_80px_80px_120px_80px] border-b border-white/10 bg-[#101010] p-3 text-xs font-black uppercase tracking-[0.16em] text-zinc-400">
+          <div className="grid grid-cols-[80px_1fr_110px_110px_80px_80px_120px_150px] border-b border-white/10 bg-[#101010] p-3 text-xs font-black uppercase tracking-[0.16em] text-zinc-400">
             <div>Image</div>
             <div>Name</div>
             <div>Score</div>
@@ -220,21 +197,19 @@ export default function AdminDashboardPage() {
             <div>Views</div>
             <div>Clicks</div>
             <div>Claim</div>
-            <div className="text-right">Edit</div>
+            <div className="text-right">Actions</div>
           </div>
 
           <div className="h-full overflow-y-auto pb-14">
             {loading ? (
               <div className="p-6 text-sm text-zinc-400">Loading...</div>
             ) : filtered.length === 0 ? (
-              <div className="p-6 text-sm text-zinc-400">
-                No locations found.
-              </div>
+              <div className="p-6 text-sm text-zinc-400">No locations found.</div>
             ) : (
               filtered.map((x) => (
                 <div
                   key={`${x.type}-${x.id}`}
-                  className="grid grid-cols-[80px_1fr_110px_110px_80px_80px_120px_80px] items-center border-b border-white/10 p-3 transition hover:bg-white/[0.03]"
+                  className="grid grid-cols-[80px_1fr_110px_110px_80px_80px_120px_150px] items-center border-b border-white/10 p-3 transition hover:bg-white/[0.03]"
                 >
                   <div>
                     {x.image_url ? (
@@ -251,9 +226,7 @@ export default function AdminDashboardPage() {
                   </div>
 
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-white">
-                      {x.name}
-                    </p>
+                    <p className="truncate text-sm font-bold text-white">{x.name}</p>
                     <p className="mt-1 truncate text-xs text-zinc-500">
                       {[x.address, x.city, x.state].filter(Boolean).join(", ") ||
                         "No address"}
@@ -270,13 +243,8 @@ export default function AdminDashboardPage() {
                     </span>
                   </div>
 
-                  <div className="text-sm font-bold text-zinc-300">
-                    {x.view_count}
-                  </div>
-
-                  <div className="text-sm font-bold text-zinc-300">
-                    {x.click_count}
-                  </div>
+                  <div className="text-sm font-bold text-zinc-300">{x.view_count}</div>
+                  <div className="text-sm font-bold text-zinc-300">{x.click_count}</div>
 
                   <div>
                     <span
@@ -292,9 +260,16 @@ export default function AdminDashboardPage() {
                     </span>
                   </div>
 
-                  <div className="text-right">
+                  <div className="flex justify-end gap-2">
                     <Link
-                      href={`/locations/${x.type}/${x.id}?from=/locations/dashboard`}
+                      href={`/locations/${x.type}/${x.id}?from=/admin/dashboard`}
+                      className="inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10"
+                    >
+                      View
+                    </Link>
+
+                    <Link
+                      href={`/locations/edit/${x.type}/${x.id}?from=/admin/dashboard`}
                       className="inline-flex rounded-full bg-[#f5b700] px-3 py-1.5 text-xs font-black text-black hover:bg-[#ffd24a]"
                     >
                       Edit
