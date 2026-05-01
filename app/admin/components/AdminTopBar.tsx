@@ -18,6 +18,7 @@ export default function AdminTopBar() {
   const [user, setUser] = useState<any>(null);
   const [role, setRole] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState<SearchUser[]>([]);
@@ -157,22 +158,33 @@ export default function AdminTopBar() {
   const canViewUsers = ["superuser", "admin"].includes(role || "");
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-black text-white">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#080407]/90 text-white shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <button
           type="button"
           onClick={() => goTo("/admin/dashboard")}
-          className="text-xl font-bold"
+          className="group flex items-center gap-3"
         >
-          RoseOut Admin
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-fuchsia-600 text-lg font-black shadow-lg shadow-rose-500/25">
+            R
+          </div>
+
+          <div className="text-left">
+            <p className="text-lg font-black tracking-tight">
+              RoseOut Admin
+            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-rose-200/70">
+              Control Room
+            </p>
+          </div>
         </button>
 
-        <div className="hidden items-center gap-2 lg:flex">
+        <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] p-1 lg:flex">
           {canViewDashboard && (
             <button
               type="button"
               onClick={() => goTo("/admin/dashboard")}
-              className="rounded-full px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+              className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
               Dashboard
             </button>
@@ -182,7 +194,7 @@ export default function AdminTopBar() {
             <button
               type="button"
               onClick={() => goTo("/admin/restaurants")}
-              className="rounded-full px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+              className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
               Restaurants
             </button>
@@ -192,7 +204,7 @@ export default function AdminTopBar() {
             <button
               type="button"
               onClick={() => goTo("/admin/activities")}
-              className="rounded-full px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+              className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
               Activities
             </button>
@@ -202,7 +214,7 @@ export default function AdminTopBar() {
             <button
               type="button"
               onClick={() => goTo("/admin/users")}
-              className="rounded-full px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+              className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
               Users
             </button>
@@ -212,7 +224,7 @@ export default function AdminTopBar() {
             <button
               type="button"
               onClick={() => goTo("/admin/claims")}
-              className="rounded-full px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+              className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
               Claims
             </button>
@@ -223,105 +235,101 @@ export default function AdminTopBar() {
           <button
             type="button"
             onClick={() => setOpen((prev) => !prev)}
-            className="flex items-center gap-3 rounded-full bg-white/10 px-4 py-2 transition hover:bg-white/20"
+            className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 shadow-inner shadow-white/5 transition hover:bg-white/[0.1]"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500 font-bold text-black">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-fuchsia-600 text-sm font-black text-white shadow-lg shadow-rose-500/20">
               {initial}
             </div>
 
             <div className="hidden text-left md:block">
-              <p className="text-sm font-semibold leading-tight">{name}</p>
-              <p className="text-xs text-neutral-400">{email}</p>
+              <p className="text-sm font-bold leading-tight">{name}</p>
+              <p className="max-w-[180px] truncate text-xs text-white/45">
+                {email}
+              </p>
             </div>
 
-            <span className="text-xs text-neutral-400">
+            <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-white/50">
               {open ? "▲" : "▼"}
             </span>
           </button>
 
           {open && (
-            <div className="absolute right-0 z-[9999] mt-3 w-80 overflow-hidden rounded-2xl bg-white text-black shadow-2xl ring-1 ring-black/10">
-              <div className="bg-neutral-50 px-4 py-4">
-                <p className="text-sm font-bold">{name}</p>
-                <p className="mt-1 break-all text-xs text-neutral-500">
-                  {email}
-                </p>
+            <div className="absolute right-0 z-[9999] mt-4 w-96 overflow-hidden rounded-[2rem] border border-white/10 bg-[#12090d] text-white shadow-2xl shadow-black/70">
+              <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-rose-500/25 via-fuchsia-500/15 to-black px-5 py-5">
+                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-rose-500/20 blur-3xl" />
 
-                {role && (
-                  <span className="mt-3 inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-yellow-700">
-                    {role}
-                  </span>
-                )}
+                <div className="relative flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-xl font-black text-black">
+                    {initial}
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-black">{name}</p>
+                    <p className="mt-1 truncate text-xs text-white/55">
+                      {email}
+                    </p>
+
+                    {role && (
+                      <span className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-rose-100 ring-1 ring-white/10">
+                        {role}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <div className="p-2">
+              <div className="max-h-[78vh] overflow-y-auto p-3">
                 {canViewDashboard && (
-                  <button
-                    type="button"
-                    onClick={() => goTo("/admin/dashboard")}
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100"
-                  >
+                  <MenuButton onClick={() => goTo("/admin/dashboard")}>
                     Dashboard
-                  </button>
+                  </MenuButton>
                 )}
 
                 {canViewRestaurants && (
-                  <button
-                    type="button"
-                    onClick={() => goTo("/admin/restaurants")}
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100"
-                  >
+                  <MenuButton onClick={() => goTo("/admin/restaurants")}>
                     Restaurants
-                  </button>
+                  </MenuButton>
                 )}
 
                 {canViewActivities && (
-                  <button
-                    type="button"
-                    onClick={() => goTo("/admin/activities")}
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100"
-                  >
+                  <MenuButton onClick={() => goTo("/admin/activities")}>
                     Activities
-                  </button>
+                  </MenuButton>
                 )}
 
                 {canViewUsers && (
                   <>
-                    <button
-                      type="button"
-                      onClick={() => goTo("/admin/users")}
-                      className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100"
-                    >
+                    <MenuButton onClick={() => goTo("/admin/users")}>
                       Users Dashboard
-                    </button>
+                    </MenuButton>
 
                     <button
                       type="button"
                       onClick={() => setShowUserSearch((prev) => !prev)}
-                      className="w-full rounded-xl px-3 py-2 text-left text-sm font-bold text-rose-600 hover:bg-rose-50"
+                      className="w-full rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-left text-sm font-black text-rose-100 transition hover:bg-rose-500/20"
                     >
                       👁 View as User
                     </button>
 
                     {showUserSearch && (
-                      <div className="mt-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+                      <div className="mt-3 rounded-[1.5rem] border border-white/10 bg-black/35 p-3">
                         <input
                           value={query}
                           onChange={(e) => setQuery(e.target.value)}
                           placeholder="Search name, email, or phone..."
                           autoFocus
-                          className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-rose-400"
+                          className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-rose-400"
                         />
 
                         <div className="mt-3 max-h-72 space-y-2 overflow-y-auto">
                           {query.trim().length < 2 && (
-                            <p className="px-1 text-xs text-neutral-500">
+                            <p className="px-1 text-xs text-white/40">
                               Type at least 2 characters.
                             </p>
                           )}
 
                           {searching && (
-                            <p className="px-1 text-xs text-neutral-500">
+                            <p className="px-1 text-xs text-white/40">
                               Searching users...
                             </p>
                           )}
@@ -329,7 +337,7 @@ export default function AdminTopBar() {
                           {!searching &&
                             query.trim().length >= 2 &&
                             users.length === 0 && (
-                              <p className="px-1 text-xs text-neutral-500">
+                              <p className="px-1 text-xs text-white/40">
                                 No users found.
                               </p>
                             )}
@@ -340,38 +348,38 @@ export default function AdminTopBar() {
                               type="button"
                               onClick={() => loginAsUser(searchUser.id)}
                               disabled={impersonatingId === searchUser.id}
-                              className="w-full rounded-xl border border-neutral-200 bg-white p-3 text-left hover:border-rose-300 hover:bg-rose-50 disabled:opacity-60"
+                              className="w-full rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-left transition hover:border-rose-400/40 hover:bg-rose-500/10 disabled:opacity-60"
                             >
                               <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-sm font-bold text-neutral-950">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-black text-white">
                                     {searchUser.full_name || "Unnamed User"}
                                   </p>
 
-                                  <p className="mt-0.5 break-all text-xs text-neutral-500">
+                                  <p className="mt-0.5 truncate text-xs text-white/45">
                                     {searchUser.email || "No email"}
                                   </p>
 
                                   {searchUser.phone && (
-                                    <p className="mt-0.5 text-xs text-neutral-400">
+                                    <p className="mt-0.5 text-xs text-white/35">
                                       {searchUser.phone}
                                     </p>
                                   )}
                                 </div>
 
-                                <span className="rounded-full bg-rose-100 px-2 py-1 text-[10px] font-bold uppercase text-rose-700">
+                                <span className="rounded-full bg-rose-500 px-3 py-1 text-[10px] font-black uppercase text-white">
                                   {impersonatingId === searchUser.id
                                     ? "Opening"
                                     : "View"}
                                 </span>
                               </div>
 
-                              <div className="mt-2 flex gap-2">
-                                <span className="rounded-full bg-neutral-100 px-2 py-1 text-[10px] font-bold capitalize text-neutral-600">
+                              <div className="mt-3 flex gap-2">
+                                <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold capitalize text-white/60">
                                   {searchUser.role || "user"}
                                 </span>
 
-                                <span className="rounded-full bg-neutral-100 px-2 py-1 text-[10px] font-bold capitalize text-neutral-600">
+                                <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold capitalize text-white/60">
                                   {searchUser.subscription_status || "free"}
                                 </span>
                               </div>
@@ -384,41 +392,29 @@ export default function AdminTopBar() {
                 )}
 
                 {canViewClaims && (
-                  <button
-                    type="button"
-                    onClick={() => goTo("/admin/claims")}
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100"
-                  >
+                  <MenuButton onClick={() => goTo("/admin/claims")}>
                     Claims
-                  </button>
+                  </MenuButton>
                 )}
 
                 {canViewAnalytics && (
-                  <button
-                    type="button"
-                    onClick={() => goTo("/admin/analytics")}
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100"
-                  >
+                  <MenuButton onClick={() => goTo("/admin/analytics")}>
                     Analytics Dashboard
-                  </button>
+                  </MenuButton>
                 )}
 
                 {canViewImportHistory && (
-                  <button
-                    type="button"
-                    onClick={() => goTo("/admin/import-history")}
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100"
-                  >
+                  <MenuButton onClick={() => goTo("/admin/import-history")}>
                     Import History
-                  </button>
+                  </MenuButton>
                 )}
 
-                <div className="my-2 border-t border-neutral-200" />
+                <div className="my-3 border-t border-white/10" />
 
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="w-full rounded-xl px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50"
+                  className="w-full rounded-2xl px-4 py-3 text-left text-sm font-black text-red-300 transition hover:bg-red-500/10"
                 >
                   Logout
                 </button>
@@ -428,5 +424,23 @@ export default function AdminTopBar() {
         </div>
       </div>
     </header>
+  );
+}
+
+function MenuButton({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-2xl px-4 py-3 text-left text-sm font-bold text-white/75 transition hover:bg-white/10 hover:text-white"
+    >
+      {children}
+    </button>
   );
 }
