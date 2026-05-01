@@ -431,58 +431,24 @@ function scoreRestaurant(
     }
   }
 
-  if (restaurant.city && text.includes(restaurant.city.toLowerCase())) {
+  if (restaurant.city && text.includes(String(restaurant.city).toLowerCase())) {
     score += 25;
   }
 
   if (
     restaurant.neighborhood &&
-    text.includes(restaurant.neighborhood.toLowerCase())
+    text.includes(String(restaurant.neighborhood).toLowerCase())
   ) {
     score += 25;
   }
 
-  if (cuisine && text.includes(cuisine.toLowerCase())) score += 20;
+  if (cuisine && text.includes(String(cuisine).toLowerCase())) score += 20;
 
   if (
     restaurant.atmosphere &&
-    text.includes(restaurant.atmosphere.toLowerCase())
+    text.includes(String(restaurant.atmosphere).toLowerCase())
   ) {
     score += 15;
-  }
-
-  if (restaurant.lighting && text.includes(restaurant.lighting.toLowerCase())) {
-    score += 10;
-  }
-
-  if (
-    restaurant.noise_level &&
-    text.includes(restaurant.noise_level.toLowerCase())
-  ) {
-    score += 10;
-  }
-
-  if (
-    restaurant.price_range &&
-    text.includes(restaurant.price_range.toLowerCase())
-  ) {
-    score += 10;
-  }
-
-  if (
-    restaurant.primary_tag &&
-    text.includes("romantic") &&
-    restaurant.primary_tag.toLowerCase().includes("romantic")
-  ) {
-    score += 25;
-  }
-
-  if (
-    toArray(restaurant.date_style_tags).some((tag) =>
-      text.includes(tag.toLowerCase())
-    )
-  ) {
-    score += 20;
   }
 
   EXPERIENCE_KEYWORDS.forEach((keyword) => {
@@ -495,7 +461,7 @@ function scoreRestaurant(
     if (
       searchable.includes("steak") ||
       searchable.includes("steakhouse") ||
-      cuisine?.toLowerCase().includes("steak")
+      String(cuisine || "").toLowerCase().includes("steak")
     ) {
       score += 180;
     } else {
@@ -539,17 +505,6 @@ function scoreRestaurant(
     score += 20;
   }
 
-  if (
-    (text.includes("restaurant") ||
-      text.includes("dinner") ||
-      text.includes("food")) &&
-    (searchable.includes("restaurant") ||
-      searchable.includes("dining") ||
-      searchable.includes("food"))
-  ) {
-    score += 60;
-  }
-
   if (text.includes("breakfast") && searchable.includes("breakfast")) score += 40;
   if (text.includes("brunch") && searchable.includes("brunch")) score += 40;
   if (text.includes("lunch") && searchable.includes("lunch")) score += 35;
@@ -560,7 +515,6 @@ function scoreRestaurant(
   if (text.includes("cocktails") && searchable.includes("cocktail")) score += 50;
   if (text.includes("drinks") && searchable.includes("drink")) score += 40;
   if (text.includes("bar") && searchable.includes("bar")) score += 40;
-  if (text.includes("brunch") && searchable.includes("brunch")) score += 50;
 
   return score;
 }
@@ -603,145 +557,66 @@ function scoreActivity(
     }
   }
 
-  if (activity.city && text.includes(activity.city.toLowerCase())) score += 25;
-
-  if (
-    activity.neighborhood &&
-    text.includes(activity.neighborhood.toLowerCase())
-  ) {
+  if (activity.city && text.includes(String(activity.city).toLowerCase())) {
     score += 25;
   }
 
   if (
     activity.activity_type &&
-    text.includes(activity.activity_type.toLowerCase())
+    text.includes(String(activity.activity_type).toLowerCase())
   ) {
     score += 30;
   }
 
-  if (activity.atmosphere && text.includes(activity.atmosphere.toLowerCase())) {
-    score += 15;
-  }
-
-  if (activity.price_range && text.includes(activity.price_range.toLowerCase())) {
-    score += 10;
-  }
-
-  if (
-    toArray(activity.date_style_tags).some((tag) =>
-      text.includes(tag.toLowerCase())
-    )
-  ) {
-    score += 20;
-  }
-
-  if (
-    (text.includes("hookah") || text.includes("shisha")) &&
-    (searchable.includes("hookah") || searchable.includes("shisha"))
-  ) {
-    score += 120;
-  }
-
-  if (
-    text.includes("cigar") &&
-    (searchable.includes("cigar") ||
-      searchable.includes("cigar bar") ||
-      searchable.includes("cigar lounge") ||
-      searchable.includes("cigar friendly"))
-  ) {
-    score += 120;
-  }
-
-  if (text.includes("lounge") && searchable.includes("lounge")) {
-    score += 80;
-  }
-
   if (
     text.includes("museum") &&
-    activity.activity_type?.toLowerCase().includes("museum")
+    String(activity.activity_type || "").toLowerCase().includes("museum")
   ) {
     score += 100;
   }
 
   if (
     text.includes("bowling") &&
-    activity.activity_type?.toLowerCase().includes("bowling")
-  ) {
-    score += 100;
-  }
-
-  if (
-    text.includes("axe") &&
-    activity.activity_type?.toLowerCase().includes("axe")
+    String(activity.activity_type || "").toLowerCase().includes("bowling")
   ) {
     score += 100;
   }
 
   if (
     text.includes("arcade") &&
-    activity.activity_type?.toLowerCase().includes("arcade")
+    String(activity.activity_type || "").toLowerCase().includes("arcade")
   ) {
     score += 100;
   }
 
   if (
     text.includes("karaoke") &&
-    activity.activity_type?.toLowerCase().includes("karaoke")
+    String(activity.activity_type || "").toLowerCase().includes("karaoke")
   ) {
     score += 100;
   }
 
-  if (
-    text.includes("escape") &&
-    activity.activity_type?.toLowerCase().includes("escape")
-  ) {
-    score += 100;
-  }
-
-  if (
-    text.includes("mini golf") &&
-    activity.activity_type?.toLowerCase().includes("mini golf")
-  ) {
-    score += 100;
-  }
-
-  if (
-    text.includes("art") &&
-    activity.activity_type?.toLowerCase().includes("museum")
-  ) {
-    score += 25;
-  }
-
-  if (
-    text.includes("culture") &&
-    activity.atmosphere?.toLowerCase().includes("cultural")
-  ) {
-    score += 20;
-  }
-
-  if (
-    text.includes("quiet") &&
-    activity.atmosphere?.toLowerCase().includes("quiet")
-  ) {
-    score += 15;
-  }
-
-  if (
-    text.includes("fun") &&
-    activity.atmosphere?.toLowerCase().includes("fun")
-  ) {
-    score += 20;
-  }
-
-  if (text.includes("group") && activity.group_friendly === true) {
-    score += 20;
-  }
-
-  if (text.includes("wine") && searchable.includes("wine")) score += 40;
-  if (text.includes("brunch") && searchable.includes("brunch")) score += 40;
-  if (text.includes("cocktail") && searchable.includes("cocktail")) score += 40;
+  if (text.includes("lounge") && searchable.includes("lounge")) score += 80;
+  if (text.includes("hookah") && searchable.includes("hookah")) score += 120;
+  if (text.includes("cigar") && searchable.includes("cigar")) score += 120;
 
   return score;
+}
+
+function normalizeLocationRows(locations: any[]) {
+  return (locations || []).map((item: any) => {
+    const normalizedName = item.name || item.restaurant_name || item.activity_name;
+
+    return {
+      ...item,
+      name: normalizedName,
+      restaurant_name: item.restaurant_name || normalizedName,
+      activity_name: item.activity_name || normalizedName,
+      location_type:
+        item.location_type ||
+        (item.activity_type || item.activity_name ? "activity" : "restaurant"),
+    };
+  });
 }
 
 export async function POST(req: Request) {
@@ -817,7 +692,7 @@ export async function POST(req: Request) {
     const shouldReturnActivities = wantsActivity || wantsFullOuting;
 
     const cacheKey = normalizeQuery(
-      `${input} unified-locations-v5-no-empty-ai ${region || ""} ${
+      `${input} unified-locations-v6-hard-fallback ${region || ""} ${
         zipCode || ""
       } ${
         userLocation ? `${userLocation.latitude},${userLocation.longitude}` : ""
@@ -847,28 +722,35 @@ export async function POST(req: Request) {
       return Response.json({ error: locationError.message }, { status: 500 });
     }
 
-    const allLocations = locations || [];
+    const allLocations = normalizeLocationRows(locations || []);
+
+    console.log("TOTAL LOCATIONS:", allLocations.length);
 
     let filteredRestaurants = allLocations.filter((item: any) => {
-      const locationType = String(item.location_type || "").toLowerCase();
+      const type = String(item.location_type || "").toLowerCase();
 
       return (
-        locationType === "restaurant" ||
+        type === "restaurant" ||
         Boolean(item.restaurant_name) ||
+        Boolean(item.name) ||
         Boolean(item.cuisine) ||
         Boolean(item.cuisine_type)
       );
     });
 
     let filteredActivities = allLocations.filter((item: any) => {
-      const locationType = String(item.location_type || "").toLowerCase();
+      const type = String(item.location_type || "").toLowerCase();
 
       return (
-        locationType === "activity" ||
+        type === "activity" ||
         Boolean(item.activity_name) ||
+        Boolean(item.name) ||
         Boolean(item.activity_type)
       );
     });
+
+    console.log("RESTAURANTS BEFORE FILTER:", filteredRestaurants.length);
+    console.log("ACTIVITIES BEFORE FILTER:", filteredActivities.length);
 
     if (region) {
       const regionRestaurants = filteredRestaurants.filter((r: any) =>
@@ -885,11 +767,11 @@ export async function POST(req: Request) {
 
     if (zipCode) {
       const zipRestaurants = filteredRestaurants.filter(
-        (r: any) => r.zip_code === zipCode
+        (r: any) => String(r.zip_code || "") === zipCode
       );
 
       const zipActivities = filteredActivities.filter(
-        (a: any) => a.zip_code === zipCode
+        (a: any) => String(a.zip_code || "") === zipCode
       );
 
       if (zipRestaurants.length > 0) filteredRestaurants = zipRestaurants;
@@ -1013,17 +895,48 @@ export async function POST(req: Request) {
         return b.roseout_score - a.roseout_score;
       });
 
-    const fallbackRestaurants = filteredRestaurants.slice(0, 5).map((r: any) => ({
-      ...r,
-      restaurant_name: r.restaurant_name || r.name,
-      roseout_score: clampScore(r.roseout_score || 50),
-    }));
+    const fallbackRestaurantsSource =
+      filteredRestaurants.length > 0
+        ? filteredRestaurants
+        : allLocations.filter((item: any) => {
+            const type = String(item.location_type || "").toLowerCase();
+            return (
+              type === "restaurant" ||
+              Boolean(item.restaurant_name) ||
+              Boolean(item.cuisine) ||
+              Boolean(item.cuisine_type) ||
+              Boolean(item.name)
+            );
+          });
 
-    const fallbackActivities = filteredActivities.slice(0, 5).map((a: any) => ({
-      ...a,
-      activity_name: a.activity_name || a.name,
-      roseout_score: clampScore(a.roseout_score || 50),
-    }));
+    const fallbackActivitiesSource =
+      filteredActivities.length > 0
+        ? filteredActivities
+        : allLocations.filter((item: any) => {
+            const type = String(item.location_type || "").toLowerCase();
+            return (
+              type === "activity" ||
+              Boolean(item.activity_name) ||
+              Boolean(item.activity_type) ||
+              Boolean(item.name)
+            );
+          });
+
+    const fallbackRestaurants = fallbackRestaurantsSource
+      .slice(0, 5)
+      .map((r: any) => ({
+        ...r,
+        restaurant_name: r.restaurant_name || r.name,
+        roseout_score: clampScore(r.roseout_score || 50),
+      }));
+
+    const fallbackActivities = fallbackActivitiesSource
+      .slice(0, 5)
+      .map((a: any) => ({
+        ...a,
+        activity_name: a.activity_name || a.name,
+        roseout_score: clampScore(a.roseout_score || 50),
+      }));
 
     const topRestaurants = shouldReturnRestaurants
       ? rankedRestaurants.length > 0
