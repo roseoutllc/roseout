@@ -212,7 +212,7 @@ export default async function AdminRestaurantsPage({
                   >
                     <td className="px-5 py-4">
                       <a
-                        href={`/admin/restaurants/${restaurant.id}`}
+                        href={`/locations/restaurants/${restaurant.id}?from=/admin/restaurants`}
                         className="flex items-center gap-3"
                       >
                         <div className="h-12 w-12 overflow-hidden rounded-xl bg-neutral-200">
@@ -276,7 +276,7 @@ export default async function AdminRestaurantsPage({
 
                     <td className="px-5 py-4">
                       <a
-                        href={`/admin/restaurants/${restaurant.id}`}
+                        href={`/locations/edit/restaurants/${restaurant.id}?from=/admin/restaurants`}
                         className="rounded-full bg-black px-4 py-2 text-xs font-bold text-white"
                       >
                         Edit
