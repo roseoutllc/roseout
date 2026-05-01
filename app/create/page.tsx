@@ -1103,58 +1103,58 @@ function SkeletonCard({
 
   return (
     <div
-      className="group overflow-hidden rounded-[2rem] border border-white/10 bg-[#111] shadow-2xl shadow-black/30"
+      className="group overflow-hidden rounded-[2rem] border border-white/5 bg-[#0b0b0b] shadow-2xl shadow-black/30"
       style={{
         animation: `skeletonReveal 520ms ease-out ${delay} both`,
       }}
     >
-      <div className="relative h-64 overflow-hidden bg-neutral-900">
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 via-neutral-900 to-black blur-sm" />
+      <div className="relative h-64 overflow-hidden bg-[#080808]">
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 via-black to-[#050505] blur-sm" />
 
-        <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/[0.045] to-transparent" />
 
-        <div className="absolute left-4 top-4 rounded-[1rem] bg-white/95 p-2">
-          <div className="h-12 w-12 rounded-xl bg-black/10" />
+        <div className="absolute left-4 top-4 rounded-[1rem] bg-white/10 p-2">
+          <div className="h-12 w-12 rounded-xl bg-black/30" />
         </div>
 
-        <div className="absolute bottom-4 left-4 h-6 w-24 rounded-full bg-black/70" />
+        <div className="absolute bottom-4 left-4 h-6 w-24 rounded-full bg-black/45" />
 
-        <div className="absolute bottom-4 right-4 h-7 w-16 rounded-full bg-white/80" />
+        <div className="absolute bottom-4 right-4 h-7 w-16 rounded-full bg-white/10" />
       </div>
 
-      <div className="p-5">
-        <div className="h-3 w-24 animate-pulse rounded-full bg-[#e1062a]/40" />
+      <div className="space-y-3 p-5">
+        <div className="h-3 w-24 animate-pulse rounded-full bg-red-500/15" />
 
         <div
-          className={`mt-3 h-7 animate-pulse rounded-full bg-white/10 ${
+          className={`mt-3 h-7 animate-pulse rounded-full bg-white/[0.055] ${
             index % 2 === 0 ? "w-4/5" : "w-2/3"
           }`}
         />
 
         <div className="mt-4 space-y-2">
-          <div className="h-4 w-full animate-pulse rounded-full bg-white/10" />
-          <div className="h-4 w-3/4 animate-pulse rounded-full bg-white/10" />
+          <div className="h-4 w-full animate-pulse rounded-full bg-white/[0.05]" />
+          <div className="h-4 w-3/4 animate-pulse rounded-full bg-white/[0.045]" />
         </div>
 
-        <div className="mt-3 h-3 w-28 animate-pulse rounded-full bg-white/10" />
+        <div className="mt-3 h-3 w-28 animate-pulse rounded-full bg-white/[0.045]" />
 
-        <div className="mt-4 h-5 w-48 animate-pulse rounded-full bg-white/10" />
+        <div className="mt-4 h-5 w-48 animate-pulse rounded-full bg-white/[0.05]" />
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <div className="h-7 w-24 animate-pulse rounded-full bg-white/10" />
-          <div className="h-7 w-20 animate-pulse rounded-full bg-white/10" />
-          <div className="h-7 w-28 animate-pulse rounded-full bg-white/10" />
+          <div className="h-7 w-24 animate-pulse rounded-full bg-white/[0.045]" />
+          <div className="h-7 w-20 animate-pulse rounded-full bg-white/[0.04]" />
+          <div className="h-7 w-28 animate-pulse rounded-full bg-white/[0.045]" />
         </div>
 
         <div className="mt-5 flex flex-wrap gap-3">
-          <div className="h-10 w-20 animate-pulse rounded-full border border-white/10 bg-white/5" />
-          <div className="h-10 w-28 animate-pulse rounded-full bg-white/80" />
+          <div className="h-10 w-20 animate-pulse rounded-full border border-white/5 bg-white/[0.035]" />
+          <div className="h-10 w-28 animate-pulse rounded-full bg-white/[0.08]" />
 
           {type === "activity" && (
-            <div className="h-10 w-24 animate-pulse rounded-full border border-white/10 bg-white/5" />
+            <div className="h-10 w-24 animate-pulse rounded-full border border-white/5 bg-white/[0.035]" />
           )}
 
-          <div className="h-10 w-24 animate-pulse rounded-full border border-red-500/30 bg-red-500/10" />
+          <div className="h-10 w-24 animate-pulse rounded-full border border-red-500/10 bg-red-500/[0.06]" />
         </div>
       </div>
 
