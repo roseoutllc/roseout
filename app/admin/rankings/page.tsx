@@ -1,4 +1,4 @@
-import AdminRankingsClient from "./AdminRankingsClient";
+import AdminRankingsClient from "@/app/rankings/AdminRankingsClient";
 
 export const dynamic = "force-dynamic";
 
