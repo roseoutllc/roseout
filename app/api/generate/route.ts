@@ -10,40 +10,107 @@ const AI_MODEL = "gpt-4o-mini";
 const CACHE_HOURS = 6;
 
 const QUEENS_CITIES = [
-  "Queens", "Astoria", "Flushing", "Jamaica", "Long Island City",
-  "Forest Hills", "Bayside", "Queens Village", "Jackson Heights", "Corona",
-  "Elmhurst", "Ridgewood", "Woodside", "Sunnyside", "Kew Gardens",
-  "Rego Park", "Fresh Meadows", "College Point", "Whitestone",
-  "Howard Beach", "Ozone Park", "South Ozone Park", "Far Rockaway",
-  "Rockaway Beach", "Laurelton", "Rosedale", "Springfield Gardens",
-  "Cambria Heights", "St. Albans", "Maspeth", "Middle Village",
-  "Glendale", "Bellerose", "Little Neck", "Douglaston",
+  "Queens",
+  "Astoria",
+  "Flushing",
+  "Jamaica",
+  "Long Island City",
+  "Forest Hills",
+  "Bayside",
+  "Queens Village",
+  "Jackson Heights",
+  "Corona",
+  "Elmhurst",
+  "Ridgewood",
+  "Woodside",
+  "Sunnyside",
+  "Kew Gardens",
+  "Rego Park",
+  "Fresh Meadows",
+  "College Point",
+  "Whitestone",
+  "Howard Beach",
+  "Ozone Park",
+  "South Ozone Park",
+  "Far Rockaway",
+  "Rockaway Beach",
+  "Laurelton",
+  "Rosedale",
+  "Springfield Gardens",
+  "Cambria Heights",
+  "St. Albans",
+  "Maspeth",
+  "Middle Village",
+  "Glendale",
+  "Bellerose",
+  "Little Neck",
+  "Douglaston",
 ];
 
 const NASSAU_CITIES = [
-  "Hempstead", "Freeport", "Garden City", "Mineola", "Uniondale",
-  "Westbury", "Rockville Centre", "Oceanside", "Levittown",
-  "East Meadow", "Plainview", "Syosset", "Jericho", "Bethpage",
-  "Massapequa", "Massapequa Park", "Bellmore", "Wantagh", "Merrick",
-  "Great Neck", "Port Washington", "New Hyde Park", "Floral Park",
-  "Long Beach", "Baldwin", "Glen Cove", "Roslyn", "Woodbury",
+  "Hempstead",
+  "Freeport",
+  "Garden City",
+  "Mineola",
+  "Uniondale",
+  "Westbury",
+  "Rockville Centre",
+  "Oceanside",
+  "Levittown",
+  "East Meadow",
+  "Plainview",
+  "Syosset",
+  "Jericho",
+  "Bethpage",
+  "Massapequa",
+  "Massapequa Park",
+  "Bellmore",
+  "Wantagh",
+  "Merrick",
+  "Great Neck",
+  "Port Washington",
+  "New Hyde Park",
+  "Floral Park",
+  "Long Beach",
+  "Baldwin",
+  "Glen Cove",
+  "Roslyn",
+  "Woodbury",
   "Carle Place",
 ];
 
 const SUFFOLK_CITIES = [
-  "Huntington", "Huntington Station", "Melville", "Smithtown",
-  "Kings Park", "Commack", "Stony Brook", "Port Jefferson", "Patchogue",
-  "Medford", "Ronkonkoma", "Lake Grove", "Centereach", "Selden",
-  "Farmingville", "Holbrook", "Islip", "East Islip", "West Islip",
-  "Bay Shore", "Brentwood", "Deer Park", "Babylon", "Lindenhurst",
-  "Amityville", "Sayville", "Riverhead", "Southampton", "East Hampton",
+  "Huntington",
+  "Huntington Station",
+  "Melville",
+  "Smithtown",
+  "Kings Park",
+  "Commack",
+  "Stony Brook",
+  "Port Jefferson",
+  "Patchogue",
+  "Medford",
+  "Ronkonkoma",
+  "Lake Grove",
+  "Centereach",
+  "Selden",
+  "Farmingville",
+  "Holbrook",
+  "Islip",
+  "East Islip",
+  "West Islip",
+  "Bay Shore",
+  "Brentwood",
+  "Deer Park",
+  "Babylon",
+  "Lindenhurst",
+  "Amityville",
+  "Sayville",
+  "Riverhead",
+  "Southampton",
+  "East Hampton",
   "Montauk",
 ];
-
-function clampScore(score: number) {
-  if (!Number.isFinite(score)) return 0;
-  return Math.max(0, Math.min(Math.round(score), 100));
-}
 
 function normalizeQuery(input: string) {
   return input
@@ -55,13 +122,18 @@ function normalizeQuery(input: string) {
 
 function toArray(value: any): string[] {
   if (!value) return [];
-  if (Array.isArray(value)) return value.map(String);
+
+  if (Array.isArray(value)) {
+    return value.map(String).filter(Boolean);
+  }
+
   if (typeof value === "string") {
     return value
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
   }
+
   return [];
 }
 
@@ -99,6 +171,7 @@ function locationText(item: any) {
 
 function keywordBoost(item: any, input: string) {
   const searchable = locationText(item);
+
   const words = normalizeQuery(input)
     .split(" ")
     .filter((word) => word.length > 2);
@@ -106,11 +179,16 @@ function keywordBoost(item: any, input: string) {
   let boost = 0;
 
   words.forEach((word) => {
-    if (searchable.includes(word)) boost += 18;
+    if (searchable.includes(word)) {
+      boost += 18;
+    }
   });
 
   const phrase = normalizeQuery(input);
-  if (phrase.length > 2 && searchable.includes(phrase)) boost += 35;
+
+  if (phrase.length > 2 && searchable.includes(phrase)) {
+    boost += 35;
+  }
 
   return boost;
 }
@@ -121,6 +199,7 @@ function getRegion(input: string) {
   if (text.includes("queens")) return "queens";
   if (text.includes("nassau")) return "nassau";
   if (text.includes("suffolk")) return "suffolk";
+
   if (
     text.includes("long island") ||
     text.includes("long island ny") ||
@@ -152,12 +231,14 @@ function isRegionMatch(
 
   return places.some((place) => {
     const normalized = place.toLowerCase();
+
     return cityText === normalized || neighborhoodText === normalized;
   });
 }
 
 function extractZipCode(input: string) {
   const match = input.match(/\b\d{5}\b/);
+
   return match ? match[0] : null;
 }
 
@@ -232,7 +313,9 @@ function scoreRestaurant(
     score += 35;
   }
 
-  if (zipCode && restaurant.zip_code === zipCode) score += 45;
+  if (zipCode && restaurant.zip_code === zipCode) {
+    score += 45;
+  }
 
   if (userLocation && wantsNearMe(input)) {
     const distance = distanceMiles(
@@ -249,13 +332,45 @@ function scoreRestaurant(
     }
   }
 
-  if (restaurant.city && text.includes(restaurant.city.toLowerCase())) score += 25;
-  if (restaurant.neighborhood && text.includes(restaurant.neighborhood.toLowerCase())) score += 25;
-  if (cuisine && text.includes(cuisine.toLowerCase())) score += 20;
-  if (restaurant.atmosphere && text.includes(restaurant.atmosphere.toLowerCase())) score += 15;
-  if (restaurant.lighting && text.includes(restaurant.lighting.toLowerCase())) score += 10;
-  if (restaurant.noise_level && text.includes(restaurant.noise_level.toLowerCase())) score += 10;
-  if (restaurant.price_range && text.includes(restaurant.price_range.toLowerCase())) score += 10;
+  if (restaurant.city && text.includes(restaurant.city.toLowerCase())) {
+    score += 25;
+  }
+
+  if (
+    restaurant.neighborhood &&
+    text.includes(restaurant.neighborhood.toLowerCase())
+  ) {
+    score += 25;
+  }
+
+  if (cuisine && text.includes(cuisine.toLowerCase())) {
+    score += 20;
+  }
+
+  if (
+    restaurant.atmosphere &&
+    text.includes(restaurant.atmosphere.toLowerCase())
+  ) {
+    score += 15;
+  }
+
+  if (restaurant.lighting && text.includes(restaurant.lighting.toLowerCase())) {
+    score += 10;
+  }
+
+  if (
+    restaurant.noise_level &&
+    text.includes(restaurant.noise_level.toLowerCase())
+  ) {
+    score += 10;
+  }
+
+  if (
+    restaurant.price_range &&
+    text.includes(restaurant.price_range.toLowerCase())
+  ) {
+    score += 10;
+  }
 
   if (
     restaurant.primary_tag &&
@@ -273,16 +388,37 @@ function scoreRestaurant(
     score += 20;
   }
 
-  if (text.includes("pizza") && cuisine?.toLowerCase().includes("pizza")) score += 25;
+  if (text.includes("pizza") && cuisine?.toLowerCase().includes("pizza")) {
+    score += 25;
+  }
+
   if (text.includes("wine") && searchable.includes("wine")) score += 60;
   if (text.includes("cocktail") && searchable.includes("cocktail")) score += 50;
   if (text.includes("cocktails") && searchable.includes("cocktail")) score += 50;
   if (text.includes("drinks") && searchable.includes("drink")) score += 40;
   if (text.includes("bar") && searchable.includes("bar")) score += 40;
   if (text.includes("brunch") && searchable.includes("brunch")) score += 50;
-  if (text.includes("romantic") && restaurant.atmosphere?.toLowerCase().includes("cozy")) score += 15;
-  if (text.includes("quiet") && restaurant.noise_level?.toLowerCase().includes("quiet")) score += 15;
-  if (text.includes("not too loud") && restaurant.noise_level?.toLowerCase() !== "loud") score += 15;
+
+  if (
+    text.includes("romantic") &&
+    restaurant.atmosphere?.toLowerCase().includes("cozy")
+  ) {
+    score += 15;
+  }
+
+  if (
+    text.includes("quiet") &&
+    restaurant.noise_level?.toLowerCase().includes("quiet")
+  ) {
+    score += 15;
+  }
+
+  if (
+    text.includes("not too loud") &&
+    restaurant.noise_level?.toLowerCase() !== "loud"
+  ) {
+    score += 15;
+  }
 
   return score;
 }
@@ -305,7 +441,9 @@ function scoreActivity(
     score += 35;
   }
 
-  if (zipCode && activity.zip_code === zipCode) score += 45;
+  if (zipCode && activity.zip_code === zipCode) {
+    score += 45;
+  }
 
   if (userLocation && wantsNearMe(input)) {
     const distance = distanceMiles(
@@ -323,10 +461,28 @@ function scoreActivity(
   }
 
   if (activity.city && text.includes(activity.city.toLowerCase())) score += 25;
-  if (activity.neighborhood && text.includes(activity.neighborhood.toLowerCase())) score += 25;
-  if (activity.activity_type && text.includes(activity.activity_type.toLowerCase())) score += 30;
-  if (activity.atmosphere && text.includes(activity.atmosphere.toLowerCase())) score += 15;
-  if (activity.price_range && text.includes(activity.price_range.toLowerCase())) score += 10;
+
+  if (
+    activity.neighborhood &&
+    text.includes(activity.neighborhood.toLowerCase())
+  ) {
+    score += 25;
+  }
+
+  if (
+    activity.activity_type &&
+    text.includes(activity.activity_type.toLowerCase())
+  ) {
+    score += 30;
+  }
+
+  if (activity.atmosphere && text.includes(activity.atmosphere.toLowerCase())) {
+    score += 15;
+  }
+
+  if (activity.price_range && text.includes(activity.price_range.toLowerCase())) {
+    score += 10;
+  }
 
   if (
     toArray(activity.date_style_tags).some((tag) =>
@@ -336,19 +492,86 @@ function scoreActivity(
     score += 20;
   }
 
-  if (text.includes("museum") && activity.activity_type?.toLowerCase().includes("museum")) score += 100;
-  if (text.includes("bowling") && activity.activity_type?.toLowerCase().includes("bowling")) score += 100;
-  if (text.includes("axe") && activity.activity_type?.toLowerCase().includes("axe")) score += 100;
-  if (text.includes("arcade") && activity.activity_type?.toLowerCase().includes("arcade")) score += 100;
-  if (text.includes("karaoke") && activity.activity_type?.toLowerCase().includes("karaoke")) score += 100;
-  if (text.includes("escape") && activity.activity_type?.toLowerCase().includes("escape")) score += 100;
-  if (text.includes("mini golf") && activity.activity_type?.toLowerCase().includes("mini golf")) score += 100;
+  if (
+    text.includes("museum") &&
+    activity.activity_type?.toLowerCase().includes("museum")
+  ) {
+    score += 100;
+  }
 
-  if (text.includes("art") && activity.activity_type?.toLowerCase().includes("museum")) score += 25;
-  if (text.includes("culture") && activity.atmosphere?.toLowerCase().includes("cultural")) score += 20;
-  if (text.includes("quiet") && activity.atmosphere?.toLowerCase().includes("quiet")) score += 15;
-  if (text.includes("fun") && activity.atmosphere?.toLowerCase().includes("fun")) score += 20;
-  if (text.includes("group") && activity.group_friendly === true) score += 20;
+  if (
+    text.includes("bowling") &&
+    activity.activity_type?.toLowerCase().includes("bowling")
+  ) {
+    score += 100;
+  }
+
+  if (
+    text.includes("axe") &&
+    activity.activity_type?.toLowerCase().includes("axe")
+  ) {
+    score += 100;
+  }
+
+  if (
+    text.includes("arcade") &&
+    activity.activity_type?.toLowerCase().includes("arcade")
+  ) {
+    score += 100;
+  }
+
+  if (
+    text.includes("karaoke") &&
+    activity.activity_type?.toLowerCase().includes("karaoke")
+  ) {
+    score += 100;
+  }
+
+  if (
+    text.includes("escape") &&
+    activity.activity_type?.toLowerCase().includes("escape")
+  ) {
+    score += 100;
+  }
+
+  if (
+    text.includes("mini golf") &&
+    activity.activity_type?.toLowerCase().includes("mini golf")
+  ) {
+    score += 100;
+  }
+
+  if (
+    text.includes("art") &&
+    activity.activity_type?.toLowerCase().includes("museum")
+  ) {
+    score += 25;
+  }
+
+  if (
+    text.includes("culture") &&
+    activity.atmosphere?.toLowerCase().includes("cultural")
+  ) {
+    score += 20;
+  }
+
+  if (
+    text.includes("quiet") &&
+    activity.atmosphere?.toLowerCase().includes("quiet")
+  ) {
+    score += 15;
+  }
+
+  if (
+    text.includes("fun") &&
+    activity.atmosphere?.toLowerCase().includes("fun")
+  ) {
+    score += 20;
+  }
+
+  if (text.includes("group") && activity.group_friendly === true) {
+    score += 20;
+  }
 
   if (text.includes("wine") && searchable.includes("wine")) score += 40;
   if (text.includes("brunch") && searchable.includes("brunch")) score += 40;
@@ -405,11 +628,11 @@ export async function POST(req: Request) {
           ...cachedResponse,
           restaurants: (cachedResponse.restaurants || []).map((r: any) => ({
             ...r,
-            roseout_score: clampScore(Number(r.roseout_score || 0)),
+            roseout_score: clampScore(r.roseout_score),
           })),
           activities: (cachedResponse.activities || []).map((a: any) => ({
             ...a,
-            roseout_score: clampScore(Number(a.roseout_score || 0)),
+            roseout_score: clampScore(a.roseout_score),
           })),
         });
       }
@@ -631,9 +854,9 @@ export async function POST(req: Request) {
     const rankedRestaurants = (filteredRestaurants || [])
       .map((restaurant: any) => {
         const ruleScore = scoreRestaurant(restaurant, input, userLocation);
-        const savedScore = clampScore(Number(restaurant.roseout_score || 0));
-        const qualityScore = clampScore(Number(restaurant.quality_score || 0));
-        const popularityScore = clampScore(Number(restaurant.popularity_score || 0));
+        const savedScore = clampScore(restaurant.roseout_score);
+        const qualityScore = clampScore(restaurant.quality_score);
+        const popularityScore = clampScore(restaurant.popularity_score);
 
         let distanceBoost = 0;
 
@@ -655,7 +878,7 @@ export async function POST(req: Request) {
 
         return {
           ...restaurant,
-          roseout_score: clampScore(r.roseout_score),
+          roseout_score: clampScore(finalScore),
         };
       })
       .filter((restaurant: any) => restaurant.roseout_score > 0)
@@ -670,9 +893,9 @@ export async function POST(req: Request) {
     const rankedActivities = (filteredActivities || [])
       .map((activity: any) => {
         const ruleScore = scoreActivity(activity, input, userLocation);
-        const savedScore = clampScore(Number(activity.roseout_score || 0));
-        const qualityScore = clampScore(Number(activity.quality_score || 0));
-        const popularityScore = clampScore(Number(activity.popularity_score || 0));
+        const savedScore = clampScore(activity.roseout_score);
+        const qualityScore = clampScore(activity.quality_score);
+        const popularityScore = clampScore(activity.popularity_score);
 
         let distanceBoost = 0;
 
@@ -694,7 +917,7 @@ export async function POST(req: Request) {
 
         return {
           ...activity,
-          roseout_score: clampScore(r.roseout_score),
+          roseout_score: clampScore(finalScore),
         };
       })
       .filter((activity: any) => activity.roseout_score > 0)
@@ -720,7 +943,7 @@ export async function POST(req: Request) {
       neighborhood: r.neighborhood,
       cuisine: r.cuisine || r.cuisine_type,
       rating: r.rating,
-      score: clampScore(Number(r.roseout_score || 0)),
+      score: clampScore(r.roseout_score),
       distance_miles: r.distance_miles
         ? Number(r.distance_miles.toFixed(1))
         : null,
@@ -733,7 +956,7 @@ export async function POST(req: Request) {
       neighborhood: a.neighborhood,
       type: a.activity_type,
       rating: a.rating,
-      score: clampScore(Number(a.roseout_score || 0)),
+      score: clampScore(a.roseout_score),
       distance_miles: a.distance_miles
         ? Number(a.distance_miles.toFixed(1))
         : null,
@@ -796,7 +1019,7 @@ STRICT RULES:
         city: r.city,
         state: r.state,
         zip_code: r.zip_code,
-        roseout_score: clampScore(Number(r.roseout_score || 0)),
+        roseout_score: clampScore(r.roseout_score),
         reservation_link: r.reservation_link,
         reservation_url: r.reservation_url,
         website: r.website,
@@ -821,7 +1044,7 @@ STRICT RULES:
         price_range: a.price_range,
         atmosphere: a.atmosphere,
         group_friendly: a.group_friendly,
-        roseout_score: clampScore(Number(a.roseout_score || 0)),
+        roseout_score: clampScore(a.roseout_score),
         reservation_link: a.reservation_link,
         reservation_url: a.reservation_url,
         website: a.website,

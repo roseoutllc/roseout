@@ -640,7 +640,7 @@ export default function CreatePage() {
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
                                     <div className="absolute left-4 top-4 rounded-full bg-black/80 px-3 py-1 text-xs font-bold text-white backdrop-blur">
-                                      {r.roseout_score}/100 Match
+                                      {clampScore(r.roseout_score)}/100 Match
                                     </div>
 
                                     {r.distance_miles !== null &&
@@ -650,7 +650,7 @@ export default function CreatePage() {
                                         </div>
                                       )}
 
-                                    {r.roseout_score >= 80 && (
+                                    {clampScore(r.roseout_score) >= 80 && (
                                       <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
                                         Top Pick
                                       </div>
@@ -772,8 +772,7 @@ export default function CreatePage() {
                           <div className="grid gap-6">
                             {msg.activities?.map((a, activityIndex) => {
                               const activityId = String(a.id);
-                              const isSelected =
-                                selectedActivity?.id === a.id;
+                              const isSelected = selectedActivity?.id === a.id;
 
                               const reservationUrl =
                                 a.reservation_url || a.reservation_link;
@@ -806,7 +805,7 @@ export default function CreatePage() {
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
                                     <div className="absolute left-4 top-4 rounded-full bg-black/80 px-3 py-1 text-xs font-bold text-white backdrop-blur">
-                                      {a.roseout_score}/100 Match
+                                      {clampScore(a.roseout_score)}/100 Match
                                     </div>
 
                                     {a.distance_miles !== null &&
@@ -816,7 +815,7 @@ export default function CreatePage() {
                                         </div>
                                       )}
 
-                                    {a.roseout_score >= 80 && (
+                                    {clampScore(a.roseout_score) >= 80 && (
                                       <div className="absolute right-4 top-4 rounded-full bg-yellow-500 px-3 py-1 text-xs font-extrabold text-black">
                                         Top Pick
                                       </div>
