@@ -13,65 +13,93 @@ export default function LocationReviewForm({
   const [rating, setRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
 
   async function submitReview(e: React.FormEvent) {
     e.preventDefault();
+
+    if (submitted) return;
+
     setLoading(true);
     setMessage("");
 
-    const res = await fetch("/api/reviews", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        location_id: locationId,
-        customer_name: customerName,
-        rating,
-        review_text: reviewText,
-      }),
-    });
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          location_id: locationId,
+          customer_name: customerName,
+          rating,
+          review_text: reviewText,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      setMessage(data.error || "Something went wrong.");
+      if (!res.ok) {
+        setMessage(data.error || "Something went wrong.");
+        setLoading(false);
+        return;
+      }
+
+      setMessage(
+        "✨ Thanks! Your review is helping RoseOut improve recommendations."
+      );
+
+      setCustomerName("");
+      setRating(5);
+      setReviewText("");
+      setSubmitted(true);
       setLoading(false);
-      return;
+    } catch {
+      setMessage("Something went wrong. Please try again.");
+      setLoading(false);
     }
-
-    setMessage("Review submitted successfully!");
-    setCustomerName("");
-    setRating(5);
-    setReviewText("");
-    setLoading(false);
   }
 
   return (
     <form
       onSubmit={submitReview}
-      className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur"
+      className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur-xl"
     >
-      <h3 className="text-xl font-bold">Leave a Review</h3>
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
+          RoseOut Review
+        </p>
+
+        <h3 className="mt-3 text-2xl font-black text-white">
+          Leave a Review
+        </h3>
+
+        <p className="mt-2 text-sm leading-6 text-white/55">
+          Write a few full sentences about the vibe, service, noise level,
+          price, food, or if this place is good for date night.
+        </p>
+      </div>
 
       <input
         value={customerName}
         onChange={(e) => setCustomerName(e.target.value)}
         placeholder="Your name (optional)"
-        className="w-full mt-4 p-3 rounded-xl bg-black border border-white/10"
+        disabled={submitted}
+        className="mt-5 w-full rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-red-400 disabled:opacity-50"
       />
 
       <select
         value={rating}
         onChange={(e) => setRating(Number(e.target.value))}
-        className="w-full mt-4 p-3 rounded-xl bg-black border border-white/10"
+        disabled={submitted}
+        className="mt-4 w-full rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none focus:border-red-400 disabled:opacity-50"
       >
-        <option value={5}>5</option>
-        <option value={4}>4</option>
-        <option value={3}>3</option>
-        <option value={2}>2</option>
-        <option value={1}>1</option>
+        <option value={5}>🌸🌸🌸🌸🌸 Excellent</option>
+        <option value={4}>🌸🌸🌸🌸 Good</option>
+        <option value={3}>🌸🌸🌸 Average</option>
+        <option value={2}>🌸🌸 Not great</option>
+        <option value={1}>🌸 Poor</option>
       </select>
 
       <textarea
@@ -79,20 +107,36 @@ export default function LocationReviewForm({
         onChange={(e) => setReviewText(e.target.value)}
         required
         minLength={30}
-        rows={4}
-        placeholder="Write your experience in full sentences..."
-        className="w-full mt-4 p-3 rounded-xl bg-black border border-white/10"
+        rows={5}
+        disabled={submitted}
+        placeholder="Example: The place had a romantic vibe with beautiful lighting. The food was great, but the music was a little loud for a quiet date night."
+        className="mt-4 w-full resize-none rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-white/35 focus:border-red-400 disabled:opacity-50"
       />
+
+      <p className="mt-2 text-xs text-white/40">
+        Minimum 30 characters. Full sentences help RoseOut score locations
+        better.
+      </p>
 
       <button
         type="submit"
-        disabled={loading}
-        className="mt-5 w-full bg-red-600 py-3 rounded-full font-semibold"
+        disabled={loading || submitted}
+        className="mt-5 w-full rounded-full bg-red-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {loading ? "Submitting..." : "Submit Review"}
+        {submitted ? "Submitted ✓" : loading ? "Analyzing..." : "Submit Review"}
       </button>
 
-      {message && <p className="mt-3 text-sm">{message}</p>}
+      {message && (
+        <div
+          className={`mt-4 rounded-2xl border p-4 text-sm ${
+            submitted
+              ? "border-green-500/20 bg-green-500/10 text-green-300"
+              : "border-red-500/20 bg-red-500/10 text-red-300"
+          }`}
+        >
+          {message}
+        </div>
+      )}
     </form>
   );
 }
