@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import ActivityTracker from "@/components/ActivityTracker";
+
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +55,7 @@ export default async function UserDashboardPage() {
 
   return (
     <main className="min-h-screen bg-[#080407] text-white">
+      <ActivityTracker userId={userId} />
       <section className="relative overflow-hidden border-b border-white/10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.28),transparent_34%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.18),transparent_30%)]" />
 
@@ -77,12 +80,20 @@ export default async function UserDashboardPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/create"
-                className="rounded-full bg-rose-500 px-6 py-3 text-center text-sm font-black text-white shadow-lg shadow-rose-500/25 transition hover:bg-rose-400"
-              >
-                Create New Outing
-              </Link>
+             <button
+  onClick={() => {
+    trackActivity({
+      eventType: "button_click",
+      eventName: "Create New Outing Clicked",
+      pagePath: window.location.pathname,
+    });
+
+    window.location.href = "/create";
+  }}
+  className="rounded-full bg-rose-500 px-6 py-3 text-sm font-black text-white"
+>
+  Create New Outing
+</button>
 
               <Link
                 href="/user/saved"
