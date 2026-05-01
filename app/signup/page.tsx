@@ -28,8 +28,11 @@ export default function SignupPage() {
   const widgetIdRef = useRef<string | null | undefined>(null);
 
   const [step, setStep] = useState<1 | 2>(1);
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -40,6 +43,8 @@ export default function SignupPage() {
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [smsOptIn, setSmsOptIn] = useState(false);
+
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const [message, setMessage] = useState("");
@@ -110,19 +115,31 @@ export default function SignupPage() {
     setErrorMessage("");
     setMessage("");
 
-    if (!fullName.trim()) return setErrorMessage("Please enter your full name.");
-    if (!email.trim()) return setErrorMessage("Please enter your email address.");
-
-    if (!isPasswordValid) {
-      return setErrorMessage(
-        "Password must be at least 8 characters and include an uppercase letter, number, and symbol."
-      );
+    if (!fullName.trim()) {
+      setErrorMessage("Please enter your full name.");
+      return;
     }
 
-    if (!passwordsMatch) return setErrorMessage("Passwords do not match.");
+    if (!email.trim()) {
+      setErrorMessage("Please enter your email address.");
+      return;
+    }
+
+    if (!isPasswordValid) {
+      setErrorMessage(
+        "Password must be at least 8 characters and include an uppercase letter, number, and symbol."
+      );
+      return;
+    }
+
+    if (!passwordsMatch) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
 
     if (!acceptedTerms) {
-      return setErrorMessage("Please agree to the Terms and Privacy Policy.");
+      setErrorMessage("Please agree to the Terms of Service and Privacy Policy.");
+      return;
     }
 
     setStep(2);
@@ -140,6 +157,11 @@ export default function SignupPage() {
       return;
     }
 
+    if (smsOptIn && !phone.trim()) {
+      setErrorMessage("Please enter your phone number to receive SMS messages.");
+      return;
+    }
+
     if (!captchaToken) {
       setErrorMessage("Please complete the verification.");
       return;
@@ -150,7 +172,9 @@ export default function SignupPage() {
     try {
       const captchaResponse = await fetch("/api/verify-captcha", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ token: captchaToken }),
       });
 
@@ -175,11 +199,17 @@ export default function SignupPage() {
           data: {
             full_name: fullName.trim(),
             role: "user",
+            phone: phone.trim() || null,
             planning_for: planningFor || null,
             city: city.trim() || null,
             preferred_vibe: preferredVibe || null,
             budget_range: budgetRange || null,
             marketing_opt_in: marketingOptIn,
+            sms_opt_in: smsOptIn,
+            sms_consent_text: smsOptIn
+              ? "I agree to receive SMS messages from RoseOut about account updates, outing recommendations, reminders, promotions, and offers. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase."
+              : null,
+            sms_consent_date: smsOptIn ? new Date().toISOString() : null,
           },
         },
       });
@@ -192,8 +222,10 @@ export default function SignupPage() {
       }
 
       setMessage("Account created. Please check your email to confirm.");
+
       setFullName("");
       setEmail("");
+      setPhone("");
       setPassword("");
       setConfirmPassword("");
       setPlanningFor("");
@@ -202,6 +234,7 @@ export default function SignupPage() {
       setBudgetRange("");
       setAcceptedTerms(false);
       setMarketingOptIn(false);
+      setSmsOptIn(false);
       resetCaptcha();
     } catch {
       setErrorMessage("Something went wrong. Please try again.");
@@ -354,11 +387,17 @@ export default function SignupPage() {
                   />
                   <span>
                     I agree to the{" "}
-                    <Link href="/terms" className="font-bold text-rose-300">
-                      Terms
+                    <Link
+                      href="/terms"
+                      className="font-bold text-rose-300 hover:text-rose-200"
+                    >
+                      Terms of Service
                     </Link>{" "}
                     and{" "}
-                    <Link href="/privacy" className="font-bold text-rose-300">
+                    <Link
+                      href="/privacy"
+                      className="font-bold text-rose-300 hover:text-rose-200"
+                    >
                       Privacy Policy
                     </Link>
                     .
@@ -412,6 +451,14 @@ export default function SignupPage() {
                   className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
                 />
 
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Phone number for SMS updates (optional)"
+                  className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-rose-400"
+                />
+
                 <select
                   value={preferredVibe}
                   onChange={(e) => setPreferredVibe(e.target.value)}
@@ -447,6 +494,39 @@ export default function SignupPage() {
                   />
                   <span>
                     Send me RoseOut updates, recommendations, and offers by email.
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-3 text-[11px] leading-5 text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={smsOptIn}
+                    onChange={(e) => setSmsOptIn(e.target.checked)}
+                    className="mt-1 h-4 w-4"
+                  />
+                  <span>
+                    I agree to receive SMS messages from{" "}
+                    <strong className="text-white">RoseOut</strong> about
+                    account updates, outing recommendations, reminders,
+                    promotions, and offers. Message frequency varies. Message
+                    and data rates may apply. Reply{" "}
+                    <strong className="text-white">STOP</strong> to opt out.
+                    Reply <strong className="text-white">HELP</strong> for help.
+                    Consent is not a condition of purchase. View our{" "}
+                    <Link
+                      href="/privacy"
+                      className="font-bold text-rose-300 hover:text-rose-200"
+                    >
+                      Privacy Policy
+                    </Link>{" "}
+                    and{" "}
+                    <Link
+                      href="/terms"
+                      className="font-bold text-rose-300 hover:text-rose-200"
+                    >
+                      Terms
+                    </Link>
+                    .
                   </span>
                 </label>
 
