@@ -257,22 +257,20 @@ export default function CreatePage() {
     });
   }, [messages]);
 
-  useEffect(() => {
-    if (!hasSearched) return;
+ useEffect(() => {
+  if (!hasSearched) return;
 
-    const latestMessage = messages[messages.length - 1];
+  const latestMessage = messages[messages.length - 1];
 
-    // Only scroll when user submits a new search/follow-up.
-    // Do not scroll again when assistant results replace loading.
-    if (latestMessage?.role !== "user") return;
+  if (latestMessage?.role !== "user") return;
 
-    setTimeout(() => {
-      resultsRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 150);
-  }, [messages.length, hasSearched, messages]);
+  setTimeout(() => {
+    resultsRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, 150);
+}, [messages.length, hasSearched, messages]);
 
   const trackRestaurantClick = (id: string) => {
     trackAnalytics({
