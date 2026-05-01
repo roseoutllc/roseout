@@ -12,13 +12,16 @@ import LocationReviewForm from "@/components/LocationReviewForm";
 
 function toArray(value: any): string[] {
   if (!value) return [];
+
   if (Array.isArray(value)) return value.map(String);
+
   if (typeof value === "string") {
     return value
       .split(",")
       .map((v) => v.trim())
       .filter(Boolean);
   }
+
   return [];
 }
 
@@ -42,16 +45,24 @@ export default function LocationDetailPage() {
     const loadLocation = async () => {
       setLoading(true);
 
-      const { data: locationData } = await supabase
-        .from("locations")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
+      let locationQuery = supabase.from("locations").select("*");
+
+      if (type === "restaurants" || type === "restaurant") {
+        locationQuery = locationQuery.or(`id.eq.${id},restaurant_id.eq.${id}`);
+      } else if (type === "activities" || type === "activity") {
+        locationQuery = locationQuery.or(`id.eq.${id},activity_id.eq.${id}`);
+      } else {
+        locationQuery = locationQuery.eq("id", id);
+      }
+
+      const { data: locationData } = await locationQuery.maybeSingle();
+
+      const foundLocationId = locationData?.id || id;
 
       const { data: reviewData } = await supabase
         .from("location_reviews")
         .select("*")
-        .eq("location_id", id)
+        .eq("location_id", foundLocationId)
         .order("created_at", { ascending: false });
 
       setLocation(locationData || null);
@@ -60,7 +71,7 @@ export default function LocationDetailPage() {
     };
 
     if (id) loadLocation();
-  }, [id, supabase]);
+  }, [id, type, supabase]);
 
   const name =
     location?.restaurant_name ||
@@ -103,7 +114,7 @@ export default function LocationDetailPage() {
   const signatureItems = toArray(location?.signature_items);
 
   const baseMetadata = {
-    location_id: id,
+    location_id: location?.id || id,
     location_type: type,
     location_name: name,
   };
@@ -126,11 +137,14 @@ export default function LocationDetailPage() {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 text-white">
         <RoseOutHeader />
+
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.3),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(127,29,29,0.35),transparent_28%),#000]" />
+
         <div className="relative z-10 rounded-[2rem] border border-white/10 bg-white/5 px-8 py-6 text-center shadow-2xl backdrop-blur-xl">
           <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
             RoseOut
           </p>
+
           <p className="mt-3 text-sm font-bold text-white/70">
             Loading location...
           </p>
@@ -142,6 +156,8 @@ export default function LocationDetailPage() {
   if (!location) {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 text-white">
+        <RoseOutHeader />
+
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.3),transparent_32%),#000]" />
 
         <div className="relative z-10 max-w-md rounded-[2rem] border border-white/10 bg-white/5 p-7 text-center shadow-2xl backdrop-blur-xl">
@@ -152,7 +168,8 @@ export default function LocationDetailPage() {
           <h1 className="mt-4 text-3xl font-black">Location Not Found</h1>
 
           <p className="mt-3 text-sm leading-6 text-white/60">
-            This listing may have been removed or is no longer available.
+            This listing may have been removed or the result is still using an
+            old restaurant/activity ID.
           </p>
 
           <button
@@ -337,7 +354,7 @@ export default function LocationDetailPage() {
                 signals, and experience quality to improve recommendations.
               </p>
 
-              {location.review_score >= 85 && (
+              {Number(location.review_score || 0) >= 85 && (
                 <div className="mt-4 rounded-full bg-red-600 px-4 py-2 text-center text-xs font-black text-white shadow-lg shadow-red-950/40">
                   🌹 Review Favorite
                 </div>
@@ -352,7 +369,10 @@ export default function LocationDetailPage() {
 
         <div className="relative mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1fr_380px]">
           <div className="space-y-6">
-            <LuxuryCard eyebrow="Why RoseOut Recommends It" title="Built for better matches.">
+            <LuxuryCard
+              eyebrow="Why RoseOut Recommends It"
+              title="Built for better matches."
+            >
               <p className="text-sm leading-7 text-white/60">
                 {location.description ||
                   "This location includes signals that help RoseOut understand the vibe, atmosphere, and best use cases for customers searching in full sentences."}
@@ -384,7 +404,10 @@ export default function LocationDetailPage() {
               <DetailGrid title="Signature Picks" items={signatureItems} />
             )}
 
-            <LuxuryCard eyebrow="Customer Reviews" title="What people are saying.">
+            <LuxuryCard
+              eyebrow="Customer Reviews"
+              title="What people are saying."
+            >
               {reviews.length === 0 ? (
                 <p className="text-sm leading-7 text-white/60">
                   No reviews yet. Be the first to leave a full-sentence review.
@@ -411,18 +434,26 @@ export default function LocationDetailPage() {
                       </p>
 
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {review.vibe && <ReviewPill>🌹 {review.vibe}</ReviewPill>}
+                        {review.vibe && (
+                          <ReviewPill>🌹 {review.vibe}</ReviewPill>
+                        )}
+
                         {review.noise_level && (
                           <ReviewPill>🔊 {review.noise_level}</ReviewPill>
                         )}
+
                         {review.date_night && (
                           <ReviewPill>❤️ Date Night</ReviewPill>
                         )}
+
                         {review.group_friendly && (
                           <ReviewPill>👥 Group Friendly</ReviewPill>
                         )}
+
                         {review.price_feeling && (
-                          <ReviewPill>Price: {review.price_feeling}</ReviewPill>
+                          <ReviewPill>
+                            Price: {review.price_feeling}
+                          </ReviewPill>
                         )}
                       </div>
                     </div>
@@ -437,7 +468,10 @@ export default function LocationDetailPage() {
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-6 lg:self-start">
-            <LuxuryCard eyebrow="Plan Your Visit" title={isActivity ? "Book the experience." : "Reserve the table."}>
+            <LuxuryCard
+              eyebrow="Plan Your Visit"
+              title={isActivity ? "Book the experience." : "Reserve the table."}
+            >
               <p className="text-sm leading-6 text-white/60">
                 Use these actions to continue planning your RoseOut experience.
               </p>
@@ -486,10 +520,12 @@ export default function LocationDetailPage() {
             <LuxuryCard eyebrow="Review Intelligence" title="Powered by real words.">
               <div className="mt-5 space-y-4 text-sm">
                 <InfoRow label="Review Score" value={location.review_score || 0} />
+
                 <InfoRow
                   label="Review Count"
                   value={location.review_count || reviews.length || 0}
                 />
+
                 <InfoRow
                   label="AI Keywords"
                   value={
@@ -503,7 +539,11 @@ export default function LocationDetailPage() {
 
             <LuxuryCard eyebrow="Location Info" title="Details">
               <div className="mt-5 space-y-4 text-sm">
-                <InfoRow label="Type" value={isActivity ? "Activity" : "Restaurant"} />
+                <InfoRow
+                  label="Type"
+                  value={isActivity ? "Activity" : "Restaurant"}
+                />
+
                 <InfoRow
                   label="Category"
                   value={
@@ -512,8 +552,10 @@ export default function LocationDetailPage() {
                       : location.cuisine || "Restaurant"
                   }
                 />
+
                 <InfoRow label="Address" value={address || "Not provided"} />
                 <InfoRow label="Phone" value={location.phone || "Not provided"} />
+
                 <InfoRow
                   label="Website"
                   value={location.website ? "Available" : "Not provided"}
@@ -586,6 +628,7 @@ function InfoRow({
       <p className="text-xs font-black uppercase tracking-[0.2em] text-white/35">
         {label}
       </p>
+
       <p className="mt-1 break-words font-bold text-white/80">{value}</p>
     </div>
   );
