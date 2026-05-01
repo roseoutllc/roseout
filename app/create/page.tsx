@@ -981,29 +981,87 @@ function ResultCard({
     window.location.href = detailsHref;
   };
 
+  const safeScore = clampScore(score);
   const cleanReviewKeywords = Array.isArray(reviewKeywords)
     ? reviewKeywords.filter(Boolean).slice(0, 4)
     : [];
 
-  const hasReviewSignals =
-    cleanReviewKeywords.length > 0 ||
-    Boolean(reviewSnippet) ||
-    Boolean(reviewCount);
-
-  const isReviewFavorite =
-    typeof reviewScore === "number" && reviewScore >= 85 && Boolean(reviewCount);
-
-  const nightlifeBadges = getNightlifeBadges({
+  const combinedText = [
     title,
     eyebrow,
     primaryTag,
-    tags,
-    reviewKeywords,
     reviewSnippet,
-  });
+    ...(tags || []),
+    ...cleanReviewKeywords,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const premiumBadges: string[] = [];
+
+  if (combinedText.includes("hookah") || combinedText.includes("shisha")) {
+    premiumBadges.push("🌬 Hookah");
+  }
+
+  if (
+    combinedText.includes("cigar") ||
+    combinedText.includes("cigar bar") ||
+    combinedText.includes("cigar lounge") ||
+    combinedText.includes("cigar friendly")
+  ) {
+    premiumBadges.push("🥃 Cigar Friendly");
+  }
+
+  if (
+    combinedText.includes("restaurant") ||
+    combinedText.includes("dining") ||
+    combinedText.includes("dinner") ||
+    combinedText.includes("food")
+  ) {
+    premiumBadges.push("🍽 Full Dining");
+  }
+
+  if (
+    combinedText.includes("lounge") ||
+    combinedText.includes("music") ||
+    combinedText.includes("dj") ||
+    combinedText.includes("nightlife")
+  ) {
+    premiumBadges.push("🎶 Lounge Vibe");
+  }
+
+  if (combinedText.includes("romantic") || combinedText.includes("intimate")) {
+    premiumBadges.push("❤️ Date Night");
+  }
+
+  if (combinedText.includes("upscale") || combinedText.includes("classy")) {
+    premiumBadges.push("✨ Upscale");
+  }
+
+  const uniquePremiumBadges = Array.from(new Set(premiumBadges)).slice(0, 5);
+
+  const isLovedByGuests =
+    typeof reviewScore === "number" && reviewScore >= 85 && Boolean(reviewCount);
+
+  const isStrongMatch = safeScore >= 80;
+  const isTopPick = index === 0 && safeScore >= 70;
+
+  const scoreRing = `conic-gradient(#e1062a ${Math.round(
+    safeScore
+  )}%, rgba(255,255,255,0.13) 0)`;
+
+  const whyPicked =
+    cleanReviewKeywords.length > 0
+      ? `RoseOut matched this because guests mention ${cleanReviewKeywords
+          .slice(0, 3)
+          .join(", ")}.`
+      : primaryTag
+      ? `RoseOut matched this for its ${primaryTag.toLowerCase()} vibe.`
+      : "RoseOut matched this based on your outing request, location signals, and overall fit.";
 
   return (
-    <div
+    <article
       role="link"
       tabIndex={0}
       onClick={(event) => {
@@ -1014,15 +1072,20 @@ function ResultCard({
       onKeyDown={(event) => {
         if (event.key === "Enter") openDetails();
       }}
-      className={`group w-full max-w-full cursor-pointer overflow-hidden rounded-[2rem] border bg-[#111] shadow-2xl shadow-black/30 transition duration-300 hover:-translate-y-1 hover:border-[#e1062a]/70 hover:shadow-red-500/10 ${
+      className={`group relative w-full max-w-full cursor-pointer overflow-hidden rounded-[2.25rem] border bg-[#0d0d0d] shadow-2xl shadow-black/40 transition duration-500 hover:-translate-y-1 hover:border-[#e1062a]/70 hover:bg-[#121212] hover:shadow-red-500/10 ${
         selected
           ? "border-red-500 ring-2 ring-red-500/50"
-          : "border-white/10 hover:border-red-500/50"
+          : "border-white/10"
       }`}
       style={{
         animation: `cardReveal 560ms ease-out ${index * 120}ms both`,
       }}
     >
+      <div className="pointer-events-none absolute inset-0 opacity-0 transition duration-500 group-hover:opacity-100">
+        <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-red-500/70 to-transparent" />
+        <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-red-600/10 blur-3xl" />
+      </div>
+
       <div className="relative h-64 w-full max-w-full overflow-hidden">
         {imageUrl ? (
           <Image
@@ -1039,36 +1102,54 @@ function ResultCard({
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/15" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(225,6,42,0.26),transparent_32%)] opacity-80" />
 
-        <div className="absolute left-4 top-4 rounded-2xl border border-red-500/40 bg-black/85 px-4 py-3 text-white shadow-xl shadow-red-500/10 backdrop-blur">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border-4 border-[#e1062a] text-sm font-black text-white">
-              {Math.round(score)}
+        <div className="absolute left-4 top-4 flex items-center gap-3 rounded-2xl border border-red-500/35 bg-black/80 px-4 py-3 text-white shadow-xl shadow-red-500/10 backdrop-blur-xl">
+          <div
+            className="flex h-14 w-14 items-center justify-center rounded-full p-[3px] shadow-lg shadow-red-950/40"
+            style={{ background: scoreRing }}
+          >
+            <div className="flex h-full w-full items-center justify-center rounded-full bg-black text-sm font-black text-white">
+              {Math.round(safeScore)}
             </div>
+          </div>
 
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/55">
-                Score
-              </p>
-              <p className="text-sm font-black text-white">
-                {Math.round(score)}/100
-              </p>
-              <p className="mt-1 w-fit rounded-full bg-[#e1062a] px-2 py-0.5 text-[10px] font-black text-white">
-                Match
-              </p>
-            </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
+              RoseOut Score
+            </p>
+            <p className="text-sm font-black text-white">
+              {Math.round(safeScore)}/100
+            </p>
+            <p className="mt-1 w-fit rounded-full bg-[#e1062a] px-2 py-0.5 text-[10px] font-black text-white">
+              Match
+            </p>
           </div>
         </div>
 
-        {isReviewFavorite && (
-          <div className="absolute right-4 top-4 rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white shadow-lg shadow-red-950/30">
-            🌹 Review Favorite
-          </div>
-        )}
+        <div className="absolute right-4 top-4 flex max-w-[58%] flex-col items-end gap-2">
+          {isTopPick && (
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
+              🏆 Top Pick
+            </span>
+          )}
+
+          {isLovedByGuests && (
+            <span className="rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white shadow-lg shadow-red-950/30">
+              🌹 Loved by Guests
+            </span>
+          )}
+
+          {isStrongMatch && (
+            <span className="rounded-full border border-white/20 bg-black/70 px-3 py-1 text-xs font-black text-white backdrop-blur">
+              🔥 Strong Match
+            </span>
+          )}
+        </div>
 
         {distance !== null && distance !== undefined && (
-          <div className="absolute bottom-4 left-4 rounded-full bg-black/70 px-3 py-1 text-xs font-black text-white backdrop-blur">
+          <div className="absolute bottom-4 left-4 rounded-full bg-black/75 px-3 py-1 text-xs font-black text-white backdrop-blur">
             {distance} mi away
           </div>
         )}
@@ -1080,10 +1161,18 @@ function ResultCard({
         )}
       </div>
 
-      <div className="max-w-full p-5">
-        <p className="break-words text-xs font-black uppercase tracking-[0.22em] text-[#e1062a]">
-          {eyebrow}
-        </p>
+      <div className="relative max-w-full p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="break-words text-xs font-black uppercase tracking-[0.22em] text-[#e1062a]">
+            {eyebrow}
+          </p>
+
+          {reviewCount ? (
+            <p className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white/45">
+              🌸 {reviewCount} review{reviewCount === 1 ? "" : "s"}
+            </p>
+          ) : null}
+        </div>
 
         <Link
           href={detailsHref}
@@ -1100,9 +1189,9 @@ function ResultCard({
           {address}
         </p>
 
-        {nightlifeBadges.length > 0 && (
+        {uniquePremiumBadges.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
-            {nightlifeBadges.map((badge) => (
+            {uniquePremiumBadges.map((badge) => (
               <span
                 key={badge}
                 className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100"
@@ -1113,35 +1202,39 @@ function ResultCard({
           </div>
         )}
 
-        {hasReviewSignals && (
-          <div className="mt-4 rounded-[1.25rem] border border-red-500/15 bg-red-500/[0.07] p-4">
-            {cleanReviewKeywords.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {cleanReviewKeywords.map((keyword) => (
-                  <span
-                    key={keyword}
-                    className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100"
-                  >
-                    {keyword}
-                  </span>
-                ))}
-              </div>
-            )}
+        {cleanReviewKeywords.length > 0 && (
+          <div className="mt-4 rounded-[1.35rem] border border-red-500/15 bg-gradient-to-br from-red-500/[0.1] via-red-500/[0.045] to-white/[0.025] p-4">
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-red-200/70">
+              Review Signals
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {cleanReviewKeywords.map((keyword) => (
+                <span
+                  key={keyword}
+                  className="rounded-full border border-red-500/20 bg-black/35 px-3 py-1 text-xs font-black text-red-100"
+                >
+                  {keyword}
+                </span>
+              ))}
+            </div>
 
             {reviewSnippet && (
               <p className="mt-3 line-clamp-2 text-xs font-semibold leading-5 text-white/65">
                 “{reviewSnippet}”
               </p>
             )}
-
-            {reviewCount ? (
-              <p className="mt-3 text-xs font-bold uppercase tracking-wide text-white/40">
-                🌸 Based on {reviewCount} customer review
-                {reviewCount === 1 ? "" : "s"}
-              </p>
-            ) : null}
           </div>
         )}
+
+        <div className="mt-4 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
+            Why RoseOut picked this
+          </p>
+          <p className="mt-2 text-sm font-semibold leading-6 text-white/65">
+            {whyPicked}
+          </p>
+        </div>
 
         {primaryTag && (
           <p className="mt-4 break-words text-sm font-black text-white">
@@ -1162,13 +1255,13 @@ function ResultCard({
           </div>
         ) : null}
 
-        <div className="mt-5 flex max-w-full flex-wrap gap-3">
+        <div className="mt-5 grid max-w-full gap-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={onSelect}
-            className={`rounded-full px-5 py-2.5 text-sm font-black transition ${
+            className={`rounded-full px-5 py-3 text-sm font-black transition ${
               selected
-                ? "bg-[#e1062a] text-white"
+                ? "bg-[#e1062a] text-white shadow-lg shadow-red-950/30"
                 : "border border-white/15 text-white hover:bg-white hover:text-black"
             }`}
           >
@@ -1178,7 +1271,7 @@ function ResultCard({
           <Link
             href={detailsHref}
             onClick={onDetails}
-            className="rounded-full bg-white px-5 py-2.5 text-sm font-black text-black transition hover:bg-red-100"
+            className="rounded-full bg-white px-5 py-3 text-center text-sm font-black text-black transition hover:bg-red-100"
           >
             View Details
           </Link>
@@ -1189,7 +1282,7 @@ function ResultCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={onWebsite}
-              className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-black text-white transition hover:bg-white hover:text-black"
+              className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
             >
               Website
             </a>
@@ -1201,14 +1294,14 @@ function ResultCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={onReservation}
-              className="rounded-full border border-red-500/40 bg-red-500/10 px-5 py-2.5 text-sm font-black text-red-100 transition hover:bg-[#e1062a] hover:text-white"
+              className="rounded-full border border-red-500/40 bg-red-500/10 px-5 py-3 text-center text-sm font-black text-red-100 transition hover:bg-[#e1062a] hover:text-white"
             >
               {reservationLabel || "Book"}
             </a>
           )}
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
