@@ -17,10 +17,10 @@ const EXPERIENCE_KEYWORDS = [
   "brunch",
   "lunch",
   "dinner",
-  "pizza",
-  "burger",
   "steak",
   "steakhouse",
+  "pizza",
+  "burger",
   "seafood",
   "sushi",
   "ramen",
@@ -70,7 +70,10 @@ function normalizeQuery(input: string) {
 
 function toArray(value: any): string[] {
   if (!value) return [];
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+
+  if (Array.isArray(value)) {
+    return value.map(String).filter(Boolean);
+  }
 
   if (typeof value === "string") {
     return value
@@ -84,6 +87,7 @@ function toArray(value: any): string[] {
 
 function itemText(item: any) {
   return [
+    item.location_type,
     item.restaurant_name,
     item.activity_name,
     item.name,
@@ -116,6 +120,7 @@ function itemText(item: any) {
 
 function keywordBoost(item: any, input: string) {
   const searchable = itemText(item);
+
   const words = normalizeQuery(input)
     .split(" ")
     .filter((word) => word.length > 2);
@@ -127,7 +132,10 @@ function keywordBoost(item: any, input: string) {
   });
 
   const phrase = normalizeQuery(input);
-  if (phrase.length > 2 && searchable.includes(phrase)) boost += 35;
+
+  if (phrase.length > 2 && searchable.includes(phrase)) {
+    boost += 35;
+  }
 
   return boost;
 }
@@ -142,7 +150,9 @@ function scoreRestaurant(item: any, input: string) {
   score += keywordBoost(item, input);
 
   EXPERIENCE_KEYWORDS.forEach((keyword) => {
-    if (text.includes(keyword) && searchable.includes(keyword)) score += 25;
+    if (text.includes(keyword) && searchable.includes(keyword)) {
+      score += 25;
+    }
   });
 
   if (text.includes("steak") || text.includes("steakhouse")) {
@@ -168,7 +178,12 @@ function scoreRestaurant(item: any, input: string) {
   }
 
   if (text.includes("cigar")) {
-    if (searchable.includes("cigar")) {
+    if (
+      searchable.includes("cigar") ||
+      searchable.includes("cigar bar") ||
+      searchable.includes("cigar lounge") ||
+      searchable.includes("cigar friendly")
+    ) {
       score += 180;
     } else if (searchable.includes("lounge") || searchable.includes("bar")) {
       score += 60;
@@ -184,6 +199,7 @@ function scoreRestaurant(item: any, input: string) {
   if (text.includes("lunch") && searchable.includes("lunch")) score += 35;
   if (text.includes("wine") && searchable.includes("wine")) score += 60;
   if (text.includes("cocktail") && searchable.includes("cocktail")) score += 50;
+  if (text.includes("cocktails") && searchable.includes("cocktail")) score += 50;
   if (text.includes("drinks") && searchable.includes("drink")) score += 40;
   if (text.includes("bar") && searchable.includes("bar")) score += 40;
 
@@ -210,6 +226,10 @@ function scoreActivity(item: any, input: string) {
   if (text.includes("escape") && searchable.includes("escape")) score += 100;
   if (text.includes("mini golf") && searchable.includes("mini golf")) score += 100;
   if (text.includes("fun") && searchable.includes("fun")) score += 40;
+  if (text.includes("lounge") && searchable.includes("lounge")) score += 70;
+  if (text.includes("hookah") && searchable.includes("hookah")) score += 90;
+  if (text.includes("shisha") && searchable.includes("shisha")) score += 90;
+  if (text.includes("cigar") && searchable.includes("cigar")) score += 90;
 
   score += clampScore(item.roseout_score || 0) * 0.25;
   score += clampScore(item.quality_score || 0) * 0.15;
@@ -217,6 +237,24 @@ function scoreActivity(item: any, input: string) {
   score += clampScore(item.review_score || 0) * 0.15;
 
   return clampScore(score);
+}
+
+function normalizeLocation(item: any) {
+  const name = item.name || item.restaurant_name || item.activity_name || "";
+
+  const type =
+    item.location_type ||
+    (item.activity_name || item.activity_type ? "activity" : "restaurant");
+
+  return {
+    ...item,
+    name,
+    location_type: type,
+    restaurant_name:
+      type === "restaurant" ? item.restaurant_name || name : item.restaurant_name,
+    activity_name:
+      type === "activity" ? item.activity_name || name : item.activity_name,
+  };
 }
 
 export async function POST(req: Request) {
@@ -232,7 +270,7 @@ export async function POST(req: Request) {
 
     const text = input.toLowerCase();
 
-    const cacheKey = normalizeQuery(`stable-restaurant-activity-search-${input}`);
+    const cacheKey = normalizeQuery(`unified-locations-v1-${input}`);
 
     const { data: cached } = await supabase
       .from("ai_response_cache")
@@ -267,33 +305,39 @@ export async function POST(req: Request) {
       text.includes("date night") ||
       text.includes("outing") ||
       text.includes("night out") ||
-      text.includes("full plan");
+      text.includes("full plan") ||
+      text.includes("plan a date");
 
     const shouldReturnRestaurants =
       wantsFood || wantsFullOuting || !wantsActivity;
 
     const shouldReturnActivities = wantsActivity || wantsFullOuting;
 
-    const { data: restaurantsData, error: restaurantError } = await supabase
-      .from("restaurants")
+    const { data: locationsData, error: locationsError } = await supabase
+      .from("locations")
       .select("*")
-      .or("status.eq.approved,status.is.null,status.eq.active");
+      .or("status.eq.approved,status.eq.active,status.is.null");
 
-    if (restaurantError) {
-      return Response.json({ error: restaurantError.message }, { status: 500 });
+    if (locationsError) {
+      return Response.json({ error: locationsError.message }, { status: 500 });
     }
 
-    const { data: activitiesData, error: activityError } = await supabase
-      .from("activities")
-      .select("*")
-      .or("status.eq.approved,status.is.null,status.eq.active");
+    const locations = (locationsData || []).map(normalizeLocation);
 
-    if (activityError) {
-      return Response.json({ error: activityError.message }, { status: 500 });
-    }
+    const restaurants = locations.filter(
+      (item: any) =>
+        item.location_type === "restaurant" ||
+        item.restaurant_name ||
+        item.cuisine ||
+        item.cuisine_type
+    );
 
-    const restaurants = restaurantsData || [];
-    const activities = activitiesData || [];
+    const activities = locations.filter(
+      (item: any) =>
+        item.location_type === "activity" ||
+        item.activity_name ||
+        item.activity_type
+    );
 
     const rankedRestaurants = restaurants
       .map((restaurant: any) => ({
@@ -344,8 +388,12 @@ export async function POST(req: Request) {
       .map((m: any) => `${m.role}: ${m.content}`)
       .join("\n");
 
+    const isFollowUp = messages.length > 1;
+
     const prompt = `
 You are RoseOut, a concise AI outing planner.
+
+${isFollowUp ? "This is a follow-up. Answer only the latest user request." : ""}
 
 Conversation:
 ${shortConversation}
@@ -366,27 +414,35 @@ STRICT RULES:
 - Never say “I currently don’t have any.”
 - Never say “Would you like to explore other options.”
 - Never ask the user to provide a list.
+- Never say “let me know.”
 - If exact matches are weak, recommend the closest available matches from the list.
 - If the user asks for steak and no steakhouse appears, recommend the closest upscale dinner restaurants from the list.
-- If the user asks for hookah/shisha/cigar and no exact venue appears, recommend the closest lounge/nightlife/dining matches from the list.
+- If the user asks for hookah, shisha, cigar, or lounge and no exact venue appears, recommend the closest lounge/nightlife/dining matches from the list.
 - Do NOT invent business details.
 - Do NOT add times unless asked.
+- Do NOT add dessert, drinks, walks, or extra stops unless asked.
 - If dinner only, recommend restaurants only.
 - If activity only, recommend activities only.
 - If full outing/date night, recommend one restaurant and one activity.
 `;
 
-    const response = await openai.responses.create({
-      model: AI_MODEL,
-      input: prompt,
-      max_output_tokens: 350,
-    });
+    const hasResults = topRestaurants.length > 0 || topActivities.length > 0;
+
+    const response = hasResults
+      ? await openai.responses.create({
+          model: AI_MODEL,
+          input: prompt,
+          max_output_tokens: 350,
+        })
+      : null;
 
     const responsePayload = {
-      reply: response.output_text || "Here are the closest RoseOut matches.",
+      reply:
+        response?.output_text ||
+        "Here are the closest RoseOut matches I found.",
 
       restaurants: topRestaurants.map((r: any) => ({
-        id: String(r.id),
+        id: String(r.id), // IMPORTANT: this is locations.id
         restaurant_name: r.restaurant_name || r.name,
         address: r.address,
         city: r.city,
@@ -397,7 +453,7 @@ STRICT RULES:
         price_range: r.price_range || null,
         roseout_score: clampScore(r.roseout_score),
         reservation_link: r.reservation_link,
-        reservation_url: r.reservation_url,
+        reservation_url: r.reservation_url || r.booking_url,
         website: r.website,
         image_url: r.image_url || null,
         rating: r.rating || null,
@@ -411,7 +467,7 @@ STRICT RULES:
       })),
 
       activities: topActivities.map((a: any) => ({
-        id: String(a.id),
+        id: String(a.id), // IMPORTANT: this is locations.id
         activity_name: a.activity_name || a.name,
         activity_type: a.activity_type,
         address: a.address,
@@ -423,7 +479,7 @@ STRICT RULES:
         group_friendly: a.group_friendly,
         roseout_score: clampScore(a.roseout_score),
         reservation_link: a.reservation_link,
-        reservation_url: a.reservation_url,
+        reservation_url: a.reservation_url || a.booking_url,
         website: a.website,
         image_url: a.image_url || null,
         rating: a.rating || null,

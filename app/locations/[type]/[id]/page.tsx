@@ -281,19 +281,6 @@ export default function LocationDetailPage() {
                     href={reservationUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() =>
-                      trackActivity({
-                        eventType: "conversion",
-                        eventName: isActivity
-                          ? "Activity Booking Click"
-                          : "Reservation Click",
-                        pagePath: window.location.pathname,
-                        metadata: {
-                          ...baseMetadata,
-                          source: "hero_section",
-                        },
-                      })
-                    }
                     className="rounded-full bg-red-600 px-7 py-3 text-sm font-black text-white shadow-lg shadow-red-950/50 transition hover:bg-red-500"
                   >
                     {isActivity ? "Book Now" : "Reserve"}
@@ -408,30 +395,6 @@ export default function LocationDetailPage() {
                       <p className="mt-3 text-sm leading-7 text-white/70">
                         {review.review_text}
                       </p>
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {review.vibe && (
-                          <ReviewPill>🌹 {review.vibe}</ReviewPill>
-                        )}
-
-                        {review.noise_level && (
-                          <ReviewPill>🔊 {review.noise_level}</ReviewPill>
-                        )}
-
-                        {review.date_night && (
-                          <ReviewPill>❤️ Date Night</ReviewPill>
-                        )}
-
-                        {review.group_friendly && (
-                          <ReviewPill>👥 Group Friendly</ReviewPill>
-                        )}
-
-                        {review.price_feeling && (
-                          <ReviewPill>
-                            Price: {review.price_feeling}
-                          </ReviewPill>
-                        )}
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -448,10 +411,6 @@ export default function LocationDetailPage() {
               eyebrow="Plan Your Visit"
               title={isActivity ? "Book the experience." : "Reserve the table."}
             >
-              <p className="text-sm leading-6 text-white/60">
-                Use these actions to continue planning your RoseOut experience.
-              </p>
-
               <div className="mt-6 grid gap-3">
                 {reservationUrl && (
                   <a
@@ -515,32 +474,6 @@ export default function LocationDetailPage() {
                 />
               </div>
             </LuxuryCard>
-
-            <LuxuryCard eyebrow="Location Info" title="Details">
-              <div className="mt-5 space-y-4 text-sm">
-                <InfoRow
-                  label="Type"
-                  value={isActivity ? "Activity" : "Restaurant"}
-                />
-
-                <InfoRow
-                  label="Category"
-                  value={
-                    isActivity
-                      ? location.activity_type || "Activity"
-                      : location.cuisine || "Restaurant"
-                  }
-                />
-
-                <InfoRow label="Address" value={address || "Not provided"} />
-                <InfoRow label="Phone" value={location.phone || "Not provided"} />
-
-                <InfoRow
-                  label="Website"
-                  value={location.website ? "Available" : "Not provided"}
-                />
-              </div>
-            </LuxuryCard>
           </aside>
         </div>
       </section>
@@ -584,14 +517,6 @@ function DetailGrid({ title, items }: { title: string; items: string[] }) {
         ))}
       </div>
     </LuxuryCard>
-  );
-}
-
-function ReviewPill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100">
-      {children}
-    </span>
   );
 }
 
