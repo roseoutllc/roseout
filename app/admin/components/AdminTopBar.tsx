@@ -398,6 +398,12 @@ export default function AdminTopBar() {
                 )}
 
                 {canViewAnalytics && (
+  <MenuButton onClick={() => goTo("/admin/live-sessions")}>
+    Live Sessions
+  </MenuButton>
+)}
+
+                {canViewAnalytics && (
                   <MenuButton onClick={() => goTo("/admin/analytics")}>
                     Analytics Dashboard
                   </MenuButton>
