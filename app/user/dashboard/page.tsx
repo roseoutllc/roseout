@@ -1,26 +1,48 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+export const dynamic = "force-dynamic";
+
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        persistSession: false,
+      },
+    }
+  );
+}
 
 export default async function UserDashboardPage() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const impersonatedUserId = cookieStore.get("roseout_impersonate_user_id")?.value;
 
-  if (!user) {
+  const supabase = adminSupabase();
+
+  const userId = impersonatedUserId;
+
+  if (!userId) {
     redirect("/login");
   }
 
   const { data: profile } = await supabase
     .from("users")
     .select("*")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
+
+  if (!profile) {
+    redirect("/login");
+  }
 
   const { data: savedPlans } = await supabase
     .from("saved_plans")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(6);
 
@@ -33,10 +55,10 @@ export default async function UserDashboardPage() {
               RoseOut Portal
             </p>
             <h1 className="mt-2 text-4xl font-bold md:text-5xl">
-              Welcome back
+              Welcome back, {profile.full_name || "RoseOut User"}
             </h1>
             <p className="mt-3 max-w-2xl text-white/60">
-              Manage your saved outings, subscription, and personalized date
+              Manage saved outings, subscription status, and personalized date
               night history.
             </p>
           </div>
@@ -59,15 +81,15 @@ export default async function UserDashboardPage() {
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-6">
             <p className="text-sm text-white/50">Account Status</p>
-            <h2 className="mt-2 text-3xl font-bold">
-              {profile?.stripe_subscription_id ? "Active" : "Free"}
+            <h2 className="mt-2 text-3xl font-bold capitalize">
+              {profile.subscription_status || "free"}
             </h2>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-6">
             <p className="text-sm text-white/50">Email</p>
             <h2 className="mt-2 break-all text-lg font-semibold">
-              {user.email}
+              {profile.email}
             </h2>
           </div>
         </div>
@@ -77,7 +99,7 @@ export default async function UserDashboardPage() {
             <div>
               <h2 className="text-2xl font-bold">Recent Saved Plans</h2>
               <p className="mt-1 text-sm text-white/50">
-                Your most recent RoseOut searches.
+                Most recent RoseOut searches.
               </p>
             </div>
 
@@ -93,14 +115,8 @@ export default async function UserDashboardPage() {
             <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center">
               <h3 className="text-xl font-bold">No saved plans yet</h3>
               <p className="mt-2 text-white/50">
-                Create your first outing and save it here.
+                Saved outings will appear here.
               </p>
-              <Link
-                href="/create"
-                className="mt-5 inline-flex rounded-full bg-white px-5 py-3 text-sm font-bold text-black"
-              >
-                Start Planning
-              </Link>
             </div>
           ) : (
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -116,7 +132,7 @@ export default async function UserDashboardPage() {
                     {plan.title || "RoseOut Plan"}
                   </h3>
                   <p className="mt-3 line-clamp-3 text-sm text-white/55">
-                    {plan.summary || "Your saved date night plan."}
+                    {plan.summary || "Saved date night plan."}
                   </p>
 
                   <Link
