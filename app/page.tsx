@@ -91,7 +91,6 @@ export default async function HomePage() {
             perfect restaurant, activity, or full outing instantly.
           </p>
 
-          {/* ONLY ONE BUTTON NOW */}
           <div className="mt-10 flex justify-center">
             <Link
               href="/create"
@@ -103,35 +102,31 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* TRENDING */}
-      <section id="trending" className="mx-auto max-w-7xl px-6 py-14">
-        <SectionHeader
-          title="Trending Now"
-          subtitle="Live Ranking Engine"
-        />
-        <RestaurantGrid restaurants={trendingRestaurants || []} />
-      </section>
-
-      {/* TOP 10% */}
+      {/* COMPACT RANKING ROW */}
       <section className="mx-auto max-w-7xl px-6 py-14">
-        <SectionHeader
-          title="Top 10% Restaurants"
-          subtitle="Best of RoseOut"
-        />
-        <RestaurantGrid restaurants={topRestaurants || []} />
-      </section>
+        <div className="grid gap-5 lg:grid-cols-3">
+          <CompactRankingSection
+            title="Trending Now"
+            subtitle="Live Ranking Engine"
+            restaurants={trendingRestaurants || []}
+          />
 
-      {/* HIGH INTENT */}
-      <section className="mx-auto max-w-7xl px-6 py-14">
-        <SectionHeader
-          title="Ready to Book"
-          subtitle="High Intent Picks"
-        />
-        <RestaurantGrid restaurants={highIntentPicks || []} />
+          <CompactRankingSection
+            title="Top 10%"
+            subtitle="Best of RoseOut"
+            restaurants={topRestaurants || []}
+          />
+
+          <CompactRankingSection
+            title="Ready to Book"
+            subtitle="High Intent Picks"
+            restaurants={highIntentPicks || []}
+          />
+        </div>
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-5xl px-6 py-24 text-center">
+      <section className="mx-auto max-w-5xl px-6 py-20 text-center">
         <h2 className="text-5xl font-black">
           Ready to Plan Your Next Outing?
         </h2>
@@ -174,74 +169,88 @@ export default async function HomePage() {
   );
 }
 
-function SectionHeader({
+function CompactRankingSection({
   title,
   subtitle,
+  restaurants,
 }: {
   title: string;
   subtitle: string;
+  restaurants: any[];
 }) {
   return (
-    <div className="mb-8">
-      <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-300">
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
+      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-rose-300">
         {subtitle}
       </p>
-      <h2 className="mt-2 text-4xl font-black">{title}</h2>
-    </div>
-  );
-}
 
-function RestaurantGrid({ restaurants }: { restaurants: any[] }) {
-  if (!restaurants?.length) {
-    return (
-      <div className="text-center text-white/40">
-        No ranked locations yet
-      </div>
-    );
-  }
+      <h2 className="mt-2 text-2xl font-black">{title}</h2>
 
-  return (
-    <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-      {restaurants.map((r) => {
-        const name = r.restaurant_name || r.name;
-        const image = r.image_url || r.photo_url;
+      <div className="mt-5 space-y-3">
+        {restaurants?.length ? (
+          restaurants.slice(0, 3).map((restaurant) => {
+            const name =
+              restaurant.restaurant_name || restaurant.name || "Restaurant";
 
-        return (
-          <Link
-            key={r.id}
-            href={`/locations/restaurants/${r.id}`}
-            className="group overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.05]"
-          >
-            <div className="relative h-56">
-              {image ? (
-                <img
-                  src={image}
-                  className="h-full w-full object-cover group-hover:scale-105 transition"
-                />
-              ) : (
-                <div className="h-full flex items-center justify-center">
-                  🍽️
+            const image = restaurant.image_url || restaurant.photo_url;
+
+            return (
+              <Link
+                key={restaurant.id}
+                href={`/locations/restaurants/${restaurant.id}`}
+                className="flex gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 transition hover:border-rose-400/40 hover:bg-rose-500/10"
+              >
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-white/10">
+                  {image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={image}
+                      alt={name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xl">
+                      🍽️
+                    </div>
+                  )}
                 </div>
-              )}
 
-              <div className="absolute left-4 top-4 bg-black/70 px-3 py-1 text-xs rounded-full">
-                {r.ranking_badge || "RoseOut"}
-              </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="truncate text-sm font-black">{name}</h3>
 
-              <div className="absolute right-4 top-4 bg-rose-500 px-3 py-1 text-xs rounded-full">
-                {Math.round(r.roseout_score || 0)}
-              </div>
-            </div>
+                    <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">
+                      {Math.round(restaurant.roseout_score || 0)}
+                    </span>
+                  </div>
 
-            <div className="p-5">
-              <h3 className="text-xl font-black">{name}</h3>
-              <p className="text-sm text-white/40">
-                {[r.city, r.state].filter(Boolean).join(", ")}
-              </p>
-            </div>
-          </Link>
-        );
-      })}
+                  <p className="mt-1 truncate text-xs text-white/40">
+                    {restaurant.cuisine || "Restaurant"}
+                  </p>
+
+                  <p className="mt-1 truncate text-xs text-white/35">
+                    {[restaurant.city, restaurant.state]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
+
+                  {restaurant.ranking_badge && (
+                    <span className="mt-2 inline-flex rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white/50">
+                      {restaurant.ranking_badge}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            );
+          })
+        ) : (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-5 text-center">
+            <p className="text-sm font-bold text-white/40">
+              No ranked locations yet.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
