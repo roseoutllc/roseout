@@ -122,10 +122,7 @@ function normalizeQuery(input: string) {
 
 function toArray(value: any): string[] {
   if (!value) return [];
-
-  if (Array.isArray(value)) {
-    return value.map(String).filter(Boolean);
-  }
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
 
   if (typeof value === "string") {
     return value
@@ -141,6 +138,7 @@ function locationText(item: any) {
   return [
     item.restaurant_name,
     item.activity_name,
+    item.name,
     item.description,
     item.address,
     item.city,
@@ -155,9 +153,8 @@ function locationText(item: any) {
     item.noise_level,
     item.price_range,
     item.primary_tag,
-    item.dress_code,
-    item.parking_info,
-    item.hours,
+    item.review_snippet,
+    ...toArray(item.review_keywords),
     ...toArray(item.date_style_tags),
     ...toArray(item.search_keywords),
     ...toArray(item.best_for),
@@ -179,9 +176,7 @@ function keywordBoost(item: any, input: string) {
   let boost = 0;
 
   words.forEach((word) => {
-    if (searchable.includes(word)) {
-      boost += 18;
-    }
+    if (searchable.includes(word)) boost += 18;
   });
 
   const phrase = normalizeQuery(input);
@@ -189,6 +184,43 @@ function keywordBoost(item: any, input: string) {
   if (phrase.length > 2 && searchable.includes(phrase)) {
     boost += 35;
   }
+
+  return boost;
+}
+
+function reviewBoost(item: any, input: string) {
+  const text = normalizeQuery(input);
+  const keywords = toArray(item.review_keywords).join(" ").toLowerCase();
+
+  if (!keywords) return 0;
+
+  let boost = 0;
+
+  const highIntentWords = [
+    "romantic",
+    "quiet",
+    "fun",
+    "upscale",
+    "cozy",
+    "date",
+    "date night",
+    "lively",
+    "intimate",
+    "classy",
+    "great food",
+    "good service",
+    "drinks",
+    "music",
+  ];
+
+  highIntentWords.forEach((word) => {
+    if (text.includes(word) && keywords.includes(word)) {
+      boost += 12;
+    }
+  });
+
+  if (Number(item.review_score || 0) >= 85) boost += 10;
+  if (Number(item.review_count || 0) >= 5) boost += 5;
 
   return boost;
 }
@@ -231,14 +263,12 @@ function isRegionMatch(
 
   return places.some((place) => {
     const normalized = place.toLowerCase();
-
     return cityText === normalized || neighborhoodText === normalized;
   });
 }
 
 function extractZipCode(input: string) {
   const match = input.match(/\b\d{5}\b/);
-
   return match ? match[0] : null;
 }
 
@@ -308,6 +338,7 @@ function scoreRestaurant(
   let score = 0;
 
   score += keywordBoost(restaurant, input);
+  score += reviewBoost(restaurant, input);
 
   if (region && isRegionMatch(region, restaurant.city, restaurant.neighborhood)) {
     score += 35;
@@ -343,9 +374,7 @@ function scoreRestaurant(
     score += 25;
   }
 
-  if (cuisine && text.includes(cuisine.toLowerCase())) {
-    score += 20;
-  }
+  if (cuisine && text.includes(cuisine.toLowerCase())) score += 20;
 
   if (
     restaurant.atmosphere &&
@@ -436,6 +465,7 @@ function scoreActivity(
   let score = 0;
 
   score += keywordBoost(activity, input);
+  score += reviewBoost(activity, input);
 
   if (region && isRegionMatch(region, activity.city, activity.neighborhood)) {
     score += 35;
@@ -606,7 +636,7 @@ export async function POST(req: Request) {
     const radiusMiles = extractRadiusMiles(input);
 
     const cacheKey = normalizeQuery(
-      `${input} ${region || ""} ${zipCode || ""} ${
+      `${input} unified-locations ${region || ""} ${zipCode || ""} ${
         userLocation ? `${userLocation.latitude},${userLocation.longitude}` : ""
       } ${radiusMiles}`
     );
@@ -686,11 +716,15 @@ export async function POST(req: Request) {
 
     const shouldReturnActivities = wantsActivity || wantsFullOuting;
 
-    const { data: restaurants, error: restaurantError } = await supabase
-      .from("restaurants")
+    const { data: locations, error: locationError } = await supabase
+      .from("locations")
       .select(`
         id,
+        location_type,
         restaurant_name,
+        activity_name,
+        name,
+        activity_type,
         address,
         city,
         state,
@@ -705,51 +739,18 @@ export async function POST(req: Request) {
         lighting,
         noise_level,
         price_range,
-        reservation_link,
-        reservation_url,
-        website,
-        image_url,
-        rating,
-        review_count,
-        primary_tag,
-        date_style_tags,
-        search_keywords,
-        best_for,
-        special_features,
-        signature_items,
-        quality_score,
-        popularity_score,
-        roseout_score
-      `)
-      .eq("status", "approved");
-
-    if (restaurantError) {
-      return Response.json({ error: restaurantError.message }, { status: 500 });
-    }
-
-    const { data: activities, error: activityError } = await supabase
-      .from("activities")
-      .select(`
-        id,
-        activity_name,
-        activity_type,
-        address,
-        city,
-        state,
-        zip_code,
-        neighborhood,
-        latitude,
-        longitude,
-        description,
-        price_range,
-        atmosphere,
         group_friendly,
         reservation_link,
         reservation_url,
+        booking_url,
         website,
+        phone,
         image_url,
         rating,
         review_count,
+        review_score,
+        review_keywords,
+        review_snippet,
         primary_tag,
         date_style_tags,
         search_keywords,
@@ -758,16 +759,26 @@ export async function POST(req: Request) {
         signature_items,
         quality_score,
         popularity_score,
-        roseout_score
+        roseout_score,
+        status
       `)
       .eq("status", "approved");
 
-    if (activityError) {
-      return Response.json({ error: activityError.message }, { status: 500 });
+    if (locationError) {
+      return Response.json({ error: locationError.message }, { status: 500 });
     }
 
-    let filteredRestaurants = restaurants || [];
-    let filteredActivities = activities || [];
+    const allLocations = locations || [];
+
+    let filteredRestaurants = allLocations.filter((item: any) => {
+      const locationType = String(item.location_type || "").toLowerCase();
+      return locationType === "restaurant" || Boolean(item.restaurant_name);
+    });
+
+    let filteredActivities = allLocations.filter((item: any) => {
+      const locationType = String(item.location_type || "").toLowerCase();
+      return locationType === "activity" || Boolean(item.activity_name);
+    });
 
     if (region) {
       filteredRestaurants = filteredRestaurants.filter((r: any) =>
@@ -857,6 +868,7 @@ export async function POST(req: Request) {
         const savedScore = clampScore(restaurant.roseout_score);
         const qualityScore = clampScore(restaurant.quality_score);
         const popularityScore = clampScore(restaurant.popularity_score);
+        const customerReviewScore = clampScore(restaurant.review_score);
 
         let distanceBoost = 0;
 
@@ -870,14 +882,16 @@ export async function POST(req: Request) {
         }
 
         const finalScore =
-          ruleScore * 0.65 +
-          savedScore * 0.15 +
-          qualityScore * 0.12 +
-          popularityScore * 0.08 +
+          ruleScore * 0.58 +
+          savedScore * 0.14 +
+          qualityScore * 0.1 +
+          customerReviewScore * 0.12 +
+          popularityScore * 0.06 +
           distanceBoost;
 
         return {
           ...restaurant,
+          restaurant_name: restaurant.restaurant_name || restaurant.name,
           roseout_score: clampScore(finalScore),
         };
       })
@@ -896,6 +910,7 @@ export async function POST(req: Request) {
         const savedScore = clampScore(activity.roseout_score);
         const qualityScore = clampScore(activity.quality_score);
         const popularityScore = clampScore(activity.popularity_score);
+        const customerReviewScore = clampScore(activity.review_score);
 
         let distanceBoost = 0;
 
@@ -909,14 +924,16 @@ export async function POST(req: Request) {
         }
 
         const finalScore =
-          ruleScore * 0.65 +
-          savedScore * 0.15 +
-          qualityScore * 0.12 +
-          popularityScore * 0.08 +
+          ruleScore * 0.58 +
+          savedScore * 0.14 +
+          qualityScore * 0.1 +
+          customerReviewScore * 0.12 +
+          popularityScore * 0.06 +
           distanceBoost;
 
         return {
           ...activity,
+          activity_name: activity.activity_name || activity.name,
           roseout_score: clampScore(finalScore),
         };
       })
@@ -938,12 +955,13 @@ export async function POST(req: Request) {
       : [];
 
     const slimRestaurants = topRestaurants.map((r: any) => ({
-      name: r.restaurant_name,
+      name: r.restaurant_name || r.name,
       city: r.city,
       neighborhood: r.neighborhood,
       cuisine: r.cuisine || r.cuisine_type,
       rating: r.rating,
       score: clampScore(r.roseout_score),
+      review_keywords: toArray(r.review_keywords).slice(0, 5),
       distance_miles: r.distance_miles
         ? Number(r.distance_miles.toFixed(1))
         : null,
@@ -951,12 +969,13 @@ export async function POST(req: Request) {
     }));
 
     const slimActivities = topActivities.map((a: any) => ({
-      name: a.activity_name,
+      name: a.activity_name || a.name,
       city: a.city,
       neighborhood: a.neighborhood,
       type: a.activity_type,
       rating: a.rating,
       score: clampScore(a.roseout_score),
+      review_keywords: toArray(a.review_keywords).slice(0, 5),
       distance_miles: a.distance_miles
         ? Number(a.distance_miles.toFixed(1))
         : null,
@@ -994,6 +1013,7 @@ STRICT RULES:
 - Do NOT say “take your time,” “enjoy the meal,” or “chat.”
 - Use ONLY the listed restaurants and activities.
 - Do NOT invent business details.
+- Use review_keywords only as support for why something matches.
 - If dinner only, recommend restaurants only.
 - If activity only, recommend activities only.
 - If full outing/date night, recommend one restaurant and one activity.
@@ -1014,20 +1034,26 @@ STRICT RULES:
 
       restaurants: topRestaurants.map((r: any) => ({
         id: String(r.id),
-        restaurant_name: r.restaurant_name,
+        restaurant_name: r.restaurant_name || r.name,
         address: r.address,
         city: r.city,
         state: r.state,
         zip_code: r.zip_code,
+        cuisine: r.cuisine || r.cuisine_type || null,
+        atmosphere: r.atmosphere || null,
+        price_range: r.price_range || null,
         roseout_score: clampScore(r.roseout_score),
         reservation_link: r.reservation_link,
-        reservation_url: r.reservation_url,
+        reservation_url: r.reservation_url || r.booking_url,
         website: r.website,
         image_url: r.image_url || null,
         rating: r.rating || null,
         review_count: r.review_count || null,
+        review_score: r.review_score || null,
+        review_keywords: toArray(r.review_keywords),
+        review_snippet: r.review_snippet || null,
         primary_tag: r.primary_tag || null,
-        date_style_tags: r.date_style_tags || [],
+        date_style_tags: toArray(r.date_style_tags),
         distance_miles: r.distance_miles
           ? Number(r.distance_miles.toFixed(1))
           : null,
@@ -1035,7 +1061,7 @@ STRICT RULES:
 
       activities: topActivities.map((a: any) => ({
         id: String(a.id),
-        activity_name: a.activity_name,
+        activity_name: a.activity_name || a.name,
         activity_type: a.activity_type,
         address: a.address,
         city: a.city,
@@ -1046,13 +1072,16 @@ STRICT RULES:
         group_friendly: a.group_friendly,
         roseout_score: clampScore(a.roseout_score),
         reservation_link: a.reservation_link,
-        reservation_url: a.reservation_url,
+        reservation_url: a.reservation_url || a.booking_url,
         website: a.website,
         image_url: a.image_url || null,
         rating: a.rating || null,
         review_count: a.review_count || null,
+        review_score: a.review_score || null,
+        review_keywords: toArray(a.review_keywords),
+        review_snippet: a.review_snippet || null,
         primary_tag: a.primary_tag || null,
-        date_style_tags: a.date_style_tags || [],
+        date_style_tags: toArray(a.date_style_tags),
         distance_miles: a.distance_miles
           ? Number(a.distance_miles.toFixed(1))
           : null,
