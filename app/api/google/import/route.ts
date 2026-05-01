@@ -1,339 +1,120 @@
-import { supabase } from "@/lib/supabase";
-import QRCode from "qrcode";
-import crypto from "crypto";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-function buildTags(place: any) {
-  const tags: string[] = [];
-  const types = place.types || [];
-  const name = place.displayName?.text?.toLowerCase() || "";
-
-  if (place.rating >= 4.5) tags.push("Top Rated");
-  if (place.rating >= 4.2) tags.push("Highly Rated");
-
-  if (types.includes("museum") || types.includes("art_gallery")) {
-    tags.push("Cultural");
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
   }
+);
 
-  if (
-    types.includes("bowling_alley") ||
-    types.includes("amusement_center") ||
-    name.includes("axe") ||
-    name.includes("escape") ||
-    name.includes("arcade")
-  ) {
-    tags.push("Fun");
-  }
+const supabaseAuth = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-  if (
-    types.includes("bar") ||
-    types.includes("night_club") ||
-    name.includes("lounge")
-  ) {
-    tags.push("Nightlife");
-  }
-
-  if (name.includes("rooftop")) tags.push("Rooftop");
-  if (name.includes("romantic")) tags.push("Romantic");
-
-  if (
-    name.includes("luxury") ||
-    place.priceLevel === "PRICE_LEVEL_EXPENSIVE" ||
-    place.priceLevel === "PRICE_LEVEL_VERY_EXPENSIVE"
-  ) {
-    tags.push("Upscale");
-  }
-
-  if (place.priceLevel === "PRICE_LEVEL_INEXPENSIVE") {
-    tags.push("Budget");
-  }
-
-  return [...new Set(tags)].slice(0, 3);
-}
-
-function getActivityType(place: any) {
-  const types = place.types || [];
-  const name = place.displayName?.text?.toLowerCase() || "";
-
-  if (types.includes("museum")) return "Museum";
-  if (types.includes("art_gallery")) return "Art Gallery";
-  if (types.includes("bowling_alley")) return "Bowling";
-  if (types.includes("movie_theater")) return "Movie Theater";
-  if (types.includes("amusement_center")) return "Arcade";
-  if (types.includes("tourist_attraction")) return "Attraction";
-  if (types.includes("park")) return "Park";
-  if (types.includes("night_club")) return "Nightlife";
-  if (types.includes("bar")) return "Lounge";
-  if (types.includes("performing_arts_theater")) return "Live Show";
-
-  if (name.includes("axe")) return "Axe Throwing";
-  if (name.includes("karaoke")) return "Karaoke";
-  if (name.includes("escape")) return "Escape Room";
-  if (name.includes("mini golf") || name.includes("minigolf")) return "Mini Golf";
-  if (name.includes("rooftop")) return "Rooftop";
-  if (name.includes("comedy")) return "Comedy Club";
-  if (name.includes("paint")) return "Paint & Sip";
-
-  return "Activity";
-}
-
-function getPrimaryTag(place: any) {
-  const type = getActivityType(place);
-
-  if (type === "Museum") return "Best for a Cultural Date";
-  if (type === "Art Gallery") return "Best for an Artsy Date";
-  if (type === "Bowling") return "Best for a Fun Night";
-  if (type === "Axe Throwing") return "Best for an Adventurous Date";
-  if (type === "Escape Room") return "Best for a Challenge Night";
-  if (type === "Karaoke") return "Best for a Playful Night";
-  if (type === "Rooftop") return "Best for a Scenic Night";
-  if (type === "Lounge") return "Best for a Chill Night";
-  if (type === "Comedy Club") return "Best for Laughs";
-  if (type === "Park") return "Best for a Relaxed Outing";
-
-  if (place.rating >= 4.5) return "Best for a Highly Rated Experience";
-
-  return "Popular Local Spot";
-}
-
-function getPhotoUrl(place: any) {
-  const photoName = place.photos?.[0]?.name;
-
-  if (!photoName) return null;
-
-  return `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=800&key=${process.env.GOOGLE_PLACES_API_KEY}`;
-}
-
-function parseAddress(formattedAddress: string) {
-  const parts = formattedAddress?.split(",").map((p) => p.trim()) || [];
-
-  const address = parts[0] || "";
-  const city = parts[1] || "";
-
-  const stateZipPart = parts.find((part) =>
-    /\b[A-Z]{2}\s+\d{5}/.test(part)
-  );
-
-  const stateZipMatch = stateZipPart?.match(/\b([A-Z]{2})\s+(\d{5})/);
-
-  return {
-    address,
-    city,
-    state: stateZipMatch?.[1] || "NY",
-    zip_code: stateZipMatch?.[2] || "",
-  };
-}
-
-function isValidPlace(place: any, type: string) {
-  if (!place.displayName?.text) return false;
-  if (!place.rating || place.rating < 3.8) return false;
-  if (!place.userRatingCount || place.userRatingCount < 20) return false;
-  if (!place.formattedAddress) return false;
-
-  const badTypes = [
-    "gas_station",
-    "convenience_store",
-    "grocery_store",
-    "hardware_store",
-    "car_repair",
-    "school",
-    "hospital",
-    "church",
-  ];
-
-  if (place.types?.some((t: string) => badTypes.includes(t))) {
-    return false;
-  }
-
-  if (type === "restaurant") {
-    if (!place.types?.includes("restaurant")) return false;
-  }
-
-  return true;
-}
-
-function getQualityScore(place: any) {
-  const rating = place.rating || 0;
-  return Math.round(rating * 20);
-}
-
-function getPopularityScore(place: any) {
-  const reviews = place.userRatingCount || 0;
-  return Math.round(Math.min(Math.log10(reviews + 1) * 25, 100));
-}
-
-async function generateQrCodeDataUrl(url: string) {
+export async function POST(req: NextRequest) {
   try {
-    return await QRCode.toDataURL(url);
-  } catch {
-    return null;
-  }
-}
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
 
-export async function POST(req: Request) {
-  const secret = req.headers.get("x-internal-import-secret");
-
-  if (secret !== process.env.IMPORT_SECRET) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const { query = "restaurants in Queens NY", type = "restaurant" } =
-      await req.json();
-
-    const res = await fetch(
-      "https://places.googleapis.com/v1/places:searchText",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": process.env.GOOGLE_PLACES_API_KEY!,
-          "X-Goog-FieldMask":
-            "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.websiteUri,places.googleMapsUri,places.photos",
-        },
-        body: JSON.stringify({
-          textQuery: query,
-          maxResultCount: 10,
-        }),
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      return Response.json(
-        { error: data.error?.message || "Google Places request failed" },
-        { status: res.status }
-      );
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized: missing token" }, { status: 401 });
     }
 
-    const rows = await Promise.all(
-      (data.places || [])
-        .filter((place: any) => isValidPlace(place, type))
-        .map(async (place: any) => {
-          const parsedAddress = parseAddress(place.formattedAddress || "");
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseAuth.auth.getUser(token);
 
-          const baseUrl =
-            process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    if (userError || !user?.email) {
+      return NextResponse.json({ error: "Unauthorized: invalid user" }, { status: 401 });
+    }
 
-          const detailUrl =
-            type === "restaurant"
-              ? `${baseUrl}/restaurants/${place.id}`
-              : `${baseUrl}/activities/${place.id}`;
+    const { data: adminUser } = await supabaseAdmin
+      .from("admin_users")
+      .select("role")
+      .eq("email", user.email.toLowerCase())
+      .maybeSingle();
 
-          const claimToken = crypto.randomUUID();
+    if (!adminUser || !["superuser", "admin"].includes(adminUser.role)) {
+      return NextResponse.json({ error: "Unauthorized: not admin" }, { status: 401 });
+    }
 
-          const claimUrl =
-            type === "restaurant"
-              ? `${baseUrl}/claim/${claimToken}`
-              : `${baseUrl}/claim-activity/${claimToken}`;
+    const body = await req.json();
+    const query = body.query || "restaurants in Queens NY";
 
-          const qrCodeDataUrl = await generateQrCodeDataUrl(claimUrl);
+    const googleKey = process.env.GOOGLE_PLACES_API_KEY;
 
-          return {
-            restaurant_name:
-              type === "restaurant" ? place.displayName?.text || "" : null,
+    if (!googleKey) {
+      return NextResponse.json({ error: "Missing Google API key" }, { status: 500 });
+    }
 
-            activity_name:
-              type === "activity" ? place.displayName?.text || "" : null,
+    const googleUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
+      query
+    )}&key=${googleKey}`;
 
-            activity_type: getActivityType(place),
+    const googleRes = await fetch(googleUrl);
+    const googleData = await googleRes.json();
 
-            address: parsedAddress.address || place.formattedAddress || "",
-            city: parsedAddress.city,
-            state: parsedAddress.state,
-            zip_code: parsedAddress.zip_code,
+    if (!googleData.results) {
+      return NextResponse.json({ error: "No Google results found" }, { status: 400 });
+    }
 
-            rating: place.rating || null,
-            review_count: place.userRatingCount || null,
+    let imported = 0;
 
-            quality_score: getQualityScore(place),
-            popularity_score: getPopularityScore(place),
+    for (const place of googleData.results.slice(0, 20)) {
+      const { data: existing } = await supabaseAdmin
+        .from("restaurants")
+        .select("id")
+        .eq("google_place_id", place.place_id)
+        .maybeSingle();
 
-            website: place.websiteUri || place.googleMapsUri || null,
-            image_url: getPhotoUrl(place),
+      if (existing) continue;
 
-            google_place_id: place.id,
-            detail_url: detailUrl,
+      await supabaseAdmin.from("restaurants").insert({
+        restaurant_name: place.name,
+        address: place.formatted_address || "",
+        google_place_id: place.place_id,
+        rating: place.rating || 0,
+        user_ratings_total: place.user_ratings_total || 0,
+        image_url: place.photos?.[0]
+          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${place.photos[0].photo_reference}&key=${googleKey}`
+          : null,
+        source: "google",
+        claim_status: "unclaimed",
+      });
 
-            claim_token: claimToken,
-            claim_url: claimUrl,
-            claim_status: "unclaimed",
-            qr_code_data_url: qrCodeDataUrl,
+      imported++;
+    }
 
-            primary_tag: getPrimaryTag(place),
-            date_style_tags: buildTags(place),
-
-            status: "approved",
-          };
-        })
-    );
-
-    const table = type === "activity" ? "activities" : "restaurants";
-
-    const cleanRows =
-      type === "activity"
-        ? rows.map((r: any) => ({
-            activity_name: r.activity_name,
-            activity_type: r.activity_type,
-            address: r.address,
-            city: r.city,
-            state: r.state,
-            zip_code: r.zip_code,
-            rating: r.rating,
-            review_count: r.review_count,
-            quality_score: r.quality_score,
-            popularity_score: r.popularity_score,
-            website: r.website,
-            image_url: r.image_url,
-            google_place_id: r.google_place_id,
-            detail_url: r.detail_url,
-            claim_token: r.claim_token,
-            claim_url: r.claim_url,
-            claim_status: r.claim_status,
-            qr_code_data_url: r.qr_code_data_url,
-            primary_tag: r.primary_tag,
-            date_style_tags: r.date_style_tags,
-            status: r.status,
-          }))
-        : rows.map((r: any) => ({
-            restaurant_name: r.restaurant_name,
-            address: r.address,
-            city: r.city,
-            state: r.state,
-            zip_code: r.zip_code,
-            rating: r.rating,
-            review_count: r.review_count,
-            quality_score: r.quality_score,
-            popularity_score: r.popularity_score,
-            website: r.website,
-            image_url: r.image_url,
-            google_place_id: r.google_place_id,
-            detail_url: r.detail_url,
-            claim_token: r.claim_token,
-            claim_url: r.claim_url,
-            claim_status: r.claim_status,
-            qr_code_data_url: r.qr_code_data_url,
-            primary_tag: r.primary_tag,
-            date_style_tags: r.date_style_tags,
-            status: r.status,
-          }));
-
-    const { error } = await supabase.from(table).upsert(cleanRows, {
-      onConflict: "google_place_id",
+    await supabaseAdmin.from("import_history").insert({
+      source: "google",
+      query,
+      imported_count: imported,
+      status: "success",
     });
 
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
-    }
-
-    return Response.json({
+    return NextResponse.json({
       success: true,
-      table,
-      imported: cleanRows.length,
+      imported,
+      query,
     });
   } catch (error: any) {
-    return Response.json(
-      { error: error.message || "Server error" },
+    await supabaseAdmin.from("import_history").insert({
+      source: "google",
+      query: "unknown",
+      imported_count: 0,
+      status: "failed",
+      error_message: error.message || "Import failed",
+    });
+
+    return NextResponse.json(
+      { error: error.message || "Import failed" },
       { status: 500 }
     );
   }
