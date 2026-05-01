@@ -1,17 +1,55 @@
-"use client";
+import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
-import { useRouter } from "next/navigation";
+export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  const router = useRouter();
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        persistSession: false,
+      },
+    }
+  );
+}
+
+export default async function HomePage() {
+  const supabase = adminSupabase();
+
+  const { data: topRestaurants } = await supabase
+    .from("restaurants")
+    .select(
+      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
+    )
+    .eq("ranking_badge", "Top 10%")
+    .order("roseout_score", { ascending: false })
+    .limit(6);
+
+  const { data: trendingRestaurants } = await supabase
+    .from("restaurants")
+    .select(
+      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
+    )
+    .order("trend_score", { ascending: false })
+    .limit(6);
+
+  const { data: personalizedPicks } = await supabase
+    .from("restaurants")
+    .select(
+      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
+    )
+    .order("conversion_score", { ascending: false })
+    .limit(6);
 
   return (
     <main className="min-h-screen bg-[#050305] text-white">
-      {/* HERO */}
-      <section className="relative flex min-h-[90vh] items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.25),transparent_40%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.2),transparent_40%)]" />
+      <section className="relative flex min-h-[92vh] items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.28),transparent_38%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.22),transparent_38%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#050305] to-transparent" />
 
-        <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
+        <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
           <p className="text-xs font-black uppercase tracking-[0.4em] text-rose-300">
             RoseOut
           </p>
@@ -22,99 +60,123 @@ export default function HomePage() {
             <span className="text-rose-400">In One Sentence</span>
           </h1>
 
-          <p className="mt-6 text-lg text-white/60">
-            Tell RoseOut what you want. We’ll build the perfect date, dinner, or
-            outing instantly — curated, styled, and ready to book.
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white/60">
+            Tell RoseOut your vibe, budget, borough, and mood. We’ll build the
+            perfect dinner, activity, or full outing instantly.
           </p>
 
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <button
-              onClick={() => router.push("/create")}
+            <Link
+              href="/create"
               className="rounded-full bg-rose-500 px-8 py-4 text-sm font-black text-white shadow-xl shadow-rose-500/30 transition hover:bg-rose-400"
             >
               Start Planning →
-            </button>
+            </Link>
 
-            <button
-              onClick={() => router.push("/explore")}
-              className="rounded-full border border-white/20 px-8 py-4 text-sm font-black text-white/70 hover:bg-white hover:text-black"
+            <Link
+              href="#trending"
+              className="rounded-full border border-white/20 px-8 py-4 text-sm font-black text-white/70 transition hover:bg-white hover:text-black"
             >
-              Explore Locations
-            </button>
+              See Trending
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="text-center text-4xl font-black">
-          How RoseOut Works
-        </h2>
+      <section id="trending" className="mx-auto max-w-7xl px-6 py-14">
+        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-300">
+              Live Ranking Engine
+            </p>
+            <h2 className="mt-2 text-4xl font-black">Trending Now</h2>
+          </div>
 
-        <div className="mt-12 grid gap-8 md:grid-cols-3">
-          <StepCard
-            step="1"
-            title="Tell Us What You Want"
-            desc="Describe your vibe, budget, location, and preferences in one sentence."
-          />
-          <StepCard
-            step="2"
-            title="AI Builds Your Plan"
-            desc="We match you with the best restaurants and activities instantly."
-          />
-          <StepCard
-            step="3"
-            title="Go & Enjoy"
-            desc="Book, explore, and experience your perfect outing."
-          />
+          <Link
+            href="/create"
+            className="rounded-full border border-white/15 px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white hover:text-black"
+          >
+            Build My Plan
+          </Link>
         </div>
+
+        <RestaurantGrid restaurants={trendingRestaurants || []} />
       </section>
 
-      {/* FEATURE STRIP */}
+      <section className="mx-auto max-w-7xl px-6 py-14">
+        <div className="mb-8">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-300">
+            Best of RoseOut
+          </p>
+          <h2 className="mt-2 text-4xl font-black">Top 10% Restaurants</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/50">
+            Restaurants earning the strongest RoseOut score based on ranking
+            signals, user clicks, and conversion behavior.
+          </p>
+        </div>
+
+        <RestaurantGrid restaurants={topRestaurants || []} />
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 py-14">
+        <div className="mb-8">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-300">
+            High Intent Picks
+          </p>
+          <h2 className="mt-2 text-4xl font-black">
+            Places People Are Ready to Book
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/50">
+            Powered by reservation clicks, direction clicks, and user engagement
+            signals from RoseOut activity.
+          </p>
+        </div>
+
+        <RestaurantGrid restaurants={personalizedPicks || []} />
+      </section>
+
       <section className="bg-white text-black">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <div className="grid gap-10 md:grid-cols-2">
             <div>
-              <h2 className="text-4xl font-black">
-                Smarter Than Search
-              </h2>
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-600">
+                Why It Works
+              </p>
 
-              <p className="mt-5 text-lg text-black/70">
-                RoseOut doesn’t just list places — it understands intent.
-                Whether it’s a romantic dinner, birthday vibe, or casual night
-                out, we match you instantly.
+              <h2 className="mt-3 text-4xl font-black">Smarter Than Search</h2>
+
+              <p className="mt-5 text-lg leading-8 text-black/70">
+                RoseOut ranks places by real behavior — what users view, click,
+                save, reserve, and return to. That means better matches and less
+                scrolling.
               </p>
             </div>
 
             <div className="grid gap-4">
               <FeatureCard text="AI-powered recommendations" />
-              <FeatureCard text="Real-time availability & booking" />
-              <FeatureCard text="Curated experiences, not lists" />
-              <FeatureCard text="Personalized to your vibe" />
+              <FeatureCard text="Real-time ranking signals" />
+              <FeatureCard text="Top 10% and Trending badges" />
+              <FeatureCard text="Personalized outing plans" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
       <section className="mx-auto max-w-5xl px-6 py-24 text-center">
-        <h2 className="text-5xl font-black">
-          Ready to Plan Your Next Night?
-        </h2>
+        <h2 className="text-5xl font-black">Ready to Plan Your Next Night?</h2>
 
         <p className="mt-6 text-lg text-white/60">
           Stop scrolling. Start experiencing.
         </p>
 
-        <button
-          onClick={() => router.push("/create")}
-          className="mt-10 rounded-full bg-rose-500 px-10 py-5 text-lg font-black text-white shadow-2xl shadow-rose-500/30 transition hover:bg-rose-400"
+        <Link
+          href="/create"
+          className="mt-10 inline-flex rounded-full bg-rose-500 px-10 py-5 text-lg font-black text-white shadow-2xl shadow-rose-500/30 transition hover:bg-rose-400"
         >
           Start Your Plan →
-        </button>
+        </Link>
       </section>
 
-      {/* FOOTER */}
       <footer className="border-t border-white/10 px-6 py-10 text-center text-sm text-white/40">
         © {new Date().getFullYear()} RoseOut. All rights reserved.
       </footer>
@@ -122,30 +184,106 @@ export default function HomePage() {
   );
 }
 
-function StepCard({
-  step,
-  title,
-  desc,
-}: {
-  step: string;
-  title: string;
-  desc: string;
-}) {
-  return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 text-center shadow-xl">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-500 text-lg font-black">
-        {step}
+function RestaurantGrid({ restaurants }: { restaurants: any[] }) {
+  if (!restaurants || restaurants.length === 0) {
+    return (
+      <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.04] p-10 text-center">
+        <h3 className="text-2xl font-black">No ranked restaurants yet</h3>
+        <p className="mt-2 text-sm text-white/45">
+          Run the Ranking Engine after collecting activity events.
+        </p>
       </div>
+    );
+  }
 
-      <h3 className="mt-5 text-xl font-black">{title}</h3>
-      <p className="mt-3 text-sm text-white/60">{desc}</p>
+  return (
+    <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      {restaurants.map((restaurant) => {
+        const name =
+          restaurant.restaurant_name || restaurant.name || "Restaurant";
+
+        const imageUrl = restaurant.image_url || restaurant.photo_url || null;
+
+        return (
+          <Link
+            key={restaurant.id}
+            href={`/locations/restaurants/${restaurant.id}`}
+            className="group overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.05] shadow-2xl shadow-black/20 transition hover:-translate-y-1 hover:border-rose-400/40 hover:bg-rose-500/10"
+          >
+            <div className="relative h-56 bg-white/5">
+              {imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={imageUrl}
+                  alt={name}
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-rose-500/20 to-fuchsia-500/10 text-5xl">
+                  🍽️
+                </div>
+              )}
+
+              <div className="absolute left-4 top-4 rounded-full bg-black/70 px-3 py-1 text-xs font-black text-white backdrop-blur">
+                {restaurant.ranking_badge || "RoseOut Pick"}
+              </div>
+
+              {restaurant.roseout_score ? (
+                <div className="absolute right-4 top-4 rounded-full bg-rose-500 px-3 py-1 text-xs font-black text-white">
+                  {Math.round(restaurant.roseout_score)}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="p-5">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-rose-300">
+                {restaurant.cuisine || "Restaurant"}
+              </p>
+
+              <h3 className="mt-2 line-clamp-1 text-2xl font-black">
+                {name}
+              </h3>
+
+              <p className="mt-2 text-sm text-white/45">
+                {[restaurant.city, restaurant.state].filter(Boolean).join(", ")}
+              </p>
+
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                <MiniMetric
+                  label="Trend"
+                  value={Math.round(restaurant.trend_score || 0)}
+                />
+                <MiniMetric
+                  label="Intent"
+                  value={Math.round(restaurant.conversion_score || 0)}
+                />
+                <MiniMetric
+                  label="Score"
+                  value={Math.round(restaurant.roseout_score || 0)}
+                />
+              </div>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl bg-black/30 p-3 text-center">
+      <p className="text-[10px] font-black uppercase tracking-wide text-white/35">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-black text-white">{value}</p>
     </div>
   );
 }
 
 function FeatureCard({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-black/10 bg-white p-4 text-sm font-bold shadow">
+    <div className="rounded-2xl border border-black/10 bg-white p-5 text-sm font-black shadow-lg shadow-black/5">
       {text}
     </div>
   );
