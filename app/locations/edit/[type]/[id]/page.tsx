@@ -219,7 +219,7 @@ export default function EditLocationPage() {
           : prev.search_keywords,
       }));
 
-      setMessage("AI optimization applied. Review and save changes.");
+      setMessage("✅ AI optimization applied. Review and save changes.");
     } catch {
       setMessage("AI optimization failed.");
     } finally {
@@ -287,9 +287,15 @@ export default function EditLocationPage() {
       roseout_score: calculatedScore,
     }));
 
-    setMessage(`Location updated successfully. RoseOut Score: ${calculatedScore}/100`);
+    setMessage(`✅ Saved successfully. RoseOut Score: ${calculatedScore}/100`);
     setSaving(false);
   };
+
+  const isSuccessMessage =
+    message.includes("success") ||
+    message.includes("applied") ||
+    message.includes("Score") ||
+    message.includes("✅");
 
   if (loading) {
     return (
@@ -304,7 +310,7 @@ export default function EditLocationPage() {
   return (
     <main className="min-h-screen bg-black px-5 py-6 text-white">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <button
             onClick={() => router.push("/locations/dashboard")}
             className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold"
@@ -331,6 +337,18 @@ export default function EditLocationPage() {
             </button>
           </div>
         </div>
+
+        {message && (
+          <div
+            className={`mb-6 rounded-[1.5rem] p-4 text-sm font-bold shadow-xl ${
+              isSuccessMessage
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+            }`}
+          >
+            {message}
+          </div>
+        )}
 
         <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl">
           <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
@@ -599,20 +617,6 @@ export default function EditLocationPage() {
                 </div>
               </div>
             </Panel>
-
-            {message && (
-              <p
-                className={`rounded-2xl p-4 text-sm font-bold ${
-                  message.includes("success") ||
-                  message.includes("applied") ||
-                  message.includes("Score")
-                    ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
-                }`}
-              >
-                {message}
-              </p>
-            )}
 
             <button
               onClick={saveLocation}
