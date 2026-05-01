@@ -2,13 +2,23 @@
 
 import { useRouter } from "next/navigation";
 
-export default function BackButton() {
+type Props = {
+  fallback?: string;
+};
+
+export default function BackButton({ fallback = "/" }: Props) {
   const router = useRouter();
 
   return (
     <button
-      onClick={() => router.back()}
-      className="text-sm underline"
+      onClick={() => {
+        if (window.history.length > 1) {
+          router.back();
+        } else {
+          router.push(fallback);
+        }
+      }}
+      className="mb-4 text-sm font-medium text-neutral-400 hover:text-white transition"
     >
       ← Back
     </button>
