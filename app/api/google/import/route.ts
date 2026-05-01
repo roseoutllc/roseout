@@ -18,12 +18,18 @@ const supabaseAuth = createClient(
 );
 
 export async function POST(req: NextRequest) {
+  let query = "restaurants in Queens NY";
+  let imported = 0;
+
   try {
     const authHeader = req.headers.get("authorization");
     const token = authHeader?.replace("Bearer ", "");
 
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized: missing token" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized: missing token" },
+        { status: 401 }
+      );
     }
 
     const {
@@ -32,7 +38,10 @@ export async function POST(req: NextRequest) {
     } = await supabaseAuth.auth.getUser(token);
 
     if (userError || !user?.email) {
-      return NextResponse.json({ error: "Unauthorized: invalid user" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized: invalid user" },
+        { status: 401 }
+      );
     }
 
     const { data: adminUser } = await supabaseAdmin
@@ -42,16 +51,22 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!adminUser || !["superuser", "admin"].includes(adminUser.role)) {
-      return NextResponse.json({ error: "Unauthorized: not admin" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized: not admin" },
+        { status: 401 }
+      );
     }
 
     const body = await req.json();
-    const query = body.query || "restaurants in Queens NY";
+    query = body.query || query;
 
     const googleKey = process.env.GOOGLE_PLACES_API_KEY;
 
     if (!googleKey) {
-      return NextResponse.json({ error: "Missing Google API key" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Missing Google API key" },
+        { status: 500 }
+      );
     }
 
     const googleUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
@@ -62,10 +77,11 @@ export async function POST(req: NextRequest) {
     const googleData = await googleRes.json();
 
     if (!googleData.results) {
-      return NextResponse.json({ error: "No Google results found" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No Google results found" },
+        { status: 400 }
+      );
     }
-
-    let imported = 0;
 
     for (const place of googleData.results.slice(0, 20)) {
       const { data: existing } = await supabaseAdmin
@@ -87,16 +103,19 @@ export async function POST(req: NextRequest) {
           : null,
         source: "google",
         claim_status: "unclaimed",
+        roseout_score: Number(place.rating || 0) * 20,
+        view_count: 0,
+        click_count: 0,
       });
 
       imported++;
     }
 
-    await supabaseAdmin.from("import_history").insert({
-      source: "google",
-      query,
-      imported_count: imported,
-      status: "success",
+    const today = new Date().toISOString().split("T")[0];
+
+    await supabaseAdmin.from("import_logs").insert({
+      job_name: "Google Import",
+      run_date: today,
     });
 
     return NextResponse.json({
@@ -105,16 +124,19 @@ export async function POST(req: NextRequest) {
       query,
     });
   } catch (error: any) {
-    await supabaseAdmin.from("import_history").insert({
-      source: "google",
-      query: "unknown",
-      imported_count: 0,
-      status: "failed",
-      error_message: error.message || "Import failed",
+    const today = new Date().toISOString().split("T")[0];
+
+    await supabaseAdmin.from("import_logs").insert({
+      job_name: "Google Import Failed",
+      run_date: today,
     });
 
     return NextResponse.json(
-      { error: error.message || "Import failed" },
+      {
+        error: error.message || "Import failed",
+        imported,
+        query,
+      },
       { status: 500 }
     );
   }
