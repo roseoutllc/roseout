@@ -433,10 +433,12 @@ export default function CreatePage() {
             <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d]/90 p-5 shadow-2xl shadow-black/40 backdrop-blur">
               <div className="relative">
                 {!input && (
-                  <div className="pointer-events-none absolute left-5 top-4 right-5 z-10 text-sm font-semibold leading-7 text-white/30">
-                    <span>{typedSuggestion}</span>
-                    <span className="ml-1 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-[#e1062a]" />
-                  </div>
+                 <div className="pointer-events-none absolute left-5 top-4 right-5 z-10 text-sm font-semibold leading-7 text-white">
+  <span className="bg-gradient-to-r from-white via-white/80 to-white/50 bg-clip-text text-transparent">
+    {typedSuggestion}
+  </span>
+  <span className="ml-1 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-white/80" />
+</div>
                 )}
 
                 <textarea
