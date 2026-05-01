@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import RestaurantClient from "./RestaurantClient";
+import BackButton from "@/components/BackButton";
 
 export default async function RestaurantPage({
   params,
