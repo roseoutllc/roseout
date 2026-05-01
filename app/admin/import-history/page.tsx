@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { revalidatePath } from "next/cache";
+import AdminTopBar from "@/app/admin/components/AdminTopBar";
 
 type ImportLog = {
   id: string;
@@ -18,14 +19,21 @@ async function runGoogleImport() {
 
   await requireAdminRole(["superuser", "admin"]);
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+  if (!baseUrl) {
+    throw new Error("Missing NEXT_PUBLIC_SITE_URL");
+  }
+
+  if (!process.env.IMPORT_SECRET) {
+    throw new Error("Missing IMPORT_SECRET");
+  }
 
   const res = await fetch(`${baseUrl}/api/google/import`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-internal-import-secret": process.env.IMPORT_SECRET!,
+      "x-internal-import-secret": process.env.IMPORT_SECRET,
     },
     body: JSON.stringify({
       query: "restaurants in Queens NY",
@@ -34,8 +42,10 @@ async function runGoogleImport() {
     cache: "no-store",
   });
 
+  const text = await res.text();
+
   if (!res.ok) {
-    console.error("Google import failed:", await res.text());
+    throw new Error(`Google import failed: ${text}`);
   }
 
   revalidatePath("/admin/import-history");
@@ -56,8 +66,10 @@ export default async function ImportHistoryPage() {
   const latestRun = logs?.[0];
 
   return (
-    <main className="min-h-screen bg-[#050505] px-6 py-10 text-white">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen bg-[#050505] text-white">
+      <AdminTopBar />
+
+      <div className="mx-auto max-w-5xl px-6 py-10">
         <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
@@ -171,9 +183,7 @@ export default async function ImportHistoryPage() {
                           {log.job_name || "Unknown Job"}
                         </td>
 
-                        <td className="px-5 py-4">
-                          {log.run_date || "N/A"}
-                        </td>
+                        <td className="px-5 py-4">{log.run_date || "N/A"}</td>
 
                         <td className="px-5 py-4">
                           {log.created_at
@@ -203,8 +213,12 @@ export default async function ImportHistoryPage() {
 
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
           <p className="text-sm text-neutral-400">
-            If the badge says “Last Run Today,” your Vercel cron/import route
-            has logged a run for today.
+            If clicking the button does nothing, check your Vercel logs. The
+            import route must allow the{" "}
+            <span className="font-bold text-yellow-400">
+              x-internal-import-secret
+            </span>{" "}
+            header.
           </p>
         </div>
       </div>
