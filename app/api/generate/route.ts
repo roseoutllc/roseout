@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { supabase } from "@/lib/supabase";
+import { clampScore } from "@/lib/clampScore";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -654,7 +655,7 @@ export async function POST(req: Request) {
 
         return {
           ...restaurant,
-          roseout_score: clampScore(finalScore),
+          roseout_score: clampScore(r.roseout_score),
         };
       })
       .filter((restaurant: any) => restaurant.roseout_score > 0)
@@ -693,7 +694,7 @@ export async function POST(req: Request) {
 
         return {
           ...activity,
-          roseout_score: clampScore(finalScore),
+          roseout_score: clampScore(r.roseout_score),
         };
       })
       .filter((activity: any) => activity.roseout_score > 0)

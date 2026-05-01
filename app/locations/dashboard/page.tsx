@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase-browser";
+import { clampScore } from "@/lib/clampScore";
 
 type LocationType = "restaurant" | "activity";
 

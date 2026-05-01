@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { trackAnalytics } from "@/lib/trackAnalytics";
+import { clampScore } from "@/lib/clampScore";
 
 type RestaurantCard = {
   id: string;
