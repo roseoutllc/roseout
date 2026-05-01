@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 import { clampScore } from "@/lib/clampScore";
-import ScoreBadge from "@/components/ScoreBadge";
 import RoseOutHeader from "@/components/RoseOutHeader";
 
 type RestaurantCard = {
@@ -477,11 +476,7 @@ export default function CreatePage() {
         className="mx-auto w-full max-w-6xl scroll-mt-40 overflow-x-hidden px-4 py-8 sm:px-5"
       >
         {loading ? (
-          <LuxuryLoading
-            loadingText={loadingMessages[loadingTextIndex]}
-            expectedRestaurants={2}
-            expectedActivities={2}
-          />
+          <LuxuryLoading loadingText={loadingMessages[loadingTextIndex]} />
         ) : (
           <div className="w-full max-w-full space-y-5">
             {messages.map((msg, index) => {
@@ -915,8 +910,24 @@ function ResultCard({
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
 
-        <div className="absolute left-4 top-4 origin-top-left scale-75 rounded-[1rem] bg-black/80 p-2 text-white shadow-xl ring-1 ring-red-500/40 backdrop-blur">
-          <ScoreBadge score={score} />
+        <div className="absolute left-4 top-4 rounded-2xl border border-red-500/40 bg-black/85 px-4 py-3 text-white shadow-xl shadow-red-500/10 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full border-4 border-[#e1062a] text-sm font-black text-white">
+              {Math.round(score)}
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/55">
+                Score
+              </p>
+              <p className="text-sm font-black text-white">
+                {Math.round(score)}/100
+              </p>
+              <p className="mt-1 w-fit rounded-full bg-[#e1062a] px-2 py-0.5 text-[10px] font-black text-white">
+                Match
+              </p>
+            </div>
+          </div>
         </div>
 
         {distance !== null && distance !== undefined && (
@@ -927,7 +938,7 @@ function ResultCard({
 
         {rating && (
           <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
-            ⭐ {rating}
+            🌹 {rating}
           </div>
         )}
       </div>
@@ -1020,15 +1031,7 @@ function ResultCard({
   );
 }
 
-function LuxuryLoading({
-  loadingText,
-  expectedRestaurants = 2,
-  expectedActivities = 2,
-}: {
-  loadingText: string;
-  expectedRestaurants?: number;
-  expectedActivities?: number;
-}) {
+function LuxuryLoading({ loadingText }: { loadingText: string }) {
   return (
     <div className="mt-6 max-w-full animate-fadeIn space-y-10 overflow-x-hidden">
       <div className="text-center">
@@ -1039,66 +1042,20 @@ function LuxuryLoading({
         <h2 className="mt-2 break-words text-2xl font-black">{loadingText}</h2>
 
         <p className="mt-2 text-sm font-semibold text-white/40">
-          Building restaurant and activity cards...
+          Building your recommendations...
         </p>
       </div>
 
-      <SkeletonSection
-        title="Dinner"
-        label="Restaurant Picks"
-        count={expectedRestaurants}
-        type="restaurant"
-      />
-
-      <SkeletonSection
-        title="Activity"
-        label="Experience Picks"
-        count={expectedActivities}
-        type="activity"
-      />
-    </div>
-  );
-}
-
-function SkeletonSection({
-  title,
-  label,
-  count,
-  type,
-}: {
-  title: string;
-  label: string;
-  count: number;
-  type: "restaurant" | "activity";
-}) {
-  return (
-    <div className="max-w-full overflow-x-hidden">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-black uppercase tracking-[0.25em] text-white/40">
-          {title}
-        </h2>
-
-        <span className="shrink-0 rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white">
-          {label}
-        </span>
-      </div>
-
       <div className="grid w-full max-w-full gap-5 lg:grid-cols-2">
-        {Array.from({ length: count }).map((_, index) => (
-          <SkeletonCard key={`${type}-${index}`} index={index} type={type} />
+        {[0, 1, 2, 3].map((index) => (
+          <SkeletonCard key={index} index={index} />
         ))}
       </div>
     </div>
   );
 }
 
-function SkeletonCard({
-  index,
-  type,
-}: {
-  index: number;
-  type: "restaurant" | "activity";
-}) {
+function SkeletonCard({ index }: { index: number }) {
   const delay = `${index * 180}ms`;
 
   return (
@@ -1149,11 +1106,6 @@ function SkeletonCard({
         <div className="mt-5 flex max-w-full flex-wrap gap-3">
           <div className="h-10 w-20 animate-pulse rounded-full border border-white/5 bg-white/[0.035]" />
           <div className="h-10 w-28 animate-pulse rounded-full bg-white/[0.08]" />
-
-          {type === "activity" && (
-            <div className="h-10 w-24 animate-pulse rounded-full border border-white/5 bg-white/[0.035]" />
-          )}
-
           <div className="h-10 w-24 animate-pulse rounded-full border border-red-500/10 bg-red-500/[0.06]" />
         </div>
       </div>
