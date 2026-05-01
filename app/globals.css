@@ -95,3 +95,18 @@ body {
 .rose-muted {
   color: var(--rose-text-muted);
 }
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+video {
+  max-width: 100%;
+}
