@@ -20,6 +20,7 @@ const supabaseAuth = createClient(
 export async function POST(req: NextRequest) {
   let query = "restaurants in Queens NY";
   let imported = 0;
+  let skipped = 0;
 
   try {
     const authHeader = req.headers.get("authorization");
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     if (!googleKey) {
       return NextResponse.json(
-        { error: "Missing Google API key" },
+        { error: "Missing GOOGLE_PLACES_API_KEY" },
         { status: 500 }
       );
     }
@@ -76,37 +77,57 @@ export async function POST(req: NextRequest) {
     const googleRes = await fetch(googleUrl);
     const googleData = await googleRes.json();
 
-    if (!googleData.results) {
+    if (!googleData.results || !Array.isArray(googleData.results)) {
       return NextResponse.json(
-        { error: "No Google results found" },
+        {
+          error: "No Google results found",
+          googleStatus: googleData.status,
+          googleMessage: googleData.error_message,
+        },
         { status: 400 }
       );
     }
 
     for (const place of googleData.results.slice(0, 20)) {
-      const { data: existing } = await supabaseAdmin
+      const { data: existing, error: existingError } = await supabaseAdmin
         .from("restaurants")
         .select("id")
         .eq("google_place_id", place.place_id)
         .maybeSingle();
 
-      if (existing) continue;
+      if (existingError) {
+        throw new Error(`Duplicate check failed: ${existingError.message}`);
+      }
 
-      await supabaseAdmin.from("restaurants").insert({
-        restaurant_name: place.name,
-        address: place.formatted_address || "",
-        google_place_id: place.place_id,
-        rating: place.rating || 0,
-        user_ratings_total: place.user_ratings_total || 0,
-        image_url: place.photos?.[0]
-          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${place.photos[0].photo_reference}&key=${googleKey}`
-          : null,
-        source: "google",
-        claim_status: "unclaimed",
-        roseout_score: Number(place.rating || 0) * 20,
-        view_count: 0,
-        click_count: 0,
-      });
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      const photoUrl = place.photos?.[0]?.photo_reference
+        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${place.photos[0].photo_reference}&key=${googleKey}`
+        : null;
+
+      const { error: insertError } = await supabaseAdmin
+        .from("restaurants")
+        .insert({
+          restaurant_name: place.name || "Unnamed Restaurant",
+          name: place.name || "Unnamed Restaurant",
+          address: place.formatted_address || "",
+          google_place_id: place.place_id,
+          rating: Number(place.rating || 0),
+          user_ratings_total: Number(place.user_ratings_total || 0),
+          image_url: photoUrl,
+          source: "google",
+          claim_status: "unclaimed",
+          roseout_score: Number(place.rating || 0) * 20,
+          view_count: 0,
+          click_count: 0,
+        });
+
+      if (insertError) {
+        throw new Error(`Restaurant insert failed: ${insertError.message}`);
+      }
 
       imported++;
     }
@@ -116,11 +137,14 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin.from("import_logs").insert({
       job_name: "Google Import",
       run_date: today,
+      imported_count: imported,
     });
 
     return NextResponse.json({
       success: true,
       imported,
+      skipped,
+      totalGoogleResults: googleData.results.length,
       query,
     });
   } catch (error: any) {
@@ -129,12 +153,14 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin.from("import_logs").insert({
       job_name: "Google Import Failed",
       run_date: today,
+      imported_count: imported,
     });
 
     return NextResponse.json(
       {
         error: error.message || "Import failed",
         imported,
+        skipped,
         query,
       },
       { status: 500 }
