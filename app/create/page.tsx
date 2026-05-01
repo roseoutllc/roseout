@@ -72,10 +72,20 @@ type SavedCreateState = {
 const STORAGE_KEY = "roseout_create_state";
 const LOCATION_KEY = "roseout_user_location";
 
+const loadingMessages = [
+  "Finding hidden gems...",
+  "Matching your vibe...",
+  "Scanning top-rated spots...",
+  "Curating your perfect outing...",
+  "Checking the best experiences...",
+  "Building something special...",
+];
+
 export default function CreatePage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingTextIndex, setLoadingTextIndex] = useState(0);
   const [error, setError] = useState("");
   const [locationSaved, setLocationSaved] = useState(false);
 
@@ -195,6 +205,16 @@ export default function CreatePage() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   });
+
+  useEffect(() => {
+    if (!loading) return;
+
+    const interval = setInterval(() => {
+      setLoadingTextIndex((prev) => (prev + 1) % loadingMessages.length);
+    }, 1400);
+
+    return () => clearInterval(interval);
+  }, [loading]);
 
   useEffect(() => {
     messages.forEach((msg) => {
@@ -746,18 +766,7 @@ export default function CreatePage() {
         </div>
 
         {loading && (
-          <div className="mt-6 space-y-4">
-            <div className="animate-pulse rounded-[2rem] bg-white/10 p-5">
-              <div className="mb-4 h-5 w-40 rounded bg-white/20" />
-              <div className="h-72 rounded-[1.5rem] bg-white/20" />
-              <div className="mt-4 h-4 w-3/4 rounded bg-white/20" />
-              <div className="mt-3 h-4 w-1/2 rounded bg-white/20" />
-            </div>
-
-            <p className="text-center text-sm text-neutral-400">
-              RoseOut is finding your best matches...
-            </p>
-          </div>
+          <LuxuryLoading loadingText={loadingMessages[loadingTextIndex]} />
         )}
 
         {error && (
@@ -832,5 +841,87 @@ export default function CreatePage() {
         </div>
       )}
     </main>
+  );
+}
+
+function LuxuryLoading({ loadingText }: { loadingText: string }) {
+  return (
+    <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-[#f7f3ed] p-5 text-black shadow-2xl">
+      <div className="mb-5 text-center">
+        <p className="text-xs font-black uppercase tracking-[0.35em] text-neutral-500">
+          RoseOut is searching
+        </p>
+
+        <h2 className="mt-2 min-h-[32px] text-2xl font-black transition-all duration-500">
+          {loadingText}
+        </h2>
+
+        <div className="mt-4 flex justify-center gap-2">
+          <span className="h-2 w-2 animate-bounce rounded-full bg-yellow-500" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-yellow-500 [animation-delay:150ms]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-yellow-500 [animation-delay:300ms]" />
+        </div>
+      </div>
+
+      <div className="grid gap-5">
+        {[1, 2].map((item) => (
+          <div
+            key={item}
+            className="overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white shadow-xl"
+          >
+            <div className="relative h-72 overflow-hidden bg-neutral-200">
+              <div className="absolute inset-0 bg-gradient-to-br from-neutral-300 via-neutral-200 to-neutral-400 blur-sm" />
+
+              <div className="absolute inset-0 -translate-x-full animate-[roseoutShimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+
+              <div className="absolute left-4 top-4 rounded-[1rem] bg-white/90 p-3 shadow-xl">
+                <div className="flex items-center gap-2">
+                  <div className="relative h-12 w-12">
+                    <div className="absolute inset-0 rounded-full border-[5px] border-neutral-200" />
+                    <div className="absolute inset-0 animate-spin rounded-full border-[5px] border-yellow-500 border-r-transparent" />
+                    <div className="absolute inset-0 flex items-center justify-center text-xs font-black">
+                      AI
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="h-3 w-16 animate-pulse rounded-full bg-neutral-300" />
+                    <div className="mt-2 h-4 w-20 animate-pulse rounded-full bg-neutral-300" />
+                    <div className="mt-2 h-5 w-14 animate-pulse rounded-full bg-yellow-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute bottom-4 right-4 h-10 w-24 animate-pulse rounded-full bg-white/90" />
+            </div>
+
+            <div className="p-5">
+              <div className="h-3 w-28 animate-pulse rounded-full bg-neutral-300" />
+              <div className="mt-4 h-8 w-64 animate-pulse rounded-full bg-neutral-300" />
+              <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-neutral-200" />
+              <div className="mt-2 h-4 w-2/3 animate-pulse rounded-full bg-neutral-200" />
+
+              <div className="mt-5 flex gap-2">
+                <div className="h-8 w-24 animate-pulse rounded-full bg-neutral-200" />
+                <div className="h-8 w-20 animate-pulse rounded-full bg-neutral-200" />
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <div className="h-11 w-28 animate-pulse rounded-full border border-neutral-300" />
+                <div className="h-11 w-36 animate-pulse rounded-full bg-black" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <style jsx>{`
+        @keyframes roseoutShimmer {
+          100% {
+            transform: translateX(100%);
+          }
+        }
+      `}</style>
+    </div>
   );
 }
