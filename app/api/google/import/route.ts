@@ -77,6 +77,21 @@ function parseAddressParts(address: string | null) {
       zipCode: null,
     };
   }
+
+  const parts = cleaned.split(",").map((part) => part.trim());
+
+  const city = parts.length >= 2 ? parts[parts.length - 2] : null;
+  const stateZip = parts.length >= 3 ? parts[parts.length - 1] : null;
+
+  const match = stateZip?.match(/^([A-Z]{2})\s+(\d{5})(?:-\d{4})?$/);
+
+  return {
+    fullAddress: cleaned,
+    city,
+    state: match?.[1] || null,
+    zipCode: match?.[2] || null,
+  };
+}
 function getReviewCount(place: any) {
   return Number(
     place.user_ratings_total ??
