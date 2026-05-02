@@ -47,7 +47,6 @@ export default function SignupPage() {
 
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
-  const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -113,7 +112,6 @@ export default function SignupPage() {
 
   const handleNextStep = () => {
     setErrorMessage("");
-    setMessage("");
 
     if (!fullName.trim()) {
       setErrorMessage("Please enter your full name.");
@@ -149,7 +147,6 @@ export default function SignupPage() {
     e.preventDefault();
 
     setErrorMessage("");
-    setMessage("");
 
     if (!canGoStep2) {
       setStep(1);
@@ -189,13 +186,12 @@ export default function SignupPage() {
         return;
       }
 
-      const { error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
+      const userEmail = email.trim().toLowerCase();
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: userEmail,
         options: {
-          emailRedirectTo: `${
-            process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
-          }/dashboard`,
+          shouldCreateUser: true,
           data: {
             full_name: fullName.trim(),
             role: "user",
@@ -221,22 +217,15 @@ export default function SignupPage() {
         return;
       }
 
-      setMessage("Account created. Please check your email to confirm.");
+      sessionStorage.setItem(
+        "roseout_pending_signup",
+        JSON.stringify({
+          email: userEmail,
+          password,
+        })
+      );
 
-      setFullName("");
-      setEmail("");
-      setPhone("");
-      setPassword("");
-      setConfirmPassword("");
-      setPlanningFor("");
-      setCity("");
-      setPreferredVibe("");
-      setBudgetRange("");
-      setAcceptedTerms(false);
-      setMarketingOptIn(false);
-      setSmsOptIn(false);
-      resetCaptcha();
-      setStep(1);
+      window.location.href = `/verify?email=${encodeURIComponent(userEmail)}`;
     } catch {
       setErrorMessage("Something went wrong. Please try again.");
       resetCaptcha();
@@ -317,11 +306,7 @@ export default function SignupPage() {
               </h2>
 
               <div className="mt-3 flex gap-2">
-                <div
-                  className={`h-2 flex-1 rounded-full ${
-                    step >= 1 ? "bg-red-600" : "bg-white/15"
-                  }`}
-                />
+                <div className="h-2 flex-1 rounded-full bg-red-600" />
                 <div
                   className={`h-2 flex-1 rounded-full ${
                     step >= 2 ? "bg-red-600" : "bg-white/15"
@@ -391,17 +376,11 @@ export default function SignupPage() {
                   />
                   <span>
                     I agree to the{" "}
-                    <Link
-                      href="/terms"
-                      className="font-bold text-red-300 hover:text-white"
-                    >
+                    <Link href="/terms" className="font-bold text-red-300 hover:text-white">
                       Terms of Service
                     </Link>{" "}
                     and{" "}
-                    <Link
-                      href="/privacy"
-                      className="font-bold text-red-300 hover:text-white"
-                    >
+                    <Link href="/privacy" className="font-bold text-red-300 hover:text-white">
                       Privacy Policy
                     </Link>
                     .
@@ -414,12 +393,6 @@ export default function SignupPage() {
                   </div>
                 )}
 
-                {message && (
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-400">
-                    {message}
-                  </div>
-                )}
-
                 <button
                   type="button"
                   onClick={handleNextStep}
@@ -427,16 +400,6 @@ export default function SignupPage() {
                 >
                   Continue
                 </button>
-
-                <p className="text-center text-xs text-white/40">
-                  Already have an account?{" "}
-                  <Link
-                    href="/login"
-                    className="font-bold text-red-300 hover:text-white"
-                  >
-                    Log in
-                  </Link>
-                </p>
               </div>
             ) : (
               <form onSubmit={handleSignup} className="space-y-2 p-4">
@@ -525,17 +488,11 @@ export default function SignupPage() {
                     <strong className="text-white">STOP</strong> to opt out.
                     Reply <strong className="text-white">HELP</strong> for help.
                     Consent is not a condition of purchase. View our{" "}
-                    <Link
-                      href="/privacy"
-                      className="font-bold text-red-300 hover:text-white"
-                    >
+                    <Link href="/privacy" className="font-bold text-red-300 hover:text-white">
                       Privacy Policy
                     </Link>{" "}
                     and{" "}
-                    <Link
-                      href="/terms"
-                      className="font-bold text-red-300 hover:text-white"
-                    >
+                    <Link href="/terms" className="font-bold text-red-300 hover:text-white">
                       Terms
                     </Link>
                     .
@@ -549,12 +506,6 @@ export default function SignupPage() {
                 {errorMessage && (
                   <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-100">
                     {errorMessage}
-                  </div>
-                )}
-
-                {message && (
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-400">
-                    {message}
                   </div>
                 )}
 
@@ -572,11 +523,18 @@ export default function SignupPage() {
                     disabled={!canSubmit}
                     className="w-2/3 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-red-950/40 hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {loading ? "Creating..." : "Create"}
+                    {loading ? "Sending Code..." : "Send Verification Code"}
                   </button>
                 </div>
               </form>
             )}
+
+            <p className="pb-4 text-center text-xs text-white/40">
+              Already have an account?{" "}
+              <Link href="/login" className="font-bold text-red-300 hover:text-white">
+                Log in
+              </Link>
+            </p>
           </div>
         </section>
       </div>
