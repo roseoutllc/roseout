@@ -13,11 +13,9 @@ export default function SignupPage() {
   const turnstileRef = useRef<TurnstileInstance>(null);
 
   const [step, setStep] = useState<Step>(1);
-
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -33,29 +31,16 @@ export default function SignupPage() {
   function nextStep() {
     setError("");
 
-    if (!fullName.trim()) {
-      setError("Please enter your full name.");
-      return;
-    }
-
-    if (!email.trim()) {
-      setError("Please enter your email.");
-      return;
-    }
-
+    if (!fullName.trim()) return setError("Please enter your full name.");
+    if (!email.trim()) return setError("Please enter your email.");
     if (!password.trim() || !confirmPassword.trim()) {
-      setError("Please enter and confirm your password.");
-      return;
+      return setError("Please enter and confirm your password.");
     }
-
     if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
+      return setError("Password must be at least 6 characters.");
     }
-
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
+      return setError("Passwords do not match.");
     }
 
     setStep(2);
@@ -78,7 +63,7 @@ export default function SignupPage() {
     }
 
     if (!turnstileToken) {
-      setError("Please complete the verification before creating your account.");
+      setError("Please complete the verification.");
       return;
     }
 
@@ -101,7 +86,6 @@ export default function SignupPage() {
             sms_consent_language:
               "I agree to receive SMS messages from RoseOut about my account, recommendations, booking updates, reminders, and customer support. Message frequency varies. Message and data rates may apply. Reply STOP to opt out and HELP for help.",
             sms_consent_timestamp: smsConsent ? new Date().toISOString() : null,
-            turnstile_completed: true,
           },
         },
       });
@@ -135,255 +119,239 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(225,6,42,0.32),transparent_30%),radial-gradient(circle_at_85%_12%,rgba(127,29,29,0.28),transparent_32%),linear-gradient(180deg,#050505,#000)]" />
+    <main className="relative min-h-screen overflow-hidden bg-black px-4 py-6 text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(225,6,42,0.28),transparent_30%),radial-gradient(circle_at_85%_0%,rgba(127,29,29,0.28),transparent_28%),linear-gradient(180deg,#050505,#000)]" />
 
-      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-8 lg:grid-cols-[0.95fr_1.05fr]">
-        <section className="hidden lg:block">
-          <Link
-            href="/"
-            className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/55 transition hover:bg-white hover:text-black"
-          >
-            ← Home
-          </Link>
-
-          <div className="mt-10 flex items-center gap-3">
+      <div className="relative z-10 mx-auto max-w-6xl">
+        <header className="flex items-center justify-between py-4">
+          <Link href="/" className="flex items-center gap-3">
             <Image
               src="/logo.png"
               alt="RoseOut"
-              width={44}
-              height={44}
-              className="object-contain drop-shadow-[0_0_14px_rgba(225,6,42,0.55)]"
+              width={38}
+              height={38}
+              className="object-contain drop-shadow-[0_0_12px_rgba(225,6,42,0.45)]"
               priority
             />
-
-            <span className="text-sm font-black uppercase tracking-[0.28em] text-red-200">
+            <span className="text-sm font-black uppercase tracking-[0.28em] text-white">
               RoseOut
             </span>
+          </Link>
+
+          <Link
+            href="/login"
+            className="rounded-full border border-white/15 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white/70 transition hover:bg-white hover:text-black"
+          >
+            Log In
+          </Link>
+        </header>
+
+        <section className="grid min-h-[calc(100vh-96px)] items-center gap-8 lg:grid-cols-[1fr_430px]">
+          <div className="hidden lg:block">
+            <p className="text-xs font-black uppercase tracking-[0.38em] text-red-400">
+              AI-powered outing planner
+            </p>
+
+            <h1 className="mt-5 max-w-2xl text-6xl font-black leading-[0.92] tracking-tight xl:text-7xl">
+              Create your
+              <br />
+              <span className="text-red-500">RoseOut.</span>
+            </h1>
+
+            <p className="mt-6 max-w-md text-sm leading-7 text-white/55">
+              Plan better outings, save your selections, and keep your next
+              experience ready whenever you are.
+            </p>
+
+            <div className="mt-8 flex gap-3">
+              <StepPill active={step === 1} label="Account" />
+              <StepPill active={step === 2} label="Consent" />
+            </div>
           </div>
 
-          <h1 className="mt-8 max-w-xl text-6xl font-black leading-[0.92] tracking-tight xl:text-7xl">
-            Find the right
-            <br />
-            <span className="text-red-500">night out.</span>
-          </h1>
+          <section className="rounded-[1.75rem] border border-white/10 bg-[#0b0b0b]/90 shadow-2xl shadow-black/50 backdrop-blur-xl">
+            <div className="border-b border-white/10 px-5 py-5">
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-red-400">
+                Step {step} of 2
+              </p>
 
-          <p className="mt-6 max-w-md text-sm leading-7 text-white/55">
-            Create your RoseOut account to plan better outings, save your
-            selections, and continue your experience anytime.
-          </p>
+              <h2 className="mt-2 text-3xl font-black tracking-tight">
+                {step === 1 ? "Create Account" : "SMS Consent"}
+              </h2>
 
-          <div className="mt-8 flex gap-3">
-            <StepPill active={step === 1} label="Account" />
-            <StepPill active={step === 2} label="Consent" />
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#0b0b0b]/95 shadow-2xl shadow-black/50 backdrop-blur-xl">
-          <div className="border-b border-white/10 bg-gradient-to-r from-red-950/50 via-black to-black px-6 py-5 sm:px-8">
-            <Link
-              href="/"
-              className="mb-5 inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/55 transition hover:bg-white hover:text-black lg:hidden"
-            >
-              ← Home
-            </Link>
-
-            <div className="flex items-center gap-3">
-              <Image
-                src="/logo.png"
-                alt="RoseOut"
-                width={36}
-                height={36}
-                className="object-contain drop-shadow-[0_0_12px_rgba(225,6,42,0.55)]"
-                priority
-              />
-
-              <span className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
-                RoseOut
-              </span>
+              <p className="mt-2 text-sm leading-6 text-white/50">
+                {step === 1
+                  ? "Set up your RoseOut login details."
+                  : "Choose how RoseOut can contact you."}
+              </p>
             </div>
 
-            <p className="mt-3 text-xs font-black uppercase tracking-[0.3em] text-red-400">
-              Step {step} of 2
-            </p>
-
-            <h2 className="mt-3 text-4xl font-black tracking-tight">
-              {step === 1 ? "Create Account" : "SMS Consent"}
-            </h2>
-
-            <p className="mt-3 text-sm leading-6 text-white/55">
-              {step === 1
-                ? "Set up your RoseOut login details."
-                : "Choose how RoseOut can contact you by text message."}
-            </p>
-          </div>
-
-          <form onSubmit={handleSignup} className="p-6 sm:p-8">
-            {error && (
-              <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-100">
-                {error}
-              </div>
-            )}
-
-            {message && (
-              <div className="mb-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-100">
-                {message}
-              </div>
-            )}
-
-            {step === 1 && (
-              <>
-                <Field
-                  label="Full Name"
-                  value={fullName}
-                  onChange={setFullName}
-                  placeholder="Your name"
-                />
-
-                <Field
-                  label="Email"
-                  type="email"
-                  value={email}
-                  onChange={setEmail}
-                  placeholder="you@example.com"
-                />
-
-                <Field
-                  label="Password"
-                  type="password"
-                  value={password}
-                  onChange={setPassword}
-                  placeholder="Create password"
-                />
-
-                <Field
-                  label="Confirm Password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={setConfirmPassword}
-                  placeholder="Confirm password"
-                />
-
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  className="mt-6 w-full rounded-full bg-red-600 px-6 py-4 font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500"
-                >
-                  Continue
-                </button>
-              </>
-            )}
-
-            {step === 2 && (
-              <>
-                <Field
-                  label="Mobile Number"
-                  type="tel"
-                  value={phone}
-                  onChange={setPhone}
-                  placeholder="Example: 516-555-1234"
-                />
-
-                <ConsentBox
-                  checked={smsConsent}
-                  onChange={setSmsConsent}
-                  required={!!phone.trim()}
-                >
-                  I agree to receive SMS messages from RoseOut about my account,
-                  recommendations, booking updates, reminders, and customer
-                  support. Message frequency varies. Message and data rates may
-                  apply. Reply STOP to opt out and HELP for help.
-                </ConsentBox>
-
-                <ConsentBox
-                  checked={marketingConsent}
-                  onChange={setMarketingConsent}
-                >
-                  I also agree to receive occasional RoseOut promotional texts,
-                  offers, and featured outing ideas. This is optional.
-                </ConsentBox>
-
-                <ConsentBox checked={termsConsent} onChange={setTermsConsent}>
-                  I agree to the{" "}
-                  <Link
-                    href="/terms"
-                    className="font-bold text-red-300 hover:text-white"
-                  >
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link
-                    href="/privacy"
-                    className="font-bold text-red-300 hover:text-white"
-                  >
-                    Privacy Policy
-                  </Link>
-                  .
-                </ConsentBox>
-
-                <div className="mt-5 rounded-2xl border border-white/10 bg-black/45 p-4">
-                  <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/35">
-                    Verification
-                  </p>
-
-                  {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? (
-                    <Turnstile
-                      ref={turnstileRef}
-                      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-                      options={{
-                        theme: "dark",
-                        size: "normal",
-                      }}
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      onExpire={() => setTurnstileToken("")}
-                      onError={() => {
-                        setTurnstileToken("");
-                        setError("Verification failed. Please try again.");
-                      }}
-                    />
-                  ) : (
-                    <p className="text-sm font-bold text-red-200">
-                      Missing NEXT_PUBLIC_TURNSTILE_SITE_KEY.
-                    </p>
-                  )}
+            <form onSubmit={handleSignup} className="p-5">
+              {error && (
+                <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm font-bold text-red-100">
+                  {error}
                 </div>
+              )}
 
-                <p className="mt-4 text-xs leading-6 text-white/40">
-                  Consent is not a condition of purchase. You can opt out at any
-                  time by replying STOP. For help, reply HELP or contact RoseOut
-                  support.
-                </p>
+              {message && (
+                <div className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-100">
+                  {message}
+                </div>
+              )}
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {step === 1 && (
+                <>
+                  <Field
+                    label="Full Name"
+                    value={fullName}
+                    onChange={setFullName}
+                    placeholder="Your name"
+                  />
+
+                  <Field
+                    label="Email"
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    placeholder="you@example.com"
+                  />
+
+                  <Field
+                    label="Password"
+                    type="password"
+                    value={password}
+                    onChange={setPassword}
+                    placeholder="Create password"
+                  />
+
+                  <Field
+                    label="Confirm Password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
+                    placeholder="Confirm password"
+                  />
+
                   <button
                     type="button"
-                    onClick={() => setStep(1)}
-                    className="rounded-full border border-white/15 px-6 py-4 font-black text-white transition hover:bg-white hover:text-black"
+                    onClick={nextStep}
+                    className="mt-5 w-full rounded-full bg-red-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500"
                   >
-                    Back
+                    Continue
                   </button>
+                </>
+              )}
 
-                  <button
-                    type="submit"
-                    disabled={loading || !turnstileToken}
-                    className="rounded-full bg-red-600 px-6 py-4 font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              {step === 2 && (
+                <>
+                  <Field
+                    label="Mobile Number"
+                    type="tel"
+                    value={phone}
+                    onChange={setPhone}
+                    placeholder="516-555-1234"
+                  />
+
+                  <ConsentBox
+                    checked={smsConsent}
+                    onChange={setSmsConsent}
+                    required={!!phone.trim()}
                   >
-                    {loading ? "Creating..." : "Create Account"}
-                  </button>
-                </div>
-              </>
-            )}
+                    I agree to receive SMS messages from RoseOut about my
+                    account, recommendations, booking updates, reminders, and
+                    customer support. Message frequency varies. Message and data
+                    rates may apply. Reply STOP to opt out and HELP for help.
+                  </ConsentBox>
 
-            <p className="mt-6 text-center text-sm font-bold text-white/45">
-              Already have an account?{" "}
-              <Link
-                href="/login"
-                className="text-red-300 transition hover:text-white"
-              >
-                Log in
-              </Link>
-            </p>
-          </form>
+                  <ConsentBox
+                    checked={marketingConsent}
+                    onChange={setMarketingConsent}
+                  >
+                    I also agree to receive occasional RoseOut promotional
+                    texts, offers, and featured outing ideas. Optional.
+                  </ConsentBox>
+
+                  <ConsentBox checked={termsConsent} onChange={setTermsConsent}>
+                    I agree to the{" "}
+                    <Link
+                      href="/terms"
+                      className="font-bold text-red-300 hover:text-white"
+                    >
+                      Terms
+                    </Link>{" "}
+                    and{" "}
+                    <Link
+                      href="/privacy"
+                      className="font-bold text-red-300 hover:text-white"
+                    >
+                      Privacy Policy
+                    </Link>
+                    .
+                  </ConsentBox>
+
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-black/45 p-3">
+                    <p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-white/35">
+                      Verification
+                    </p>
+
+                    {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? (
+                      <Turnstile
+                        ref={turnstileRef}
+                        siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                        options={{
+                          theme: "dark",
+                          size: "compact",
+                        }}
+                        onSuccess={(token) => setTurnstileToken(token)}
+                        onExpire={() => setTurnstileToken("")}
+                        onError={() => {
+                          setTurnstileToken("");
+                          setError("Verification failed. Please try again.");
+                        }}
+                      />
+                    ) : (
+                      <p className="text-sm font-bold text-red-200">
+                        Missing NEXT_PUBLIC_TURNSTILE_SITE_KEY.
+                      </p>
+                    )}
+                  </div>
+
+                  <p className="mt-3 text-xs leading-5 text-white/40">
+                    Consent is not a condition of purchase. You can opt out any
+                    time by replying STOP. For help, reply HELP.
+                  </p>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="rounded-full border border-white/15 px-5 py-3.5 text-sm font-black text-white transition hover:bg-white hover:text-black"
+                    >
+                      Back
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={loading || !turnstileToken}
+                      className="rounded-full bg-red-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {loading ? "Creating..." : "Create Account"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              <p className="mt-5 text-center text-sm font-bold text-white/45">
+                Already have an account?{" "}
+                <Link
+                  href="/login"
+                  className="text-red-300 transition hover:text-white"
+                >
+                  Log in
+                </Link>
+              </p>
+            </form>
+          </section>
         </section>
       </div>
     </main>
@@ -404,15 +372,17 @@ function Field({
   type?: string;
 }) {
   return (
-    <div className="mt-5">
-      <label className="block text-sm font-black text-white/80">{label}</label>
+    <div className="mt-4">
+      <label className="block text-xs font-black uppercase tracking-[0.16em] text-white/60">
+        {label}
+      </label>
 
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/55 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-red-500"
+        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/55 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-red-500"
       />
     </div>
   );
@@ -430,8 +400,8 @@ function ConsentBox({
   required?: boolean;
 }) {
   return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-black/45 p-4">
-      <label className="flex gap-3 text-sm leading-6 text-white/70">
+    <div className="mt-3 rounded-2xl border border-white/10 bg-black/40 p-3">
+      <label className="flex gap-3 text-xs leading-5 text-white/65">
         <input
           type="checkbox"
           checked={checked}
