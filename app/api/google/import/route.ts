@@ -193,6 +193,7 @@ function categorizeActivity(name: string, types: string[] = []) {
   if (text.includes("paintball")) return "paintball";
   if (text.includes("arcade")) return "arcade";
   if (text.includes("bowling")) return "bowling";
+
   if (
     text.includes("mini golf") ||
     text.includes("miniature golf") ||
@@ -200,6 +201,7 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "mini_golf";
   }
+
   if (
     text.includes("golf") ||
     text.includes("topgolf") ||
@@ -208,6 +210,7 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "golf";
   }
+
   if (
     text.includes("nightclub") ||
     text.includes("night club") ||
@@ -215,6 +218,7 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "nightclub";
   }
+
   if (text.includes("hookah") || text.includes("shisha")) return "hookah";
   if (text.includes("cigar")) return "cigar";
   if (text.includes("rooftop")) return "rooftop";
@@ -231,6 +235,7 @@ function categorizeActivity(name: string, types: string[] = []) {
   if (text.includes("theater") || text.includes("theatre")) return "theater";
   if (text.includes("park")) return "park";
   if (text.includes("waterfront") || text.includes("scenic")) return "scenic";
+
   if (
     text.includes("romantic") ||
     text.includes("date night") ||
@@ -239,6 +244,7 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "romantic";
   }
+
   if (
     text.includes("luxury") ||
     text.includes("upscale") ||
@@ -247,6 +253,7 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "luxury";
   }
+
   if (
     text.includes("fun") ||
     text.includes("games") ||
@@ -255,6 +262,7 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "fun";
   }
+
   if (
     text.includes("chill") ||
     text.includes("relax") ||
@@ -264,6 +272,7 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "chill";
   }
+
   if (
     text.includes("unique") ||
     text.includes("hidden gem") ||
@@ -273,6 +282,31 @@ function categorizeActivity(name: string, types: string[] = []) {
   }
 
   return types[0] || "activity";
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>
+) {
+  const results: R[] = [];
+  let index = 0;
+
+  async function runWorker() {
+    while (index < items.length) {
+      const currentIndex = index++;
+      results[currentIndex] = await worker(items[currentIndex]);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => runWorker()
+  );
+
+  await Promise.all(workers);
+
+  return results;
 }
 
 async function fetchGooglePlacesPaged(query: string, limit: number) {
@@ -1052,7 +1086,7 @@ async function runImport({
       seenPlaceIds.has(place.place_id) ||
       !isHighQuality(place)
     ) {
-      return;
+      return { imported: false, skipped: false, failed: false };
     }
 
     seenPlaceIds.add(place.place_id);
@@ -1063,11 +1097,30 @@ async function runImport({
           ? await importActivity(place)
           : await importRestaurant(place);
 
+      return {
+        imported: Boolean(result.imported),
+        skipped: Boolean(result.skipped),
+        failed: false,
+      };
+    } catch (error) {
+      console.error("Import item failed:", error);
+      return { imported: false, skipped: false, failed: true };
+    }
+  }
+
+  async function processBatch(places: any[]) {
+    const availableSlots = Math.max(limit - imported, 0);
+    if (availableSlots <= 0) return;
+
+    const candidates = places.slice(0, availableSlots);
+    const results = await mapWithConcurrency(candidates, 5, processPlace);
+
+    for (const result of results) {
+      if (imported >= limit) break;
+
       if (result.imported) imported++;
       if (result.skipped) skipped++;
-    } catch (error) {
-      failed++;
-      console.error("Import item failed:", error);
+      if (result.failed) failed++;
     }
   }
 
@@ -1085,22 +1138,17 @@ async function runImport({
 
       found += places.length;
 
-      for (const place of places) {
-        if (imported >= limit) break;
-        await processPlace(place);
-      }
+      await processBatch(places);
     }
   } else {
     for (const query of queries) {
       if (imported >= limit) break;
 
       const places = await fetchGooglePlacesPaged(query, limit - imported);
+
       found += places.length;
 
-      for (const place of places) {
-        if (imported >= limit) break;
-        await processPlace(place);
-      }
+      await processBatch(places);
     }
   }
 
@@ -1116,6 +1164,8 @@ async function runImport({
     failed,
     categories_used: categories,
     queries_used: mode === "text" ? queries : [],
+    speed_boost: "parallel_import_enabled",
+    concurrency: 5,
   };
 }
 
