@@ -23,6 +23,30 @@ function flowers(rating?: number | null) {
   return "🌸".repeat(count);
 }
 
+function getRestaurantLabel(restaurant: any) {
+  const text = [
+    restaurant?.primary_tag,
+    restaurant?.cuisine,
+    restaurant?.atmosphere,
+    ...(restaurant?.date_style_tags || []),
+    ...(restaurant?.review_keywords || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (text.includes("brunch")) return "Brunch Spot";
+  if (text.includes("breakfast")) return "Breakfast Spot";
+  if (text.includes("lunch")) return "Lunch Spot";
+  if (text.includes("late night")) return "Late Night Spot";
+  if (text.includes("date") || text.includes("romantic")) return "Date Spot";
+  if (text.includes("upscale") || text.includes("classy")) {
+    return "Upscale Restaurant";
+  }
+
+  return "Restaurant";
+}
+
 export default function PlanPage() {
   const router = useRouter();
 
@@ -46,6 +70,8 @@ export default function PlanPage() {
 
   const restaurant = plan?.restaurant;
   const activity = plan?.activity;
+
+  const restaurantLabel = getRestaurantLabel(restaurant);
 
   const restaurantName = restaurant?.restaurant_name || "";
   const activityName = activity?.activity_name || "";
@@ -208,7 +234,7 @@ export default function PlanPage() {
                 <>
                   {restaurant && (
                     <PlanCard
-                      eyebrow="Dinner"
+                      eyebrow={restaurantLabel}
                       title={restaurant.restaurant_name}
                       imageUrl={restaurant.image_url}
                       address={restaurantAddress}
@@ -220,7 +246,7 @@ export default function PlanPage() {
                         restaurant.reservation_url ||
                         restaurant.reservation_link
                       }
-                      reservationLabel="Reserve Dinner"
+                      reservationLabel="Reserve"
                       websiteUrl={restaurant.website}
                       mapsUrl={restaurantMapsUrl}
                     />
@@ -239,7 +265,7 @@ export default function PlanPage() {
                       reservationUrl={
                         activity.reservation_url || activity.reservation_link
                       }
-                      reservationLabel="Book Activity"
+                      reservationLabel="Book"
                       websiteUrl={activity.website}
                       mapsUrl={activityMapsUrl}
                     />
@@ -248,13 +274,18 @@ export default function PlanPage() {
               )}
 
               {step === "confirm" && (
-                <ConfirmStep restaurant={restaurant} activity={activity} />
+                <ConfirmStep
+                  restaurant={restaurant}
+                  activity={activity}
+                  restaurantLabel={restaurantLabel}
+                />
               )}
 
               {step === "book" && (
                 <BookStep
                   restaurant={restaurant}
                   activity={activity}
+                  restaurantLabel={restaurantLabel}
                   restaurantMapsUrl={restaurantMapsUrl}
                   activityMapsUrl={activityMapsUrl}
                 />
@@ -314,7 +345,7 @@ export default function PlanPage() {
                           rel="noopener noreferrer"
                           className="rounded-full bg-red-600 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-red-500"
                         >
-                          Reserve Dinner
+                          Reserve {restaurantLabel}
                         </a>
                       ) : null}
 
@@ -511,7 +542,15 @@ function PlanCard({
   );
 }
 
-function ConfirmStep({ restaurant, activity }: any) {
+function ConfirmStep({
+  restaurant,
+  activity,
+  restaurantLabel,
+}: {
+  restaurant: any;
+  activity: any;
+  restaurantLabel: string;
+}) {
   return (
     <section className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-6 shadow-2xl">
       <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
@@ -522,7 +561,7 @@ function ConfirmStep({ restaurant, activity }: any) {
 
       <div className="mt-6 grid gap-4">
         {restaurant && (
-          <ConfirmRow label="Dinner" value={restaurant.restaurant_name} />
+          <ConfirmRow label={restaurantLabel} value={restaurant.restaurant_name} />
         )}
 
         {activity && (
@@ -544,7 +583,19 @@ function ConfirmRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BookStep({ restaurant, activity, restaurantMapsUrl, activityMapsUrl }: any) {
+function BookStep({
+  restaurant,
+  activity,
+  restaurantLabel,
+  restaurantMapsUrl,
+  activityMapsUrl,
+}: {
+  restaurant: any;
+  activity: any;
+  restaurantLabel: string;
+  restaurantMapsUrl: string;
+  activityMapsUrl: string;
+}) {
   return (
     <section className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-6 shadow-2xl">
       <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
@@ -560,7 +611,7 @@ function BookStep({ restaurant, activity, restaurantMapsUrl, activityMapsUrl }: 
             reservationUrl={restaurant.reservation_url || restaurant.reservation_link}
             websiteUrl={restaurant.website}
             mapsUrl={restaurantMapsUrl}
-            reserveLabel="Reserve Dinner"
+            reserveLabel={`Reserve ${restaurantLabel}`}
           />
         )}
 
