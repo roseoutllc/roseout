@@ -819,7 +819,6 @@ function filterActivitiesByActivityIntent(
 
   return [];
 }
-}
 
 function balanceResults(restaurants: any[], activities: any[], intent: ReturnType<typeof detectIntent>) {
   if (intent.multiIntentMode) {
