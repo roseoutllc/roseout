@@ -1,12 +1,78 @@
+// app/api/reviews/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { analyzeReview } from "@/lib/reviewAi";
+
+async function verifyTurnstileToken(token: string, ip?: string | null) {
+  if (!process.env.TURNSTILE_SECRET_KEY) {
+    return {
+      success: false,
+      error: "Missing TURNSTILE_SECRET_KEY.",
+    };
+  }
+
+  const formData = new FormData();
+  formData.append("secret", process.env.TURNSTILE_SECRET_KEY);
+  formData.append("response", token);
+
+  if (ip) {
+    formData.append("remoteip", ip);
+  }
+
+  const res = await fetch(
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  const data = await res.json();
+
+  return {
+    success: Boolean(data.success),
+    error: Array.isArray(data["error-codes"])
+      ? data["error-codes"].join(", ")
+      : null,
+  };
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const { location_id, customer_name, rating, review_text } = body;
+    const {
+      location_id,
+      customer_name,
+      rating,
+      review_text,
+      turnstileToken,
+    } = body;
+
+    if (!turnstileToken) {
+      return NextResponse.json(
+        { error: "Please complete the verification." },
+        { status: 400 }
+      );
+    }
+
+    const ip =
+      req.headers.get("CF-Connecting-IP") ||
+      req.headers.get("x-forwarded-for") ||
+      null;
+
+    const turnstile = await verifyTurnstileToken(turnstileToken, ip);
+
+    if (!turnstile.success) {
+      return NextResponse.json(
+        {
+          error: "Verification failed. Please refresh and try again.",
+          details: turnstile.error,
+        },
+        { status: 400 }
+      );
+    }
 
     if (!location_id || !rating || !review_text) {
       return NextResponse.json(
@@ -23,6 +89,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const safeRating = Math.min(5, Math.max(1, Number(rating || 5)));
 
     const ai = await analyzeReview(cleanReview);
 
@@ -43,7 +111,7 @@ export async function POST(req: NextRequest) {
       .insert({
         location_id,
         customer_name: customer_name || "Guest",
-        rating: Number(rating),
+        rating: safeRating,
         review_text: cleanReview,
 
         ai_keywords: safeKeywords,

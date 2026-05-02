@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 type LocationReviewFormProps = {
   locationId: string;
@@ -21,19 +22,15 @@ export default function LocationReviewForm({
   locationName = "this location",
   onReviewSubmitted,
 }: LocationReviewFormProps) {
+  const turnstileRef = useRef<TurnstileInstance>(null);
+
   const [customerName, setCustomerName] = useState("");
   const [rating, setRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
-  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
-
-  const captcha = useMemo(() => {
-    const a = 3;
-    const b = 4;
-    return { question: `${a} + ${b}`, answer: String(a + b) };
-  }, []);
 
   async function submitReview(e: React.FormEvent) {
     e.preventDefault();
@@ -47,8 +44,8 @@ export default function LocationReviewForm({
       return;
     }
 
-    if (captchaAnswer.trim() !== captcha.answer) {
-      setMessage("Please complete the captcha correctly before submitting.");
+    if (!turnstileToken) {
+      setMessage("Please complete the verification before submitting.");
       return;
     }
 
@@ -65,6 +62,7 @@ export default function LocationReviewForm({
           customer_name: customerName || "RoseOut Guest",
           rating,
           review_text: reviewText,
+          turnstileToken,
         }),
       });
 
@@ -73,6 +71,8 @@ export default function LocationReviewForm({
       if (!res.ok) {
         setMessage(data.error || "Something went wrong.");
         setLoading(false);
+        turnstileRef.current?.reset();
+        setTurnstileToken("");
         return;
       }
 
@@ -88,10 +88,13 @@ export default function LocationReviewForm({
       setCustomerName("");
       setRating(5);
       setReviewText("");
-      setCaptchaAnswer("");
+      setTurnstileToken("");
       setSubmitted(true);
+      turnstileRef.current?.reset();
     } catch {
       setMessage("Something went wrong. Please try again.");
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     }
 
     setLoading(false);
@@ -151,32 +154,42 @@ export default function LocationReviewForm({
         />
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-          <label className="block text-xs font-black uppercase tracking-[0.2em] text-white/40">
-            Captcha
-          </label>
+          <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/40">
+            Verification
+          </p>
 
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-            <div className="flex-1 rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white/70">
-              What is {captcha.question}?
-            </div>
-
-            <input
-              value={captchaAnswer}
-              onChange={(e) => setCaptchaAnswer(e.target.value)}
-              disabled={submitted}
-              placeholder="Answer"
-              inputMode="numeric"
-              className="w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-red-400 sm:w-32"
+          {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? (
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              options={{
+                theme: "dark",
+                size: "normal",
+              }}
+              onSuccess={(token) => setTurnstileToken(token)}
+              onExpire={() => setTurnstileToken("")}
+              onError={() => {
+                setTurnstileToken("");
+                setMessage("Verification failed. Please try again.");
+              }}
             />
-          </div>
+          ) : (
+            <p className="text-sm text-red-200">
+              Missing NEXT_PUBLIC_TURNSTILE_SITE_KEY.
+            </p>
+          )}
         </div>
 
         <button
           type="submit"
-          disabled={loading || submitted}
+          disabled={loading || submitted || !turnstileToken}
           className="w-full rounded-full bg-white px-6 py-4 text-sm font-black text-black shadow-xl transition hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {submitted ? "Review Submitted ✓" : loading ? "Submitting..." : "Submit Review"}
+          {submitted
+            ? "Review Submitted ✓"
+            : loading
+              ? "Submitting..."
+              : "Submit Review"}
         </button>
 
         {message && (
