@@ -168,6 +168,93 @@ function getPrimaryTag(place: any, type: "restaurant" | "activity") {
   return "activity";
 }
 
+function buildSearchKeywords(place: any, type: ImportType) {
+  const text = placeText(place);
+  const keywords = new Set<string>();
+
+  const primaryTag = getPrimaryTag(place, type);
+  if (primaryTag) keywords.add(primaryTag);
+
+  if (type === "restaurant") {
+    keywords.add("restaurant");
+    keywords.add("dinner");
+    keywords.add("food");
+    keywords.add("date night");
+  } else {
+    keywords.add("activity");
+    keywords.add("things to do");
+    keywords.add("date idea");
+    keywords.add("experience");
+  }
+
+  if (
+    text.includes("romantic") ||
+    text.includes("intimate") ||
+    text.includes("cozy") ||
+    text.includes("candle")
+  ) {
+    keywords.add("romantic");
+    keywords.add("couples");
+    keywords.add("date night");
+  }
+
+  if (
+    text.includes("birthday") ||
+    text.includes("celebration") ||
+    text.includes("party") ||
+    text.includes("group")
+  ) {
+    keywords.add("birthday");
+    keywords.add("celebration");
+    keywords.add("group");
+  }
+
+  if (
+    text.includes("luxury") ||
+    text.includes("upscale") ||
+    text.includes("fine dining") ||
+    text.includes("elegant") ||
+    text.includes("michelin") ||
+    text.includes("tasting menu")
+  ) {
+    keywords.add("luxury");
+    keywords.add("upscale");
+    keywords.add("premium");
+  }
+
+  if (text.includes("brunch")) keywords.add("brunch");
+  if (text.includes("breakfast")) keywords.add("breakfast");
+  if (text.includes("cafe") || text.includes("coffee")) keywords.add("cafe");
+  if (text.includes("rooftop")) keywords.add("rooftop");
+  if (text.includes("waterfront")) keywords.add("waterfront");
+  if (text.includes("outdoor")) keywords.add("outdoor");
+  if (text.includes("live music")) keywords.add("live music");
+  if (text.includes("jazz")) keywords.add("jazz");
+  if (text.includes("comedy")) keywords.add("comedy");
+  if (text.includes("bowling")) keywords.add("bowling");
+  if (text.includes("karaoke")) keywords.add("karaoke");
+  if (text.includes("arcade")) keywords.add("arcade");
+  if (text.includes("museum")) keywords.add("museum");
+  if (text.includes("art")) keywords.add("art");
+  if (text.includes("theater") || text.includes("theatre")) keywords.add("theater");
+  if (text.includes("park")) keywords.add("park");
+
+  if (text.includes("hookah") || text.includes("shisha")) {
+    keywords.add("hookah");
+    keywords.add("shisha");
+    keywords.add("hookah lounge");
+    if (type === "restaurant") keywords.add("hookah restaurant");
+  }
+
+  if (text.includes("cigar")) {
+    keywords.add("cigar");
+    keywords.add("cigar lounge");
+    keywords.add("cigar bar");
+  }
+
+  return Array.from(keywords);
+}
+
 function isHighQuality(place: any) {
   const rating = Number(place.rating || 0);
   const reviews = getReviewCount(place);
@@ -443,8 +530,6 @@ async function importRestaurant(place: any) {
   if (existing) return { imported: false, skipped: true };
 
   const claimQr = await createClaimQr("restaurant");
-  const hookah = isHookah(place);
-  const cigar = isCigar(place);
 
   const addressParts = parseAddressParts(
     place.formatted_address || place.vicinity || null
@@ -469,12 +554,7 @@ async function importRestaurant(place: any) {
     click_count: 0,
     claim_count: 0,
     primary_tag: getPrimaryTag(place, "restaurant"),
-    search_keywords: [
-      ...(hookah
-        ? ["hookah", "shisha", "hookah restaurant", "hookah lounge"]
-        : []),
-      ...(cigar ? ["cigar", "cigar lounge", "cigar bar"] : []),
-    ],
+    search_keywords: buildSearchKeywords(place, "restaurant"),
     ...claimQr,
   });
 
@@ -493,8 +573,6 @@ async function importActivity(place: any) {
   if (existing) return { imported: false, skipped: true };
 
   const claimQr = await createClaimQr("activity");
-  const hookah = isHookah(place);
-  const cigar = isCigar(place);
 
   const addressParts = parseAddressParts(
     place.formatted_address || place.vicinity || null
@@ -519,12 +597,7 @@ async function importActivity(place: any) {
     click_count: 0,
     claim_count: 0,
     primary_tag: getPrimaryTag(place, "activity"),
-    search_keywords: [
-      ...(hookah
-        ? ["hookah", "shisha", "hookah lounge", "hookah restaurant"]
-        : []),
-      ...(cigar ? ["cigar", "cigar lounge", "cigar bar"] : []),
-    ],
+    search_keywords: buildSearchKeywords(place, "activity"),
     ...claimQr,
   });
 
