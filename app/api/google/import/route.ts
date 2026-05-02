@@ -45,6 +45,11 @@ function isAuthorized(request: NextRequest) {
 function categorizeActivity(name: string, types: string[] = []) {
   const text = `${name} ${types.join(" ")}`.toLowerCase();
 
+  // Birthday intents
+  if (text.includes("birthday dinner")) return "birthday_dinner";
+  if (text.includes("birthday brunch")) return "birthday_brunch";
+  if (text.includes("birthday")) return "birthday";
+
   // Food / daytime
   if (text.includes("brunch")) return "brunch";
   if (text.includes("breakfast")) return "breakfast";
@@ -342,6 +347,11 @@ function defaultQueries(type: ImportType) {
       "first date ideas NYC",
       "anniversary date ideas NYC",
       "birthday date ideas NYC",
+      "birthday activities NYC",
+      "birthday brunch NYC",
+      "birthday dinner NYC",
+      "birthday lounges NYC",
+      "birthday rooftop NYC",
       "double date ideas NYC",
 
       "things to do in New York City",
@@ -412,6 +422,14 @@ function defaultQueries(type: ImportType) {
   }
 
   return [
+    "birthday dinner NYC",
+    "birthday dinner restaurants NYC",
+    "birthday brunch NYC",
+    "birthday brunch restaurants NYC",
+    "birthday restaurants NYC",
+    "birthday rooftop restaurants NYC",
+    "birthday fine dining NYC",
+
     "romantic restaurants NYC",
     "luxury restaurants NYC",
     "upscale restaurants NYC",
