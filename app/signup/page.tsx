@@ -245,7 +245,7 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="h-screen overflow-hidden bg-[#030303] px-6 py-5 text-white">
+    <main className="h-screen overflow-hidden bg-black px-6 py-5 text-white">
       <Script
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         async
@@ -259,14 +259,14 @@ export default function SignupPage() {
         <header className="mb-4 flex items-center justify-between">
           <Link
             href="/"
-            className="text-sm font-black uppercase tracking-[0.55em] text-[#f5b700]"
+            className="text-sm font-black uppercase tracking-[0.55em] text-red-400"
           >
             RoseOut
           </Link>
 
           <Link
             href="/login"
-            className="rounded-full border border-white/20 bg-[#1b1b1b] px-5 py-2 text-sm font-bold text-white hover:bg-[#252525]"
+            className="rounded-full border border-white/15 bg-white/5 px-5 py-2 text-sm font-bold text-white hover:bg-white hover:text-black"
           >
             Log in
           </Link>
@@ -274,7 +274,7 @@ export default function SignupPage() {
 
         <section className="grid flex-1 items-center gap-8 overflow-hidden lg:grid-cols-[1fr_500px]">
           <div className="hidden lg:block">
-            <div className="mb-4 inline-flex rounded-full border border-[#f5b700]/30 bg-[#f5b700]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-[#f5b700]">
+            <div className="mb-4 inline-flex rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-red-300">
               Curated by RoseOut AI
             </div>
 
@@ -282,7 +282,7 @@ export default function SignupPage() {
               Curated outings, made effortless.
             </h1>
 
-            <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
+            <p className="mt-5 max-w-2xl text-base leading-7 text-white/55">
               From breakfast dates to late-night reservations, RoseOut helps you
               discover polished restaurants, activities, and experiences that
               match your mood, budget, and style.
@@ -296,18 +296,18 @@ export default function SignupPage() {
               ].map(([num, text]) => (
                 <div
                   key={num}
-                  className="rounded-2xl border border-white/15 bg-[#181818]/80 p-4"
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
                 >
-                  <p className="text-xl font-black text-[#f5b700]">{num}</p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-400">{text}</p>
+                  <p className="text-xl font-black text-red-400">{num}</p>
+                  <p className="mt-2 text-xs leading-5 text-white/50">{text}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="max-h-full overflow-hidden rounded-[1.5rem] border border-white/15 bg-[#181818]/90 shadow-2xl">
-            <div className="border-b border-white/15 px-6 py-4">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f5b700]">
+          <div className="max-h-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#0b0b0b]/95 shadow-2xl shadow-black/60 backdrop-blur-xl">
+            <div className="border-b border-white/10 px-6 py-4">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-red-400">
                 Step {step} of 2
               </p>
 
@@ -318,12 +318,12 @@ export default function SignupPage() {
               <div className="mt-4 flex gap-2">
                 <div
                   className={`h-2 flex-1 rounded-full ${
-                    step >= 1 ? "bg-[#f5b700]" : "bg-white/15"
+                    step >= 1 ? "bg-red-600" : "bg-white/15"
                   }`}
                 />
                 <div
                   className={`h-2 flex-1 rounded-full ${
-                    step >= 2 ? "bg-[#f5b700]" : "bg-white/15"
+                    step >= 2 ? "bg-red-600" : "bg-white/15"
                   }`}
                 />
               </div>
@@ -336,7 +336,7 @@ export default function SignupPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Full name"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-red-500"
                 />
 
                 <input
@@ -344,7 +344,7 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email address"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-red-500"
                 />
 
                 <input
@@ -352,7 +352,7 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-red-500"
                 />
 
                 <input
@@ -360,46 +360,46 @@ export default function SignupPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm password"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-red-500"
                 />
 
-                <div className="rounded-xl border border-white/15 bg-[#101010] p-3 text-xs">
-                  <p className={hasMinLength ? "text-[#f5b700]" : "text-zinc-500"}>
+                <div className="rounded-xl border border-white/10 bg-black/40 p-3 text-xs">
+                  <p className={hasMinLength ? "text-red-400" : "text-white/35"}>
                     ✓ At least 8 characters
                   </p>
-                  <p className={hasUppercase ? "text-[#f5b700]" : "text-zinc-500"}>
+                  <p className={hasUppercase ? "text-red-400" : "text-white/35"}>
                     ✓ One uppercase letter
                   </p>
-                  <p className={hasNumber ? "text-[#f5b700]" : "text-zinc-500"}>
+                  <p className={hasNumber ? "text-red-400" : "text-white/35"}>
                     ✓ One number
                   </p>
-                  <p className={hasSymbol ? "text-[#f5b700]" : "text-zinc-500"}>
+                  <p className={hasSymbol ? "text-red-400" : "text-white/35"}>
                     ✓ One symbol
                   </p>
-                  <p className={passwordsMatch ? "text-[#f5b700]" : "text-zinc-500"}>
+                  <p className={passwordsMatch ? "text-red-400" : "text-white/35"}>
                     ✓ Passwords match
                   </p>
                 </div>
 
-                <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-[#101010] p-3 text-xs text-zinc-400">
+                <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-white/55">
                   <input
                     type="checkbox"
                     checked={acceptedTerms}
                     onChange={(e) => setAcceptedTerms(e.target.checked)}
-                    className="mt-1 h-4 w-4 accent-[#f5b700]"
+                    className="mt-1 h-4 w-4 accent-red-600"
                   />
                   <span>
                     I agree to the{" "}
                     <Link
                       href="/terms"
-                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
+                      className="font-bold text-red-300 hover:text-white"
                     >
                       Terms of Service
                     </Link>{" "}
                     and{" "}
                     <Link
                       href="/privacy"
-                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
+                      className="font-bold text-red-300 hover:text-white"
                     >
                       Privacy Policy
                     </Link>
@@ -408,7 +408,7 @@ export default function SignupPage() {
                 </label>
 
                 {errorMessage && (
-                  <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-100">
                     {errorMessage}
                   </div>
                 )}
@@ -416,16 +416,16 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={handleNextStep}
-                  className="w-full rounded-xl bg-[#f5b700] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-[#ffd24a]"
+                  className="w-full rounded-xl bg-red-600 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-red-950/40 hover:bg-red-500"
                 >
                   Continue
                 </button>
 
-                <p className="text-center text-xs text-zinc-500">
+                <p className="text-center text-xs text-white/40">
                   Already have an account?{" "}
                   <Link
                     href="/login"
-                    className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
+                    className="font-bold text-red-300 hover:text-white"
                   >
                     Log in
                   </Link>
@@ -436,7 +436,7 @@ export default function SignupPage() {
                 <select
                   value={planningFor}
                   onChange={(e) => setPlanningFor(e.target.value)}
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none focus:border-[#f5b700]"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none focus:border-red-500"
                 >
                   <option value="">What are you planning?</option>
                   <option value="date_nights">Date</option>
@@ -452,7 +452,7 @@ export default function SignupPage() {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="City or borough, example: Queens"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-red-500"
                 />
 
                 <input
@@ -460,13 +460,13 @@ export default function SignupPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="Phone number for SMS updates (optional)"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-red-500"
                 />
 
                 <select
                   value={preferredVibe}
                   onChange={(e) => setPreferredVibe(e.target.value)}
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none focus:border-[#f5b700]"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none focus:border-red-500"
                 >
                   <option value="">Preferred vibe</option>
                   <option value="romantic">Romantic</option>
@@ -481,7 +481,7 @@ export default function SignupPage() {
                 <select
                   value={budgetRange}
                   onChange={(e) => setBudgetRange(e.target.value)}
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none focus:border-[#f5b700]"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none focus:border-red-500"
                 >
                   <option value="">Budget range</option>
                   <option value="budget">$</option>
@@ -490,24 +490,24 @@ export default function SignupPage() {
                   <option value="luxury">$$$$</option>
                 </select>
 
-                <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-[#101010] p-3 text-xs text-zinc-400">
+                <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-white/55">
                   <input
                     type="checkbox"
                     checked={marketingOptIn}
                     onChange={(e) => setMarketingOptIn(e.target.checked)}
-                    className="mt-1 h-4 w-4 accent-[#f5b700]"
+                    className="mt-1 h-4 w-4 accent-red-600"
                   />
                   <span>
                     Send me RoseOut updates, recommendations, and offers by email.
                   </span>
                 </label>
 
-                <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-[#101010] p-3 text-[11px] leading-5 text-zinc-400">
+                <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-3 text-[11px] leading-5 text-white/55">
                   <input
                     type="checkbox"
                     checked={smsOptIn}
                     onChange={(e) => setSmsOptIn(e.target.checked)}
-                    className="mt-1 h-4 w-4 accent-[#f5b700]"
+                    className="mt-1 h-4 w-4 accent-red-600"
                   />
                   <span>
                     I agree to receive SMS messages from{" "}
@@ -520,14 +520,14 @@ export default function SignupPage() {
                     Consent is not a condition of purchase. View our{" "}
                     <Link
                       href="/privacy"
-                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
+                      className="font-bold text-red-300 hover:text-white"
                     >
                       Privacy Policy
                     </Link>{" "}
                     and{" "}
                     <Link
                       href="/terms"
-                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
+                      className="font-bold text-red-300 hover:text-white"
                     >
                       Terms
                     </Link>
@@ -535,18 +535,18 @@ export default function SignupPage() {
                   </span>
                 </label>
 
-                <div className="rounded-xl border border-white/15 bg-[#101010] p-3">
+                <div className="rounded-xl border border-white/10 bg-black/40 p-3">
                   <div ref={turnstileRef} />
                 </div>
 
                 {errorMessage && (
-                  <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-100">
                     {errorMessage}
                   </div>
                 )}
 
                 {message && (
-                  <div className="rounded-xl border border-[#f5b700]/30 bg-[#f5b700]/10 px-4 py-2 text-sm text-[#f5b700]">
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-400">
                     {message}
                   </div>
                 )}
@@ -555,7 +555,7 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="w-1/3 rounded-xl border border-white/20 bg-[#1b1b1b] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white hover:bg-[#252525]"
+                    className="w-1/3 rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white hover:bg-white hover:text-black"
                   >
                     Back
                   </button>
@@ -563,7 +563,7 @@ export default function SignupPage() {
                   <button
                     type="submit"
                     disabled={!canSubmit}
-                    className="w-2/3 rounded-xl bg-[#f5b700] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-[#ffd24a] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-2/3 rounded-xl bg-red-600 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-red-950/40 hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {loading ? "Creating..." : "Create"}
                   </button>
