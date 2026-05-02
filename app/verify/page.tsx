@@ -1,11 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
 export default function VerifyPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-black text-white">
+          <p className="text-sm font-black uppercase tracking-[0.3em] text-red-400">
+            Loading verification...
+          </p>
+        </main>
+      }
+    >
+      <VerifyPageContent />
+    </Suspense>
+  );
+}
+
+function VerifyPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -26,10 +42,17 @@ export default function VerifyPage() {
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem("roseout_pending_signup");
+
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed?.email && !email) setEmail(parsed.email);
-        if (parsed?.password) setPassword(parsed.password);
+
+        if (parsed?.email && !email) {
+          setEmail(parsed.email);
+        }
+
+        if (parsed?.password) {
+          setPassword(parsed.password);
+        }
       }
     } catch {
       // ignore
