@@ -211,7 +211,7 @@ async function fetchGooglePlacesPaged(query: string, limit: number) {
 
     if (nextPageToken) {
       url.searchParams.set("pagetoken", nextPageToken);
-      await sleep(2500);
+      await sleep(3000);
     } else {
       url.searchParams.set("query", query);
     }
@@ -219,26 +219,40 @@ async function fetchGooglePlacesPaged(query: string, limit: number) {
     const res = await fetch(url.toString(), { cache: "no-store" });
     const data = await res.json();
 
-    if (!res.ok) throw new Error("Google request failed");
+    if (!res.ok) {
+      console.warn("Google text request failed:", query);
+      break;
+    }
 
-    if (data.status === "INVALID_REQUEST" && nextPageToken && tokenRetryCount < 5) {
-      tokenRetryCount++;
-      await sleep(2500);
-      continue;
+    if (data.status === "INVALID_REQUEST") {
+      if (nextPageToken && tokenRetryCount < 5) {
+        tokenRetryCount++;
+        await sleep(3000);
+        continue;
+      }
+
+      console.warn("Skipping Google text query because of INVALID_REQUEST:", {
+        query,
+        nextPageToken: Boolean(nextPageToken),
+      });
+
+      break;
     }
 
     if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-      throw new Error(
-        data.error_message || `Google Places error: ${data.status}`
-      );
+      console.warn("Skipping Google text query because of Places error:", {
+        status: data.status,
+        error_message: data.error_message,
+        query,
+      });
+
+      break;
     }
 
     tokenRetryCount = 0;
-
     allPlaces.push(...(data.results || []));
 
     if (!data.next_page_token) break;
-
     nextPageToken = data.next_page_token;
   }
 
@@ -274,7 +288,7 @@ async function fetchGoogleNearbySearch({
 
     if (nextPageToken) {
       url.searchParams.set("pagetoken", nextPageToken);
-      await sleep(2500);
+      await sleep(3000);
     } else {
       url.searchParams.set("location", `${lat},${lng}`);
       url.searchParams.set("radius", String(radius));
@@ -284,26 +298,46 @@ async function fetchGoogleNearbySearch({
     const res = await fetch(url.toString(), { cache: "no-store" });
     const data = await res.json();
 
-    if (!res.ok) throw new Error("Google Nearby Search failed");
+    if (!res.ok) {
+      console.warn("Google nearby request failed:", keyword);
+      break;
+    }
 
-    if (data.status === "INVALID_REQUEST" && nextPageToken && tokenRetryCount < 5) {
-      tokenRetryCount++;
-      await sleep(2500);
-      continue;
+    if (data.status === "INVALID_REQUEST") {
+      if (nextPageToken && tokenRetryCount < 5) {
+        tokenRetryCount++;
+        await sleep(3000);
+        continue;
+      }
+
+      console.warn("Skipping Google nearby query because of INVALID_REQUEST:", {
+        keyword,
+        lat,
+        lng,
+        radius,
+        nextPageToken: Boolean(nextPageToken),
+      });
+
+      break;
     }
 
     if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-      throw new Error(
-        data.error_message || `Google Places error: ${data.status}`
-      );
+      console.warn("Skipping Google nearby query because of Places error:", {
+        status: data.status,
+        error_message: data.error_message,
+        keyword,
+        lat,
+        lng,
+        radius,
+      });
+
+      break;
     }
 
     tokenRetryCount = 0;
-
     allPlaces.push(...(data.results || []));
 
     if (!data.next_page_token) break;
-
     nextPageToken = data.next_page_token;
   }
 
@@ -457,136 +491,14 @@ const geoAreas = [
 ];
 
 const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
-  core: [
-    "restaurants",
-    "best restaurants",
-    "top rated restaurants",
-    "new restaurants",
-    "popular restaurants",
-  ],
-
-  date: [
-    "date night restaurants",
-    "romantic restaurants",
-    "intimate restaurants",
-    "cozy restaurants",
-    "anniversary restaurants",
-    "first date restaurants",
-    "casual date restaurants",
-  ],
-
-  birthday: [
-    "birthday dinner restaurants",
-    "birthday brunch restaurants",
-    "birthday celebration restaurants",
-    "birthday restaurants",
-    "birthday rooftop restaurants",
-    "birthday fine dining",
-    "restaurants for celebrations",
-  ],
-
-  brunch: [
-    "breakfast restaurants",
-    "brunch restaurants",
-    "best brunch",
-    "bottomless brunch",
-    "birthday brunch restaurants",
-    "lunch restaurants",
-    "coffee shops",
-    "cafes",
-    "bakeries",
-    "dessert spots",
-    "ice cream shops",
-  ],
-
-  luxury: [
-    "fine dining restaurants",
-    "luxury restaurants",
-    "upscale restaurants",
-    "michelin star restaurants",
-    "tasting menu restaurants",
-    "rooftop restaurants",
-    "restaurants with a view",
-    "waterfront restaurants",
-    "outdoor dining restaurants",
-    "garden restaurants",
-  ],
-
-  nightlife: [
-    "late night restaurants",
-    "24 hour restaurants",
-    "lounge restaurants",
-    "restaurants with music",
-    "restaurants with dj",
-    "live music restaurants",
-    "jazz restaurants",
-    "restaurants with dancing",
-    "cocktail bars",
-    "wine bars",
-    "sports bars",
-    "rooftop bars",
-    "bars with food",
-    "hookah restaurants",
-    "hookah lounges",
-    "shisha lounges",
-    "hookah bars",
-    "cigar lounges",
-    "cigar bars",
-  ],
-
-  cuisine: [
-    "american restaurants",
-    "southern restaurants",
-    "soul food restaurants",
-    "bbq restaurants",
-    "steakhouses",
-    "burger restaurants",
-    "seafood restaurants",
-
-    "italian restaurants",
-    "french restaurants",
-    "spanish restaurants",
-    "greek restaurants",
-    "mediterranean restaurants",
-
-    "chinese restaurants",
-    "japanese restaurants",
-    "sushi restaurants",
-    "ramen restaurants",
-    "thai restaurants",
-    "korean restaurants",
-    "vietnamese restaurants",
-    "asian fusion restaurants",
-
-    "mexican restaurants",
-    "latin restaurants",
-    "peruvian restaurants",
-    "dominican restaurants",
-    "puerto rican restaurants",
-    "caribbean restaurants",
-    "jamaican restaurants",
-
-    "african restaurants",
-    "ethiopian restaurants",
-    "nigerian restaurants",
-    "middle eastern restaurants",
-    "halal restaurants",
-  ],
-
-  casual: [
-    "vegan restaurants",
-    "vegetarian restaurants",
-    "healthy restaurants",
-    "gluten free restaurants",
-    "instagrammable restaurants",
-    "trendy restaurants",
-    "hidden gem restaurants",
-    "unique restaurants",
-    "themed restaurants",
-    "dinner restaurants",
-    "fun restaurants",
-  ],
-
+  core: ["restaurants", "best restaurants", "top rated restaurants", "new restaurants", "popular restaurants"],
+  date: ["date night restaurants", "romantic restaurants", "intimate restaurants", "cozy restaurants", "anniversary restaurants", "first date restaurants", "casual date restaurants"],
+  birthday: ["birthday dinner restaurants", "birthday brunch restaurants", "birthday celebration restaurants", "birthday restaurants", "birthday rooftop restaurants", "birthday fine dining", "restaurants for celebrations"],
+  brunch: ["breakfast restaurants", "brunch restaurants", "best brunch", "bottomless brunch", "birthday brunch restaurants", "lunch restaurants", "coffee shops", "cafes", "bakeries", "dessert spots", "ice cream shops"],
+  luxury: ["fine dining restaurants", "luxury restaurants", "upscale restaurants", "michelin star restaurants", "tasting menu restaurants", "rooftop restaurants", "restaurants with a view", "waterfront restaurants", "outdoor dining restaurants", "garden restaurants"],
+  nightlife: ["late night restaurants", "24 hour restaurants", "lounge restaurants", "restaurants with music", "restaurants with dj", "live music restaurants", "jazz restaurants", "restaurants with dancing", "cocktail bars", "wine bars", "sports bars", "rooftop bars", "bars with food", "hookah restaurants", "hookah lounges", "shisha lounges", "hookah bars", "cigar lounges", "cigar bars"],
+  cuisine: ["american restaurants", "southern restaurants", "soul food restaurants", "bbq restaurants", "steakhouses", "burger restaurants", "seafood restaurants", "italian restaurants", "french restaurants", "spanish restaurants", "greek restaurants", "mediterranean restaurants", "chinese restaurants", "japanese restaurants", "sushi restaurants", "ramen restaurants", "thai restaurants", "korean restaurants", "vietnamese restaurants", "asian fusion restaurants", "mexican restaurants", "latin restaurants", "peruvian restaurants", "dominican restaurants", "puerto rican restaurants", "caribbean restaurants", "jamaican restaurants", "african restaurants", "ethiopian restaurants", "nigerian restaurants", "middle eastern restaurants", "halal restaurants"],
+  casual: ["vegan restaurants", "vegetarian restaurants", "healthy restaurants", "gluten free restaurants", "instagrammable restaurants", "trendy restaurants", "hidden gem restaurants", "unique restaurants", "themed restaurants", "dinner restaurants", "fun restaurants"],
   activity: [],
   fun: [],
   culture: [],
@@ -595,70 +507,11 @@ const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
 };
 
 const activityCategoryBatches: Record<ImportBatch, string[]> = {
-  activity: [
-    "things to do",
-    "date night activities",
-    "romantic things to do",
-    "birthday activities",
-    "birthday date ideas",
-    "fun activities",
-    "couples activities",
-    "double date ideas",
-  ],
-
-  fun: [
-    "bowling",
-    "arcades",
-    "karaoke",
-    "escape rooms",
-    "mini golf",
-    "miniature golf",
-    "golf",
-    "indoor golf",
-    "driving range",
-    "axe throwing",
-    "paintball",
-    "paint and sip",
-  ],
-
-  nightlife: [
-    "comedy clubs",
-    "comedy club",
-    "stand up comedy",
-    "stand up comedy clubs",
-    "comedy shows",
-    "comedy night",
-    "nightclubs",
-    "night clubs",
-    "dance clubs",
-    "hookah lounges",
-    "cigar lounges",
-    "lounges",
-    "rooftop bars",
-    "cocktail lounges",
-    "live music",
-    "jazz clubs",
-  ],
-
-  culture: [
-    "museums",
-    "art galleries",
-    "theaters",
-    "movie theaters",
-    "live shows",
-    "comedy clubs",
-    "stand up comedy",
-    "comedy shows",
-  ],
-
-  outdoor: [
-    "parks",
-    "waterfront spots",
-    "scenic spots",
-    "gardens",
-    "outdoor activities",
-  ],
-
+  activity: ["things to do", "date night activities", "romantic things to do", "birthday activities", "birthday date ideas", "fun activities", "couples activities", "double date ideas"],
+  fun: ["bowling", "arcades", "karaoke", "escape rooms", "mini golf", "miniature golf", "golf", "indoor golf", "driving range", "axe throwing", "paintball", "paint and sip"],
+  nightlife: ["comedy clubs", "comedy club", "stand up comedy", "stand up comedy clubs", "comedy shows", "comedy night", "nightclubs", "night clubs", "dance clubs", "hookah lounges", "cigar lounges", "lounges", "rooftop bars", "cocktail lounges", "live music", "jazz clubs"],
+  culture: ["museums", "art galleries", "theaters", "movie theaters", "live shows", "comedy clubs", "stand up comedy", "comedy shows"],
+  outdoor: ["parks", "waterfront spots", "scenic spots", "gardens", "outdoor activities"],
   core: [],
   date: [],
   birthday: [],
@@ -708,7 +561,6 @@ function getCategories(type: ImportType, batch: ImportBatch) {
   }
 
   const selected = source[batch] || [];
-
   if (selected.length > 0) return selected;
 
   return getCategories(type, "all");
@@ -869,7 +721,6 @@ export async function GET(request: NextRequest) {
       params.get("type") === "activity" ? "activity" : "restaurant";
 
     const batch = normalizeBatch(params.get("batch"));
-
     const limit = Math.min(Number(params.get("limit") || 50), 500);
 
     const lat = params.get("lat") ? Number(params.get("lat")) : undefined;
@@ -919,7 +770,6 @@ export async function POST(request: NextRequest) {
       body.type === "activity" ? "activity" : "restaurant";
 
     const batch = normalizeBatch(body.batch);
-
     const limit = Math.min(Number(body.limit || 50), 500);
 
     const lat = body.lat ? Number(body.lat) : undefined;
