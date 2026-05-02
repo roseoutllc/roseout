@@ -67,13 +67,34 @@ async function backfillTable({
 }
 
 async function runBackfill(req: Request) {
-  const secret = req.headers.get("x-internal-import-secret");
+  // ✅ READ BOTH HEADERS
+  const headerSecret = req.headers.get("x-internal-import-secret");
+  const bearer = req.headers.get("authorization")?.replace("Bearer ", "");
 
+  const incomingSecret = headerSecret || bearer;
+
+  // ✅ DEBUG LOGS (CHECK IN VERCEL LOGS)
+  console.log("Incoming Secret:", incomingSecret);
+  console.log("IMPORT_SECRET:", process.env.IMPORT_SECRET);
+  console.log("CRON_SECRET:", process.env.CRON_SECRET);
+
+  // ✅ AUTH CHECK
   if (
     process.env.NODE_ENV !== "development" &&
-    secret !== process.env.IMPORT_SECRET
+    incomingSecret !== process.env.IMPORT_SECRET &&
+    incomingSecret !== process.env.CRON_SECRET
   ) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return Response.json(
+      {
+        error: "Unauthorized",
+        debug: {
+          received: incomingSecret,
+          expected_import: process.env.IMPORT_SECRET ? "SET" : "MISSING",
+          expected_cron: process.env.CRON_SECRET ? "SET" : "MISSING",
+        },
+      },
+      { status: 401 }
+    );
   }
 
   try {
@@ -89,7 +110,7 @@ async function runBackfill(req: Request) {
 
     return Response.json({
       success: true,
-      message: "Claim QR backfill completed for all locations.",
+      message: "QR backfill completed for all locations.",
       restaurants,
       activities,
       totalUpdated: restaurants.updated + activities.updated,
