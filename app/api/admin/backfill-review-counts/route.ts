@@ -40,7 +40,33 @@ function isAuthorized(request: NextRequest) {
 
   return false;
 }
+function getPrimaryTagFromText(name: string, address: string | null) {
+  const text = `${name || ""} ${address || ""}`.toLowerCase();
 
+  if (text.includes("steak")) return "steak";
+  if (text.includes("seafood")) return "seafood";
+  if (text.includes("sushi")) return "sushi";
+  if (text.includes("italian")) return "italian";
+  if (text.includes("mexican")) return "mexican";
+  if (text.includes("caribbean")) return "caribbean";
+
+  if (text.includes("brunch")) return "brunch";
+  if (text.includes("cafe") || text.includes("coffee")) return "cafe";
+
+  if (text.includes("rooftop")) return "rooftop";
+  if (text.includes("lounge")) return "lounge";
+  if (text.includes("bar")) return "bar";
+
+  if (text.includes("comedy")) return "comedy";
+  if (text.includes("bowling")) return "bowling";
+  if (text.includes("karaoke")) return "karaoke";
+
+  if (text.includes("hookah") || text.includes("shisha"))
+    return "hookah";
+  if (text.includes("cigar")) return "cigar";
+
+  return null;
+}
 async function getGooglePlaceDetails(placeId: string) {
   const apiKey = getGoogleKey();
 
