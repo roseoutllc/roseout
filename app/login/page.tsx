@@ -85,40 +85,33 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 py-10 text-white">
+      {/* Background Glow */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(225,6,42,0.32),transparent_32%),radial-gradient(circle_at_85%_5%,rgba(127,29,29,0.32),transparent_30%),linear-gradient(180deg,#050505,#000)]" />
       <div className="absolute left-1/2 top-10 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-red-600/10 blur-3xl" />
 
       <section className="relative z-10 grid w-full max-w-5xl overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.04] shadow-2xl backdrop-blur-xl lg:grid-cols-[1fr_440px]">
-        <div className="hidden min-h-[620px] flex-col justify-between border-r border-white/10 bg-[radial-gradient(circle_at_20%_20%,rgba(225,6,42,0.22),transparent_35%),#080808] p-8 lg:flex">
-          <div>
-            <div className="inline-flex rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-red-200">
-              RoseOut
-            </div>
-
-            <h1 className="mt-8 max-w-md text-6xl font-black leading-[0.95] tracking-tight">
-              Welcome
-              <br />
-              <span className="text-red-500">back.</span>
-            </h1>
-
-            <p className="mt-6 max-w-md text-sm leading-7 text-white/55">
-              Sign in to manage your account, access your dashboard, review
-              activity, and continue your RoseOut experience.
-            </p>
+        
+        {/* LEFT SIDE (BRAND) */}
+        <div className="hidden min-h-[620px] flex-col justify-center border-r border-white/10 bg-[radial-gradient(circle_at_20%_20%,rgba(225,6,42,0.22),transparent_35%),#080808] p-10 lg:flex">
+          
+          <div className="inline-flex w-fit rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-red-200">
+            RoseOut
           </div>
 
-          <div className="rounded-[2rem] border border-white/10 bg-black/35 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-white/35">
-              Account Access
-            </p>
-            <p className="mt-2 text-sm leading-6 text-white/65">
-              Your account role determines which RoseOut dashboard opens after
-              login.
-            </p>
-          </div>
+          <h1 className="mt-10 text-6xl font-black leading-[0.95] tracking-tight">
+            Welcome
+            <br />
+            <span className="text-red-500">back.</span>
+          </h1>
+
+          <p className="mt-6 max-w-md text-sm leading-7 text-white/55">
+            Sign in to continue planning your next experience with RoseOut.
+          </p>
         </div>
 
+        {/* RIGHT SIDE (FORM) */}
         <form onSubmit={handleLogin} className="p-6 sm:p-8">
+          
           <Link
             href="/"
             className="mb-8 inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/55 transition hover:bg-white hover:text-black"
@@ -135,7 +128,7 @@ export default function LoginPage() {
           </h2>
 
           <p className="mt-3 text-sm leading-6 text-white/55">
-            Sign in to continue to your RoseOut account.
+            Sign in to continue to your account.
           </p>
 
           {error && (
@@ -188,11 +181,6 @@ export default function LoginPage() {
           >
             Forgot password?
           </Link>
-
-          <p className="mt-6 text-center text-xs leading-6 text-white/35">
-            Admins are routed to the admin dashboard. Regular users are routed
-            to RoseOut planning.
-          </p>
         </form>
       </section>
     </main>
