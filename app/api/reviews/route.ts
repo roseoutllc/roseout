@@ -1,5 +1,3 @@
-// app/api/reviews/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { analyzeReview } from "@/lib/reviewAi";
@@ -17,41 +15,55 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (review_text.trim().length < 30) {
+    const cleanReview = String(review_text).trim();
+
+    if (cleanReview.length < 30) {
       return NextResponse.json(
         { error: "Please leave a full-sentence review with more detail." },
         { status: 400 }
       );
     }
 
-    const ai = await analyzeReview(review_text);
+    const ai = await analyzeReview(cleanReview);
+
+    const safeKeywords = Array.isArray(ai.keywords) ? ai.keywords : [];
+    const safeOccasionFit = Array.isArray(ai.occasion_fit)
+      ? ai.occasion_fit
+      : [];
+    const safeBestFor = Array.isArray(ai.best_for) ? ai.best_for : [];
+    const safeAvoidIf = Array.isArray(ai.avoid_if) ? ai.avoid_if : [];
+
+    const safeScoreBoost = Math.min(
+      10,
+      Math.max(-10, Number(ai.score_boost || 0))
+    );
 
     const { error: insertError } = await supabaseAdmin
       .from("location_reviews")
       .insert({
         location_id,
-        customer_name,
-        rating,
-        review_text,
+        customer_name: customer_name || "Guest",
+        rating: Number(rating),
+        review_text: cleanReview,
 
-        ai_keywords: ai.keywords,
-        ai_sentiment: ai.sentiment,
-        ai_score_boost: ai.score_boost,
+        ai_keywords: safeKeywords,
+        ai_sentiment: ai.sentiment || "neutral",
+        ai_score_boost: safeScoreBoost,
 
-        vibe: ai.vibe,
-        noise_level: ai.noise_level,
-        date_night: ai.date_night,
-        group_friendly: ai.group_friendly,
-        family_friendly: ai.family_friendly,
-        occasion_fit: ai.occasion_fit,
-        service_quality: ai.service_quality,
-        food_quality: ai.food_quality,
-        ambiance_quality: ai.ambiance_quality,
-        price_feeling: ai.price_feeling,
-        wait_time: ai.wait_time,
-        reservation_recommended: ai.reservation_recommended,
-        best_for: ai.best_for,
-        avoid_if: ai.avoid_if,
+        vibe: ai.vibe || "casual",
+        noise_level: ai.noise_level || "moderate",
+        date_night: Boolean(ai.date_night),
+        group_friendly: Boolean(ai.group_friendly),
+        family_friendly: Boolean(ai.family_friendly),
+        occasion_fit: safeOccasionFit,
+        service_quality: ai.service_quality || "mixed",
+        food_quality: ai.food_quality || "mixed",
+        ambiance_quality: ai.ambiance_quality || "mixed",
+        price_feeling: ai.price_feeling || "fair",
+        wait_time: ai.wait_time || "unknown",
+        reservation_recommended: Boolean(ai.reservation_recommended),
+        best_for: safeBestFor,
+        avoid_if: safeAvoidIf,
       });
 
     if (insertError) {
@@ -90,11 +102,10 @@ export async function POST(req: NextRequest) {
         : 0;
 
     const allKeywords = reviews?.flatMap((r) => r.ai_keywords || []) || [];
-    const uniqueKeywords = Array.from(new Set(allKeywords));
+    const uniqueKeywords = Array.from(new Set(allKeywords)).slice(0, 30);
 
-    const reviewScore = Math.min(
-      100,
-      Math.max(0, avgRating * 20 + avgBoost)
+    const reviewScore = Math.round(
+      Math.min(100, Math.max(0, avgRating * 20 + avgBoost))
     );
 
     const { error: updateError } = await supabaseAdmin
@@ -119,6 +130,7 @@ export async function POST(req: NextRequest) {
       review_score: reviewScore,
       review_count: reviewCount,
       keywords: uniqueKeywords,
+      ai,
     });
   } catch (error: any) {
     return NextResponse.json(
