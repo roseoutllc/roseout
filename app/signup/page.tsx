@@ -1,578 +1,733 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import Script from "next/script";
-import { createClient } from "@/lib/supabase-browser";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import RoseOutHeader from "@/components/RoseOutHeader";
 
-type TurnstileWindow = Window & {
-  turnstile?: {
-    render: (
-      element: HTMLElement,
-      options: {
-        sitekey: string;
-        callback: (token: string) => void;
-        "expired-callback"?: () => void;
-        "error-callback"?: () => void;
-        theme?: "light" | "dark" | "auto";
-      }
-    ) => string | undefined;
-    reset: (widgetId?: string) => void;
-  };
-};
+type Step = "plan" | "confirm" | "book";
 
-export default function SignupPage() {
-  const supabase = createClient();
+function buildAddress(item: any) {
+  return [item?.address, item?.city, item?.state, item?.zip_code]
+    .filter(Boolean)
+    .join(", ");
+}
 
-  const turnstileRef = useRef<HTMLDivElement | null>(null);
-  const widgetIdRef = useRef<string | null | undefined>(null);
+function buildMapsUrl(name: string, address: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    `${name} ${address}`
+  )}`;
+}
 
-  const [step, setStep] = useState<1 | 2>(1);
+function flowers(rating?: number | null) {
+  const count = Math.max(1, Math.min(5, Math.round(Number(rating || 5))));
+  return "🌸".repeat(count);
+}
 
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+function getRestaurantLabel(restaurant: any) {
+  const text = [
+    restaurant?.primary_tag,
+    restaurant?.cuisine,
+    restaurant?.atmosphere,
+    ...(restaurant?.date_style_tags || []),
+    ...(restaurant?.review_keywords || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  if (text.includes("brunch")) return "Brunch Spot";
+  if (text.includes("breakfast")) return "Breakfast Spot";
+  if (text.includes("lunch")) return "Lunch Spot";
+  if (text.includes("late night")) return "Late Night Spot";
+  if (text.includes("date") || text.includes("romantic")) return "Date Spot";
+  if (text.includes("upscale") || text.includes("classy")) {
+    return "Upscale Restaurant";
+  }
 
-  const [planningFor, setPlanningFor] = useState("");
-  const [city, setCity] = useState("");
-  const [preferredVibe, setPreferredVibe] = useState("");
-  const [budgetRange, setBudgetRange] = useState("");
+  return "Restaurant";
+}
 
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [marketingOptIn, setMarketingOptIn] = useState(false);
-  const [smsOptIn, setSmsOptIn] = useState(false);
+export default function PlanPage() {
+  const router = useRouter();
 
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-
-  const [message, setMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const hasMinLength = password.length >= 8;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSymbol = /[^A-Za-z0-9]/.test(password);
-  const passwordsMatch = password.length > 0 && password === confirmPassword;
-
-  const isPasswordValid =
-    hasMinLength && hasUppercase && hasNumber && hasSymbol;
-
-  const canGoStep2 =
-    fullName.trim() &&
-    email.trim() &&
-    isPasswordValid &&
-    passwordsMatch &&
-    acceptedTerms;
-
-  const canSubmit = canGoStep2 && captchaToken && !loading;
-
-  const renderTurnstile = () => {
-    const turnstile = (window as TurnstileWindow).turnstile;
-
-    if (!turnstileRef.current || !turnstile || widgetIdRef.current) return;
-
-    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-
-    if (!siteKey) {
-      setErrorMessage("Missing Turnstile site key.");
-      return;
-    }
-
-    widgetIdRef.current = turnstile.render(turnstileRef.current, {
-      sitekey: siteKey,
-      theme: "dark",
-      callback: (token: string) => {
-        setCaptchaToken(token);
-        setErrorMessage("");
-      },
-      "expired-callback": () => setCaptchaToken(null),
-      "error-callback": () => {
-        setCaptchaToken(null);
-        setErrorMessage("Verification failed. Please try again.");
-      },
-    });
-  };
+  const [plan, setPlan] = useState<any>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [step, setStep] = useState<Step>("plan");
 
   useEffect(() => {
-    if (step === 2) {
-      setTimeout(renderTurnstile, 100);
-    }
-  }, [step]);
+    const saved = localStorage.getItem("roseout_plan");
 
-  const resetCaptcha = () => {
-    const turnstile = (window as TurnstileWindow).turnstile;
-    setCaptchaToken(null);
-
-    if (turnstile && widgetIdRef.current) {
-      turnstile.reset(widgetIdRef.current);
-    }
-  };
-
-  const handleNextStep = () => {
-    setErrorMessage("");
-    setMessage("");
-
-    if (!fullName.trim()) {
-      setErrorMessage("Please enter your full name.");
-      return;
-    }
-
-    if (!email.trim()) {
-      setErrorMessage("Please enter your email address.");
-      return;
-    }
-
-    if (!isPasswordValid) {
-      setErrorMessage(
-        "Password must be at least 8 characters and include an uppercase letter, number, and symbol."
-      );
-      return;
-    }
-
-    if (!passwordsMatch) {
-      setErrorMessage("Passwords do not match.");
-      return;
-    }
-
-    if (!acceptedTerms) {
-      setErrorMessage("Please agree to the Terms of Service and Privacy Policy.");
-      return;
-    }
-
-    setStep(2);
-  };
-
-  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    setErrorMessage("");
-    setMessage("");
-
-    if (!canGoStep2) {
-      setStep(1);
-      setErrorMessage("Please complete your account details first.");
-      return;
-    }
-
-    if (smsOptIn && !phone.trim()) {
-      setErrorMessage("Please enter your phone number to receive SMS messages.");
-      return;
-    }
-
-    if (!captchaToken) {
-      setErrorMessage("Please complete the verification.");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const captchaResponse = await fetch("/api/verify-captcha", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token: captchaToken }),
-      });
-
-      const captchaResult = await captchaResponse.json();
-
-      if (!captchaResponse.ok || !captchaResult.success) {
-        setErrorMessage(
-          captchaResult.error || "Captcha verification failed. Please try again."
-        );
-        resetCaptcha();
-        setLoading(false);
-        return;
+    if (saved) {
+      try {
+        setPlan(JSON.parse(saved));
+      } catch {
+        setPlan(null);
       }
-
-      const { error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
-        options: {
-          emailRedirectTo: `${
-            process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
-          }/dashboard`,
-          data: {
-            full_name: fullName.trim(),
-            role: "user",
-            phone: phone.trim() || null,
-            planning_for: planningFor || null,
-            city: city.trim() || null,
-            preferred_vibe: preferredVibe || null,
-            budget_range: budgetRange || null,
-            marketing_opt_in: marketingOptIn,
-            sms_opt_in: smsOptIn,
-            sms_consent_text: smsOptIn
-              ? "I agree to receive SMS messages from RoseOut about account updates, outing recommendations, reminders, promotions, and offers. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase."
-              : null,
-            sms_consent_date: smsOptIn ? new Date().toISOString() : null,
-          },
-        },
-      });
-
-      if (error) {
-        setErrorMessage(error.message);
-        resetCaptcha();
-        setLoading(false);
-        return;
-      }
-
-      setMessage("Account created. Please check your email to confirm.");
-
-      setFullName("");
-      setEmail("");
-      setPhone("");
-      setPassword("");
-      setConfirmPassword("");
-      setPlanningFor("");
-      setCity("");
-      setPreferredVibe("");
-      setBudgetRange("");
-      setAcceptedTerms(false);
-      setMarketingOptIn(false);
-      setSmsOptIn(false);
-      resetCaptcha();
-    } catch {
-      setErrorMessage("Something went wrong. Please try again.");
-      resetCaptcha();
-    } finally {
-      setLoading(false);
     }
+
+    setLoaded(true);
+  }, []);
+
+  const restaurant = plan?.restaurant;
+  const activity = plan?.activity;
+
+  const restaurantLabel = getRestaurantLabel(restaurant);
+
+  const restaurantName = restaurant?.restaurant_name || "";
+  const activityName = activity?.activity_name || "";
+
+  const restaurantAddress = buildAddress(restaurant);
+  const activityAddress = buildAddress(activity);
+
+  const restaurantMapsUrl = useMemo(
+    () => buildMapsUrl(restaurantName, restaurantAddress),
+    [restaurantName, restaurantAddress]
+  );
+
+  const activityMapsUrl = useMemo(
+    () => buildMapsUrl(activityName, activityAddress),
+    [activityName, activityAddress]
+  );
+
+  const planTitle =
+    restaurant && activity
+      ? `${restaurantName} + ${activityName}`
+      : restaurant
+        ? restaurantName
+        : activityName || "Your RoseOut Plan";
+
+  const startNewSearch = () => {
+    localStorage.removeItem("roseout_plan");
+    sessionStorage.removeItem("roseout_create_state");
+    router.push("/create");
   };
 
-  return (
-    <main className="h-screen overflow-hidden bg-[#030303] px-6 py-5 text-white">
-      <Script
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-        async
-        defer
-        onLoad={() => {
-          if (step === 2) renderTurnstile();
-        }}
-      />
+  const backToResults = () => {
+    router.push("/create");
+  };
 
-      <div className="mx-auto flex h-full max-w-7xl flex-col">
-        <header className="mb-4 flex items-center justify-between">
-          <Link
-            href="/"
-            className="text-sm font-black uppercase tracking-[0.55em] text-[#f5b700]"
-          >
-            RoseOut
-          </Link>
+  const goBackStep = () => {
+    if (step === "book") return setStep("confirm");
+    if (step === "confirm") return setStep("plan");
+    return backToResults();
+  };
 
-          <Link
-            href="/login"
-            className="rounded-full border border-white/20 bg-[#1b1b1b] px-5 py-2 text-sm font-bold text-white hover:bg-[#252525]"
-          >
-            Log in
-          </Link>
-        </header>
+  if (!loaded) {
+    return (
+      <>
+        <RoseOutHeader />
+        <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-6 pt-20 text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_15%,rgba(225,6,42,0.28),transparent_32%),linear-gradient(180deg,#050505,#000)]" />
 
-        <section className="grid flex-1 items-center gap-8 overflow-hidden lg:grid-cols-[1fr_500px]">
-          <div className="hidden lg:block">
-            <div className="mb-4 inline-flex rounded-full border border-[#f5b700]/30 bg-[#f5b700]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-[#f5b700]">
-              Curated by RoseOut AI
-            </div>
+          <div className="relative z-10 rounded-[2rem] border border-white/10 bg-white/[0.05] px-8 py-6 text-center shadow-2xl backdrop-blur-xl">
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
+              RoseOut
+            </p>
+            <p className="mt-3 text-sm font-black text-white/70">
+              Loading your plan...
+            </p>
+          </div>
+        </main>
+      </>
+    );
+  }
 
-            <h1 className="max-w-3xl text-5xl font-black leading-[0.95] tracking-tight text-white xl:text-6xl">
-              Curated outings, made effortless.
-            </h1>
+  if (!plan) {
+    return (
+      <>
+        <RoseOutHeader />
 
-            <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
-              From breakfast dates to late-night reservations, RoseOut helps you
-              discover polished restaurants, activities, and experiences that
-              match your mood, budget, and style.
+        <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-6 pt-20 text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.32),transparent_32%),radial-gradient(circle_at_80%_5%,rgba(127,29,29,0.28),transparent_28%),#000]" />
+          <div className="absolute left-1/2 top-20 h-[460px] w-[460px] -translate-x-1/2 rounded-full bg-red-600/10 blur-3xl" />
+
+          <div className="relative z-10 max-w-md rounded-[2.5rem] border border-white/10 bg-white/[0.05] p-8 text-center shadow-2xl backdrop-blur-xl">
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
+              RoseOut Plan
             </p>
 
-            <div className="mt-6 grid max-w-3xl gap-3 md:grid-cols-3">
-              {[
-                ["01", "Tell us the kind of outing you want."],
-                ["02", "Personalize your vibe, city, and budget."],
-                ["03", "Unlock better AI-powered recommendations."],
-              ].map(([num, text]) => (
-                <div
-                  key={num}
-                  className="rounded-2xl border border-white/15 bg-[#181818]/80 p-4"
-                >
-                  <p className="text-xl font-black text-[#f5b700]">{num}</p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-400">{text}</p>
-                </div>
-              ))}
-            </div>
+            <h1 className="mt-4 text-4xl font-black tracking-tight">
+              No plan found
+            </h1>
+
+            <p className="mt-3 text-sm leading-7 text-white/60">
+              Choose a restaurant or activity from your RoseOut results to build
+              a plan.
+            </p>
+
+            <button
+              onClick={startNewSearch}
+              className="mt-6 rounded-full bg-red-600 px-7 py-3 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500"
+            >
+              Create a Plan
+            </button>
           </div>
+        </main>
+      </>
+    );
+  }
 
-          <div className="max-h-full overflow-hidden rounded-[1.5rem] border border-white/15 bg-[#181818]/90 shadow-2xl">
-            <div className="border-b border-white/15 px-6 py-4">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f5b700]">
-                Step {step} of 2
-              </p>
+  return (
+    <>
+      <RoseOutHeader />
 
-              <h2 className="mt-1 text-2xl font-black text-white">
-                {step === 1 ? "Create your account" : "Set your preferences"}
-              </h2>
+      <main className="min-h-screen overflow-hidden bg-black pt-20 text-white">
+        <section className="relative overflow-hidden border-b border-white/10 px-5 py-10 sm:py-14">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_5%,rgba(225,6,42,0.35),transparent_32%),radial-gradient(circle_at_85%_0%,rgba(127,29,29,0.35),transparent_30%),linear-gradient(180deg,#050505,#000)]" />
+          <div className="absolute -right-24 top-10 h-[420px] w-[420px] rounded-full bg-red-600/10 blur-3xl" />
 
-              <div className="mt-4 flex gap-2">
-                <div
-                  className={`h-2 flex-1 rounded-full ${
-                    step >= 1 ? "bg-[#f5b700]" : "bg-white/15"
-                  }`}
-                />
-                <div
-                  className={`h-2 flex-1 rounded-full ${
-                    step >= 2 ? "bg-[#f5b700]" : "bg-white/15"
-                  }`}
-                />
-              </div>
+          <div className="relative mx-auto max-w-6xl">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+              <button
+                onClick={goBackStep}
+                className="rounded-full border border-white/15 bg-white/10 px-5 py-2.5 text-sm font-black text-white shadow-xl backdrop-blur-xl transition hover:bg-white hover:text-black"
+              >
+                ← Back
+              </button>
+
+              <button
+                onClick={startNewSearch}
+                className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500"
+              >
+                Start New Search
+              </button>
             </div>
 
-            {step === 1 ? (
-              <div className="space-y-3 p-6">
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Full name"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
-                />
+            <Breadcrumb step={step} setStep={setStep} />
 
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email address"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
-                />
+            <p className="mt-8 text-xs font-black uppercase tracking-[0.35em] text-red-400">
+              RoseOut Plan Flow
+            </p>
 
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
-                />
+            <h1 className="mt-5 max-w-5xl text-5xl font-black leading-[0.95] tracking-tight sm:text-7xl">
+              {step === "plan" && (
+                <>
+                  Your night is
+                  <br />
+                  <span className="text-red-500">ready.</span>
+                </>
+              )}
 
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm password"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
-                />
+              {step === "confirm" && (
+                <>
+                  Confirm your
+                  <br />
+                  <span className="text-red-500">outing.</span>
+                </>
+              )}
 
-                <div className="rounded-xl border border-white/15 bg-[#101010] p-3 text-xs">
-                  <p className={hasMinLength ? "text-[#f5b700]" : "text-zinc-500"}>
-                    ✓ At least 8 characters
-                  </p>
-                  <p className={hasUppercase ? "text-[#f5b700]" : "text-zinc-500"}>
-                    ✓ One uppercase letter
-                  </p>
-                  <p className={hasNumber ? "text-[#f5b700]" : "text-zinc-500"}>
-                    ✓ One number
-                  </p>
-                  <p className={hasSymbol ? "text-[#f5b700]" : "text-zinc-500"}>
-                    ✓ One symbol
-                  </p>
-                  <p className={passwordsMatch ? "text-[#f5b700]" : "text-zinc-500"}>
-                    ✓ Passwords match
-                  </p>
-                </div>
+              {step === "book" && (
+                <>
+                  Time to
+                  <br />
+                  <span className="text-red-500">book.</span>
+                </>
+              )}
+            </h1>
 
-                <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-[#101010] p-3 text-xs text-zinc-400">
-                  <input
-                    type="checkbox"
-                    checked={acceptedTerms}
-                    onChange={(e) => setAcceptedTerms(e.target.checked)}
-                    className="mt-1 h-4 w-4 accent-[#f5b700]"
-                  />
-                  <span>
-                    I agree to the{" "}
-                    <Link
-                      href="/terms"
-                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
-                    >
-                      Terms of Service
-                    </Link>{" "}
-                    and{" "}
-                    <Link
-                      href="/privacy"
-                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
-                    >
-                      Privacy Policy
-                    </Link>
-                    .
-                  </span>
-                </label>
-
-                {errorMessage && (
-                  <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-2 text-sm text-red-200">
-                    {errorMessage}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleNextStep}
-                  className="w-full rounded-xl bg-[#f5b700] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-[#ffd24a]"
-                >
-                  Continue
-                </button>
-
-                <p className="text-center text-xs text-zinc-500">
-                  Already have an account?{" "}
-                  <Link
-                    href="/login"
-                    className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
-                  >
-                    Log in
-                  </Link>
+            <div className="mt-8 overflow-hidden rounded-[2.25rem] border border-white/10 bg-white/[0.05] shadow-2xl backdrop-blur-xl">
+              <div className="border-b border-white/10 bg-gradient-to-r from-red-950/40 via-black/20 to-transparent px-5 py-4">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-white/35">
+                  Selected Plan
                 </p>
               </div>
-            ) : (
-              <form onSubmit={handleSignup} className="space-y-3 p-6">
-                <select
-                  value={planningFor}
-                  onChange={(e) => setPlanningFor(e.target.value)}
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none focus:border-[#f5b700]"
-                >
-                  <option value="">What are you planning?</option>
-                  <option value="date_nights">Date</option>
-                  <option value="breakfast">Breakfast or brunch</option>
-                  <option value="friends">Going out with friends</option>
-                  <option value="solo">Solo outing</option>
-                  <option value="family">Family outing</option>
-                  <option value="events">Events & experiences</option>
-                </select>
 
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="City or borough, example: Queens"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
-                />
-
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Phone number for SMS updates (optional)"
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
-                />
-
-                <select
-                  value={preferredVibe}
-                  onChange={(e) => setPreferredVibe(e.target.value)}
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none focus:border-[#f5b700]"
-                >
-                  <option value="">Preferred vibe</option>
-                  <option value="romantic">Romantic</option>
-                  <option value="upscale">Upscale</option>
-                  <option value="casual_chic">Casual chic</option>
-                  <option value="fun">Fun & energetic</option>
-                  <option value="cozy">Cozy</option>
-                  <option value="quiet">Quiet</option>
-                  <option value="trendy">Trendy</option>
-                </select>
-
-                <select
-                  value={budgetRange}
-                  onChange={(e) => setBudgetRange(e.target.value)}
-                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none focus:border-[#f5b700]"
-                >
-                  <option value="">Budget range</option>
-                  <option value="budget">$</option>
-                  <option value="moderate">$$</option>
-                  <option value="premium">$$$</option>
-                  <option value="luxury">$$$$</option>
-                </select>
-
-                <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-[#101010] p-3 text-xs text-zinc-400">
-                  <input
-                    type="checkbox"
-                    checked={marketingOptIn}
-                    onChange={(e) => setMarketingOptIn(e.target.checked)}
-                    className="mt-1 h-4 w-4 accent-[#f5b700]"
-                  />
-                  <span>
-                    Send me RoseOut updates, recommendations, and offers by email.
-                  </span>
-                </label>
-
-                <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-[#101010] p-3 text-[11px] leading-5 text-zinc-400">
-                  <input
-                    type="checkbox"
-                    checked={smsOptIn}
-                    onChange={(e) => setSmsOptIn(e.target.checked)}
-                    className="mt-1 h-4 w-4 accent-[#f5b700]"
-                  />
-                  <span>
-                    I agree to receive SMS messages from{" "}
-                    <strong className="text-white">RoseOut</strong> about
-                    account updates, outing recommendations, reminders,
-                    promotions, and offers. Message frequency varies. Message
-                    and data rates may apply. Reply{" "}
-                    <strong className="text-white">STOP</strong> to opt out.
-                    Reply <strong className="text-white">HELP</strong> for help.
-                    Consent is not a condition of purchase. View our{" "}
-                    <Link
-                      href="/privacy"
-                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
-                    >
-                      Privacy Policy
-                    </Link>{" "}
-                    and{" "}
-                    <Link
-                      href="/terms"
-                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
-                    >
-                      Terms
-                    </Link>
-                    .
-                  </span>
-                </label>
-
-                <div className="rounded-xl border border-white/15 bg-[#101010] p-3">
-                  <div ref={turnstileRef} />
-                </div>
-
-                {errorMessage && (
-                  <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-2 text-sm text-red-200">
-                    {errorMessage}
-                  </div>
-                )}
-
-                {message && (
-                  <div className="rounded-xl border border-[#f5b700]/30 bg-[#f5b700]/10 px-4 py-2 text-sm text-[#f5b700]">
-                    {message}
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="w-1/3 rounded-xl border border-white/20 bg-[#1b1b1b] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white hover:bg-[#252525]"
-                  >
-                    Back
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={!canSubmit}
-                    className="w-2/3 rounded-xl bg-[#f5b700] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-[#ffd24a] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {loading ? "Creating..." : "Create"}
-                  </button>
-                </div>
-              </form>
-            )}
+              <div className="p-5">
+                <h2 className="break-words text-2xl font-black tracking-tight sm:text-3xl">
+                  {planTitle}
+                </h2>
+              </div>
+            </div>
           </div>
         </section>
+
+        <section className="relative px-5 py-12">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(225,6,42,0.18),transparent_30%)]" />
+
+          <div className="relative mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_360px]">
+            <div className="space-y-6">
+              {step === "plan" && (
+                <>
+                  {restaurant && (
+                    <PlanCard
+                      eyebrow={restaurantLabel}
+                      title={restaurant.restaurant_name}
+                      imageUrl={restaurant.image_url}
+                      address={restaurantAddress}
+                      rating={restaurant.rating}
+                      reviewCount={restaurant.review_count}
+                      primaryTag={restaurant.primary_tag}
+                      tags={restaurant.date_style_tags}
+                      reservationUrl={
+                        restaurant.reservation_url ||
+                        restaurant.reservation_link
+                      }
+                      reservationLabel="Reserve"
+                      websiteUrl={restaurant.website}
+                      mapsUrl={restaurantMapsUrl}
+                    />
+                  )}
+
+                  {activity && (
+                    <PlanCard
+                      eyebrow={activity.activity_type || "Activity"}
+                      title={activity.activity_name}
+                      imageUrl={activity.image_url}
+                      address={activityAddress}
+                      rating={activity.rating}
+                      reviewCount={activity.review_count}
+                      primaryTag={activity.primary_tag}
+                      tags={activity.date_style_tags}
+                      reservationUrl={
+                        activity.reservation_url || activity.reservation_link
+                      }
+                      reservationLabel="Book"
+                      websiteUrl={activity.website}
+                      mapsUrl={activityMapsUrl}
+                    />
+                  )}
+                </>
+              )}
+
+              {step === "confirm" && (
+                <ConfirmStep
+                  restaurant={restaurant}
+                  activity={activity}
+                  restaurantLabel={restaurantLabel}
+                />
+              )}
+
+              {step === "book" && (
+                <BookStep
+                  restaurant={restaurant}
+                  activity={activity}
+                  restaurantLabel={restaurantLabel}
+                  restaurantMapsUrl={restaurantMapsUrl}
+                  activityMapsUrl={activityMapsUrl}
+                />
+              )}
+            </div>
+
+            <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+              <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
+                <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
+                  Next Step
+                </p>
+
+                <h2 className="mt-3 text-3xl font-black tracking-tight">
+                  {step === "plan" && "Review your plan"}
+                  {step === "confirm" && "Confirm details"}
+                  {step === "book" && "Book your outing"}
+                </h2>
+
+                <p className="mt-3 text-sm leading-7 text-white/60">
+                  {step === "plan" &&
+                    "Review your selected restaurant and activity before confirming."}
+                  {step === "confirm" &&
+                    "Make sure this is the outing you want before booking."}
+                  {step === "book" &&
+                    "Use the booking, website, and directions links to finish your plan."}
+                </p>
+
+                <div className="mt-6 grid gap-3">
+                  {step === "plan" && (
+                    <button
+                      onClick={() => setStep("confirm")}
+                      className="rounded-full bg-red-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500"
+                    >
+                      Continue to Confirm
+                    </button>
+                  )}
+
+                  {step === "confirm" && (
+                    <button
+                      onClick={() => setStep("book")}
+                      className="rounded-full bg-red-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500"
+                    >
+                      Continue to Book
+                    </button>
+                  )}
+
+                  {step === "book" && (
+                    <>
+                      {restaurant?.reservation_url ||
+                      restaurant?.reservation_link ? (
+                        <a
+                          href={
+                            restaurant.reservation_url ||
+                            restaurant.reservation_link
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-full bg-red-600 px-5 py-3 text-center text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500"
+                        >
+                          Reserve {restaurantLabel}
+                        </a>
+                      ) : null}
+
+                      {activity?.reservation_url || activity?.reservation_link ? (
+                        <a
+                          href={
+                            activity.reservation_url ||
+                            activity.reservation_link
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-full border border-red-500/40 bg-red-500/10 px-5 py-3 text-center text-sm font-black text-red-100 transition hover:bg-red-600 hover:text-white"
+                        >
+                          Book Activity
+                        </a>
+                      ) : null}
+                    </>
+                  )}
+
+                  <button
+                    onClick={backToResults}
+                    className="rounded-full border border-white/15 px-5 py-3 text-sm font-black text-white transition hover:bg-white hover:text-black"
+                  >
+                    Back to Results
+                  </button>
+                </div>
+              </section>
+
+              <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
+                <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
+                  Flow
+                </p>
+
+                <div className="mt-5 space-y-4">
+                  <TimelineItem active={step === "plan"} number="1" title="Plan" />
+                  <TimelineItem
+                    active={step === "confirm"}
+                    number="2"
+                    title="Confirm"
+                  />
+                  <TimelineItem active={step === "book"} number="3" title="Book" />
+                </div>
+              </section>
+            </aside>
+          </div>
+        </section>
+      </main>
+    </>
+  );
+}
+
+function Breadcrumb({
+  step,
+  setStep,
+}: {
+  step: Step;
+  setStep: (step: Step) => void;
+}) {
+  const steps: Step[] = ["plan", "confirm", "book"];
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        onClick={() => (window.location.href = "/create")}
+        className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white/50 transition hover:bg-white hover:text-black"
+      >
+        Results
+      </button>
+
+      {steps.map((item, index) => {
+        const active = step === item;
+
+        return (
+          <div key={item} className="flex items-center gap-2">
+            <span className="text-white/20">/</span>
+
+            <button
+              onClick={() => setStep(item)}
+              className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.18em] shadow-lg transition ${
+                active
+                  ? "bg-red-600 text-white shadow-red-950/40"
+                  : "border border-white/10 bg-white/[0.05] text-white/50 hover:bg-white hover:text-black"
+              }`}
+            >
+              {index + 1}. {item}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PlanCard({
+  eyebrow,
+  title,
+  imageUrl,
+  address,
+  rating,
+  reviewCount,
+  primaryTag,
+  tags,
+  reservationUrl,
+  reservationLabel,
+  websiteUrl,
+  mapsUrl,
+}: any) {
+  return (
+    <article className="group overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#0d0d0d] shadow-2xl shadow-black/40 transition duration-500 hover:-translate-y-1 hover:border-red-500/60 hover:shadow-red-950/20">
+      <div className="relative h-72 overflow-hidden">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={title}
+            className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-neutral-900 text-neutral-500">
+            No image available
+          </div>
+        )}
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_5%,rgba(225,6,42,0.22),transparent_32%)]" />
+
+        <div className="absolute left-4 top-4 rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-black shadow-lg">
+          {eyebrow}
+        </div>
+
+        {rating && (
+          <div className="absolute bottom-4 right-4 rounded-full bg-red-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-red-950/40">
+            {flowers(rating)} {rating}
+          </div>
+        )}
       </div>
-    </main>
+
+      <div className="p-6">
+        <h2 className="break-words text-3xl font-black tracking-tight">
+          {title}
+        </h2>
+
+        {address && (
+          <p className="mt-3 text-sm leading-6 text-white/55">{address}</p>
+        )}
+
+        {reviewCount ? (
+          <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-white/35">
+            {reviewCount} review{reviewCount === 1 ? "" : "s"}
+          </p>
+        ) : null}
+
+        {primaryTag && (
+          <p className="mt-4 text-sm font-black text-red-100">✨ {primaryTag}</p>
+        )}
+
+        {tags?.length ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {tags.slice(0, 4).map((tag: string) => (
+              <span
+                key={tag}
+                className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-bold text-white/60"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {reservationUrl && (
+            <a
+              href={reservationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full bg-red-600 px-5 py-3 text-center text-sm font-black text-white shadow-lg shadow-red-950/30 transition hover:bg-red-500"
+            >
+              {reservationLabel}
+            </a>
+          )}
+
+          {websiteUrl && (
+            <a
+              href={websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
+            >
+              Website
+            </a>
+          )}
+
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
+          >
+            Directions
+          </a>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ConfirmStep({
+  restaurant,
+  activity,
+  restaurantLabel,
+}: {
+  restaurant: any;
+  activity: any;
+  restaurantLabel: string;
+}) {
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-6 shadow-2xl shadow-black/40">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
+        Confirm
+      </p>
+
+      <h2 className="mt-3 text-3xl font-black tracking-tight">
+        Confirm your selected outing.
+      </h2>
+
+      <div className="mt-6 grid gap-4">
+        {restaurant && (
+          <ConfirmRow label={restaurantLabel} value={restaurant.restaurant_name} />
+        )}
+
+        {activity && (
+          <ConfirmRow label="Activity" value={activity.activity_name} />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ConfirmRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-white/35">
+        {label}
+      </p>
+      <p className="mt-2 text-xl font-black">{value}</p>
+    </div>
+  );
+}
+
+function BookStep({
+  restaurant,
+  activity,
+  restaurantLabel,
+  restaurantMapsUrl,
+  activityMapsUrl,
+}: {
+  restaurant: any;
+  activity: any;
+  restaurantLabel: string;
+  restaurantMapsUrl: string;
+  activityMapsUrl: string;
+}) {
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-6 shadow-2xl shadow-black/40">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
+        Book
+      </p>
+
+      <h2 className="mt-3 text-3xl font-black tracking-tight">
+        Finish booking your outing.
+      </h2>
+
+      <div className="mt-6 grid gap-4">
+        {restaurant && (
+          <BookBox
+            title={restaurant.restaurant_name}
+            reservationUrl={restaurant.reservation_url || restaurant.reservation_link}
+            websiteUrl={restaurant.website}
+            mapsUrl={restaurantMapsUrl}
+            reserveLabel={`Reserve ${restaurantLabel}`}
+          />
+        )}
+
+        {activity && (
+          <BookBox
+            title={activity.activity_name}
+            reservationUrl={activity.reservation_url || activity.reservation_link}
+            websiteUrl={activity.website}
+            mapsUrl={activityMapsUrl}
+            reserveLabel="Book Activity"
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function BookBox({ title, reservationUrl, websiteUrl, mapsUrl, reserveLabel }: any) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+      <h3 className="text-xl font-black">{title}</h3>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {reservationUrl && (
+          <a
+            href={reservationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full bg-red-600 px-4 py-3 text-center text-sm font-black text-white shadow-lg shadow-red-950/30"
+          >
+            {reserveLabel}
+          </a>
+        )}
+
+        {websiteUrl && (
+          <a
+            href={websiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-white/15 px-4 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
+          >
+            Website
+          </a>
+        )}
+
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-full border border-white/15 px-4 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
+        >
+          Directions
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function TimelineItem({
+  number,
+  title,
+  active,
+}: {
+  number: string;
+  title: string;
+  active: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-4">
+      <div
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black shadow-lg ${
+          active
+            ? "bg-red-600 text-white shadow-red-950/40"
+            : "bg-white/10 text-white/45"
+        }`}
+      >
+        {number}
+      </div>
+
+      <div>
+        <p className={`text-sm font-black ${active ? "text-white" : "text-white/45"}`}>
+          {title}
+        </p>
+        <p className="text-xs font-bold text-white/35">
+          RoseOut planning step
+        </p>
+      </div>
+    </div>
   );
 }
