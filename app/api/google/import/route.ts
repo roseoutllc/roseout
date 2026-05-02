@@ -63,6 +63,15 @@ function placeText(place: any) {
   } ${place.types?.join(" ") || ""}`.toLowerCase();
 }
 
+function googlePhotoUrl(place: any) {
+  const apiKey = getGoogleKey();
+  const ref = place.photos?.[0]?.photo_reference;
+
+  if (!apiKey || !ref) return null;
+
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${ref}&key=${apiKey}`;
+}
+
 function isHookah(place: any) {
   const text = placeText(place);
   return text.includes("hookah") || text.includes("shisha");
@@ -185,14 +194,13 @@ function categorizeActivity(name: string, types: string[] = []) {
   return types[0] || "activity";
 }
 
-/* ---------------- GOOGLE SEARCH ---------------- */
-
 async function fetchGooglePlacesPaged(query: string, limit: number) {
   const apiKey = getGoogleKey();
   if (!apiKey) throw new Error("Missing Google API key");
 
   const allPlaces: any[] = [];
   let nextPageToken: string | null = null;
+  let tokenRetryCount = 0;
 
   while (allPlaces.length < limit) {
     const url = new URL(
@@ -203,7 +211,7 @@ async function fetchGooglePlacesPaged(query: string, limit: number) {
 
     if (nextPageToken) {
       url.searchParams.set("pagetoken", nextPageToken);
-      await sleep(2200);
+      await sleep(2500);
     } else {
       url.searchParams.set("query", query);
     }
@@ -213,11 +221,19 @@ async function fetchGooglePlacesPaged(query: string, limit: number) {
 
     if (!res.ok) throw new Error("Google request failed");
 
+    if (data.status === "INVALID_REQUEST" && nextPageToken && tokenRetryCount < 5) {
+      tokenRetryCount++;
+      await sleep(2500);
+      continue;
+    }
+
     if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
       throw new Error(
         data.error_message || `Google Places error: ${data.status}`
       );
     }
+
+    tokenRetryCount = 0;
 
     allPlaces.push(...(data.results || []));
 
@@ -247,6 +263,7 @@ async function fetchGoogleNearbySearch({
 
   const allPlaces: any[] = [];
   let nextPageToken: string | null = null;
+  let tokenRetryCount = 0;
 
   while (allPlaces.length < limit) {
     const url = new URL(
@@ -257,7 +274,7 @@ async function fetchGoogleNearbySearch({
 
     if (nextPageToken) {
       url.searchParams.set("pagetoken", nextPageToken);
-      await sleep(2200);
+      await sleep(2500);
     } else {
       url.searchParams.set("location", `${lat},${lng}`);
       url.searchParams.set("radius", String(radius));
@@ -269,11 +286,19 @@ async function fetchGoogleNearbySearch({
 
     if (!res.ok) throw new Error("Google Nearby Search failed");
 
+    if (data.status === "INVALID_REQUEST" && nextPageToken && tokenRetryCount < 5) {
+      tokenRetryCount++;
+      await sleep(2500);
+      continue;
+    }
+
     if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
       throw new Error(
         data.error_message || `Google Places error: ${data.status}`
       );
     }
+
+    tokenRetryCount = 0;
 
     allPlaces.push(...(data.results || []));
 
@@ -284,8 +309,6 @@ async function fetchGoogleNearbySearch({
 
   return allPlaces.slice(0, limit);
 }
-
-/* ---------------- IMPORTERS ---------------- */
 
 async function importRestaurant(place: any) {
   const { data: existing } = await supabaseAdmin
@@ -310,9 +333,7 @@ async function importRestaurant(place: any) {
     cuisine: place.types?.join(", ") || null,
     rating: place.rating || 0,
     google_place_id: place.place_id,
-    image_url: place.photos?.[0]?.photo_reference
-  ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${place.photos[0].photo_reference}&key=${getGoogleKey()}`
-  : null,
+    image_url: googlePhotoUrl(place),
     latitude: place.geometry?.location?.lat || null,
     longitude: place.geometry?.location?.lng || null,
     status: "approved",
@@ -356,9 +377,7 @@ async function importActivity(place: any) {
     zip_code: null,
     rating: place.rating || 0,
     google_place_id: place.place_id,
-    image_url: place.photos?.[0]?.photo_reference
-  ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${place.photos[0].photo_reference}&key=${getGoogleKey()}`
-  : null,
+    image_url: googlePhotoUrl(place),
     latitude: place.geometry?.location?.lat || null,
     longitude: place.geometry?.location?.lng || null,
     status: "approved",
@@ -378,8 +397,6 @@ async function importActivity(place: any) {
 
   return { imported: true, skipped: false };
 }
-
-/* ---------------- AREAS ---------------- */
 
 const geoAreas = [
   { name: "Manhattan", lat: 40.7831, lng: -73.9712 },
@@ -438,8 +455,6 @@ const geoAreas = [
   { name: "Fort Lee", lat: 40.8509, lng: -73.9701 },
   { name: "Newark", lat: 40.7357, lng: -74.1724 },
 ];
-
-/* ---------------- SMART CATEGORY BATCHES ---------------- */
 
 const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
   core: [
@@ -735,8 +750,6 @@ function defaultQueries(
   );
 }
 
-/* ---------------- ENGINE ---------------- */
-
 async function runImport({
   queries,
   type,
@@ -843,8 +856,6 @@ async function runImport({
     queries_used: mode === "text" ? queries : [],
   };
 }
-
-/* ---------------- ROUTES ---------------- */
 
 export async function GET(request: NextRequest) {
   try {
