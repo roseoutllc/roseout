@@ -71,12 +71,10 @@ export default function LoginPage() {
         viewer: "/admin/import-history",
       };
 
-      const redirectPath = roleRedirects[adminUser.role] || "/admin";
-
       setMessage("Login successful. Redirecting...");
 
       setTimeout(() => {
-        router.replace(redirectPath);
+        router.replace(roleRedirects[adminUser.role] || "/admin");
       }, 500);
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
@@ -86,66 +84,110 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#050505] px-6 text-white">
-      <form
-        onSubmit={handleLogin}
-        className="w-full max-w-md rounded-[2rem] bg-white p-8 text-black shadow-2xl"
-      >
-        <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-600">
-          RoseOut Admin
-        </p>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 py-10 text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(225,6,42,0.32),transparent_32%),radial-gradient(circle_at_85%_5%,rgba(127,29,29,0.32),transparent_30%),linear-gradient(180deg,#050505,#000)]" />
+      <div className="absolute left-1/2 top-10 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-red-600/10 blur-3xl" />
 
-        <h1 className="text-3xl font-extrabold">Admin Login</h1>
+      <section className="relative z-10 grid w-full max-w-5xl overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.04] shadow-2xl backdrop-blur-xl lg:grid-cols-[1fr_440px]">
+        <div className="hidden min-h-[620px] flex-col justify-between border-r border-white/10 bg-[radial-gradient(circle_at_20%_20%,rgba(225,6,42,0.22),transparent_35%),#080808] p-8 lg:flex">
+          <div>
+            <div className="inline-flex rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-red-200">
+              RoseOut Admin
+            </div>
 
-        <p className="mt-2 text-sm text-neutral-500">
-          Sign in to access your dashboard.
-        </p>
+            <h1 className="mt-8 max-w-md text-6xl font-black leading-[0.95] tracking-tight">
+              Manage the
+              <br />
+              <span className="text-red-500">experience.</span>
+            </h1>
 
-        {error && (
-          <div className="mt-5 rounded-2xl bg-red-100 p-4 text-sm font-semibold text-red-700">
-            {error}
+            <p className="mt-6 max-w-md text-sm leading-7 text-white/55">
+              Sign in to manage listings, claims, reviews, QR flows, and the
+              RoseOut recommendation engine.
+            </p>
           </div>
-        )}
 
-        {message && (
-          <div className="mt-5 rounded-2xl bg-green-100 p-4 text-sm font-semibold text-green-700">
-            {message}
+          <div className="rounded-[2rem] border border-white/10 bg-black/35 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-white/35">
+              Admin Access
+            </p>
+            <p className="mt-2 text-sm leading-6 text-white/65">
+              Authorized users only. Your role controls which dashboard area
+              opens after login.
+            </p>
           </div>
-        )}
+        </div>
 
-        <label className="mt-6 block text-sm font-bold">Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
-        />
+        <form onSubmit={handleLogin} className="p-6 sm:p-8">
+          <Link
+            href="/"
+            className="mb-8 inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/55 transition hover:bg-white hover:text-black"
+          >
+            ← Home
+          </Link>
 
-        <label className="mt-5 block text-sm font-bold">Password</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Enter password"
-          className="mt-2 w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
-        />
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
+            RoseOut Admin
+          </p>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-6 w-full rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? "Signing in..." : "Login"}
-        </button>
+          <h2 className="mt-3 text-4xl font-black tracking-tight">
+            Admin Login
+          </h2>
 
-        <Link
-          href="/forgot-password"
-          className="mt-5 block text-center text-sm font-bold text-neutral-600 hover:text-black"
-        >
-          Forgot password?
-        </Link>
-      </form>
+          <p className="mt-3 text-sm leading-6 text-white/55">
+            Sign in to access your dashboard.
+          </p>
+
+          {error && (
+            <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-100">
+              {error}
+            </div>
+          )}
+
+          {message && (
+            <div className="mt-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-100">
+              {message}
+            </div>
+          )}
+
+          <label className="mt-6 block text-sm font-black text-white/80">
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/55 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-red-500"
+          />
+
+          <label className="mt-5 block text-sm font-black text-white/80">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/55 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-red-500"
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-6 w-full rounded-full bg-red-600 px-6 py-4 font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading ? "Signing in..." : "Login"}
+          </button>
+
+          <Link
+            href="/forgot-password"
+            className="mt-5 block text-center text-sm font-bold text-white/45 transition hover:text-white"
+          >
+            Forgot password?
+          </Link>
+        </form>
+      </section>
     </main>
   );
 }
