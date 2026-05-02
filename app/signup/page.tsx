@@ -8,6 +8,32 @@ import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 type Step = 1 | 2;
 
+function validatePassword(password: string) {
+  const rules = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+  };
+
+  const score = Object.values(rules).filter(Boolean).length;
+
+  return {
+    valid: score === 5,
+    score,
+    rules,
+  };
+}
+
+function getPasswordStrength(score: number) {
+  if (score <= 1) return { label: "Weak", width: "20%", color: "bg-red-600" };
+  if (score === 2) return { label: "Fair", width: "40%", color: "bg-orange-500" };
+  if (score === 3) return { label: "Good", width: "60%", color: "bg-yellow-500" };
+  if (score === 4) return { label: "Strong", width: "80%", color: "bg-lime-500" };
+  return { label: "Excellent", width: "100%", color: "bg-emerald-500" };
+}
+
 export default function SignupPage() {
   const supabase = createClient();
   const turnstileRef = useRef<TurnstileInstance>(null);
@@ -16,6 +42,7 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -28,17 +55,25 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  const passwordCheck = validatePassword(password);
+  const passwordStrength = getPasswordStrength(passwordCheck.score);
+
   function nextStep() {
     setError("");
 
     if (!fullName.trim()) return setError("Please enter your full name.");
     if (!email.trim()) return setError("Please enter your email.");
+
     if (!password.trim() || !confirmPassword.trim()) {
       return setError("Please enter and confirm your password.");
     }
-    if (password.length < 6) {
-      return setError("Password must be at least 6 characters.");
+
+    if (!passwordCheck.valid) {
+      return setError(
+        "Please create a stronger password with uppercase, lowercase, number, special character, and at least 8 characters."
+      );
     }
+
     if (password !== confirmPassword) {
       return setError("Passwords do not match.");
     }
@@ -224,6 +259,13 @@ export default function SignupPage() {
                     placeholder="Create password"
                   />
 
+                  <PasswordStrength
+                    score={passwordCheck.score}
+                    strength={passwordStrength}
+                    rules={passwordCheck.rules}
+                    show={password.length > 0}
+                  />
+
                   <Field
                     label="Confirm Password"
                     type="password"
@@ -231,6 +273,20 @@ export default function SignupPage() {
                     onChange={setConfirmPassword}
                     placeholder="Confirm password"
                   />
+
+                  {confirmPassword.length > 0 && (
+                    <p
+                      className={`mt-2 text-xs font-bold ${
+                        password === confirmPassword
+                          ? "text-emerald-400"
+                          : "text-red-300"
+                      }`}
+                    >
+                      {password === confirmPassword
+                        ? "✓ Passwords match"
+                        : "Passwords do not match"}
+                    </p>
+                  )}
 
                   <button
                     type="button"
@@ -384,6 +440,80 @@ function Field({
         placeholder={placeholder}
         className="mt-2 w-full rounded-2xl border border-white/10 bg-black/55 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-red-500"
       />
+    </div>
+  );
+}
+
+function PasswordStrength({
+  score,
+  strength,
+  rules,
+  show,
+}: {
+  score: number;
+  strength: { label: string; width: string; color: string };
+  rules: {
+    length: boolean;
+    uppercase: boolean;
+    lowercase: boolean;
+    number: boolean;
+    special: boolean;
+  };
+  show: boolean;
+}) {
+  if (!show) return null;
+
+  return (
+    <div className="mt-3 rounded-2xl border border-white/10 bg-black/40 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">
+          Password Strength
+        </p>
+
+        <p
+          className={`text-xs font-black ${
+            score <= 1
+              ? "text-red-400"
+              : score === 2
+                ? "text-orange-400"
+                : score === 3
+                  ? "text-yellow-400"
+                  : score === 4
+                    ? "text-lime-400"
+                    : "text-emerald-400"
+          }`}
+        >
+          {strength.label}
+        </p>
+      </div>
+
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+        <div
+          className={`h-full rounded-full ${strength.color} transition-all duration-500 ease-out`}
+          style={{ width: strength.width }}
+        />
+      </div>
+
+      <div className="mt-3 grid gap-1 text-xs sm:grid-cols-2">
+        <PasswordRule valid={rules.length} label="8+ characters" />
+        <PasswordRule valid={rules.uppercase} label="Uppercase letter" />
+        <PasswordRule valid={rules.lowercase} label="Lowercase letter" />
+        <PasswordRule valid={rules.number} label="Number" />
+        <PasswordRule valid={rules.special} label="Special character" />
+      </div>
+    </div>
+  );
+}
+
+function PasswordRule({ valid, label }: { valid: boolean; label: string }) {
+  return (
+    <div
+      className={`flex items-center gap-2 font-bold ${
+        valid ? "text-emerald-400" : "text-white/35"
+      }`}
+    >
+      <span>{valid ? "✓" : "•"}</span>
+      <span>{label}</span>
     </div>
   );
 }
