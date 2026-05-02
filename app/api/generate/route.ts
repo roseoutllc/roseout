@@ -795,7 +795,10 @@ function filterRestaurantsByFoodIntent(restaurants: any[], intent: ReturnType<ty
   return partialMatches.length > 0 ? partialMatches : restaurants;
 }
 
-function filterActivitiesByActivityIntent(activities: any[], intent: ReturnType<typeof detectIntent>) {
+function filterActivitiesByActivityIntent(
+  activities: any[],
+  intent: ReturnType<typeof detectIntent>
+) {
   if (intent.activityIntents.length === 0) return activities;
 
   const exactMatches = activities.filter((activity: any) =>
@@ -812,7 +815,10 @@ function filterActivitiesByActivityIntent(activities: any[], intent: ReturnType<
     )
   );
 
-  return partialMatches.length > 0 ? partialMatches : activities;
+  if (partialMatches.length > 0) return partialMatches;
+
+  return [];
+}
 }
 
 function balanceResults(restaurants: any[], activities: any[], intent: ReturnType<typeof detectIntent>) {
