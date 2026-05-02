@@ -101,6 +101,35 @@ function getReviewCount(place: any) {
   );
 }
 
+function calculateImportScores(place: any) {
+  const rating = Number(place.rating || 0);
+  const reviews = getReviewCount(place);
+  const hasPhoto = Boolean(place.photos?.length);
+
+  const reviewScore = Math.min(Math.round((rating / 5) * 40), 40);
+  const popularityScore = Math.min(
+    Math.round(Math.log10(Math.max(reviews, 1)) * 15),
+    35
+  );
+
+  const qualityScore = Math.min(
+    reviewScore + popularityScore + (hasPhoto ? 10 : 0),
+    100
+  );
+
+  const roseoutScore = Math.min(
+    100,
+    Math.round(qualityScore * 0.65 + reviewScore * 0.2 + popularityScore * 0.15)
+  );
+
+  return {
+    quality_score: qualityScore,
+    review_score: reviewScore,
+    popularity_score: popularityScore,
+    roseout_score: roseoutScore,
+  };
+}
+
 function placeText(place: any) {
   return `${place.name || ""} ${place.formatted_address || ""} ${
     place.vicinity || ""
@@ -530,6 +559,7 @@ async function importRestaurant(place: any) {
   if (existing) return { imported: false, skipped: true };
 
   const claimQr = await createClaimQr("restaurant");
+  const scores = calculateImportScores(place);
 
   const addressParts = parseAddressParts(
     place.formatted_address || place.vicinity || null
@@ -555,6 +585,7 @@ async function importRestaurant(place: any) {
     claim_count: 0,
     primary_tag: getPrimaryTag(place, "restaurant"),
     search_keywords: buildSearchKeywords(place, "restaurant"),
+    ...scores,
     ...claimQr,
   });
 
@@ -573,6 +604,7 @@ async function importActivity(place: any) {
   if (existing) return { imported: false, skipped: true };
 
   const claimQr = await createClaimQr("activity");
+  const scores = calculateImportScores(place);
 
   const addressParts = parseAddressParts(
     place.formatted_address || place.vicinity || null
@@ -599,6 +631,7 @@ async function importActivity(place: any) {
     primary_tag: getPrimaryTag(place, "activity"),
     search_keywords: buildSearchKeywords(place, "activity"),
     ...claimQr,
+    ...scores,
   });
 
   if (error) throw new Error(error.message);
