@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 import { clampScore } from "@/lib/clampScore";
 import RoseOutHeader from "@/components/RoseOutHeader";
@@ -105,6 +105,7 @@ export default function CreatePage() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const followUpRef = useRef<HTMLTextAreaElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const restoredStateRef = useRef(false);
 
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<RestaurantCard | null>(null);
@@ -119,6 +120,22 @@ export default function CreatePage() {
     .find((msg) => msg.role === "assistant");
 
   const suggestedFollowUps = getSuggestedFollowUps(latestAssistant);
+
+  const saveCreateState = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        input,
+        messages,
+        selectedRestaurant,
+        selectedActivity,
+        scrollY: window.scrollY,
+        savedAt: Date.now(),
+      })
+    );
+  }, [input, messages, selectedRestaurant, selectedActivity]);
 
   const getSavedUserLocation = (): UserLocation | null => {
     if (typeof window === "undefined") return null;
@@ -183,17 +200,41 @@ export default function CreatePage() {
   useEffect(() => {
     setLocationSaved(!!getSavedUserLocation());
 
-    sessionStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("roseout_plan");
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
 
-    setInput("");
-    setMessages([]);
-    setSelectedRestaurant(null);
-    setSelectedActivity(null);
-    setError("");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+
+        setInput(parsed.input || "");
+        setMessages(Array.isArray(parsed.messages) ? parsed.messages : []);
+        setSelectedRestaurant(parsed.selectedRestaurant || null);
+        setSelectedActivity(parsed.selectedActivity || null);
+        setError("");
+
+        restoredStateRef.current = true;
+
+        setTimeout(() => {
+          window.scrollTo({
+            top: Number(parsed.scrollY || 0),
+            behavior: "auto",
+          });
+        }, 250);
+
+        return;
+      }
+    } catch {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
 
     setTimeout(() => inputRef.current?.focus(), 300);
   }, []);
+
+  useEffect(() => {
+    if (!restoredStateRef.current && messages.length === 0) return;
+
+    saveCreateState();
+  }, [messages, input, selectedRestaurant, selectedActivity, saveCreateState]);
 
   useEffect(() => {
     if (!loading) return;
@@ -262,6 +303,7 @@ export default function CreatePage() {
   }, [messages]);
 
   useEffect(() => {
+    if (restoredStateRef.current) return;
     if (!hasSearched) return;
 
     const latestMessage = messages[messages.length - 1];
@@ -294,6 +336,8 @@ export default function CreatePage() {
 
   const sendMessage = async (overrideText?: string) => {
     if (loading) return;
+
+    restoredStateRef.current = false;
 
     const messageText = overrideText || input;
 
@@ -575,6 +619,7 @@ export default function CreatePage() {
                                   )
                                 }
                                 detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
+                                onBeforeNavigate={saveCreateState}
                                 onDetails={() =>
                                   trackRestaurantClick(restaurantId)
                                 }
@@ -635,6 +680,7 @@ export default function CreatePage() {
                                   )
                                 }
                                 detailsHref={`/locations/activities/${activityId}?from=/create`}
+                                onBeforeNavigate={saveCreateState}
                                 onDetails={() =>
                                   trackActivityClick(activityId)
                                 }
@@ -749,6 +795,8 @@ export default function CreatePage() {
             <button
               type="button"
               onClick={() => {
+                saveCreateState();
+
                 localStorage.setItem(
                   "roseout_plan",
                   JSON.stringify({
@@ -860,69 +908,6 @@ function ResultSection({ children }: { children: React.ReactNode }) {
   );
 }
 
-function getNightlifeBadges({
-  title,
-  eyebrow,
-  primaryTag,
-  tags,
-  reviewKeywords,
-  reviewSnippet,
-}: {
-  title: string;
-  eyebrow: string;
-  primaryTag?: string | null;
-  tags?: string[];
-  reviewKeywords?: string[] | null;
-  reviewSnippet?: string | null;
-}) {
-  const text = [
-    title,
-    eyebrow,
-    primaryTag,
-    reviewSnippet,
-    ...(tags || []),
-    ...(reviewKeywords || []),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const badges: string[] = [];
-
-  if (text.includes("hookah") || text.includes("shisha")) {
-    badges.push("🌬 Hookah");
-  }
-
-  if (
-    text.includes("cigar") ||
-    text.includes("cigar bar") ||
-    text.includes("cigar lounge") ||
-    text.includes("cigar friendly")
-  ) {
-    badges.push("🥃 Cigar Friendly");
-  }
-
-  if (
-    text.includes("restaurant") ||
-    text.includes("dining") ||
-    text.includes("dinner") ||
-    text.includes("food")
-  ) {
-    badges.push("🍽 Full Dining");
-  }
-
-  if (
-    text.includes("lounge") ||
-    text.includes("music") ||
-    text.includes("dj") ||
-    text.includes("nightlife")
-  ) {
-    badges.push("🎶 Lounge Vibe");
-  }
-
-  return Array.from(new Set(badges));
-}
-
 function ResultCard({
   index,
   imageUrl,
@@ -943,6 +928,7 @@ function ResultCard({
   selectLabel,
   onSelect,
   detailsHref,
+  onBeforeNavigate,
   onDetails,
   websiteUrl,
   onWebsite,
@@ -969,6 +955,7 @@ function ResultCard({
   selectLabel: string;
   onSelect: () => void;
   detailsHref: string;
+  onBeforeNavigate?: () => void;
   onDetails: () => void;
   websiteUrl?: string;
   onWebsite?: () => void;
@@ -977,6 +964,7 @@ function ResultCard({
   onReservation?: () => void;
 }) {
   const openDetails = () => {
+    onBeforeNavigate?.();
     onDetails();
     window.location.href = detailsHref;
   };
@@ -1176,7 +1164,10 @@ function ResultCard({
 
         <Link
           href={detailsHref}
-          onClick={onDetails}
+          onClick={() => {
+            onBeforeNavigate?.();
+            onDetails();
+          }}
           className="group/title block"
         >
           <h3 className="mt-2 break-words text-2xl font-black tracking-tight text-white transition duration-200 group-hover/title:text-[#e1062a]">
@@ -1270,7 +1261,10 @@ function ResultCard({
 
           <Link
             href={detailsHref}
-            onClick={onDetails}
+            onClick={() => {
+              onBeforeNavigate?.();
+              onDetails();
+            }}
             className="rounded-full bg-white px-5 py-3 text-center text-sm font-black text-black transition hover:bg-red-100"
           >
             View Details
