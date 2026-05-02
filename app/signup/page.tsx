@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
@@ -146,8 +147,19 @@ export default function SignupPage() {
             ← Home
           </Link>
 
-          <div className="mt-10 inline-flex rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-red-200">
-            RoseOut
+          <div className="mt-10 flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="RoseOut"
+              width={44}
+              height={44}
+              className="object-contain drop-shadow-[0_0_14px_rgba(225,6,42,0.55)]"
+              priority
+            />
+
+            <span className="text-sm font-black uppercase tracking-[0.28em] text-red-200">
+              RoseOut
+            </span>
           </div>
 
           <h1 className="mt-8 max-w-xl text-6xl font-black leading-[0.92] tracking-tight xl:text-7xl">
@@ -176,7 +188,22 @@ export default function SignupPage() {
               ← Home
             </Link>
 
-            <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/logo.png"
+                alt="RoseOut"
+                width={36}
+                height={36}
+                className="object-contain drop-shadow-[0_0_12px_rgba(225,6,42,0.55)]"
+                priority
+              />
+
+              <span className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
+                RoseOut
+              </span>
+            </div>
+
+            <p className="mt-3 text-xs font-black uppercase tracking-[0.3em] text-red-400">
               Step {step} of 2
             </p>
 
