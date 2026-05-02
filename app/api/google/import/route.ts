@@ -57,6 +57,16 @@ function isAuthorized(request: NextRequest) {
   return false;
 }
 
+function getReviewCount(place: any) {
+  return Number(
+    place.user_ratings_total ??
+      place.userRatingCount ??
+      place.review_count ??
+      place.reviews ??
+      0
+  );
+}
+
 function cleanAddress(address: string | null) {
   if (!address) return null;
 
@@ -91,15 +101,6 @@ function parseAddressParts(address: string | null) {
     state: match?.[1] || null,
     zipCode: match?.[2] || null,
   };
-}
-function getReviewCount(place: any) {
-  return Number(
-    place.user_ratings_total ??
-      place.userRatingCount ??
-      place.review_count ??
-      place.reviews ??
-      0
-  );
 }
   const parts = cleaned.split(",").map((part) => part.trim());
 
