@@ -1,44 +1,34 @@
 "use client";
 
-import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import { createClient } from "@/lib/supabase-browser";
-import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
-type Step = 1 | 2;
-
-function validatePassword(password: string) {
-  const rules = {
-    length: password.length >= 8,
-    uppercase: /[A-Z]/.test(password),
-    lowercase: /[a-z]/.test(password),
-    number: /[0-9]/.test(password),
-    special: /[^A-Za-z0-9]/.test(password),
+type TurnstileWindow = Window & {
+  turnstile?: {
+    render: (
+      element: HTMLElement,
+      options: {
+        sitekey: string;
+        callback: (token: string) => void;
+        "expired-callback"?: () => void;
+        "error-callback"?: () => void;
+        theme?: "light" | "dark" | "auto";
+      }
+    ) => string | undefined;
+    reset: (widgetId?: string) => void;
   };
-
-  const score = Object.values(rules).filter(Boolean).length;
-
-  return {
-    valid: score === 5,
-    score,
-    rules,
-  };
-}
-
-function getPasswordStrength(score: number) {
-  if (score <= 1) return { label: "Weak", width: "20%", color: "bg-red-600" };
-  if (score === 2) return { label: "Fair", width: "40%", color: "bg-orange-500" };
-  if (score === 3) return { label: "Good", width: "60%", color: "bg-yellow-500" };
-  if (score === 4) return { label: "Strong", width: "80%", color: "bg-lime-500" };
-  return { label: "Excellent", width: "100%", color: "bg-emerald-500" };
-}
+};
 
 export default function SignupPage() {
   const supabase = createClient();
-  const turnstileRef = useRef<TurnstileInstance>(null);
 
-  const [step, setStep] = useState<Step>(1);
+  const turnstileRef = useRef<HTMLDivElement | null>(null);
+  const widgetIdRef = useRef<string | null | undefined>(null);
+
+  const [step, setStep] = useState<1 | 2>(1);
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -46,515 +36,543 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [smsConsent, setSmsConsent] = useState(false);
-  const [marketingConsent, setMarketingConsent] = useState(false);
-  const [termsConsent, setTermsConsent] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState("");
+  const [planningFor, setPlanningFor] = useState("");
+  const [city, setCity] = useState("");
+  const [preferredVibe, setPreferredVibe] = useState("");
+  const [budgetRange, setBudgetRange] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [smsOptIn, setSmsOptIn] = useState(false);
+
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+
   const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const passwordCheck = validatePassword(password);
-  const passwordStrength = getPasswordStrength(passwordCheck.score);
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSymbol = /[^A-Za-z0-9]/.test(password);
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
 
-  function nextStep() {
-    setError("");
+  const isPasswordValid =
+    hasMinLength && hasUppercase && hasNumber && hasSymbol;
 
-    if (!fullName.trim()) return setError("Please enter your full name.");
-    if (!email.trim()) return setError("Please enter your email.");
+  const canGoStep2 =
+    fullName.trim() &&
+    email.trim() &&
+    isPasswordValid &&
+    passwordsMatch &&
+    acceptedTerms;
 
-    if (!password.trim() || !confirmPassword.trim()) {
-      return setError("Please enter and confirm your password.");
+  const canSubmit = canGoStep2 && captchaToken && !loading;
+
+  const renderTurnstile = () => {
+    const turnstile = (window as TurnstileWindow).turnstile;
+
+    if (!turnstileRef.current || !turnstile || widgetIdRef.current) return;
+
+    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+    if (!siteKey) {
+      setErrorMessage("Missing Turnstile site key.");
+      return;
     }
 
-    if (!passwordCheck.valid) {
-      return setError(
-        "Please create a stronger password with uppercase, lowercase, number, special character, and at least 8 characters."
+    widgetIdRef.current = turnstile.render(turnstileRef.current, {
+      sitekey: siteKey,
+      theme: "dark",
+      callback: (token: string) => {
+        setCaptchaToken(token);
+        setErrorMessage("");
+      },
+      "expired-callback": () => setCaptchaToken(null),
+      "error-callback": () => {
+        setCaptchaToken(null);
+        setErrorMessage("Verification failed. Please try again.");
+      },
+    });
+  };
+
+  useEffect(() => {
+    if (step === 2) {
+      setTimeout(renderTurnstile, 100);
+    }
+  }, [step]);
+
+  const resetCaptcha = () => {
+    const turnstile = (window as TurnstileWindow).turnstile;
+    setCaptchaToken(null);
+
+    if (turnstile && widgetIdRef.current) {
+      turnstile.reset(widgetIdRef.current);
+    }
+  };
+
+  const handleNextStep = () => {
+    setErrorMessage("");
+    setMessage("");
+
+    if (!fullName.trim()) {
+      setErrorMessage("Please enter your full name.");
+      return;
+    }
+
+    if (!email.trim()) {
+      setErrorMessage("Please enter your email address.");
+      return;
+    }
+
+    if (!isPasswordValid) {
+      setErrorMessage(
+        "Password must be at least 8 characters and include an uppercase letter, number, and symbol."
       );
+      return;
     }
 
-    if (password !== confirmPassword) {
-      return setError("Passwords do not match.");
+    if (!passwordsMatch) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setErrorMessage("Please agree to the Terms of Service and Privacy Policy.");
+      return;
     }
 
     setStep(2);
-  }
+  };
 
-  async function handleSignup(e: React.FormEvent) {
+  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    setError("");
+    setErrorMessage("");
     setMessage("");
 
-    if (!termsConsent) {
-      setError("Please agree to the Terms and Privacy Policy.");
+    if (!canGoStep2) {
+      setStep(1);
+      setErrorMessage("Please complete your account details first.");
       return;
     }
 
-    if (phone.trim() && !smsConsent) {
-      setError("Please check the SMS consent box if you enter a phone number.");
+    if (smsOptIn && !phone.trim()) {
+      setErrorMessage("Please enter your phone number to receive SMS messages.");
       return;
     }
 
-    if (!turnstileToken) {
-      setError("Please complete the verification.");
+    if (!captchaToken) {
+      setErrorMessage("Please complete the verification.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error: signupError } = await supabase.auth.signUp({
+      const captchaResponse = await fetch("/api/verify-captcha", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: captchaToken }),
+      });
+
+      const captchaResult = await captchaResponse.json();
+
+      if (!captchaResponse.ok || !captchaResult.success) {
+        setErrorMessage(
+          captchaResult.error || "Captcha verification failed. Please try again."
+        );
+        resetCaptcha();
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
         options: {
-          emailRedirectTo:
-            typeof window !== "undefined"
-              ? `${window.location.origin}/login`
-              : undefined,
+          emailRedirectTo: `${
+            process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+          }/dashboard`,
           data: {
             full_name: fullName.trim(),
+            role: "user",
             phone: phone.trim() || null,
-            sms_consent: smsConsent,
-            marketing_consent: marketingConsent,
-            sms_consent_language:
-              "I agree to receive SMS messages from RoseOut about my account, recommendations, booking updates, reminders, and customer support. Message frequency varies. Message and data rates may apply. Reply STOP to opt out and HELP for help.",
-            sms_consent_timestamp: smsConsent ? new Date().toISOString() : null,
+            planning_for: planningFor || null,
+            city: city.trim() || null,
+            preferred_vibe: preferredVibe || null,
+            budget_range: budgetRange || null,
+            marketing_opt_in: marketingOptIn,
+            sms_opt_in: smsOptIn,
+            sms_consent_text: smsOptIn
+              ? "I agree to receive SMS messages from RoseOut about account updates, outing recommendations, reminders, promotions, and offers. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase."
+              : null,
+            sms_consent_date: smsOptIn ? new Date().toISOString() : null,
           },
         },
       });
 
-      if (signupError) {
-        setError(signupError.message);
-        turnstileRef.current?.reset();
-        setTurnstileToken("");
+      if (error) {
+        setErrorMessage(error.message);
+        resetCaptcha();
+        setLoading(false);
         return;
       }
 
       setMessage("Account created. Please check your email to confirm.");
+
       setFullName("");
       setEmail("");
       setPhone("");
       setPassword("");
       setConfirmPassword("");
-      setSmsConsent(false);
-      setMarketingConsent(false);
-      setTermsConsent(false);
-      setTurnstileToken("");
-      turnstileRef.current?.reset();
-      setStep(1);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong.");
-      turnstileRef.current?.reset();
-      setTurnstileToken("");
+      setPlanningFor("");
+      setCity("");
+      setPreferredVibe("");
+      setBudgetRange("");
+      setAcceptedTerms(false);
+      setMarketingOptIn(false);
+      setSmsOptIn(false);
+      resetCaptcha();
+    } catch {
+      setErrorMessage("Something went wrong. Please try again.");
+      resetCaptcha();
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black px-4 py-6 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(225,6,42,0.28),transparent_30%),radial-gradient(circle_at_85%_0%,rgba(127,29,29,0.28),transparent_28%),linear-gradient(180deg,#050505,#000)]" />
+    <main className="h-screen overflow-hidden bg-[#030303] px-6 py-5 text-white">
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        async
+        defer
+        onLoad={() => {
+          if (step === 2) renderTurnstile();
+        }}
+      />
 
-      <div className="relative z-10 mx-auto max-w-6xl">
-        <header className="flex items-center justify-between py-4">
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="RoseOut"
-              width={38}
-              height={38}
-              className="object-contain drop-shadow-[0_0_12px_rgba(225,6,42,0.45)]"
-              priority
-            />
-            <span className="text-sm font-black uppercase tracking-[0.28em] text-white">
-              RoseOut
-            </span>
+      <div className="mx-auto flex h-full max-w-7xl flex-col">
+        <header className="mb-4 flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-sm font-black uppercase tracking-[0.55em] text-[#f5b700]"
+          >
+            RoseOut
           </Link>
 
           <Link
             href="/login"
-            className="rounded-full border border-white/15 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white/70 transition hover:bg-white hover:text-black"
+            className="rounded-full border border-white/20 bg-[#1b1b1b] px-5 py-2 text-sm font-bold text-white hover:bg-[#252525]"
           >
-            Log In
+            Log in
           </Link>
         </header>
 
-        <section className="grid min-h-[calc(100vh-96px)] items-center gap-8 lg:grid-cols-[1fr_430px]">
+        <section className="grid flex-1 items-center gap-8 overflow-hidden lg:grid-cols-[1fr_500px]">
           <div className="hidden lg:block">
-            <p className="text-xs font-black uppercase tracking-[0.38em] text-red-400">
-              AI-powered outing planner
-            </p>
+            <div className="mb-4 inline-flex rounded-full border border-[#f5b700]/30 bg-[#f5b700]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-[#f5b700]">
+              Curated by RoseOut AI
+            </div>
 
-            <h1 className="mt-5 max-w-2xl text-6xl font-black leading-[0.92] tracking-tight xl:text-7xl">
-              Create your
-              <br />
-              <span className="text-red-500">RoseOut.</span>
+            <h1 className="max-w-3xl text-5xl font-black leading-[0.95] tracking-tight text-white xl:text-6xl">
+              Curated outings, made effortless.
             </h1>
 
-            <p className="mt-6 max-w-md text-sm leading-7 text-white/55">
-              Plan better outings, save your selections, and keep your next
-              experience ready whenever you are.
+            <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
+              From breakfast dates to late-night reservations, RoseOut helps you
+              discover polished restaurants, activities, and experiences that
+              match your mood, budget, and style.
             </p>
 
-            <div className="mt-8 flex gap-3">
-              <StepPill active={step === 1} label="Account" />
-              <StepPill active={step === 2} label="Consent" />
+            <div className="mt-6 grid max-w-3xl gap-3 md:grid-cols-3">
+              {[
+                ["01", "Tell us the kind of outing you want."],
+                ["02", "Personalize your vibe, city, and budget."],
+                ["03", "Unlock better AI-powered recommendations."],
+              ].map(([num, text]) => (
+                <div
+                  key={num}
+                  className="rounded-2xl border border-white/15 bg-[#181818]/80 p-4"
+                >
+                  <p className="text-xl font-black text-[#f5b700]">{num}</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-400">{text}</p>
+                </div>
+              ))}
             </div>
           </div>
 
-          <section className="rounded-[1.75rem] border border-white/10 bg-[#0b0b0b]/90 shadow-2xl shadow-black/50 backdrop-blur-xl">
-            <div className="border-b border-white/10 px-5 py-5">
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-red-400">
+          <div className="max-h-full overflow-hidden rounded-[1.5rem] border border-white/15 bg-[#181818]/90 shadow-2xl">
+            <div className="border-b border-white/15 px-6 py-4">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f5b700]">
                 Step {step} of 2
               </p>
 
-              <h2 className="mt-2 text-3xl font-black tracking-tight">
-                {step === 1 ? "Create Account" : "SMS Consent"}
+              <h2 className="mt-1 text-2xl font-black text-white">
+                {step === 1 ? "Create your account" : "Set your preferences"}
               </h2>
 
-              <p className="mt-2 text-sm leading-6 text-white/50">
-                {step === 1
-                  ? "Set up your RoseOut login details."
-                  : "Choose how RoseOut can contact you."}
-              </p>
+              <div className="mt-4 flex gap-2">
+                <div
+                  className={`h-2 flex-1 rounded-full ${
+                    step >= 1 ? "bg-[#f5b700]" : "bg-white/15"
+                  }`}
+                />
+                <div
+                  className={`h-2 flex-1 rounded-full ${
+                    step >= 2 ? "bg-[#f5b700]" : "bg-white/15"
+                  }`}
+                />
+              </div>
             </div>
 
-            <form onSubmit={handleSignup} className="p-5">
-              {error && (
-                <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm font-bold text-red-100">
-                  {error}
+            {step === 1 ? (
+              <div className="space-y-3 p-6">
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Full name"
+                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                />
+
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email address"
+                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                />
+
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                />
+
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm password"
+                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                />
+
+                <div className="rounded-xl border border-white/15 bg-[#101010] p-3 text-xs">
+                  <p className={hasMinLength ? "text-[#f5b700]" : "text-zinc-500"}>
+                    ✓ At least 8 characters
+                  </p>
+                  <p className={hasUppercase ? "text-[#f5b700]" : "text-zinc-500"}>
+                    ✓ One uppercase letter
+                  </p>
+                  <p className={hasNumber ? "text-[#f5b700]" : "text-zinc-500"}>
+                    ✓ One number
+                  </p>
+                  <p className={hasSymbol ? "text-[#f5b700]" : "text-zinc-500"}>
+                    ✓ One symbol
+                  </p>
+                  <p className={passwordsMatch ? "text-[#f5b700]" : "text-zinc-500"}>
+                    ✓ Passwords match
+                  </p>
                 </div>
-              )}
 
-              {message && (
-                <div className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-100">
-                  {message}
-                </div>
-              )}
-
-              {step === 1 && (
-                <>
-                  <Field
-                    label="Full Name"
-                    value={fullName}
-                    onChange={setFullName}
-                    placeholder="Your name"
+                <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-[#101010] p-3 text-xs text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-1 h-4 w-4 accent-[#f5b700]"
                   />
-
-                  <Field
-                    label="Email"
-                    type="email"
-                    value={email}
-                    onChange={setEmail}
-                    placeholder="you@example.com"
-                  />
-
-                  <Field
-                    label="Password"
-                    type="password"
-                    value={password}
-                    onChange={setPassword}
-                    placeholder="Create password"
-                  />
-
-                  <PasswordStrength
-                    score={passwordCheck.score}
-                    strength={passwordStrength}
-                    rules={passwordCheck.rules}
-                    show={password.length > 0}
-                  />
-
-                  <Field
-                    label="Confirm Password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={setConfirmPassword}
-                    placeholder="Confirm password"
-                  />
-
-                  {confirmPassword.length > 0 && (
-                    <p
-                      className={`mt-2 text-xs font-bold ${
-                        password === confirmPassword
-                          ? "text-emerald-400"
-                          : "text-red-300"
-                      }`}
-                    >
-                      {password === confirmPassword
-                        ? "✓ Passwords match"
-                        : "Passwords do not match"}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={nextStep}
-                    className="mt-5 w-full rounded-full bg-red-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500"
-                  >
-                    Continue
-                  </button>
-                </>
-              )}
-
-              {step === 2 && (
-                <>
-                  <Field
-                    label="Mobile Number"
-                    type="tel"
-                    value={phone}
-                    onChange={setPhone}
-                    placeholder="516-555-1234"
-                  />
-
-                  <ConsentBox
-                    checked={smsConsent}
-                    onChange={setSmsConsent}
-                    required={!!phone.trim()}
-                  >
-                    I agree to receive SMS messages from RoseOut about my
-                    account, recommendations, booking updates, reminders, and
-                    customer support. Message frequency varies. Message and data
-                    rates may apply. Reply STOP to opt out and HELP for help.
-                  </ConsentBox>
-
-                  <ConsentBox
-                    checked={marketingConsent}
-                    onChange={setMarketingConsent}
-                  >
-                    I also agree to receive occasional RoseOut promotional
-                    texts, offers, and featured outing ideas. Optional.
-                  </ConsentBox>
-
-                  <ConsentBox checked={termsConsent} onChange={setTermsConsent}>
+                  <span>
                     I agree to the{" "}
                     <Link
                       href="/terms"
-                      className="font-bold text-red-300 hover:text-white"
+                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
                     >
-                      Terms
+                      Terms of Service
                     </Link>{" "}
                     and{" "}
                     <Link
                       href="/privacy"
-                      className="font-bold text-red-300 hover:text-white"
+                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
                     >
                       Privacy Policy
                     </Link>
                     .
-                  </ConsentBox>
+                  </span>
+                </label>
 
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-black/45 p-3">
-                    <p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-white/35">
-                      Verification
-                    </p>
-
-                    {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? (
-                      <Turnstile
-                        ref={turnstileRef}
-                        siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-                        options={{
-                          theme: "dark",
-                          size: "compact",
-                        }}
-                        onSuccess={(token) => setTurnstileToken(token)}
-                        onExpire={() => setTurnstileToken("")}
-                        onError={() => {
-                          setTurnstileToken("");
-                          setError("Verification failed. Please try again.");
-                        }}
-                      />
-                    ) : (
-                      <p className="text-sm font-bold text-red-200">
-                        Missing NEXT_PUBLIC_TURNSTILE_SITE_KEY.
-                      </p>
-                    )}
+                {errorMessage && (
+                  <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+                    {errorMessage}
                   </div>
+                )}
 
-                  <p className="mt-3 text-xs leading-5 text-white/40">
-                    Consent is not a condition of purchase. You can opt out any
-                    time by replying STOP. For help, reply HELP.
-                  </p>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => setStep(1)}
-                      className="rounded-full border border-white/15 px-5 py-3.5 text-sm font-black text-white transition hover:bg-white hover:text-black"
-                    >
-                      Back
-                    </button>
-
-                    <button
-                      type="submit"
-                      disabled={loading || !turnstileToken}
-                      className="rounded-full bg-red-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {loading ? "Creating..." : "Create Account"}
-                    </button>
-                  </div>
-                </>
-              )}
-
-              <p className="mt-5 text-center text-sm font-bold text-white/45">
-                Already have an account?{" "}
-                <Link
-                  href="/login"
-                  className="text-red-300 transition hover:text-white"
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="w-full rounded-xl bg-[#f5b700] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-[#ffd24a]"
                 >
-                  Log in
-                </Link>
-              </p>
-            </form>
-          </section>
+                  Continue
+                </button>
+
+                <p className="text-center text-xs text-zinc-500">
+                  Already have an account?{" "}
+                  <Link
+                    href="/login"
+                    className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
+                  >
+                    Log in
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSignup} className="space-y-3 p-6">
+                <select
+                  value={planningFor}
+                  onChange={(e) => setPlanningFor(e.target.value)}
+                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none focus:border-[#f5b700]"
+                >
+                  <option value="">What are you planning?</option>
+                  <option value="date_nights">Date</option>
+                  <option value="breakfast">Breakfast or brunch</option>
+                  <option value="friends">Going out with friends</option>
+                  <option value="solo">Solo outing</option>
+                  <option value="family">Family outing</option>
+                  <option value="events">Events & experiences</option>
+                </select>
+
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="City or borough, example: Queens"
+                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                />
+
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Phone number for SMS updates (optional)"
+                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-[#f5b700]"
+                />
+
+                <select
+                  value={preferredVibe}
+                  onChange={(e) => setPreferredVibe(e.target.value)}
+                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none focus:border-[#f5b700]"
+                >
+                  <option value="">Preferred vibe</option>
+                  <option value="romantic">Romantic</option>
+                  <option value="upscale">Upscale</option>
+                  <option value="casual_chic">Casual chic</option>
+                  <option value="fun">Fun & energetic</option>
+                  <option value="cozy">Cozy</option>
+                  <option value="quiet">Quiet</option>
+                  <option value="trendy">Trendy</option>
+                </select>
+
+                <select
+                  value={budgetRange}
+                  onChange={(e) => setBudgetRange(e.target.value)}
+                  className="w-full rounded-xl border border-white/20 bg-[#050505] px-4 py-3 text-white outline-none focus:border-[#f5b700]"
+                >
+                  <option value="">Budget range</option>
+                  <option value="budget">$</option>
+                  <option value="moderate">$$</option>
+                  <option value="premium">$$$</option>
+                  <option value="luxury">$$$$</option>
+                </select>
+
+                <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-[#101010] p-3 text-xs text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={marketingOptIn}
+                    onChange={(e) => setMarketingOptIn(e.target.checked)}
+                    className="mt-1 h-4 w-4 accent-[#f5b700]"
+                  />
+                  <span>
+                    Send me RoseOut updates, recommendations, and offers by email.
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-[#101010] p-3 text-[11px] leading-5 text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={smsOptIn}
+                    onChange={(e) => setSmsOptIn(e.target.checked)}
+                    className="mt-1 h-4 w-4 accent-[#f5b700]"
+                  />
+                  <span>
+                    I agree to receive SMS messages from{" "}
+                    <strong className="text-white">RoseOut</strong> about
+                    account updates, outing recommendations, reminders,
+                    promotions, and offers. Message frequency varies. Message
+                    and data rates may apply. Reply{" "}
+                    <strong className="text-white">STOP</strong> to opt out.
+                    Reply <strong className="text-white">HELP</strong> for help.
+                    Consent is not a condition of purchase. View our{" "}
+                    <Link
+                      href="/privacy"
+                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
+                    >
+                      Privacy Policy
+                    </Link>{" "}
+                    and{" "}
+                    <Link
+                      href="/terms"
+                      className="font-bold text-[#f5b700] hover:text-[#ffd24a]"
+                    >
+                      Terms
+                    </Link>
+                    .
+                  </span>
+                </label>
+
+                <div className="rounded-xl border border-white/15 bg-[#101010] p-3">
+                  <div ref={turnstileRef} />
+                </div>
+
+                {errorMessage && (
+                  <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+                    {errorMessage}
+                  </div>
+                )}
+
+                {message && (
+                  <div className="rounded-xl border border-[#f5b700]/30 bg-[#f5b700]/10 px-4 py-2 text-sm text-[#f5b700]">
+                    {message}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="w-1/3 rounded-xl border border-white/20 bg-[#1b1b1b] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white hover:bg-[#252525]"
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={!canSubmit}
+                    className="w-2/3 rounded-xl bg-[#f5b700] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-black hover:bg-[#ffd24a] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {loading ? "Creating..." : "Create"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </section>
       </div>
     </main>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  type?: string;
-}) {
-  return (
-    <div className="mt-4">
-      <label className="block text-xs font-black uppercase tracking-[0.16em] text-white/60">
-        {label}
-      </label>
-
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/55 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-red-500"
-      />
-    </div>
-  );
-}
-
-function PasswordStrength({
-  score,
-  strength,
-  rules,
-  show,
-}: {
-  score: number;
-  strength: { label: string; width: string; color: string };
-  rules: {
-    length: boolean;
-    uppercase: boolean;
-    lowercase: boolean;
-    number: boolean;
-    special: boolean;
-  };
-  show: boolean;
-}) {
-  if (!show) return null;
-
-  return (
-    <div className="mt-3 rounded-2xl border border-white/10 bg-black/40 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">
-          Password Strength
-        </p>
-
-        <p
-          className={`text-xs font-black ${
-            score <= 1
-              ? "text-red-400"
-              : score === 2
-                ? "text-orange-400"
-                : score === 3
-                  ? "text-yellow-400"
-                  : score === 4
-                    ? "text-lime-400"
-                    : "text-emerald-400"
-          }`}
-        >
-          {strength.label}
-        </p>
-      </div>
-
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-        <div
-          className={`h-full rounded-full ${strength.color} transition-all duration-500 ease-out`}
-          style={{ width: strength.width }}
-        />
-      </div>
-
-      <div className="mt-3 grid gap-1 text-xs sm:grid-cols-2">
-        <PasswordRule valid={rules.length} label="8+ characters" />
-        <PasswordRule valid={rules.uppercase} label="Uppercase letter" />
-        <PasswordRule valid={rules.lowercase} label="Lowercase letter" />
-        <PasswordRule valid={rules.number} label="Number" />
-        <PasswordRule valid={rules.special} label="Special character" />
-      </div>
-    </div>
-  );
-}
-
-function PasswordRule({ valid, label }: { valid: boolean; label: string }) {
-  return (
-    <div
-      className={`flex items-center gap-2 font-bold ${
-        valid ? "text-emerald-400" : "text-white/35"
-      }`}
-    >
-      <span>{valid ? "✓" : "•"}</span>
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function ConsentBox({
-  checked,
-  onChange,
-  children,
-  required = false,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  children: React.ReactNode;
-  required?: boolean;
-}) {
-  return (
-    <div className="mt-3 rounded-2xl border border-white/10 bg-black/40 p-3">
-      <label className="flex gap-3 text-xs leading-5 text-white/65">
-        <input
-          type="checkbox"
-          checked={checked}
-          required={required}
-          onChange={(e) => onChange(e.target.checked)}
-          className="mt-1 h-4 w-4 accent-red-600"
-        />
-        <span>{children}</span>
-      </label>
-    </div>
-  );
-}
-
-function StepPill({ active, label }: { active: boolean; label: string }) {
-  return (
-    <div
-      className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.2em] ${
-        active
-          ? "bg-red-600 text-white shadow-lg shadow-red-950/40"
-          : "border border-white/10 bg-white/[0.04] text-white/35"
-      }`}
-    >
-      {label}
-    </div>
   );
 }
