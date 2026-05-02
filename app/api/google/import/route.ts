@@ -79,10 +79,8 @@ function parseAddressParts(address: string | null) {
   }
 
   const parts = cleaned.split(",").map((part) => part.trim());
-
   const city = parts.length >= 2 ? parts[parts.length - 2] : null;
   const stateZip = parts.length >= 3 ? parts[parts.length - 1] : null;
-
   const match = stateZip?.match(/^([A-Z]{2})\s+(\d{5})(?:-\d{4})?$/);
 
   return {
@@ -101,21 +99,6 @@ function getReviewCount(place: any) {
       place.reviews ??
       0
   );
-}  
-
-  const parts = cleaned.split(",").map((part) => part.trim());
-
-  const city = parts.length >= 2 ? parts[parts.length - 2] : null;
-  const stateZip = parts.length >= 3 ? parts[parts.length - 1] : null;
-
-  const match = stateZip?.match(/^([A-Z]{2})\s+(\d{5})(?:-\d{4})?$/);
-
-  return {
-    fullAddress: cleaned,
-    city,
-    state: match?.[1] || null,
-    zipCode: match?.[2] || null,
-  };
 }
 
 function placeText(place: any) {
@@ -144,9 +127,7 @@ function isCigar(place: any) {
 }
 
 function getPrimaryTag(place: any, type: "restaurant" | "activity") {
-  const text = `${place.name || ""} ${
-    place.formatted_address || ""
-  } ${place.types?.join(" ") || ""}`.toLowerCase();
+  const text = placeText(place);
 
   if (type === "restaurant") {
     if (text.includes("steak")) return "steak";
@@ -155,52 +136,36 @@ function getPrimaryTag(place: any, type: "restaurant" | "activity") {
     if (text.includes("italian")) return "italian";
     if (text.includes("mexican")) return "mexican";
     if (text.includes("caribbean")) return "caribbean";
-    if (text.includes("bbq")) return "bbq";
+    if (text.includes("jamaican")) return "jamaican";
+    if (text.includes("bbq") || text.includes("barbecue")) return "bbq";
     if (text.includes("brunch")) return "brunch";
     if (text.includes("cafe") || text.includes("coffee")) return "cafe";
-
     if (text.includes("rooftop")) return "rooftop";
     if (text.includes("lounge")) return "lounge";
     if (text.includes("bar")) return "bar";
-
-    if (text.includes("fine dining") || text.includes("upscale"))
-      return "luxury";
-
+    if (text.includes("fine dining") || text.includes("upscale")) return "luxury";
     if (text.includes("romantic")) return "romantic";
     if (text.includes("date")) return "date";
-
-    if (text.includes("hookah") || text.includes("shisha"))
-      return "hookah";
+    if (text.includes("hookah") || text.includes("shisha")) return "hookah";
     if (text.includes("cigar")) return "cigar";
 
     return "restaurant";
   }
 
-  if (type === "activity") {
-    if (text.includes("bowling")) return "bowling";
-    if (text.includes("arcade")) return "arcade";
-    if (text.includes("karaoke")) return "karaoke";
-    if (text.includes("escape")) return "escape_room";
-    if (text.includes("paintball")) return "paintball";
-    if (text.includes("axe")) return "axe_throwing";
+  if (text.includes("bowling")) return "bowling";
+  if (text.includes("arcade")) return "arcade";
+  if (text.includes("karaoke")) return "karaoke";
+  if (text.includes("escape")) return "escape_room";
+  if (text.includes("paintball")) return "paintball";
+  if (text.includes("axe")) return "axe_throwing";
+  if (text.includes("comedy")) return "comedy";
+  if (text.includes("jazz") || text.includes("live music")) return "live_music";
+  if (text.includes("museum")) return "museum";
+  if (text.includes("nightclub") || text.includes("club")) return "nightlife";
+  if (text.includes("hookah") || text.includes("shisha")) return "hookah";
+  if (text.includes("cigar")) return "cigar";
 
-    if (text.includes("comedy")) return "comedy";
-    if (text.includes("jazz") || text.includes("live music"))
-      return "live_music";
-
-    if (text.includes("museum")) return "museum";
-
-    if (text.includes("nightclub") || text.includes("club"))
-      return "nightlife";
-
-    if (text.includes("hookah") || text.includes("shisha"))
-      return "hookah";
-    if (text.includes("cigar")) return "cigar";
-
-    return "activity";
-  }
-
-  return null;
+  return "activity";
 }
 
 function isHighQuality(place: any) {
@@ -221,16 +186,13 @@ function categorizeActivity(name: string, types: string[] = []) {
   if (text.includes("birthday dinner")) return "birthday_dinner";
   if (text.includes("birthday brunch")) return "birthday_brunch";
   if (text.includes("birthday")) return "birthday";
-
   if (text.includes("brunch")) return "brunch";
   if (text.includes("breakfast")) return "breakfast";
   if (text.includes("cafe") || text.includes("coffee")) return "cafe";
-
   if (text.includes("axe") || text.includes("throwing")) return "axe_throwing";
   if (text.includes("paintball")) return "paintball";
   if (text.includes("arcade")) return "arcade";
   if (text.includes("bowling")) return "bowling";
-
   if (
     text.includes("mini golf") ||
     text.includes("miniature golf") ||
@@ -238,7 +200,6 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "mini_golf";
   }
-
   if (
     text.includes("golf") ||
     text.includes("topgolf") ||
@@ -247,7 +208,6 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "golf";
   }
-
   if (
     text.includes("nightclub") ||
     text.includes("night club") ||
@@ -255,30 +215,22 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "nightclub";
   }
-
   if (text.includes("hookah") || text.includes("shisha")) return "hookah";
   if (text.includes("cigar")) return "cigar";
   if (text.includes("rooftop")) return "rooftop";
   if (text.includes("lounge")) return "lounge";
   if (text.includes("bar")) return "bar";
   if (text.includes("club")) return "nightclub";
-
-  if (text.includes("comedy")) return "comedy";
-  if (text.includes("stand up")) return "comedy";
+  if (text.includes("comedy") || text.includes("stand up")) return "comedy";
   if (text.includes("karaoke")) return "karaoke";
   if (text.includes("escape")) return "escape_room";
-
   if (text.includes("paint") && text.includes("sip")) return "paint_and_sip";
-
   if (text.includes("jazz") || text.includes("live music")) return "live_music";
-
   if (text.includes("museum")) return "museum";
   if (text.includes("gallery") || text.includes("art")) return "art_gallery";
   if (text.includes("theater") || text.includes("theatre")) return "theater";
-
   if (text.includes("park")) return "park";
   if (text.includes("waterfront") || text.includes("scenic")) return "scenic";
-
   if (
     text.includes("romantic") ||
     text.includes("date night") ||
@@ -287,7 +239,6 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "romantic";
   }
-
   if (
     text.includes("luxury") ||
     text.includes("upscale") ||
@@ -296,7 +247,6 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "luxury";
   }
-
   if (
     text.includes("fun") ||
     text.includes("games") ||
@@ -305,7 +255,6 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "fun";
   }
-
   if (
     text.includes("chill") ||
     text.includes("relax") ||
@@ -315,7 +264,6 @@ function categorizeActivity(name: string, types: string[] = []) {
   ) {
     return "chill";
   }
-
   if (
     text.includes("unique") ||
     text.includes("hidden gem") ||
@@ -352,10 +300,7 @@ async function fetchGooglePlacesPaged(query: string, limit: number) {
     const res = await fetch(url.toString(), { cache: "no-store" });
     const data = await res.json();
 
-    if (!res.ok) {
-      console.warn("Google text request failed:", query);
-      break;
-    }
+    if (!res.ok) break;
 
     if (data.status === "INVALID_REQUEST") {
       if (nextPageToken && tokenRetryCount < 5) {
@@ -363,22 +308,15 @@ async function fetchGooglePlacesPaged(query: string, limit: number) {
         await sleep(3000);
         continue;
       }
-
-      console.warn("Skipping Google text query because of INVALID_REQUEST:", {
-        query,
-        nextPageToken: Boolean(nextPageToken),
-      });
-
       break;
     }
 
     if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-      console.warn("Skipping Google text query because of Places error:", {
+      console.warn("Google text query error:", {
+        query,
         status: data.status,
         error_message: data.error_message,
-        query,
       });
-
       break;
     }
 
@@ -431,10 +369,7 @@ async function fetchGoogleNearbySearch({
     const res = await fetch(url.toString(), { cache: "no-store" });
     const data = await res.json();
 
-    if (!res.ok) {
-      console.warn("Google nearby request failed:", keyword);
-      break;
-    }
+    if (!res.ok) break;
 
     if (data.status === "INVALID_REQUEST") {
       if (nextPageToken && tokenRetryCount < 5) {
@@ -442,28 +377,15 @@ async function fetchGoogleNearbySearch({
         await sleep(3000);
         continue;
       }
-
-      console.warn("Skipping Google nearby query because of INVALID_REQUEST:", {
-        keyword,
-        lat,
-        lng,
-        radius,
-        nextPageToken: Boolean(nextPageToken),
-      });
-
       break;
     }
 
     if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-      console.warn("Skipping Google nearby query because of Places error:", {
+      console.warn("Google nearby query error:", {
+        keyword,
         status: data.status,
         error_message: data.error_message,
-        keyword,
-        lat,
-        lng,
-        radius,
       });
-
       break;
     }
 
@@ -637,6 +559,9 @@ const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
     "top rated restaurants",
     "new restaurants",
     "popular restaurants",
+    "local restaurants",
+    "must try restaurants",
+    "highly rated restaurants",
   ],
   date: [
     "date night restaurants",
@@ -646,6 +571,9 @@ const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
     "anniversary restaurants",
     "first date restaurants",
     "casual date restaurants",
+    "quiet restaurants",
+    "candlelight restaurants",
+    "restaurants for couples",
   ],
   birthday: [
     "birthday dinner restaurants",
@@ -655,6 +583,10 @@ const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
     "birthday rooftop restaurants",
     "birthday fine dining",
     "restaurants for celebrations",
+    "group dinner restaurants",
+    "private dining restaurants",
+    "restaurants for large groups",
+    "party restaurants",
   ],
   brunch: [
     "breakfast restaurants",
@@ -668,6 +600,9 @@ const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
     "bakeries",
     "dessert spots",
     "ice cream shops",
+    "tea houses",
+    "juice bars",
+    "smoothie shops",
   ],
   luxury: [
     "fine dining restaurants",
@@ -675,11 +610,17 @@ const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
     "upscale restaurants",
     "michelin star restaurants",
     "tasting menu restaurants",
+    "chef tasting restaurants",
     "rooftop restaurants",
     "restaurants with a view",
     "waterfront restaurants",
     "outdoor dining restaurants",
     "garden restaurants",
+    "steakhouses",
+    "seafood restaurants",
+    "wine restaurants",
+    "elegant restaurants",
+    "high end restaurants",
   ],
   nightlife: [
     "late night restaurants",
@@ -695,46 +636,122 @@ const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
     "sports bars",
     "rooftop bars",
     "bars with food",
+    "gastropubs",
     "hookah restaurants",
     "hookah lounges",
     "shisha lounges",
     "hookah bars",
     "cigar lounges",
     "cigar bars",
+    "supper clubs",
   ],
   cuisine: [
     "american restaurants",
+    "new american restaurants",
     "southern restaurants",
     "soul food restaurants",
+    "comfort food restaurants",
     "bbq restaurants",
+    "barbecue restaurants",
+    "smokehouse restaurants",
     "steakhouses",
     "burger restaurants",
+    "hot dog restaurants",
+    "sandwich shops",
+    "delis",
+    "diners",
     "seafood restaurants",
+    "lobster restaurants",
+    "crab restaurants",
+    "oyster bars",
+    "fish restaurants",
     "italian restaurants",
+    "pizza restaurants",
+    "pasta restaurants",
+    "sicilian restaurants",
     "french restaurants",
+    "bistros",
     "spanish restaurants",
+    "tapas restaurants",
+    "portuguese restaurants",
     "greek restaurants",
     "mediterranean restaurants",
+    "turkish restaurants",
+    "lebanese restaurants",
+    "middle eastern restaurants",
+    "israeli restaurants",
+    "persian restaurants",
+    "moroccan restaurants",
+    "halal restaurants",
+    "kosher restaurants",
     "chinese restaurants",
+    "dim sum restaurants",
+    "cantonese restaurants",
+    "szechuan restaurants",
+    "shanghainese restaurants",
+    "hot pot restaurants",
     "japanese restaurants",
     "sushi restaurants",
     "ramen restaurants",
-    "thai restaurants",
+    "izakaya restaurants",
+    "yakitori restaurants",
     "korean restaurants",
+    "korean bbq restaurants",
+    "thai restaurants",
     "vietnamese restaurants",
+    "pho restaurants",
+    "malaysian restaurants",
+    "singaporean restaurants",
+    "indonesian restaurants",
+    "filipino restaurants",
     "asian fusion restaurants",
+    "indian restaurants",
+    "pakistani restaurants",
+    "bangladeshi restaurants",
+    "nepalese restaurants",
+    "tibetan restaurants",
     "mexican restaurants",
+    "taco restaurants",
+    "tex mex restaurants",
     "latin restaurants",
     "peruvian restaurants",
     "dominican restaurants",
     "puerto rican restaurants",
+    "colombian restaurants",
+    "cuban restaurants",
+    "argentinian restaurants",
+    "brazilian restaurants",
+    "venezuelan restaurants",
+    "ecuadorian restaurants",
+    "salvadoran restaurants",
     "caribbean restaurants",
     "jamaican restaurants",
+    "haitian restaurants",
+    "trinidadian restaurants",
+    "west indian restaurants",
     "african restaurants",
     "ethiopian restaurants",
     "nigerian restaurants",
-    "middle eastern restaurants",
-    "halal restaurants",
+    "ghanaian restaurants",
+    "senegalese restaurants",
+    "south african restaurants",
+    "vegan restaurants",
+    "vegetarian restaurants",
+    "plant based restaurants",
+    "healthy restaurants",
+    "gluten free restaurants",
+    "organic restaurants",
+    "salad restaurants",
+    "poke restaurants",
+    "breakfast restaurants",
+    "brunch restaurants",
+    "dessert restaurants",
+    "ice cream shops",
+    "bakeries",
+    "coffee shops",
+    "cafes",
+    "tea houses",
+    "bubble tea shops",
   ],
   casual: [
     "vegan restaurants",
@@ -748,6 +765,14 @@ const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
     "themed restaurants",
     "dinner restaurants",
     "fun restaurants",
+    "family restaurants",
+    "casual restaurants",
+    "comfort food restaurants",
+    "pizza restaurants",
+    "taco restaurants",
+    "sandwich shops",
+    "food halls",
+    "food trucks",
   ],
   activity: [],
   fun: [],
@@ -766,6 +791,41 @@ const activityCategoryBatches: Record<ImportBatch, string[]> = {
     "fun activities",
     "couples activities",
     "double date ideas",
+    "indoor activities",
+    "unique things to do",
+    "experiences",
+    "local attractions",
+  ],
+  date: [
+    "romantic things to do",
+    "date night activities",
+    "couples activities",
+    "fun date ideas",
+    "unique date ideas",
+    "romantic activities",
+    "things to do for couples",
+    "wine tasting",
+    "paint and sip",
+    "cooking classes",
+    "dance classes",
+    "jazz clubs",
+    "live music",
+  ],
+  birthday: [
+    "birthday activities",
+    "birthday party venues",
+    "birthday date ideas",
+    "fun birthday activities",
+    "group activities",
+    "private party venues",
+    "karaoke rooms",
+    "arcades",
+    "bowling",
+    "paint and sip",
+    "escape rooms",
+    "comedy clubs",
+    "nightclubs",
+    "lounges",
   ],
   fun: [
     "bowling",
@@ -779,6 +839,15 @@ const activityCategoryBatches: Record<ImportBatch, string[]> = {
     "driving range",
     "axe throwing",
     "paintball",
+    "laser tag",
+    "go karts",
+    "trampoline parks",
+    "roller skating",
+    "ice skating",
+    "pool halls",
+    "billiards",
+    "board game cafes",
+    "virtual reality arcade",
     "paint and sip",
   ],
   nightlife: [
@@ -792,12 +861,18 @@ const activityCategoryBatches: Record<ImportBatch, string[]> = {
     "night clubs",
     "dance clubs",
     "hookah lounges",
+    "hookah bars",
+    "shisha lounges",
     "cigar lounges",
+    "cigar bars",
     "lounges",
     "rooftop bars",
     "cocktail lounges",
     "live music",
     "jazz clubs",
+    "speakeasy bars",
+    "supper clubs",
+    "karaoke bars",
   ],
   culture: [
     "museums",
@@ -805,22 +880,60 @@ const activityCategoryBatches: Record<ImportBatch, string[]> = {
     "theaters",
     "movie theaters",
     "live shows",
+    "broadway shows",
+    "off broadway shows",
+    "performing arts",
+    "concert venues",
     "comedy clubs",
     "stand up comedy",
     "comedy shows",
+    "cultural centers",
+    "historic sites",
+    "exhibits",
+    "immersive exhibits",
   ],
   outdoor: [
     "parks",
     "waterfront spots",
     "scenic spots",
     "gardens",
+    "botanical gardens",
     "outdoor activities",
+    "walking trails",
+    "hiking trails",
+    "beaches",
+    "piers",
+    "boat rides",
+    "kayaking",
+    "bike rentals",
+    "rooftop activities",
+    "outdoor markets",
+    "farmers markets",
+  ],
+  brunch: [
+    "brunch activities",
+    "day parties",
+    "bottomless brunch",
+    "brunch cruises",
+    "coffee shops",
+    "cafes",
+    "bakeries",
+    "dessert spots",
+  ],
+  luxury: [
+    "luxury experiences",
+    "upscale lounges",
+    "private dining",
+    "wine tasting",
+    "cocktail lounges",
+    "spa experiences",
+    "rooftop lounges",
+    "fine dining experiences",
+    "yacht cruises",
+    "dinner cruises",
+    "premium experiences",
   ],
   core: [],
-  date: [],
-  birthday: [],
-  brunch: [],
-  luxury: [],
   cuisine: [],
   casual: [],
   all: [],
@@ -933,6 +1046,31 @@ async function runImport({
   const seenPlaceIds = new Set<string>();
   const categories = getCategories(type, batch);
 
+  async function processPlace(place: any) {
+    if (
+      !place.place_id ||
+      seenPlaceIds.has(place.place_id) ||
+      !isHighQuality(place)
+    ) {
+      return;
+    }
+
+    seenPlaceIds.add(place.place_id);
+
+    try {
+      const result =
+        type === "activity"
+          ? await importActivity(place)
+          : await importRestaurant(place);
+
+      if (result.imported) imported++;
+      if (result.skipped) skipped++;
+    } catch (error) {
+      failed++;
+      console.error("Import item failed:", error);
+    }
+  }
+
   if (mode === "nearby" && lat && lng) {
     for (const category of categories) {
       if (imported >= limit) break;
@@ -949,65 +1087,19 @@ async function runImport({
 
       for (const place of places) {
         if (imported >= limit) break;
-
-        if (
-          !place.place_id ||
-          seenPlaceIds.has(place.place_id) ||
-          !isHighQuality(place)
-        ) {
-          continue;
-        }
-
-        seenPlaceIds.add(place.place_id);
-
-        try {
-          const result =
-            type === "activity"
-              ? await importActivity(place)
-              : await importRestaurant(place);
-
-          if (result.imported) imported++;
-          if (result.skipped) skipped++;
-        } catch (error) {
-          failed++;
-          console.error("Import item failed:", error);
-        }
+        await processPlace(place);
       }
     }
   } else {
     for (const query of queries) {
       if (imported >= limit) break;
 
-      const remaining = limit - imported;
-      const places = await fetchGooglePlacesPaged(query, remaining);
-
+      const places = await fetchGooglePlacesPaged(query, limit - imported);
       found += places.length;
 
       for (const place of places) {
         if (imported >= limit) break;
-
-        if (
-          !place.place_id ||
-          seenPlaceIds.has(place.place_id) ||
-          !isHighQuality(place)
-        ) {
-          continue;
-        }
-
-        seenPlaceIds.add(place.place_id);
-
-        try {
-          const result =
-            type === "activity"
-              ? await importActivity(place)
-              : await importRestaurant(place);
-
-          if (result.imported) imported++;
-          if (result.skipped) skipped++;
-        } catch (error) {
-          failed++;
-          console.error("Import item failed:", error);
-        }
+        await processPlace(place);
       }
     }
   }
