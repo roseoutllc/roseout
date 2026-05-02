@@ -1,162 +1,160 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { createClaimQr } from "@/lib/claimQr";
 
-const LOCATIONS = [
-  "Queens NY",
-  "Brooklyn NY",
-  "Manhattan NY",
-  "Bronx NY",
-  "Staten Island NY",
-  "Nassau County NY",
-  "Suffolk County NY",
-  "Westchester NY",
-  "Jersey City NJ",
-  "Hoboken NJ",
-];
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-const CATEGORIES: { query: string; type: "restaurant" | "activity" }[] = [
-  { query: "restaurants", type: "restaurant" },
-  { query: "date night restaurants", type: "restaurant" },
-  { query: "romantic restaurants", type: "restaurant" },
-  { query: "brunch restaurants", type: "restaurant" },
-  { query: "breakfast spots", type: "restaurant" },
-  { query: "coffee shops", type: "restaurant" },
-  { query: "upscale restaurants", type: "restaurant" },
-  { query: "rooftop restaurants", type: "restaurant" },
-  { query: "lounges", type: "restaurant" },
+type ImportType = "restaurant" | "activity";
 
-  { query: "fun activities", type: "activity" },
-  { query: "things to do", type: "activity" },
-  { query: "date activities", type: "activity" },
-  { query: "museums", type: "activity" },
-  { query: "live music venues", type: "activity" },
-  { query: "comedy clubs", type: "activity" },
-];
-
-const BATCH_SIZE = 3;
-
-function getDailyBatch() {
-  const today = new Date();
-
-  const dayOfYear = Math.floor(
-    (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) /
-      1000 /
-      60 /
-      60 /
-      24
+function getGoogleKey() {
+  return (
+    process.env.GOOGLE_PLACES_API_KEY ||
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
   );
-
-  const location = LOCATIONS[dayOfYear % LOCATIONS.length];
-  const start = (dayOfYear * BATCH_SIZE) % CATEGORIES.length;
-
-  const selectedCategories = [
-    ...CATEGORIES.slice(start, start + BATCH_SIZE),
-    ...CATEGORIES.slice(
-      0,
-      Math.max(0, start + BATCH_SIZE - CATEGORIES.length)
-    ),
-  ].slice(0, BATCH_SIZE);
-
-  return selectedCategories.map((item) => ({
-    query: `${item.query} in ${location}`,
-    type: item.type,
-    location,
-    category: item.query,
-  }));
 }
 
-async function runDailyImport(request: Request) {
-  const authHeader = request.headers.get("authorization");
+async function fetchGooglePlaces(query: string) {
+  const apiKey = getGoogleKey();
 
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!apiKey) throw new Error("Missing Google API key");
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
-
-  const importSecret = process.env.IMPORT_SECRET || "";
-
-  const queries = getDailyBatch();
-  const results = [];
-
-  for (const item of queries) {
-    try {
-      const res = await fetch(`${baseUrl}/api/google/import`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-import-secret": importSecret,
-        },
-        body: JSON.stringify({
-          query: item.query,
-          type: item.type,
-        }),
-        cache: "no-store",
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      results.push({
-        query: item.query,
-        type: item.type,
-        location: item.location,
-        category: item.category,
-        status: res.status,
-        imported: data.imported ?? 0,
-        skipped: data.skipped ?? 0,
-        result: data,
-      });
-    } catch (error: any) {
-      results.push({
-        query: item.query,
-        type: item.type,
-        location: item.location,
-        category: item.category,
-        status: 500,
-        imported: 0,
-        skipped: 0,
-        error: error.message || "Import failed",
-      });
-    }
-  }
-
-  const totalImported = results.reduce(
-    (sum, item) => sum + Number(item.imported || 0),
-    0
+  const url = new URL(
+    "https://maps.googleapis.com/maps/api/place/textsearch/json"
   );
 
-  const totalSkipped = results.reduce(
-    (sum, item) => sum + Number(item.skipped || 0),
-    0
-  );
+  url.searchParams.set("query", query);
+  url.searchParams.set("key", apiKey);
 
-  return NextResponse.json({
-    success: true,
-    message:
-      "Daily Google expansion import completed for restaurants and activities.",
-    totalImported,
-    totalSkipped,
-    queriesRun: results.length,
-    results,
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  const data = await res.json();
+
+  if (!res.ok) throw new Error("Google request failed");
+
+  return data.results || [];
+}
+
+async function importRestaurant(place: any) {
+  const claimQr = await createClaimQr("restaurant");
+
+  const { data: existing } = await supabaseAdmin
+    .from("restaurants")
+    .select("id")
+    .eq("google_place_id", place.place_id)
+    .maybeSingle();
+
+  if (existing) return { imported: false, skipped: true };
+
+  const { error } = await supabaseAdmin.from("restaurants").insert({
+    restaurant_name: place.name,
+    address: place.formatted_address,
+    city: null,
+    state: null,
+    zip_code: null,
+    cuisine: place.types?.join(", ") || null,
+    rating: place.rating || 0,
+    google_place_id: place.place_id,
+    image_url: null,
+    status: "approved",
+    claimed: false,
+    view_count: 0,
+    click_count: 0,
+    claim_count: 0,
+
+    // 🔥 THIS IS THE FIX
+    ...claimQr,
   });
+
+  if (error) throw new Error(error.message);
+
+  return { imported: true, skipped: false };
 }
 
-export async function GET(request: Request) {
-  return runDailyImport(request);
+async function importActivity(place: any) {
+  const claimQr = await createClaimQr("activity");
+
+  const { data: existing } = await supabaseAdmin
+    .from("activities")
+    .select("id")
+    .eq("google_place_id", place.place_id)
+    .maybeSingle();
+
+  if (existing) return { imported: false, skipped: true };
+
+  const { error } = await supabaseAdmin.from("activities").insert({
+    activity_name: place.name,
+    activity_type: place.types?.[0] || "activity",
+    address: place.formatted_address,
+    city: null,
+    state: null,
+    zip_code: null,
+    rating: place.rating || 0,
+    google_place_id: place.place_id,
+    image_url: null,
+    status: "approved",
+    claimed: false,
+    view_count: 0,
+    click_count: 0,
+    claim_count: 0,
+
+    // 🔥 THIS IS THE FIX
+    ...claimQr,
+  });
+
+  if (error) throw new Error(error.message);
+
+  return { imported: true, skipped: false };
 }
 
-export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}));
+export async function POST(request: NextRequest) {
+  try {
+    const secret = request.headers.get("x-internal-import-secret");
 
-  if (body.secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (
+      process.env.NODE_ENV !== "development" &&
+      secret !== process.env.IMPORT_SECRET
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+
+    const query = body.query || "restaurants in Queens NY";
+    const type: ImportType =
+      body.type === "activity" ? "activity" : "restaurant";
+
+    const places = await fetchGooglePlaces(query);
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const place of places) {
+      try {
+        const result =
+          type === "activity"
+            ? await importActivity(place)
+            : await importRestaurant(place);
+
+        if (result.imported) imported++;
+        if (result.skipped) skipped++;
+      } catch (e) {
+        console.error("Import error:", e);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      type,
+      imported,
+      skipped,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Import failed" },
+      { status: 500 }
+    );
   }
-
-  return runDailyImport(
-    new Request(request.url, {
-      headers: {
-        authorization: `Bearer ${process.env.CRON_SECRET}`,
-      },
-    })
-  );
 }
