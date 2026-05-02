@@ -126,6 +126,16 @@ function isCigar(place: any) {
   return text.includes("cigar");
 }
 
+function getReviewCount(place: any) {
+  return Number(
+    place.user_ratings_total ??
+      place.userRatingCount ??
+      place.review_count ??
+      place.reviews ??
+      0
+  );
+}
+
 function isHighQuality(place: any) {
   const rating = Number(place.rating || 0);
   const reviews = getReviewCount(place);
