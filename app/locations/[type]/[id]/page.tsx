@@ -12,7 +12,6 @@ import LocationReviewForm from "@/components/LocationReviewForm";
 
 function toArray(value: any): string[] {
   if (!value) return [];
-
   if (Array.isArray(value)) return value.map(String);
 
   if (typeof value === "string") {
@@ -83,8 +82,8 @@ export default function LocationDetailPage() {
     "RoseOut Location";
 
   const score = clampScore(
-    location?.roseout_score ??
-      location?.review_score ??
+    location?.review_score ??
+      location?.roseout_score ??
       location?.quality_score ??
       0
   );
@@ -122,6 +121,38 @@ export default function LocationDetailPage() {
     location_name: name,
   };
 
+  function handleReviewSubmitted(data: any) {
+    const newReview = {
+      id: `temp-${Date.now()}`,
+      customer_name: data.customer_name || "RoseOut Guest",
+      rating: data.rating || 5,
+      review_text: data.review_text || "Review submitted successfully.",
+      created_at: new Date().toISOString(),
+      ai_keywords: data.ai?.keywords || [],
+      ai_sentiment: data.ai?.sentiment || "neutral",
+      ai_score_boost: data.ai?.score_boost || 0,
+      vibe: data.ai?.vibe || null,
+      noise_level: data.ai?.noise_level || null,
+      date_night: data.ai?.date_night || false,
+      service_quality: data.ai?.service_quality || null,
+      food_quality: data.ai?.food_quality || null,
+      ambiance_quality: data.ai?.ambiance_quality || null,
+    };
+
+    setReviews((prev) => [newReview, ...prev]);
+
+    setLocation((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            review_score: data.review_score ?? prev.review_score,
+            review_count: data.review_count ?? prev.review_count,
+            review_keywords: data.keywords ?? prev.review_keywords,
+          }
+        : prev
+    );
+  }
+
   const trackAndGoBack = () => {
     trackActivity({
       eventType: "navigation",
@@ -140,14 +171,12 @@ export default function LocationDetailPage() {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 text-white">
         <RoseOutHeader />
-
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.3),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(127,29,29,0.35),transparent_28%),#000]" />
 
         <div className="relative z-10 rounded-[2rem] border border-white/10 bg-white/5 px-8 py-6 text-center shadow-2xl backdrop-blur-xl">
           <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
             RoseOut
           </p>
-
           <p className="mt-3 text-sm font-bold text-white/70">
             Loading location...
           </p>
@@ -160,7 +189,6 @@ export default function LocationDetailPage() {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 text-white">
         <RoseOutHeader />
-
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.3),transparent_32%),#000]" />
 
         <div className="relative z-10 max-w-md rounded-[2rem] border border-white/10 bg-white/5 p-7 text-center shadow-2xl backdrop-blur-xl">
@@ -355,9 +383,7 @@ export default function LocationDetailPage() {
               )}
             </LuxuryCard>
 
-            {bestFor.length > 0 && (
-              <DetailGrid title="Best For" items={bestFor} />
-            )}
+            {bestFor.length > 0 && <DetailGrid title="Best For" items={bestFor} />}
 
             {specialFeatures.length > 0 && (
               <DetailGrid title="Special Features" items={specialFeatures} />
@@ -367,10 +393,7 @@ export default function LocationDetailPage() {
               <DetailGrid title="Signature Picks" items={signatureItems} />
             )}
 
-            <LuxuryCard
-              eyebrow="Customer Reviews"
-              title="What people are saying."
-            >
+            <LuxuryCard eyebrow="Customer Reviews" title="What people are saying.">
               {reviews.length === 0 ? (
                 <p className="text-sm leading-7 text-white/60">
                   No reviews yet. Be the first to leave a full-sentence review.
@@ -395,6 +418,40 @@ export default function LocationDetailPage() {
                       <p className="mt-3 text-sm leading-7 text-white/70">
                         {review.review_text}
                       </p>
+
+                      {toArray(review.ai_keywords).length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {toArray(review.ai_keywords)
+                            .slice(0, 6)
+                            .map((keyword) => (
+                              <span
+                                key={keyword}
+                                className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-100"
+                              >
+                                {keyword}
+                              </span>
+                            ))}
+                        </div>
+                      )}
+
+                      {(review.vibe || review.noise_level || review.service_quality) && (
+                        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                          {review.vibe && (
+                            <MiniInsight label="Vibe" value={review.vibe} />
+                          )}
+
+                          {review.noise_level && (
+                            <MiniInsight label="Noise" value={review.noise_level} />
+                          )}
+
+                          {review.service_quality && (
+                            <MiniInsight
+                              label="Service"
+                              value={review.service_quality}
+                            />
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -402,7 +459,10 @@ export default function LocationDetailPage() {
             </LuxuryCard>
 
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-xl">
-              <LocationReviewForm locationId={location.id} />
+              <LocationReviewForm
+                locationId={location.id}
+                onReviewSubmitted={handleReviewSubmitted}
+              />
             </section>
           </div>
 
@@ -452,10 +512,7 @@ export default function LocationDetailPage() {
               </div>
             </LuxuryCard>
 
-            <LuxuryCard
-              eyebrow="Review Intelligence"
-              title="Powered by real words."
-            >
+            <LuxuryCard eyebrow="Review Intelligence" title="Powered by real words.">
               <div className="mt-5 space-y-4 text-sm">
                 <InfoRow label="Review Score" value={location.review_score || 0} />
 
@@ -517,6 +574,19 @@ function DetailGrid({ title, items }: { title: string; items: string[] }) {
         ))}
       </div>
     </LuxuryCard>
+  );
+}
+
+function MiniInsight({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/35 p-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-black capitalize text-white/80">
+        {value}
+      </p>
+    </div>
   );
 }
 
