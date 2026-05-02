@@ -4,17 +4,71 @@ import crypto from "crypto";
 
 async function generateQrCodeDataUrl(url: string) {
   try {
-    return await QRCode.toDataURL(url);
+    return await QRCode.toDataURL(url, {
+      margin: 2,
+      width: 700,
+    });
   } catch {
     return null;
   }
 }
 
-// 🔥 MAIN LOGIC
+async function backfillTable({
+  table,
+  type,
+}: {
+  table: "restaurants" | "activities";
+  type: "restaurant" | "activity";
+}) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
+
+  const path = type === "activity" ? "claim-activity" : "claim";
+
+  const { data: locations, error } = await supabase
+    .from(table)
+    .select("id, claim_token, qr_code_data_url")
+    .or("qr_code_data_url.is.null,claim_token.is.null,claim_url.is.null");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  let updated = 0;
+  let failed = 0;
+
+  for (const location of locations || []) {
+    const claimToken = location.claim_token || crypto.randomUUID();
+    const claimUrl = `${baseUrl}/${path}/${claimToken}`;
+    const qrCodeDataUrl = await generateQrCodeDataUrl(claimUrl);
+
+    const { error: updateError } = await supabase
+      .from(table)
+      .update({
+        claim_token: claimToken,
+        claim_url: claimUrl,
+        claim_status: "unclaimed",
+        qr_code_data_url: qrCodeDataUrl,
+      })
+      .eq("id", location.id);
+
+    if (updateError) {
+      failed++;
+    } else {
+      updated++;
+    }
+  }
+
+  return {
+    table,
+    updated,
+    failed,
+  };
+}
+
 async function runBackfill(req: Request) {
   const secret = req.headers.get("x-internal-import-secret");
 
-  // Allow browser use in development, require secret in production
   if (
     process.env.NODE_ENV !== "development" &&
     secret !== process.env.IMPORT_SECRET
@@ -23,43 +77,23 @@ async function runBackfill(req: Request) {
   }
 
   try {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const restaurants = await backfillTable({
+      table: "restaurants",
+      type: "restaurant",
+    });
 
-    const { data: restaurants, error } = await supabase
-      .from("restaurants")
-      .select("id, claim_token, qr_code_data_url")
-      .is("qr_code_data_url", null);
-
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
-    }
-
-    let updated = 0;
-
-    for (const restaurant of restaurants || []) {
-      const claimToken = restaurant.claim_token || crypto.randomUUID();
-
-      const claimUrl = `${baseUrl}/claim/${claimToken}`;
-
-      const qrCodeDataUrl = await generateQrCodeDataUrl(claimUrl);
-
-      const { error: updateError } = await supabase
-        .from("restaurants")
-        .update({
-          claim_token: claimToken,
-          claim_url: claimUrl,
-          claim_status: "unclaimed",
-          qr_code_data_url: qrCodeDataUrl,
-        })
-        .eq("id", restaurant.id);
-
-      if (!updateError) updated++;
-    }
+    const activities = await backfillTable({
+      table: "activities",
+      type: "activity",
+    });
 
     return Response.json({
       success: true,
-      updated,
+      message: "Claim QR backfill completed for all locations.",
+      restaurants,
+      activities,
+      totalUpdated: restaurants.updated + activities.updated,
+      totalFailed: restaurants.failed + activities.failed,
     });
   } catch (error: any) {
     return Response.json(
@@ -69,12 +103,10 @@ async function runBackfill(req: Request) {
   }
 }
 
-// ✅ Allow browser access
 export async function GET(req: Request) {
   return runBackfill(req);
 }
 
-// ✅ Allow secure POST access
 export async function POST(req: Request) {
   return runBackfill(req);
 }

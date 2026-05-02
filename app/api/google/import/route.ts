@@ -13,7 +13,7 @@ const LOCATIONS = [
   "Hoboken NJ",
 ];
 
-const CATEGORIES = [
+const CATEGORIES: { query: string; type: "restaurant" | "activity" }[] = [
   { query: "restaurants", type: "restaurant" },
   { query: "date night restaurants", type: "restaurant" },
   { query: "romantic restaurants", type: "restaurant" },
@@ -23,6 +23,7 @@ const CATEGORIES = [
   { query: "upscale restaurants", type: "restaurant" },
   { query: "rooftop restaurants", type: "restaurant" },
   { query: "lounges", type: "restaurant" },
+
   { query: "fun activities", type: "activity" },
   { query: "things to do", type: "activity" },
   { query: "date activities", type: "activity" },
@@ -35,6 +36,7 @@ const BATCH_SIZE = 3;
 
 function getDailyBatch() {
   const today = new Date();
+
   const dayOfYear = Math.floor(
     (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) /
       1000 /
@@ -44,12 +46,14 @@ function getDailyBatch() {
   );
 
   const location = LOCATIONS[dayOfYear % LOCATIONS.length];
-
   const start = (dayOfYear * BATCH_SIZE) % CATEGORIES.length;
 
   const selectedCategories = [
     ...CATEGORIES.slice(start, start + BATCH_SIZE),
-    ...CATEGORIES.slice(0, Math.max(0, start + BATCH_SIZE - CATEGORIES.length)),
+    ...CATEGORIES.slice(
+      0,
+      Math.max(0, start + BATCH_SIZE - CATEGORIES.length)
+    ),
   ].slice(0, BATCH_SIZE);
 
   return selectedCategories.map((item) => ({
@@ -60,21 +64,17 @@ function getDailyBatch() {
   }));
 }
 
-export async function GET(request: Request) {
+async function runDailyImport(request: Request) {
   const authHeader = request.headers.get("authorization");
 
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
 
-  if (!baseUrl) {
-    return NextResponse.json(
-      { error: "Missing NEXT_PUBLIC_SITE_URL" },
-      { status: 500 }
-    );
-  }
+  const importSecret = process.env.IMPORT_SECRET || "";
 
   const queries = getDailyBatch();
   const results = [];
@@ -85,7 +85,7 @@ export async function GET(request: Request) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-internal-import-secret": process.env.IMPORT_SECRET || "",
+          "x-internal-import-secret": importSecret,
         },
         body: JSON.stringify({
           query: item.query,
@@ -94,7 +94,7 @@ export async function GET(request: Request) {
         cache: "no-store",
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       results.push({
         query: item.query,
@@ -132,12 +132,17 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     success: true,
-    message: "Daily Google expansion import completed.",
+    message:
+      "Daily Google expansion import completed for restaurants and activities.",
     totalImported,
     totalSkipped,
     queriesRun: results.length,
     results,
   });
+}
+
+export async function GET(request: Request) {
+  return runDailyImport(request);
 }
 
 export async function POST(request: Request) {
@@ -147,7 +152,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  return GET(
+  return runDailyImport(
     new Request(request.url, {
       headers: {
         authorization: `Bearer ${process.env.CRON_SECRET}`,

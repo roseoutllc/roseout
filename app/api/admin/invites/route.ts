@@ -1,5 +1,4 @@
-import QRCode from "qrcode";
-import crypto from "crypto";
+import { createClaimQr } from "@/lib/claimQr";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
@@ -18,12 +17,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
-
-    const claimToken = crypto.randomUUID();
-    const claimUrl = `${siteUrl}/claim/${claimToken}`;
-    const qrCodeDataUrl = await QRCode.toDataURL(claimUrl);
+    const claimQr = await createClaimQr("restaurant");
 
     const { data, error } = await supabaseAdmin
       .from("restaurants")
@@ -36,10 +30,8 @@ export async function POST(req: Request) {
         zip_code: body.zip_code,
 
         status: "approved",
-        claim_token: claimToken,
-        claim_url: claimUrl,
-        claim_status: "unclaimed",
-        qr_code_data_url: qrCodeDataUrl,
+
+        ...claimQr,
       })
       .select()
       .single();
@@ -50,8 +42,8 @@ export async function POST(req: Request) {
 
     return Response.json({
       restaurant: data,
-      qrCodeDataUrl,
-      qrLink: claimUrl,
+      qrCodeDataUrl: data.qr_code_data_url,
+      qrLink: data.claim_url,
     });
   } catch (error: any) {
     return Response.json(
