@@ -39,7 +39,7 @@ export default function LocationDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadLocation = async () => {
+    async function loadLocation() {
       setLoading(true);
 
       const { data, error } = await supabase
@@ -65,7 +65,7 @@ export default function LocationDetailPage() {
       setLocation(data);
       setReviews(reviewData || []);
       setLoading(false);
-    };
+    }
 
     if (id) loadLocation();
   }, [id, supabase]);
@@ -153,7 +153,7 @@ export default function LocationDetailPage() {
     );
   }
 
-  const trackAndGoBack = () => {
+  function trackAndGoBack() {
     trackActivity({
       eventType: "navigation",
       eventName: "Back To Results",
@@ -165,7 +165,7 @@ export default function LocationDetailPage() {
     });
 
     router.push(from);
-  };
+  }
 
   if (loading) {
     return (
@@ -199,7 +199,7 @@ export default function LocationDetailPage() {
           <h1 className="mt-4 text-3xl font-black">Location Not Found</h1>
 
           <p className="mt-3 text-sm leading-6 text-white/60">
-            This location could not be found in your unified locations table.
+            This location could not be found.
           </p>
 
           <button
@@ -341,8 +341,8 @@ export default function LocationDetailPage() {
               <ScoreBadge score={score} />
 
               <p className="mt-4 text-sm leading-6 text-white/65">
-                RoseOut uses location details, customer review words, vibe
-                signals, and experience quality to improve recommendations.
+                RoseOut uses location details, review words, vibe signals, and
+                experience quality to improve recommendations.
               </p>
 
               {Number(location.review_score || 0) >= 85 && (
@@ -383,7 +383,9 @@ export default function LocationDetailPage() {
               )}
             </LuxuryCard>
 
-            {bestFor.length > 0 && <DetailGrid title="Best For" items={bestFor} />}
+            {bestFor.length > 0 && (
+              <DetailGrid title="Best For" items={bestFor} />
+            )}
 
             {specialFeatures.length > 0 && (
               <DetailGrid title="Special Features" items={specialFeatures} />
@@ -396,7 +398,7 @@ export default function LocationDetailPage() {
             <LuxuryCard eyebrow="Customer Reviews" title="What people are saying.">
               {reviews.length === 0 ? (
                 <p className="text-sm leading-7 text-white/60">
-                  No reviews yet. Be the first to leave a full-sentence review.
+                  No reviews yet. Be the first to type a full-sentence review.
                 </p>
               ) : (
                 <div className="mt-6 space-y-4">
@@ -411,7 +413,8 @@ export default function LocationDetailPage() {
                         </p>
 
                         <p className="rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white">
-                          🌸 {review.rating}/5
+                          {"🌸".repeat(Number(review.rating || 0))}{" "}
+                          {review.rating}/5
                         </p>
                       </div>
 
@@ -434,14 +437,19 @@ export default function LocationDetailPage() {
                         </div>
                       )}
 
-                      {(review.vibe || review.noise_level || review.service_quality) && (
+                      {(review.vibe ||
+                        review.noise_level ||
+                        review.service_quality) && (
                         <div className="mt-4 grid gap-2 sm:grid-cols-3">
                           {review.vibe && (
                             <MiniInsight label="Vibe" value={review.vibe} />
                           )}
 
                           {review.noise_level && (
-                            <MiniInsight label="Noise" value={review.noise_level} />
+                            <MiniInsight
+                              label="Noise"
+                              value={review.noise_level}
+                            />
                           )}
 
                           {review.service_quality && (
@@ -458,9 +466,10 @@ export default function LocationDetailPage() {
               )}
             </LuxuryCard>
 
-            <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-xl">
+            <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-1 shadow-2xl backdrop-blur-xl">
               <LocationReviewForm
                 locationId={location.id}
+                locationName={name}
                 onReviewSubmitted={handleReviewSubmitted}
               />
             </section>
