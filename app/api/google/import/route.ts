@@ -9,6 +9,8 @@ const supabaseAdmin = createClient(
 
 type ImportType = "restaurant" | "activity";
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function getGoogleKey() {
   return (
     process.env.GOOGLE_PLACES_API_KEY ||
@@ -18,35 +20,18 @@ function getGoogleKey() {
 }
 
 function getBearerToken(request: NextRequest) {
-  const authHeader = request.headers.get("authorization") || "";
-  if (!authHeader.toLowerCase().startsWith("bearer ")) return null;
-  return authHeader.slice(7).trim();
+  const auth = request.headers.get("authorization") || "";
+  if (!auth.toLowerCase().startsWith("bearer ")) return null;
+  return auth.slice(7).trim();
 }
 
-async function isAdminBearerToken(request: NextRequest) {
-  const token = getBearerToken(request);
-  if (!token) return false;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user?.email) return false;
-
-  const { data: adminUser } = await supabaseAdmin
-    .from("admin_users")
-    .select("id")
-    .eq("email", data.user.email.toLowerCase())
-    .in("role", ["superuser", "admin", "editor"])
-    .maybeSingle();
-
-  return !!adminUser;
-}
-
-async function isAuthorized(request: NextRequest) {
+function isAuthorized(request: NextRequest) {
   if (process.env.NODE_ENV === "development") return true;
 
-  const headerSecret = request.headers.get("x-internal-import-secret");
+  const importSecret = request.headers.get("x-internal-import-secret");
   const bearerToken = getBearerToken(request);
 
-  if (process.env.IMPORT_SECRET && headerSecret === process.env.IMPORT_SECRET) {
+  if (process.env.IMPORT_SECRET && importSecret === process.env.IMPORT_SECRET) {
     return true;
   }
 
@@ -54,30 +39,47 @@ async function isAuthorized(request: NextRequest) {
     return true;
   }
 
-  return isAdminBearerToken(request);
+  return false;
 }
 
-async function fetchGooglePlaces(query: string, limit = 20) {
+async function fetchGooglePlacesPaged(query: string, limit: number) {
   const apiKey = getGoogleKey();
   if (!apiKey) throw new Error("Missing Google API key");
 
-  const url = new URL(
-    "https://maps.googleapis.com/maps/api/place/textsearch/json"
-  );
+  const allPlaces: any[] = [];
+  let nextPageToken: string | null = null;
 
-  url.searchParams.set("query", query);
-  url.searchParams.set("key", apiKey);
+  while (allPlaces.length < limit) {
+    const url = new URL(
+      "https://maps.googleapis.com/maps/api/place/textsearch/json"
+    );
 
-  const res = await fetch(url.toString(), { cache: "no-store" });
-  const data = await res.json();
+    url.searchParams.set("key", apiKey);
 
-  if (!res.ok) throw new Error("Google request failed");
+    if (nextPageToken) {
+      url.searchParams.set("pagetoken", nextPageToken);
+      await sleep(2200);
+    } else {
+      url.searchParams.set("query", query);
+    }
 
-  if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-    throw new Error(data.error_message || `Google Places error: ${data.status}`);
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error("Google request failed");
+
+    if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+      throw new Error(data.error_message || `Google Places error: ${data.status}`);
+    }
+
+    allPlaces.push(...(data.results || []));
+
+    if (!data.next_page_token) break;
+
+    nextPageToken = data.next_page_token;
   }
 
-  return (data.results || []).slice(0, limit);
+  return allPlaces.slice(0, limit);
 }
 
 async function importRestaurant(place: any) {
@@ -148,71 +150,106 @@ async function importActivity(place: any) {
   return { imported: true, skipped: false };
 }
 
-async function logImport() {
-  await supabaseAdmin.from("import_logs").insert({
-    job_name: "Google Import",
-    run_date: new Date().toISOString().split("T")[0],
-  });
-}
-
 async function runImport({
-  query = "restaurants in Queens NY",
-  type = "restaurant",
-  limit = 20,
+  queries,
+  type,
+  limit,
 }: {
-  query?: string;
-  type?: ImportType;
-  limit?: number;
+  queries: string[];
+  type: ImportType;
+  limit: number;
 }) {
-  const places = await fetchGooglePlaces(query, limit);
-
   let imported = 0;
   let skipped = 0;
   let failed = 0;
+  let found = 0;
 
-  for (const place of places) {
-    try {
-      const result =
-        type === "activity"
-          ? await importActivity(place)
-          : await importRestaurant(place);
+  const seenPlaceIds = new Set<string>();
 
-      if (result.imported) imported++;
-      if (result.skipped) skipped++;
-    } catch (error) {
-      failed++;
-      console.error("Import item failed:", error);
+  for (const query of queries) {
+    if (imported >= limit) break;
+
+    const remaining = limit - imported;
+    const places = await fetchGooglePlacesPaged(query, remaining);
+
+    found += places.length;
+
+    for (const place of places) {
+      if (imported >= limit) break;
+      if (!place.place_id || seenPlaceIds.has(place.place_id)) continue;
+
+      seenPlaceIds.add(place.place_id);
+
+      try {
+        const result =
+          type === "activity"
+            ? await importActivity(place)
+            : await importRestaurant(place);
+
+        if (result.imported) imported++;
+        if (result.skipped) skipped++;
+      } catch (error) {
+        failed++;
+        console.error("Import item failed:", error);
+      }
     }
   }
-
-  await logImport();
 
   return {
     success: true,
     type,
-    query,
-    total_found: places.length,
+    requested_limit: limit,
+    total_found_from_google: found,
     imported,
     skipped,
     failed,
+    queries_used: queries,
   };
+}
+
+function defaultQueries(type: ImportType) {
+  if (type === "activity") {
+    return [
+      "fun activities in Queens NY",
+      "things to do in Queens NY",
+      "museums in Queens NY",
+      "bowling in Queens NY",
+      "arcades in Queens NY",
+      "parks in Queens NY",
+      "date night activities in Queens NY",
+      "entertainment venues in Queens NY",
+    ];
+  }
+
+  return [
+    "restaurants in Queens NY",
+    "romantic restaurants in Queens NY",
+    "seafood restaurants in Queens NY",
+    "steak restaurants in Queens NY",
+    "Italian restaurants in Queens NY",
+    "Caribbean restaurants in Queens NY",
+    "rooftop restaurants in Queens NY",
+    "date night restaurants in Queens NY",
+  ];
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const authorized = await isAuthorized(request);
-
-    if (!authorized) {
+    if (!isAuthorized(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const params = request.nextUrl.searchParams;
 
-    const result = await runImport({
-      query: params.get("query") || "restaurants in Queens NY",
-      type: params.get("type") === "activity" ? "activity" : "restaurant",
-      limit: Number(params.get("limit") || 20),
-    });
+    const type: ImportType =
+      params.get("type") === "activity" ? "activity" : "restaurant";
+
+    const limit = Math.min(Number(params.get("limit") || 50), 500);
+
+    const queryParams = params.getAll("query");
+    const queries = queryParams.length ? queryParams : defaultQueries(type);
+
+    const result = await runImport({ queries, type, limit });
 
     return NextResponse.json(result);
   } catch (error: any) {
@@ -225,19 +262,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authorized = await isAuthorized(request);
-
-    if (!authorized) {
+    if (!isAuthorized(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json().catch(() => ({}));
 
-    const result = await runImport({
-      query: body.query || "restaurants in Queens NY",
-      type: body.type === "activity" ? "activity" : "restaurant",
-      limit: Number(body.limit || 20),
-    });
+    const type: ImportType =
+      body.type === "activity" ? "activity" : "restaurant";
+
+    const limit = Math.min(Number(body.limit || 50), 500);
+
+    const queries =
+      Array.isArray(body.queries) && body.queries.length
+        ? body.queries
+        : body.query
+          ? [body.query]
+          : defaultQueries(type);
+
+    const result = await runImport({ queries, type, limit });
 
     return NextResponse.json(result);
   } catch (error: any) {
