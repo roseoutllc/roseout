@@ -77,7 +77,15 @@ function parseAddressParts(address: string | null) {
       zipCode: null,
     };
   }
-
+function getReviewCount(place: any) {
+  return Number(
+    place.user_ratings_total ??
+      place.userRatingCount ??
+      place.review_count ??
+      place.reviews ??
+      0
+  );
+}
   const parts = cleaned.split(",").map((part) => part.trim());
 
   const city = parts.length >= 2 ? parts[parts.length - 2] : null;
@@ -120,7 +128,7 @@ function isCigar(place: any) {
 
 function isHighQuality(place: any) {
   const rating = Number(place.rating || 0);
-  const reviews = Number(place.user_ratings_total || 0);
+  const reviews = getReviewCount(place);
 
   if (!place.name) return false;
   if (!place.formatted_address && !place.vicinity) return false;
@@ -417,7 +425,7 @@ async function importRestaurant(place: any) {
     zip_code: addressParts.zipCode,
     cuisine: place.types?.join(", ") || null,
     rating: place.rating || 0,
-    review_count: place.user_ratings_total || 0,
+    review_count: getReviewCount(place),
     google_place_id: place.place_id,
     image_url: googlePhotoUrl(place),
     latitude: place.geometry?.location?.lat || null,
@@ -467,7 +475,7 @@ async function importActivity(place: any) {
     state: addressParts.state,
     zip_code: addressParts.zipCode,
     rating: place.rating || 0,
-    review_count: place.user_ratings_total || 0,
+    review_count: getReviewCount(place),
     google_place_id: place.place_id,
     image_url: googlePhotoUrl(place),
     latitude: place.geometry?.location?.lat || null,
