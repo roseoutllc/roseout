@@ -143,10 +143,6 @@ export default function SignupPage() {
     }
 
     setStep(2);
-
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 50);
   };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -310,8 +306,8 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <div className="max-h-[calc(100vh-120px)] overflow-y-auto rounded-[1.5rem] border border-white/10 bg-[#0b0b0b]/95 shadow-2xl shadow-black/60 backdrop-blur-xl">
-            <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0b0b]/95 px-6 py-4 backdrop-blur-xl">
+          <div className="rounded-[1.5rem] border border-white/10 bg-[#0b0b0b]/95 shadow-2xl shadow-black/60 backdrop-blur-xl">
+            <div className="border-b border-white/10 bg-[#0b0b0b]/95 px-5 py-3 backdrop-blur-xl">
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-red-400">
                 Step {step} of 2
               </p>
@@ -320,7 +316,7 @@ export default function SignupPage() {
                 {step === 1 ? "Create your account" : "Set your preferences"}
               </h2>
 
-              <div className="mt-4 flex gap-2">
+              <div className="mt-3 flex gap-2">
                 <div
                   className={`h-2 flex-1 rounded-full ${
                     step >= 1 ? "bg-red-600" : "bg-white/15"
@@ -443,11 +439,11 @@ export default function SignupPage() {
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSignup} className="space-y-3 p-6">
+              <form onSubmit={handleSignup} className="space-y-2 p-4">
                 <select
                   value={planningFor}
                   onChange={(e) => setPlanningFor(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none focus:border-red-500"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white outline-none focus:border-red-500"
                 >
                   <option value="">What are you planning?</option>
                   <option value="date_nights">Date</option>
@@ -463,7 +459,7 @@ export default function SignupPage() {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="City or borough, example: Queens"
-                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-red-500"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white outline-none placeholder:text-white/30 focus:border-red-500"
                 />
 
                 <input
@@ -471,13 +467,13 @@ export default function SignupPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="Phone number for SMS updates (optional)"
-                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-red-500"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white outline-none placeholder:text-white/30 focus:border-red-500"
                 />
 
                 <select
                   value={preferredVibe}
                   onChange={(e) => setPreferredVibe(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none focus:border-red-500"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white outline-none focus:border-red-500"
                 >
                   <option value="">Preferred vibe</option>
                   <option value="romantic">Romantic</option>
@@ -492,7 +488,7 @@ export default function SignupPage() {
                 <select
                   value={budgetRange}
                   onChange={(e) => setBudgetRange(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none focus:border-red-500"
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white outline-none focus:border-red-500"
                 >
                   <option value="">Budget range</option>
                   <option value="budget">$</option>
@@ -501,7 +497,7 @@ export default function SignupPage() {
                   <option value="luxury">$$$$</option>
                 </select>
 
-                <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-white/55">
+                <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-2.5 text-xs text-white/55">
                   <input
                     type="checkbox"
                     checked={marketingOptIn}
@@ -513,7 +509,7 @@ export default function SignupPage() {
                   </span>
                 </label>
 
-                <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-3 text-[11px] leading-5 text-white/55">
+                <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/40 p-2.5 text-[10px] leading-4 text-white/55">
                   <input
                     type="checkbox"
                     checked={smsOptIn}
@@ -546,7 +542,7 @@ export default function SignupPage() {
                   </span>
                 </label>
 
-                <div className="rounded-xl border border-white/10 bg-black/40 p-3">
+                <div className="rounded-xl border border-white/10 bg-black/40 p-2.5">
                   <div ref={turnstileRef} />
                 </div>
 
@@ -562,11 +558,11 @@ export default function SignupPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3 pb-2">
+                <div className="flex gap-3 pb-1">
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="w-1/3 rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white hover:bg-white hover:text-black"
+                    className="w-1/3 rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-black uppercase tracking-[0.18em] text-white hover:bg-white hover:text-black"
                   >
                     Back
                   </button>
@@ -574,7 +570,7 @@ export default function SignupPage() {
                   <button
                     type="submit"
                     disabled={!canSubmit}
-                    className="w-2/3 rounded-xl bg-red-600 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-red-950/40 hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-2/3 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-red-950/40 hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {loading ? "Creating..." : "Create"}
                   </button>
