@@ -57,16 +57,6 @@ function isAuthorized(request: NextRequest) {
   return false;
 }
 
-function getReviewCount(place: any) {
-  return Number(
-    place.user_ratings_total ??
-      place.userRatingCount ??
-      place.review_count ??
-      place.reviews ??
-      0
-  );
-}
-
 function cleanAddress(address: string | null) {
   if (!address) return null;
 
@@ -102,6 +92,17 @@ function parseAddressParts(address: string | null) {
     zipCode: match?.[2] || null,
   };
 }
+
+function getReviewCount(place: any) {
+  return Number(
+    place.user_ratings_total ??
+      place.userRatingCount ??
+      place.review_count ??
+      place.reviews ??
+      0
+  );
+}  
+
   const parts = cleaned.split(",").map((part) => part.trim());
 
   const city = parts.length >= 2 ? parts[parts.length - 2] : null;
@@ -200,16 +201,6 @@ function getPrimaryTag(place: any, type: "restaurant" | "activity") {
   }
 
   return null;
-}
-
-function getReviewCount(place: any) {
-  return Number(
-    place.user_ratings_total ??
-      place.userRatingCount ??
-      place.review_count ??
-      place.reviews ??
-      0
-  );
 }
 
 function isHighQuality(place: any) {
