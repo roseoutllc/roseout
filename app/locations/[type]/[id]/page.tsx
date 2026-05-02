@@ -7,17 +7,20 @@ import { createClient } from "@/lib/supabase-browser";
 import { clampScore } from "@/lib/clampScore";
 import ScoreBadge from "@/components/ScoreBadge";
 import { trackActivity } from "@/lib/trackActivity";
+import RoseOutHeader from "@/components/RoseOutHeader";
 import LocationReviewForm from "@/components/LocationReviewForm";
 
 function toArray(value: any): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value.map(String);
+
   if (typeof value === "string") {
     return value
       .split(",")
       .map((v) => v.trim())
       .filter(Boolean);
   }
+
   return [];
 }
 
@@ -29,7 +32,12 @@ export default function LocationDetailPage() {
 
   const type = String(params.type || "");
   const id = String(params.id || "");
-  const from = searchParams.get("from") || "/create";
+
+  const from =
+    searchParams.get("from") ||
+    (typeof window !== "undefined" && document.referrer
+      ? document.referrer
+      : "/create");
 
   const [location, setLocation] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
@@ -75,6 +83,7 @@ export default function LocationDetailPage() {
 
     onScroll();
     window.addEventListener("scroll", onScroll);
+
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
@@ -133,6 +142,29 @@ export default function LocationDetailPage() {
     location_name: name,
   };
 
+  function goBack() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push(from || "/create");
+  }
+
+  function trackAndGoBack() {
+    trackActivity({
+      eventType: "navigation",
+      eventName: "Back To Results",
+      pagePath: window.location.pathname,
+      metadata: {
+        ...baseMetadata,
+        source: "location_detail_page",
+      },
+    });
+
+    goBack();
+  }
+
   function handleReviewSubmitted(data: any) {
     const newReview = {
       id: `temp-${Date.now()}`,
@@ -165,97 +197,73 @@ export default function LocationDetailPage() {
     );
   }
 
-  function trackAndGoBack() {
-    trackActivity({
-      eventType: "navigation",
-      eventName: "Back To Results",
-      pagePath: window.location.pathname,
-      metadata: {
-        ...baseMetadata,
-        source: "location_detail_page",
-      },
-    });
-
-    router.push(from);
-  }
-
   if (loading) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 text-white">
-        <DynamicHeader
-          scrolled={false}
-          name="Loading..."
-          category="RoseOut"
-          from={from}
-          onBack={() => router.push(from)}
-          reservationUrl=""
-          isActivity={false}
-        />
+      <>
+        <RoseOutHeader />
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.3),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(127,29,29,0.35),transparent_28%),#000]" />
+        <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 pt-20 text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.3),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(127,29,29,0.35),transparent_28%),#000]" />
 
-        <div className="relative z-10 rounded-[2rem] border border-white/10 bg-white/5 px-8 py-6 text-center shadow-2xl backdrop-blur-xl">
-          <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
-            RoseOut
-          </p>
-          <p className="mt-3 text-sm font-bold text-white/70">
-            Loading location...
-          </p>
-        </div>
-      </main>
+          <div className="relative z-10 rounded-[2rem] border border-white/10 bg-white/5 px-8 py-6 text-center shadow-2xl backdrop-blur-xl">
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
+              RoseOut
+            </p>
+            <p className="mt-3 text-sm font-bold text-white/70">
+              Loading location...
+            </p>
+          </div>
+        </main>
+      </>
     );
   }
 
   if (!location) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 text-white">
-        <DynamicHeader
-          scrolled
-          name="Location Not Found"
-          category="RoseOut"
-          from={from}
-          onBack={() => router.push(from)}
-          reservationUrl=""
-          isActivity={false}
-        />
+      <>
+        <RoseOutHeader />
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.3),transparent_32%),#000]" />
+        <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 pt-20 text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.3),transparent_32%),#000]" />
 
-        <div className="relative z-10 max-w-md rounded-[2rem] border border-white/10 bg-white/5 p-7 text-center shadow-2xl backdrop-blur-xl">
-          <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
-            RoseOut
-          </p>
+          <div className="relative z-10 max-w-md rounded-[2rem] border border-white/10 bg-white/5 p-7 text-center shadow-2xl backdrop-blur-xl">
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
+              RoseOut
+            </p>
 
-          <h1 className="mt-4 text-3xl font-black">Location Not Found</h1>
+            <h1 className="mt-4 text-3xl font-black">Location Not Found</h1>
 
-          <p className="mt-3 text-sm leading-6 text-white/60">
-            This location could not be found.
-          </p>
+            <p className="mt-3 text-sm leading-6 text-white/60">
+              This location could not be found.
+            </p>
 
-          <button
-            onClick={() => router.push(from)}
-            className="mt-6 rounded-full bg-red-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500"
-          >
-            Back to Results
-          </button>
-        </div>
-      </main>
+            <button
+              onClick={goBack}
+              className="mt-6 rounded-full bg-red-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-red-500"
+            >
+              Back
+            </button>
+          </div>
+        </main>
+      </>
     );
   }
 
   return (
     <>
-      <DynamicHeader
+      <RoseOutHeader />
+
+      <DynamicLocationHeader
         scrolled={scrolled}
         name={name}
         category={category}
-        from={from}
         onBack={trackAndGoBack}
         reservationUrl={reservationUrl}
         isActivity={isActivity}
+        from={from}
       />
 
-      <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-black pt-20 text-white">
         <section className="relative min-h-screen overflow-hidden">
           {location.image_url ? (
             <Image
@@ -272,7 +280,7 @@ export default function LocationDetailPage() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(225,6,42,0.34),transparent_34%),radial-gradient(circle_at_78%_8%,rgba(127,29,29,0.4),transparent_28%)]" />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/35" />
 
-          <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 pb-10 pt-28 sm:px-8">
+          <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 pb-10 pt-24 sm:px-8">
             <div className="mt-auto grid items-end gap-8 pb-8 lg:grid-cols-[1fr_330px]">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
@@ -504,7 +512,7 @@ export default function LocationDetailPage() {
               </section>
             </div>
 
-            <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+            <aside className="space-y-6 lg:sticky lg:top-36 lg:self-start">
               <LuxuryCard
                 eyebrow="Plan Your Visit"
                 title={isActivity ? "Book the experience." : "Reserve the table."}
@@ -596,55 +604,49 @@ export default function LocationDetailPage() {
   );
 }
 
-function DynamicHeader({
+function DynamicLocationHeader({
   scrolled,
   name,
   category,
-  from,
   onBack,
   reservationUrl,
   isActivity,
+  from,
 }: {
   scrolled: boolean;
   name: string;
   category: string;
-  from: string;
   onBack: () => void;
   reservationUrl: string;
   isActivity: boolean;
+  from: string;
 }) {
   return (
     <header
-      className={`fixed left-0 top-0 z-50 w-full border-b transition-all duration-300 ${
+      className={`fixed left-0 top-20 z-40 w-full border-b transition-all duration-300 ${
         scrolled
           ? "border-white/10 bg-black/85 shadow-2xl backdrop-blur-2xl"
           : "border-transparent bg-black/20 backdrop-blur-sm"
       }`}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-8">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <button
             onClick={onBack}
             className="shrink-0 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-black"
           >
-            ←
+            ← Back
           </button>
 
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-white/45">
-              <button
-                onClick={() => (window.location.href = "/")}
-                className="transition hover:text-white"
-              >
+              <a href="/" className="transition hover:text-white">
                 Home
-              </button>
+              </a>
               <span>/</span>
-              <button
-                onClick={() => (window.location.href = from)}
-                className="transition hover:text-white"
-              >
+              <a href={from || "/create"} className="transition hover:text-white">
                 Results
-              </button>
+              </a>
               <span>/</span>
               <span className="truncate text-red-300">{category}</span>
             </div>
@@ -656,7 +658,7 @@ function DynamicHeader({
                   : "max-w-[180px] text-sm text-white/70 sm:max-w-[420px]"
               }`}
             >
-              {scrolled ? name : "RoseOut"}
+              {scrolled ? name : "RoseOut Pick"}
             </p>
           </div>
         </div>

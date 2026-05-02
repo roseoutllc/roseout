@@ -70,9 +70,9 @@ export default function LocationReviewForm({
 
       if (!res.ok) {
         setMessage(data.error || "Something went wrong.");
-        setLoading(false);
         turnstileRef.current?.reset();
         setTurnstileToken("");
+        setLoading(false);
         return;
       }
 
