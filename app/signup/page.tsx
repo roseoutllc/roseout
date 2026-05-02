@@ -236,6 +236,7 @@ export default function SignupPage() {
       setMarketingOptIn(false);
       setSmsOptIn(false);
       resetCaptcha();
+      setStep(1);
     } catch {
       setErrorMessage("Something went wrong. Please try again.");
       resetCaptcha();
@@ -364,19 +365,19 @@ export default function SignupPage() {
                 />
 
                 <div className="rounded-xl border border-white/10 bg-black/40 p-3 text-xs">
-                  <p className={hasMinLength ? "text-red-400" : "text-white/35"}>
+                  <p className={hasMinLength ? "text-emerald-400" : "text-white/35"}>
                     ✓ At least 8 characters
                   </p>
-                  <p className={hasUppercase ? "text-red-400" : "text-white/35"}>
+                  <p className={hasUppercase ? "text-emerald-400" : "text-white/35"}>
                     ✓ One uppercase letter
                   </p>
-                  <p className={hasNumber ? "text-red-400" : "text-white/35"}>
+                  <p className={hasNumber ? "text-emerald-400" : "text-white/35"}>
                     ✓ One number
                   </p>
-                  <p className={hasSymbol ? "text-red-400" : "text-white/35"}>
+                  <p className={hasSymbol ? "text-emerald-400" : "text-white/35"}>
                     ✓ One symbol
                   </p>
-                  <p className={passwordsMatch ? "text-red-400" : "text-white/35"}>
+                  <p className={passwordsMatch ? "text-emerald-400" : "text-white/35"}>
                     ✓ Passwords match
                   </p>
                 </div>
@@ -410,6 +411,12 @@ export default function SignupPage() {
                 {errorMessage && (
                   <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-100">
                     {errorMessage}
+                  </div>
+                )}
+
+                {message && (
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-400">
+                    {message}
                   </div>
                 )}
 
