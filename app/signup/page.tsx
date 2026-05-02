@@ -143,6 +143,10 @@ export default function SignupPage() {
     }
 
     setStep(2);
+
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 50);
   };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -246,7 +250,7 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="h-screen overflow-hidden bg-black px-6 py-5 text-white">
+    <main className="min-h-screen overflow-y-auto bg-black px-6 py-5 text-white">
       <Script
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         async
@@ -256,7 +260,7 @@ export default function SignupPage() {
         }}
       />
 
-      <div className="mx-auto flex h-full max-w-7xl flex-col">
+      <div className="mx-auto flex min-h-[calc(100vh-40px)] max-w-7xl flex-col">
         <header className="mb-4 flex items-center justify-between">
           <Link
             href="/"
@@ -273,7 +277,7 @@ export default function SignupPage() {
           </Link>
         </header>
 
-        <section className="grid flex-1 items-center gap-8 overflow-hidden lg:grid-cols-[1fr_500px]">
+        <section className="grid flex-1 items-center gap-8 lg:grid-cols-[1fr_500px]">
           <div className="hidden lg:block">
             <div className="mb-4 inline-flex rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-red-300">
               Curated by RoseOut AI
@@ -306,8 +310,8 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <div className="max-h-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#0b0b0b]/95 shadow-2xl shadow-black/60 backdrop-blur-xl">
-            <div className="border-b border-white/10 px-6 py-4">
+          <div className="max-h-[calc(100vh-120px)] overflow-y-auto rounded-[1.5rem] border border-white/10 bg-[#0b0b0b]/95 shadow-2xl shadow-black/60 backdrop-blur-xl">
+            <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0b0b]/95 px-6 py-4 backdrop-blur-xl">
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-red-400">
                 Step {step} of 2
               </p>
@@ -558,7 +562,7 @@ export default function SignupPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 pb-2">
                   <button
                     type="button"
                     onClick={() => setStep(1)}
