@@ -82,6 +82,18 @@ function isCigar(place: any) {
   return text.includes("cigar");
 }
 
+function isHighQuality(place: any) {
+  const rating = Number(place.rating || 0);
+  const reviews = Number(place.user_ratings_total || 0);
+
+  if (!place.name) return false;
+  if (!place.formatted_address && !place.vicinity) return false;
+  if (rating < 4.0) return false;
+  if (reviews < 50) return false;
+
+  return true;
+}
+
 function categorizeActivity(name: string, types: string[] = []) {
   const text = `${name} ${types.join(" ")}`.toLowerCase();
 
@@ -366,6 +378,7 @@ async function importRestaurant(place: any) {
     zip_code: null,
     cuisine: place.types?.join(", ") || null,
     rating: place.rating || 0,
+    review_count: place.user_ratings_total || 0,
     google_place_id: place.place_id,
     image_url: googlePhotoUrl(place),
     latitude: place.geometry?.location?.lat || null,
@@ -377,7 +390,9 @@ async function importRestaurant(place: any) {
     claim_count: 0,
     primary_tag: hookah ? "hookah" : cigar ? "cigar" : null,
     search_keywords: [
-      ...(hookah ? ["hookah", "shisha", "hookah restaurant", "hookah lounge"] : []),
+      ...(hookah
+        ? ["hookah", "shisha", "hookah restaurant", "hookah lounge"]
+        : []),
       ...(cigar ? ["cigar", "cigar lounge", "cigar bar"] : []),
     ],
     ...claimQr,
@@ -410,6 +425,7 @@ async function importActivity(place: any) {
     state: null,
     zip_code: null,
     rating: place.rating || 0,
+    review_count: place.user_ratings_total || 0,
     google_place_id: place.place_id,
     image_url: googlePhotoUrl(place),
     latitude: place.geometry?.location?.lat || null,
@@ -421,7 +437,9 @@ async function importActivity(place: any) {
     claim_count: 0,
     primary_tag: hookah ? "hookah" : cigar ? "cigar" : null,
     search_keywords: [
-      ...(hookah ? ["hookah", "shisha", "hookah lounge", "hookah restaurant"] : []),
+      ...(hookah
+        ? ["hookah", "shisha", "hookah lounge", "hookah restaurant"]
+        : []),
       ...(cigar ? ["cigar", "cigar lounge", "cigar bar"] : []),
     ],
     ...claimQr,
@@ -479,26 +497,136 @@ const geoAreas = [
   { name: "Melville", lat: 40.7934, lng: -73.4151 },
 
   { name: "Yonkers", lat: 40.9312, lng: -73.8988 },
-  { name: "White Plains", lat: 41.0330, lng: -73.7629 },
+  { name: "White Plains", lat: 41.033, lng: -73.7629 },
   { name: "New Rochelle", lat: 40.9115, lng: -73.7824 },
   { name: "Mount Vernon", lat: 40.9126, lng: -73.8371 },
 
   { name: "Hoboken", lat: 40.7433, lng: -74.0324 },
   { name: "Jersey City", lat: 40.7178, lng: -74.0431 },
-  { name: "Edgewater", lat: 40.8270, lng: -73.9757 },
+  { name: "Edgewater", lat: 40.827, lng: -73.9757 },
   { name: "Fort Lee", lat: 40.8509, lng: -73.9701 },
   { name: "Newark", lat: 40.7357, lng: -74.1724 },
 ];
 
 const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
-  core: ["restaurants", "best restaurants", "top rated restaurants", "new restaurants", "popular restaurants"],
-  date: ["date night restaurants", "romantic restaurants", "intimate restaurants", "cozy restaurants", "anniversary restaurants", "first date restaurants", "casual date restaurants"],
-  birthday: ["birthday dinner restaurants", "birthday brunch restaurants", "birthday celebration restaurants", "birthday restaurants", "birthday rooftop restaurants", "birthday fine dining", "restaurants for celebrations"],
-  brunch: ["breakfast restaurants", "brunch restaurants", "best brunch", "bottomless brunch", "birthday brunch restaurants", "lunch restaurants", "coffee shops", "cafes", "bakeries", "dessert spots", "ice cream shops"],
-  luxury: ["fine dining restaurants", "luxury restaurants", "upscale restaurants", "michelin star restaurants", "tasting menu restaurants", "rooftop restaurants", "restaurants with a view", "waterfront restaurants", "outdoor dining restaurants", "garden restaurants"],
-  nightlife: ["late night restaurants", "24 hour restaurants", "lounge restaurants", "restaurants with music", "restaurants with dj", "live music restaurants", "jazz restaurants", "restaurants with dancing", "cocktail bars", "wine bars", "sports bars", "rooftop bars", "bars with food", "hookah restaurants", "hookah lounges", "shisha lounges", "hookah bars", "cigar lounges", "cigar bars"],
-  cuisine: ["american restaurants", "southern restaurants", "soul food restaurants", "bbq restaurants", "steakhouses", "burger restaurants", "seafood restaurants", "italian restaurants", "french restaurants", "spanish restaurants", "greek restaurants", "mediterranean restaurants", "chinese restaurants", "japanese restaurants", "sushi restaurants", "ramen restaurants", "thai restaurants", "korean restaurants", "vietnamese restaurants", "asian fusion restaurants", "mexican restaurants", "latin restaurants", "peruvian restaurants", "dominican restaurants", "puerto rican restaurants", "caribbean restaurants", "jamaican restaurants", "african restaurants", "ethiopian restaurants", "nigerian restaurants", "middle eastern restaurants", "halal restaurants"],
-  casual: ["vegan restaurants", "vegetarian restaurants", "healthy restaurants", "gluten free restaurants", "instagrammable restaurants", "trendy restaurants", "hidden gem restaurants", "unique restaurants", "themed restaurants", "dinner restaurants", "fun restaurants"],
+  core: [
+    "restaurants",
+    "best restaurants",
+    "top rated restaurants",
+    "new restaurants",
+    "popular restaurants",
+  ],
+  date: [
+    "date night restaurants",
+    "romantic restaurants",
+    "intimate restaurants",
+    "cozy restaurants",
+    "anniversary restaurants",
+    "first date restaurants",
+    "casual date restaurants",
+  ],
+  birthday: [
+    "birthday dinner restaurants",
+    "birthday brunch restaurants",
+    "birthday celebration restaurants",
+    "birthday restaurants",
+    "birthday rooftop restaurants",
+    "birthday fine dining",
+    "restaurants for celebrations",
+  ],
+  brunch: [
+    "breakfast restaurants",
+    "brunch restaurants",
+    "best brunch",
+    "bottomless brunch",
+    "birthday brunch restaurants",
+    "lunch restaurants",
+    "coffee shops",
+    "cafes",
+    "bakeries",
+    "dessert spots",
+    "ice cream shops",
+  ],
+  luxury: [
+    "fine dining restaurants",
+    "luxury restaurants",
+    "upscale restaurants",
+    "michelin star restaurants",
+    "tasting menu restaurants",
+    "rooftop restaurants",
+    "restaurants with a view",
+    "waterfront restaurants",
+    "outdoor dining restaurants",
+    "garden restaurants",
+  ],
+  nightlife: [
+    "late night restaurants",
+    "24 hour restaurants",
+    "lounge restaurants",
+    "restaurants with music",
+    "restaurants with dj",
+    "live music restaurants",
+    "jazz restaurants",
+    "restaurants with dancing",
+    "cocktail bars",
+    "wine bars",
+    "sports bars",
+    "rooftop bars",
+    "bars with food",
+    "hookah restaurants",
+    "hookah lounges",
+    "shisha lounges",
+    "hookah bars",
+    "cigar lounges",
+    "cigar bars",
+  ],
+  cuisine: [
+    "american restaurants",
+    "southern restaurants",
+    "soul food restaurants",
+    "bbq restaurants",
+    "steakhouses",
+    "burger restaurants",
+    "seafood restaurants",
+    "italian restaurants",
+    "french restaurants",
+    "spanish restaurants",
+    "greek restaurants",
+    "mediterranean restaurants",
+    "chinese restaurants",
+    "japanese restaurants",
+    "sushi restaurants",
+    "ramen restaurants",
+    "thai restaurants",
+    "korean restaurants",
+    "vietnamese restaurants",
+    "asian fusion restaurants",
+    "mexican restaurants",
+    "latin restaurants",
+    "peruvian restaurants",
+    "dominican restaurants",
+    "puerto rican restaurants",
+    "caribbean restaurants",
+    "jamaican restaurants",
+    "african restaurants",
+    "ethiopian restaurants",
+    "nigerian restaurants",
+    "middle eastern restaurants",
+    "halal restaurants",
+  ],
+  casual: [
+    "vegan restaurants",
+    "vegetarian restaurants",
+    "healthy restaurants",
+    "gluten free restaurants",
+    "instagrammable restaurants",
+    "trendy restaurants",
+    "hidden gem restaurants",
+    "unique restaurants",
+    "themed restaurants",
+    "dinner restaurants",
+    "fun restaurants",
+  ],
   activity: [],
   fun: [],
   culture: [],
@@ -507,11 +635,65 @@ const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
 };
 
 const activityCategoryBatches: Record<ImportBatch, string[]> = {
-  activity: ["things to do", "date night activities", "romantic things to do", "birthday activities", "birthday date ideas", "fun activities", "couples activities", "double date ideas"],
-  fun: ["bowling", "arcades", "karaoke", "escape rooms", "mini golf", "miniature golf", "golf", "indoor golf", "driving range", "axe throwing", "paintball", "paint and sip"],
-  nightlife: ["comedy clubs", "comedy club", "stand up comedy", "stand up comedy clubs", "comedy shows", "comedy night", "nightclubs", "night clubs", "dance clubs", "hookah lounges", "cigar lounges", "lounges", "rooftop bars", "cocktail lounges", "live music", "jazz clubs"],
-  culture: ["museums", "art galleries", "theaters", "movie theaters", "live shows", "comedy clubs", "stand up comedy", "comedy shows"],
-  outdoor: ["parks", "waterfront spots", "scenic spots", "gardens", "outdoor activities"],
+  activity: [
+    "things to do",
+    "date night activities",
+    "romantic things to do",
+    "birthday activities",
+    "birthday date ideas",
+    "fun activities",
+    "couples activities",
+    "double date ideas",
+  ],
+  fun: [
+    "bowling",
+    "arcades",
+    "karaoke",
+    "escape rooms",
+    "mini golf",
+    "miniature golf",
+    "golf",
+    "indoor golf",
+    "driving range",
+    "axe throwing",
+    "paintball",
+    "paint and sip",
+  ],
+  nightlife: [
+    "comedy clubs",
+    "comedy club",
+    "stand up comedy",
+    "stand up comedy clubs",
+    "comedy shows",
+    "comedy night",
+    "nightclubs",
+    "night clubs",
+    "dance clubs",
+    "hookah lounges",
+    "cigar lounges",
+    "lounges",
+    "rooftop bars",
+    "cocktail lounges",
+    "live music",
+    "jazz clubs",
+  ],
+  culture: [
+    "museums",
+    "art galleries",
+    "theaters",
+    "movie theaters",
+    "live shows",
+    "comedy clubs",
+    "stand up comedy",
+    "comedy shows",
+  ],
+  outdoor: [
+    "parks",
+    "waterfront spots",
+    "scenic spots",
+    "gardens",
+    "outdoor activities",
+  ],
   core: [],
   date: [],
   birthday: [],
@@ -645,7 +827,14 @@ async function runImport({
 
       for (const place of places) {
         if (imported >= limit) break;
-        if (!place.place_id || seenPlaceIds.has(place.place_id)) continue;
+
+        if (
+          !place.place_id ||
+          seenPlaceIds.has(place.place_id) ||
+          !isHighQuality(place)
+        ) {
+          continue;
+        }
 
         seenPlaceIds.add(place.place_id);
 
@@ -674,7 +863,14 @@ async function runImport({
 
       for (const place of places) {
         if (imported >= limit) break;
-        if (!place.place_id || seenPlaceIds.has(place.place_id)) continue;
+
+        if (
+          !place.place_id ||
+          seenPlaceIds.has(place.place_id) ||
+          !isHighQuality(place)
+        ) {
+          continue;
+        }
 
         seenPlaceIds.add(place.place_id);
 
@@ -730,7 +926,9 @@ export async function GET(request: NextRequest) {
     const mode: ImportMode = lat && lng ? "nearby" : "text";
 
     const areaParams = params.getAll("area");
-    const areas = areaParams.length ? areaParams : parseAreas(params.get("areas"));
+    const areas = areaParams.length
+      ? areaParams
+      : parseAreas(params.get("areas"));
 
     const queryParams = params.getAll("query");
 

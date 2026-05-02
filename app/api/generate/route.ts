@@ -13,23 +13,88 @@ const OFF_TOPIC_REPLY =
   "I can only help with RoseOut outing plans, restaurants, activities, nightlife, brunch, and date ideas.";
 
 const FOOD_KEYWORDS = [
-  "food", "eat", "restaurant", "restaurants", "breakfast", "brunch", "lunch", "dinner",
-  "birthday dinner", "birthday brunch", "birthday restaurant",
-  "steak", "steakhouse", "pizza", "burger", "seafood", "sushi", "ramen",
-  "pasta", "italian", "mexican", "chinese", "thai", "indian",
-  "mediterranean", "greek", "spanish", "bbq", "barbecue", "caribbean",
-  "jamaican", "soul food", "african", "wine", "cocktail", "cocktails",
-  "drinks", "bar", "rooftop", "lounge", "dessert", "coffee", "cafe",
-  "hookah", "shisha", "cigar",
+  "food",
+  "eat",
+  "restaurant",
+  "restaurants",
+  "breakfast",
+  "brunch",
+  "lunch",
+  "dinner",
+  "birthday dinner",
+  "birthday brunch",
+  "birthday restaurant",
+  "steak",
+  "steakhouse",
+  "pizza",
+  "burger",
+  "seafood",
+  "sushi",
+  "ramen",
+  "pasta",
+  "italian",
+  "mexican",
+  "chinese",
+  "thai",
+  "indian",
+  "mediterranean",
+  "greek",
+  "spanish",
+  "bbq",
+  "barbecue",
+  "caribbean",
+  "jamaican",
+  "soul food",
+  "african",
+  "wine",
+  "cocktail",
+  "cocktails",
+  "drinks",
+  "bar",
+  "rooftop",
+  "lounge",
+  "dessert",
+  "coffee",
+  "cafe",
+  "hookah",
+  "shisha",
+  "cigar",
 ];
 
 const ACTIVITY_KEYWORDS = [
-  "activity", "activities", "date ideas", "birthday activities",
-  "bowling", "arcade", "museum", "karaoke", "escape", "escape room",
-  "mini golf", "miniature golf", "minigolf", "golf", "topgolf",
-  "driving range", "axe", "axe throwing", "paintball", "paint and sip",
-  "comedy", "movie", "movies", "spa", "games", "game night", "pool",
-  "billiards", "jazz", "live music", "nightclub", "night club", "dance club",
+  "activity",
+  "activities",
+  "date ideas",
+  "birthday activities",
+  "bowling",
+  "arcade",
+  "museum",
+  "karaoke",
+  "escape",
+  "escape room",
+  "mini golf",
+  "miniature golf",
+  "minigolf",
+  "golf",
+  "topgolf",
+  "driving range",
+  "axe",
+  "axe throwing",
+  "paintball",
+  "paint and sip",
+  "comedy",
+  "movie",
+  "movies",
+  "spa",
+  "games",
+  "game night",
+  "pool",
+  "billiards",
+  "jazz",
+  "live music",
+  "nightclub",
+  "night club",
+  "dance club",
 ];
 
 const TAG_KEYWORDS: Record<string, string[]> = {
@@ -79,7 +144,7 @@ const ACTIVITY_INTENTS: Record<string, string[]> = {
   axe_throwing: ["axe throwing", "axe"],
   paintball: ["paintball"],
   paint_and_sip: ["paint and sip"],
-  comedy: ["comedy"],
+  comedy: ["comedy", "stand up"],
   movie: ["movie", "movies", "cinema", "theater"],
   nightclub: ["nightclub", "night club", "dance club"],
   hookah: ["hookah", "shisha", "hookah lounge", "hookah restaurant"],
@@ -95,38 +160,34 @@ const PRIORITY_WEIGHTS = {
   foodExact: 320,
   activityExact: 320,
   tagExact: 140,
-  vibeExact: 90,
+  vibeExact: 120,
   keyword: 18,
   phrase: 40,
   mismatchPenalty: -70,
-  partialPenalty: -25,
   birthday: 170,
   rooftop: 160,
   nightlife: 150,
+  budget: 130,
+  distance: 140,
 };
 
 function normalizeQuery(input: string) {
   return input
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, " ")
+    .replace(/[^\w\s$.-]/g, " ")
     .replace(/\s+/g, " ");
 }
 
 function toArray(value: any): string[] {
   if (!value) return [];
-
-  if (Array.isArray(value)) {
-    return value.map(String).filter(Boolean);
-  }
-
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (typeof value === "string") {
     return value
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
   }
-
   return [];
 }
 
@@ -165,7 +226,6 @@ function itemText(item: any) {
 
 function normalizeLocation(item: any) {
   const name = item.name || item.restaurant_name || item.activity_name || "";
-
   const type =
     item.location_type ||
     (item.activity_name || item.activity_type ? "activity" : "restaurant");
@@ -202,6 +262,10 @@ function isRoseOutRelated(input: string) {
     "places",
     "near",
     "nearby",
+    "budget",
+    "cheap",
+    "affordable",
+    "expensive",
     "nyc",
     "new york",
     "queens",
@@ -209,6 +273,9 @@ function isRoseOutRelated(input: string) {
     "manhattan",
     "bronx",
     "staten island",
+    "nassau",
+    "suffolk",
+    "long island",
   ];
 
   return allowedWords.some((word) => text.includes(word));
@@ -254,7 +321,6 @@ function itemHasTag(item: any, tag: string) {
   if (directTags.includes(tag)) return true;
 
   const keywords = TAG_KEYWORDS[tag] || [tag.replace(/_/g, " ")];
-
   return keywords.some((keyword) => searchable.includes(keyword));
 }
 
@@ -295,13 +361,145 @@ function matchesActivityIntent(item: any, activityIntent: string) {
   if (activityIntent === "cigar") return isCigarPlace(item);
 
   const searchable = itemText(item);
-
   const keywords =
     ACTIVITY_INTENTS[activityIntent] || [activityIntent.replace(/_/g, " ")];
 
   if (itemHasTag(item, activityIntent)) return true;
-
   return keywords.some((keyword) => searchable.includes(keyword));
+}
+
+function detectBudget(input: string) {
+  const text = normalizeQuery(input);
+  const dollarMatch = text.match(/\$?\b(\d{2,4})\b/);
+  const amount = dollarMatch ? Number(dollarMatch[1]) : null;
+
+  if (
+    text.includes("cheap") ||
+    text.includes("affordable") ||
+    text.includes("budget") ||
+    text.includes("low cost") ||
+    text.includes("inexpensive")
+  ) {
+    return { level: "low", maxAmount: amount || 60 };
+  }
+
+  if (
+    text.includes("moderate") ||
+    text.includes("not too expensive") ||
+    text.includes("mid range") ||
+    text.includes("mid-range")
+  ) {
+    return { level: "medium", maxAmount: amount || 120 };
+  }
+
+  if (
+    text.includes("luxury") ||
+    text.includes("expensive") ||
+    text.includes("upscale") ||
+    text.includes("fine dining") ||
+    text.includes("high end") ||
+    text.includes("high-end")
+  ) {
+    return { level: "high", maxAmount: amount || null };
+  }
+
+  if (amount) {
+    if (amount <= 60) return { level: "low", maxAmount: amount };
+    if (amount <= 150) return { level: "medium", maxAmount: amount };
+    return { level: "high", maxAmount: amount };
+  }
+
+  return { level: null, maxAmount: null };
+}
+
+function priceLevel(item: any) {
+  const price = String(item.price_range || item.price || "").toLowerCase();
+
+  if (price.includes("$$$$") || price.includes("expensive") || price.includes("luxury")) {
+    return "high";
+  }
+
+  if (price.includes("$$$") || price.includes("moderate")) {
+    return "medium";
+  }
+
+  if (price.includes("$") || price.includes("cheap") || price.includes("affordable")) {
+    return "low";
+  }
+
+  return null;
+}
+
+function budgetBoost(item: any, budget: ReturnType<typeof detectBudget>) {
+  if (!budget.level) return 0;
+
+  const level = priceLevel(item);
+  const searchable = itemText(item);
+
+  if (!level) {
+    if (budget.level === "low" && searchable.includes("affordable")) return 70;
+    if (budget.level === "high" && (searchable.includes("upscale") || searchable.includes("luxury"))) return 90;
+    return 0;
+  }
+
+  if (budget.level === level) return PRIORITY_WEIGHTS.budget;
+
+  if (budget.level === "low" && level === "high") return -120;
+  if (budget.level === "medium" && level === "high") return -50;
+  if (budget.level === "high" && level === "low") return -25;
+
+  return 0;
+}
+
+function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const r = 3958.8;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+
+  return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function distanceBoost(item: any, userLat?: number, userLng?: number, maxMiles?: number | null) {
+  if (!userLat || !userLng || !item.latitude || !item.longitude) return 0;
+
+  const miles = haversineMiles(
+    Number(userLat),
+    Number(userLng),
+    Number(item.latitude),
+    Number(item.longitude)
+  );
+
+  item.distance_miles = Number(miles.toFixed(1));
+
+  if (maxMiles && miles > maxMiles) return -200;
+
+  if (miles <= 2) return PRIORITY_WEIGHTS.distance;
+  if (miles <= 5) return 100;
+  if (miles <= 10) return 55;
+  if (miles <= 20) return 15;
+
+  return -40;
+}
+
+function detectDistance(input: string) {
+  const text = normalizeQuery(input);
+  const match = text.match(/(\d{1,2})\s*(mile|miles|mi)/);
+
+  if (match) return Number(match[1]);
+
+  if (text.includes("near me") || text.includes("nearby") || text.includes("close by")) {
+    return 10;
+  }
+
+  return null;
 }
 
 function keywordBoost(item: any, input: string) {
@@ -355,56 +553,35 @@ function weightedActivityBoost(item: any, activityIntents: string[]) {
 }
 
 function weightedTagBoost(item: any, requestedTags: string[]) {
-  return requestedTags.reduce((total, tag) => {
-    return total + (itemHasTag(item, tag) ? PRIORITY_WEIGHTS.tagExact : 0);
-  }, 0);
+  return requestedTags.reduce(
+    (total, tag) => total + (itemHasTag(item, tag) ? PRIORITY_WEIGHTS.tagExact : 0),
+    0
+  );
 }
 
 function weightedVibeBoost(item: any, vibes: string[]) {
-  return vibes.reduce((total, vibe) => {
-    return total + (itemHasTag(item, vibe) ? PRIORITY_WEIGHTS.vibeExact : 0);
-  }, 0);
+  return vibes.reduce(
+    (total, vibe) => total + (itemHasTag(item, vibe) ? PRIORITY_WEIGHTS.vibeExact : 0),
+    0
+  );
 }
 
-function hardFoodPriorityBoost(
-  item: any,
-  wantsFoodMap: Record<string, boolean>
-) {
+function popularityBoost(item: any) {
+  const rating = Number(item.rating || 0);
+  const reviews = Number(item.review_count || 0);
+
   let score = 0;
 
-  Object.entries(wantsFoodMap).forEach(([key, isWanted]) => {
-    if (!isWanted) return;
+  score += rating * 25;
+  score += Math.log10(reviews + 1) * 60;
 
-    const foodKey = key.replace("wants_", "");
-
-    score += matchesFoodIntent(item, foodKey)
-      ? PRIORITY_WEIGHTS.foodExact
-      : PRIORITY_WEIGHTS.mismatchPenalty;
-  });
+  if (rating >= 4.5 && reviews >= 200) score += 120;
+  if (rating >= 4.2 && reviews >= 100) score += 60;
 
   return score;
 }
 
-function hardActivityPriorityBoost(
-  item: any,
-  wantsActivityMap: Record<string, boolean>
-) {
-  let score = 0;
-
-  Object.entries(wantsActivityMap).forEach(([key, isWanted]) => {
-    if (!isWanted) return;
-
-    const activityKey = key.replace("wants_", "");
-
-    score += matchesActivityIntent(item, activityKey)
-      ? PRIORITY_WEIGHTS.activityExact
-      : PRIORITY_WEIGHTS.mismatchPenalty;
-  });
-
-  return score;
-}
-
-function detectIntent(input: string) {
+function detectIntent(input: string, body: any = {}) {
   const text = normalizeQuery(input);
 
   const requestedTags = detectFromMap(input, TAG_KEYWORDS);
@@ -412,10 +589,7 @@ function detectIntent(input: string) {
   const activityIntents = detectFromMap(input, ACTIVITY_INTENTS);
 
   const wantsFoodMap = buildWantsMap(Object.keys(FOOD_INTENTS), foodIntents);
-  const wantsActivityMap = buildWantsMap(
-    Object.keys(ACTIVITY_INTENTS),
-    activityIntents
-  );
+  const wantsActivityMap = buildWantsMap(Object.keys(ACTIVITY_INTENTS), activityIntents);
 
   const wantsFood =
     FOOD_KEYWORDS.some((word) => text.includes(word)) || foodIntents.length > 0;
@@ -424,13 +598,13 @@ function detectIntent(input: string) {
     ACTIVITY_KEYWORDS.some((word) => text.includes(word)) ||
     activityIntents.length > 0;
 
-  const allFoodOrActivityOptions = [
+  const allOptions = [
     ...Object.values(FOOD_INTENTS).flat(),
     ...Object.values(ACTIVITY_INTENTS).flat(),
     ...Object.values(TAG_KEYWORDS).flat(),
   ];
 
-  const mentionsAnyRoseOutOption = allFoodOrActivityOptions.some((option) =>
+  const mentionsAnyRoseOutOption = allOptions.some((option) =>
     text.includes(option)
   );
 
@@ -455,25 +629,22 @@ function detectIntent(input: string) {
   const wantsRestaurant =
     wantsFood || wantsFullOuting || (!wantsFood && !wantsActivity);
 
-  const specificActivities = activityIntents.map((intentName) => {
-    if (intentName === "escape_room") return "escape";
-    if (intentName === "axe_throwing") return "axe";
-    if (intentName === "paint_and_sip") return "paint and sip";
-    if (intentName === "mini_golf") return "mini golf";
-    return intentName;
-  });
-
-  const vibes = requestedTags.filter((tag) =>
-    [
-      "romantic",
-      "fun",
-      "luxury",
-      "chill",
-      "nightlife",
-      "scenic",
-      "birthday",
-    ].includes(tag)
+  const vibes = Array.from(
+    new Set([
+      ...requestedTags.filter((tag) =>
+        ["romantic", "fun", "luxury", "chill", "nightlife", "scenic", "birthday"].includes(tag)
+      ),
+      ...(text.includes("romantic") ? ["romantic"] : []),
+      ...(text.includes("fun") ? ["fun"] : []),
+      ...(text.includes("luxury") || text.includes("upscale") ? ["luxury"] : []),
+      ...(text.includes("chill") ? ["chill"] : []),
+    ])
   );
+
+  const budget = detectBudget(input);
+  const maxMiles = body.maxMiles || body.max_miles || detectDistance(input);
+  const userLat = body.lat || body.latitude || null;
+  const userLng = body.lng || body.longitude || null;
 
   const multiIntentMode =
     wantsFullOuting ||
@@ -486,112 +657,48 @@ function detectIntent(input: string) {
     wantsActivity,
     wantsFullOuting,
     wantsRestaurant,
-
     requestedTags,
     foodIntents,
     activityIntents,
     wantsFoodMap,
     wantsActivityMap,
+    wantsBudget: Boolean(budget.level),
+    budget,
+    userLat,
+    userLng,
+    maxMiles,
+    vibes,
+    multiIntentMode,
 
-    wantsSteak: foodIntents.includes("steak"),
-    wantsSeafood: foodIntents.includes("seafood"),
-    wantsItalian: foodIntents.includes("italian"),
-    wantsMexican: foodIntents.includes("mexican"),
-    wantsAsian: foodIntents.includes("asian"),
-    wantsCaribbean: foodIntents.includes("caribbean"),
-    wantsSoulFood: foodIntents.includes("soul_food"),
-    wantsAfrican: foodIntents.includes("african"),
-    wantsMediterranean: foodIntents.includes("mediterranean"),
-    wantsBrunch: foodIntents.includes("brunch"),
-    wantsBreakfast: foodIntents.includes("breakfast"),
-    wantsCafe: foodIntents.includes("cafe"),
-    wantsDessert: foodIntents.includes("dessert"),
-    wantsDrinks: foodIntents.includes("drinks"),
-    wantsBurger: foodIntents.includes("burger"),
-    wantsPizza: foodIntents.includes("pizza"),
-
-    wantsBowling: activityIntents.includes("bowling"),
-    wantsArcade: activityIntents.includes("arcade"),
-    wantsMuseum: activityIntents.includes("museum"),
-    wantsKaraoke: activityIntents.includes("karaoke"),
-    wantsEscapeRoom: activityIntents.includes("escape_room"),
-    wantsMiniGolf: activityIntents.includes("mini_golf"),
-    wantsGolf: activityIntents.includes("golf"),
-    wantsAxeThrowing: activityIntents.includes("axe_throwing"),
-    wantsPaintball: activityIntents.includes("paintball"),
-    wantsPaintAndSip: activityIntents.includes("paint_and_sip"),
-    wantsComedy: activityIntents.includes("comedy"),
-    wantsMovie: activityIntents.includes("movie"),
-    wantsNightclub: activityIntents.includes("nightclub"),
-    wantsLiveMusic: activityIntents.includes("live_music"),
-    wantsSpa: activityIntents.includes("spa"),
-    wantsPool: activityIntents.includes("pool"),
-
+    wantsBirthday: text.includes("birthday"),
+    wantsBirthdayDinner: text.includes("birthday dinner"),
+    wantsBirthdayBrunch: text.includes("birthday brunch"),
+    wantsRooftop:
+      foodIntents.includes("rooftop") ||
+      activityIntents.includes("rooftop") ||
+      requestedTags.includes("rooftop"),
     wantsHookah:
       foodIntents.includes("hookah") || activityIntents.includes("hookah"),
     wantsCigar:
       foodIntents.includes("cigar") || activityIntents.includes("cigar"),
     wantsLounge:
       foodIntents.includes("lounge") || activityIntents.includes("lounge"),
-    wantsRooftop:
-      foodIntents.includes("rooftop") ||
-      activityIntents.includes("rooftop") ||
-      requestedTags.includes("rooftop"),
-
-    wantsBirthday: text.includes("birthday"),
-    wantsBirthdayDinner: text.includes("birthday dinner"),
-    wantsBirthdayBrunch: text.includes("birthday brunch"),
-
-    specificActivities,
-    vibes,
-    multiIntentMode,
+    wantsNightclub: activityIntents.includes("nightclub"),
   };
 }
 
-function matchesSpecificActivity(item: any, specificActivity: string) {
-  if (specificActivity === "bowling") return matchesActivityIntent(item, "bowling");
-  if (specificActivity === "arcade") return matchesActivityIntent(item, "arcade");
-  if (specificActivity === "museum") return matchesActivityIntent(item, "museum");
-  if (specificActivity === "karaoke") return matchesActivityIntent(item, "karaoke");
-  if (specificActivity === "escape") return matchesActivityIntent(item, "escape_room");
-  if (specificActivity === "mini golf") return matchesActivityIntent(item, "mini_golf");
-  if (specificActivity === "golf") {
-    return (
-      matchesActivityIntent(item, "golf") ||
-      matchesActivityIntent(item, "mini_golf")
-    );
-  }
-  if (specificActivity === "axe") return matchesActivityIntent(item, "axe_throwing");
-  if (specificActivity === "paintball") return matchesActivityIntent(item, "paintball");
-  if (specificActivity === "comedy") return matchesActivityIntent(item, "comedy");
-  if (specificActivity === "movie") return matchesActivityIntent(item, "movie");
-  if (specificActivity === "paint and sip") {
-    return matchesActivityIntent(item, "paint_and_sip");
-  }
-  if (specificActivity === "nightclub") {
-    return matchesActivityIntent(item, "nightclub");
-  }
-
-  return itemText(item).includes(specificActivity);
-}
-
-function scoreRestaurant(
-  item: any,
-  input: string,
-  intent: ReturnType<typeof detectIntent>
-) {
-  const searchable = itemText(item);
-
+function scoreRestaurant(item: any, input: string, intent: ReturnType<typeof detectIntent>) {
   let score = 0;
 
   score += keywordBoost(item, input);
   score += weightedVibeBoost(item, intent.vibes);
   score += weightedTagBoost(item, intent.requestedTags);
   score += weightedFoodBoost(item, intent.foodIntents);
-  score += hardFoodPriorityBoost(item, intent.wantsFoodMap);
+  score += budgetBoost(item, intent.budget);
+  score += distanceBoost(item, intent.userLat, intent.userLng, intent.maxMiles);
+  score += popularityBoost(item);
 
   if (intent.wantsBirthdayDinner) score += PRIORITY_WEIGHTS.birthday;
-
   if (intent.wantsBirthdayBrunch && matchesFoodIntent(item, "brunch")) {
     score += PRIORITY_WEIGHTS.birthday;
   }
@@ -601,34 +708,16 @@ function scoreRestaurant(
   }
 
   if (intent.wantsHookah) {
-    if (isHookahPlace(item)) {
-      score += PRIORITY_WEIGHTS.nightlife + PRIORITY_WEIGHTS.foodExact;
-    } else {
-      score += PRIORITY_WEIGHTS.mismatchPenalty;
-    }
+    score += isHookahPlace(item)
+      ? PRIORITY_WEIGHTS.nightlife + PRIORITY_WEIGHTS.foodExact
+      : PRIORITY_WEIGHTS.mismatchPenalty;
   }
 
   if (intent.wantsCigar) {
-    if (isCigarPlace(item)) {
-      score += PRIORITY_WEIGHTS.nightlife + PRIORITY_WEIGHTS.foodExact;
-    } else {
-      score += PRIORITY_WEIGHTS.mismatchPenalty;
-    }
+    score += isCigarPlace(item)
+      ? PRIORITY_WEIGHTS.nightlife + PRIORITY_WEIGHTS.foodExact
+      : PRIORITY_WEIGHTS.mismatchPenalty;
   }
-
-  if (intent.wantsLounge && matchesFoodIntent(item, "lounge")) {
-    score += PRIORITY_WEIGHTS.nightlife;
-  }
-
-  if (intent.wantsDrinks && matchesFoodIntent(item, "drinks")) {
-    score += PRIORITY_WEIGHTS.nightlife;
-  }
-
-  FOOD_KEYWORDS.forEach((keyword) => {
-    if (intent.text.includes(keyword) && searchable.includes(keyword)) {
-      score += 20;
-    }
-  });
 
   score += clampScore(item.roseout_score || 0) * 0.25;
   score += clampScore(item.quality_score || 0) * 0.15;
@@ -638,35 +727,22 @@ function scoreRestaurant(
   return clampScore(score);
 }
 
-function scoreActivity(
-  item: any,
-  input: string,
-  intent: ReturnType<typeof detectIntent>
-) {
+function scoreActivity(item: any, input: string, intent: ReturnType<typeof detectIntent>) {
   let score = 0;
 
   score += keywordBoost(item, input);
   score += weightedVibeBoost(item, intent.vibes);
   score += weightedTagBoost(item, intent.requestedTags);
   score += weightedActivityBoost(item, intent.activityIntents);
-  score += hardActivityPriorityBoost(item, intent.wantsActivityMap);
-
-  if (intent.specificActivities.length > 0) {
-    const exactMatch = intent.specificActivities.some((activity) =>
-      matchesSpecificActivity(item, activity)
-    );
-
-    score += exactMatch
-      ? PRIORITY_WEIGHTS.activityExact
-      : PRIORITY_WEIGHTS.mismatchPenalty;
-  }
+  score += budgetBoost(item, intent.budget);
+  score += distanceBoost(item, intent.userLat, intent.userLng, intent.maxMiles);
+  score += popularityBoost(item);
 
   if (intent.wantsBirthday) {
     if (
       itemHasTag(item, "birthday") ||
       itemHasTag(item, "fun") ||
       itemHasTag(item, "nightlife") ||
-      itemHasTag(item, "rooftop") ||
       matchesActivityIntent(item, "nightclub") ||
       matchesActivityIntent(item, "comedy") ||
       matchesActivityIntent(item, "karaoke")
@@ -680,23 +756,15 @@ function scoreActivity(
   }
 
   if (intent.wantsHookah) {
-    if (isHookahPlace(item)) {
-      score += PRIORITY_WEIGHTS.nightlife + PRIORITY_WEIGHTS.activityExact;
-    } else {
-      score += PRIORITY_WEIGHTS.mismatchPenalty;
-    }
+    score += isHookahPlace(item)
+      ? PRIORITY_WEIGHTS.nightlife + PRIORITY_WEIGHTS.activityExact
+      : PRIORITY_WEIGHTS.mismatchPenalty;
   }
 
   if (intent.wantsCigar) {
-    if (isCigarPlace(item)) {
-      score += PRIORITY_WEIGHTS.nightlife + PRIORITY_WEIGHTS.activityExact;
-    } else {
-      score += PRIORITY_WEIGHTS.mismatchPenalty;
-    }
-  }
-
-  if (intent.wantsLounge && matchesActivityIntent(item, "lounge")) {
-    score += PRIORITY_WEIGHTS.nightlife;
+    score += isCigarPlace(item)
+      ? PRIORITY_WEIGHTS.nightlife + PRIORITY_WEIGHTS.activityExact
+      : PRIORITY_WEIGHTS.mismatchPenalty;
   }
 
   if (intent.wantsNightclub && matchesActivityIntent(item, "nightclub")) {
@@ -711,10 +779,7 @@ function scoreActivity(
   return clampScore(score);
 }
 
-function filterRestaurantsByFoodIntent(
-  restaurants: any[],
-  intent: ReturnType<typeof detectIntent>
-) {
+function filterRestaurantsByFoodIntent(restaurants: any[], intent: ReturnType<typeof detectIntent>) {
   if (intent.foodIntents.length === 0) return restaurants;
 
   const exactMatches = restaurants.filter((restaurant: any) =>
@@ -730,10 +795,7 @@ function filterRestaurantsByFoodIntent(
   return partialMatches.length > 0 ? partialMatches : restaurants;
 }
 
-function filterActivitiesByActivityIntent(
-  activities: any[],
-  intent: ReturnType<typeof detectIntent>
-) {
+function filterActivitiesByActivityIntent(activities: any[], intent: ReturnType<typeof detectIntent>) {
   if (intent.activityIntents.length === 0) return activities;
 
   const exactMatches = activities.filter((activity: any) =>
@@ -753,10 +815,37 @@ function filterActivitiesByActivityIntent(
   return partialMatches.length > 0 ? partialMatches : activities;
 }
 
+function balanceResults(restaurants: any[], activities: any[], intent: ReturnType<typeof detectIntent>) {
+  if (intent.multiIntentMode) {
+    return {
+      restaurants: restaurants.slice(0, 2),
+      activities: activities.slice(0, 2),
+    };
+  }
+
+  if (intent.wantsRestaurant && !intent.wantsActivity) {
+    return {
+      restaurants: restaurants.slice(0, 5),
+      activities: [],
+    };
+  }
+
+  if (intent.wantsActivity && !intent.wantsRestaurant) {
+    return {
+      restaurants: [],
+      activities: activities.slice(0, 5),
+    };
+  }
+
+  return {
+    restaurants: restaurants.slice(0, 3),
+    activities: activities.slice(0, 2),
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-
     const messages = body.messages || [];
     const input = body.input || messages[messages.length - 1]?.content || "";
 
@@ -771,9 +860,6 @@ export async function POST(req: Request) {
           requestedTags: [],
           foodIntents: [],
           activityIntents: [],
-          wantsFoodMap: {},
-          wantsActivityMap: {},
-          specificActivities: [],
           vibes: [],
           multiIntentMode: false,
         },
@@ -782,10 +868,9 @@ export async function POST(req: Request) {
       });
     }
 
-    const intent = detectIntent(input);
-
+    const intent = detectIntent(input, body);
     const cacheKey = normalizeQuery(
-      `unified-locations-weighted-hookah-feature-v1-${input}`
+      `roseout-budget-distance-vibe-balance-v1-${input}-${intent.userLat || ""}-${intent.userLng || ""}-${intent.maxMiles || ""}`
     );
 
     const { data: cached } = await supabase
@@ -814,12 +899,10 @@ export async function POST(req: Request) {
 
     const usableLocations = locations.filter((item: any) => {
       const status = String(item.status || "approved").toLowerCase();
-
       return status === "approved" || status === "active" || status === "";
     });
 
-    const sourceLocations =
-      usableLocations.length > 0 ? usableLocations : locations;
+    const sourceLocations = usableLocations.length > 0 ? usableLocations : locations;
 
     let restaurants = sourceLocations.filter((item: any) => {
       const type = String(item.location_type || "").toLowerCase();
@@ -859,17 +942,10 @@ export async function POST(req: Request) {
       }))
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
-    const restaurantLimit = intent.multiIntentMode ? 3 : 5;
-    const activityLimit = intent.multiIntentMode ? 3 : 5;
+    const balanced = balanceResults(rankedRestaurants, rankedActivities, intent);
 
-    const topRestaurants = intent.wantsRestaurant
-      ? rankedRestaurants.slice(0, restaurantLimit)
-      : [];
-
-    const topActivities =
-      intent.wantsActivity || intent.wantsFullOuting
-        ? rankedActivities.slice(0, activityLimit)
-        : [];
+    const topRestaurants = balanced.restaurants;
+    const topActivities = balanced.activities;
 
     const slimRestaurants = topRestaurants.map((r: any) => ({
       name: r.restaurant_name || r.name,
@@ -877,6 +953,9 @@ export async function POST(req: Request) {
       cuisine: r.cuisine || r.cuisine_type,
       score: clampScore(r.roseout_score),
       tag: r.primary_tag,
+      rating: r.rating,
+      review_count: r.review_count,
+      distance_miles: r.distance_miles || null,
       review_keywords: toArray(r.review_keywords).slice(0, 5),
     }));
 
@@ -886,6 +965,9 @@ export async function POST(req: Request) {
       type: a.activity_type,
       score: clampScore(a.roseout_score),
       tag: a.primary_tag,
+      rating: a.rating,
+      review_count: a.review_count,
+      distance_miles: a.distance_miles || null,
       review_keywords: toArray(a.review_keywords).slice(0, 5),
     }));
 
@@ -911,10 +993,10 @@ ${JSON.stringify({
   multiIntentMode: intent.multiIntentMode,
   foodIntents: intent.foodIntents,
   activityIntents: intent.activityIntents,
-  wantsFoodMap: intent.wantsFoodMap,
-  wantsActivityMap: intent.wantsActivityMap,
   requestedTags: intent.requestedTags,
   vibes: intent.vibes,
+  budget: intent.budget,
+  maxMiles: intent.maxMiles,
 })}
 
 Restaurants:
@@ -924,19 +1006,17 @@ Activities:
 ${JSON.stringify(slimActivities)}
 
 STRICT RULES:
-- Only answer RoseOut-related outing, date, restaurant, activity, nightlife, brunch, birthday, or location-planning requests.
+- Only answer RoseOut-related outing, date, restaurant, activity, nightlife, brunch, birthday, budget, distance, or location-planning requests.
 - If the user asks anything outside RoseOut, respond exactly: "${OFF_TOPIC_REPLY}"
 - Keep the answer short and direct.
 - Use ONLY the listed restaurants and activities.
 - Never say “I don’t have any.”
 - Never ask the user to provide a list.
 - Never say “let me know.”
-- Treat wantsFoodMap and wantsActivityMap as strict priority signals.
-- Hookah can be a restaurant feature OR standalone activity. Prioritize any listed place containing hookah/shisha.
-- Cigar can be a restaurant/lounge feature OR standalone activity. Prioritize any listed place containing cigar.
-- Match ALL detected food intents first when possible.
-- Match ALL detected activity intents first when possible.
-- If multiIntentMode is true, recommend a balanced combo: at least 1 matching restaurant and 1 matching activity when both lists are available.
+- Balance restaurant and activity perfectly when both are requested.
+- If budget is detected, recommend options that fit the budget first.
+- If distance is detected, prioritize closer options first.
+- Match the vibe, food intent, and activity intent together.
 - Do NOT suggest unrelated cuisines or unrelated activities.
 - Do NOT invent business details.
 - Do NOT add times unless asked.
@@ -961,10 +1041,9 @@ STRICT RULES:
         requestedTags: intent.requestedTags,
         foodIntents: intent.foodIntents,
         activityIntents: intent.activityIntents,
-        wantsFoodMap: intent.wantsFoodMap,
-        wantsActivityMap: intent.wantsActivityMap,
-        specificActivities: intent.specificActivities,
         vibes: intent.vibes,
+        budget: intent.budget,
+        maxMiles: intent.maxMiles,
         multiIntentMode: intent.multiIntentMode,
       },
       restaurants: topRestaurants.map((r: any) => ({
