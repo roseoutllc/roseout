@@ -7,20 +7,17 @@ import { createClient } from "@/lib/supabase-browser";
 import { clampScore } from "@/lib/clampScore";
 import ScoreBadge from "@/components/ScoreBadge";
 import { trackActivity } from "@/lib/trackActivity";
-import RoseOutHeader from "@/components/RoseOutHeader";
 import LocationReviewForm from "@/components/LocationReviewForm";
 
 function toArray(value: any): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value.map(String);
-
   if (typeof value === "string") {
     return value
       .split(",")
       .map((v) => v.trim())
       .filter(Boolean);
   }
-
   return [];
 }
 
@@ -37,6 +34,7 @@ export default function LocationDetailPage() {
   const [location, setLocation] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     async function loadLocation() {
@@ -70,6 +68,16 @@ export default function LocationDetailPage() {
     if (id) loadLocation();
   }, [id, supabase]);
 
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 220);
+    }
+
+    onScroll();
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   const isActivity =
     location?.location_type === "activity" ||
     type === "activities" ||
@@ -80,6 +88,10 @@ export default function LocationDetailPage() {
     location?.activity_name ||
     location?.name ||
     "RoseOut Location";
+
+  const category = isActivity
+    ? location?.activity_type || "Activity"
+    : location?.cuisine || "Restaurant";
 
   const score = clampScore(
     location?.review_score ??
@@ -170,7 +182,16 @@ export default function LocationDetailPage() {
   if (loading) {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 text-white">
-        <RoseOutHeader />
+        <DynamicHeader
+          scrolled={false}
+          name="Loading..."
+          category="RoseOut"
+          from={from}
+          onBack={() => router.push(from)}
+          reservationUrl=""
+          isActivity={false}
+        />
+
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.3),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(127,29,29,0.35),transparent_28%),#000]" />
 
         <div className="relative z-10 rounded-[2rem] border border-white/10 bg-white/5 px-8 py-6 text-center shadow-2xl backdrop-blur-xl">
@@ -188,7 +209,16 @@ export default function LocationDetailPage() {
   if (!location) {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 text-white">
-        <RoseOutHeader />
+        <DynamicHeader
+          scrolled
+          name="Location Not Found"
+          category="RoseOut"
+          from={from}
+          onBack={() => router.push(from)}
+          reservationUrl=""
+          isActivity={false}
+        />
+
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.3),transparent_32%),#000]" />
 
         <div className="relative z-10 max-w-md rounded-[2rem] border border-white/10 bg-white/5 p-7 text-center shadow-2xl backdrop-blur-xl">
@@ -214,336 +244,448 @@ export default function LocationDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <section className="relative min-h-screen overflow-hidden">
-        {location.image_url ? (
-          <Image
-            src={location.image_url}
-            alt={name}
-            fill
-            priority
-            className="object-cover opacity-45"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-black" />
-        )}
+    <>
+      <DynamicHeader
+        scrolled={scrolled}
+        name={name}
+        category={category}
+        from={from}
+        onBack={trackAndGoBack}
+        reservationUrl={reservationUrl}
+        isActivity={isActivity}
+      />
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(225,6,42,0.34),transparent_34%),radial-gradient(circle_at_78%_8%,rgba(127,29,29,0.4),transparent_28%)]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/35" />
+      <main className="min-h-screen bg-black text-white">
+        <section className="relative min-h-screen overflow-hidden">
+          {location.image_url ? (
+            <Image
+              src={location.image_url}
+              alt={name}
+              fill
+              priority
+              className="object-cover opacity-45"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-black" />
+          )}
 
-        <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 pb-10 pt-5 sm:px-8">
-          <div className="flex items-center justify-between gap-3">
-            <button
-              onClick={trackAndGoBack}
-              className="rounded-full border border-white/15 bg-black/55 px-4 py-2 text-sm font-bold text-white shadow-xl backdrop-blur-xl transition hover:bg-white hover:text-black"
-            >
-              ← Back
-            </button>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(225,6,42,0.34),transparent_34%),radial-gradient(circle_at_78%_8%,rgba(127,29,29,0.4),transparent_28%)]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/35" />
 
-            <span className="rounded-full border border-red-400/25 bg-red-950/40 px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-red-100 shadow-xl backdrop-blur-xl">
-              RoseOut Pick
-            </span>
-          </div>
+          <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 pb-10 pt-28 sm:px-8">
+            <div className="mt-auto grid items-end gap-8 pb-8 lg:grid-cols-[1fr_330px]">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
+                  RoseOut Location
+                </p>
 
-          <div className="mt-auto grid items-end gap-8 pb-8 lg:grid-cols-[1fr_330px]">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
-                RoseOut Location
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-black">
-                  {isActivity
-                    ? location.activity_type || "Activity"
-                    : location.cuisine || "Restaurant"}
-                </span>
-
-                {location.price_range && (
-                  <span className="rounded-full border border-white/15 bg-black/55 px-4 py-2 text-xs font-black uppercase tracking-wide text-white backdrop-blur-xl">
-                    {location.price_range}
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-black">
+                    {category}
                   </span>
-                )}
 
-                <span className="rounded-full border border-white/15 bg-black/55 px-4 py-2 text-xs font-black uppercase tracking-wide text-white backdrop-blur-xl">
-                  🌸 {location.review_count || reviews.length || 0} Reviews
-                </span>
-              </div>
-
-              <h1 className="mt-5 max-w-5xl text-5xl font-black tracking-tight sm:text-6xl lg:text-8xl">
-                {name}
-              </h1>
-
-              {location.primary_tag && (
-                <p className="mt-5 text-xl font-black text-red-200">
-                  ✨ {location.primary_tag}
-                </p>
-              )}
-
-              {address && (
-                <p className="mt-5 max-w-3xl text-sm font-semibold leading-6 text-white/75">
-                  {address}
-                </p>
-              )}
-
-              <p className="mt-6 max-w-3xl text-base leading-8 text-white/75 md:text-lg">
-                {location.description ||
-                  "A curated RoseOut location selected for memorable outings, quality experiences, and strong match potential."}
-              </p>
-
-              {reviewKeywords.length > 0 && (
-                <div className="mt-6 flex flex-wrap gap-2">
-                  {reviewKeywords.slice(0, 6).map((keyword) => (
-                    <span
-                      key={keyword}
-                      className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100"
-                    >
-                      {keyword}
+                  {location.price_range && (
+                    <span className="rounded-full border border-white/15 bg-black/55 px-4 py-2 text-xs font-black uppercase tracking-wide text-white backdrop-blur-xl">
+                      {location.price_range}
                     </span>
-                  ))}
-                </div>
-              )}
+                  )}
 
-              <div className="mt-8 flex flex-wrap gap-3">
-                {reservationUrl && (
-                  <a
-                    href={reservationUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full bg-red-600 px-7 py-3 text-sm font-black text-white shadow-lg shadow-red-950/50 transition hover:bg-red-500"
-                  >
-                    {isActivity ? "Book Now" : "Reserve"}
-                  </a>
+                  <span className="rounded-full border border-white/15 bg-black/55 px-4 py-2 text-xs font-black uppercase tracking-wide text-white backdrop-blur-xl">
+                    🌸 {location.review_count || reviews.length || 0} Reviews
+                  </span>
+                </div>
+
+                <h1 className="mt-5 max-w-5xl text-5xl font-black tracking-tight sm:text-6xl lg:text-8xl">
+                  {name}
+                </h1>
+
+                {location.primary_tag && (
+                  <p className="mt-5 text-xl font-black text-red-200">
+                    ✨ {location.primary_tag}
+                  </p>
                 )}
 
-                {location.website && (
+                {address && (
+                  <p className="mt-5 max-w-3xl text-sm font-semibold leading-6 text-white/75">
+                    {address}
+                  </p>
+                )}
+
+                <p className="mt-6 max-w-3xl text-base leading-8 text-white/75 md:text-lg">
+                  {location.description ||
+                    "A curated RoseOut location selected for memorable outings, quality experiences, and strong match potential."}
+                </p>
+
+                {reviewKeywords.length > 0 && (
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    {reviewKeywords.slice(0, 6).map((keyword) => (
+                      <span
+                        key={keyword}
+                        className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-8 flex flex-wrap gap-3">
+                  {reservationUrl && (
+                    <a
+                      href={reservationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full bg-red-600 px-7 py-3 text-sm font-black text-white shadow-lg shadow-red-950/50 transition hover:bg-red-500"
+                    >
+                      {isActivity ? "Book Now" : "Reserve"}
+                    </a>
+                  )}
+
+                  {location.website && (
+                    <a
+                      href={location.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-white/20 bg-white/10 px-7 py-3 text-sm font-black text-white backdrop-blur-xl transition hover:bg-white hover:text-black"
+                    >
+                      Website
+                    </a>
+                  )}
+
                   <a
-                    href={location.website}
+                    href={mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-full border border-white/20 bg-white/10 px-7 py-3 text-sm font-black text-white backdrop-blur-xl transition hover:bg-white hover:text-black"
                   >
-                    Website
+                    Directions
                   </a>
-                )}
+                </div>
+              </div>
 
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-full border border-white/20 bg-white/10 px-7 py-3 text-sm font-black text-white backdrop-blur-xl transition hover:bg-white hover:text-black"
-                >
-                  Directions
-                </a>
+              <div className="rounded-[2rem] border border-white/15 bg-white/10 p-5 text-white shadow-2xl backdrop-blur-xl">
+                <ScoreBadge score={score} />
+
+                <p className="mt-4 text-sm leading-6 text-white/65">
+                  RoseOut uses location details, review words, vibe signals, and
+                  experience quality to improve recommendations.
+                </p>
+
+                {Number(location.review_score || 0) >= 85 && (
+                  <div className="mt-4 rounded-full bg-red-600 px-4 py-2 text-center text-xs font-black text-white shadow-lg shadow-red-950/40">
+                    🌹 Review Favorite
+                  </div>
+                )}
               </div>
             </div>
-
-            <div className="rounded-[2rem] border border-white/15 bg-white/10 p-5 text-white shadow-2xl backdrop-blur-xl">
-              <ScoreBadge score={score} />
-
-              <p className="mt-4 text-sm leading-6 text-white/65">
-                RoseOut uses location details, review words, vibe signals, and
-                experience quality to improve recommendations.
-              </p>
-
-              {Number(location.review_score || 0) >= 85 && (
-                <div className="mt-4 rounded-full bg-red-600 px-4 py-2 text-center text-xs font-black text-white shadow-lg shadow-red-950/40">
-                  🌹 Review Favorite
-                </div>
-              )}
-            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="relative overflow-hidden bg-black px-5 py-16">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(225,6,42,0.18),transparent_30%)]" />
+        <section className="relative overflow-hidden bg-black px-5 py-16">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(225,6,42,0.18),transparent_30%)]" />
 
-        <div className="relative mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1fr_380px]">
-          <div className="space-y-6">
-            <LuxuryCard
-              eyebrow="Why RoseOut Recommends It"
-              title="Built for better matches."
-            >
-              <p className="text-sm leading-7 text-white/60">
-                {location.description ||
-                  "This location includes signals that help RoseOut understand the vibe, atmosphere, and best use cases for customers searching in full sentences."}
-              </p>
-
-              {[...tags, ...reviewKeywords].length > 0 && (
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {[...new Set([...tags, ...reviewKeywords])].map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-white/60"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </LuxuryCard>
-
-            {bestFor.length > 0 && (
-              <DetailGrid title="Best For" items={bestFor} />
-            )}
-
-            {specialFeatures.length > 0 && (
-              <DetailGrid title="Special Features" items={specialFeatures} />
-            )}
-
-            {signatureItems.length > 0 && (
-              <DetailGrid title="Signature Picks" items={signatureItems} />
-            )}
-
-            <LuxuryCard eyebrow="Customer Reviews" title="What people are saying.">
-              {reviews.length === 0 ? (
+          <div className="relative mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1fr_380px]">
+            <div className="space-y-6">
+              <LuxuryCard
+                eyebrow="Why RoseOut Recommends It"
+                title="Built for better matches."
+              >
                 <p className="text-sm leading-7 text-white/60">
-                  No reviews yet. Be the first to type a full-sentence review.
+                  {location.description ||
+                    "This location includes signals that help RoseOut understand the vibe, atmosphere, and best use cases for customers searching in full sentences."}
                 </p>
-              ) : (
-                <div className="mt-6 space-y-4">
-                  {reviews.map((review) => (
-                    <div
-                      key={review.id}
-                      className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="font-black text-white">
-                          {review.customer_name || "RoseOut Guest"}
-                        </p>
 
-                        <p className="rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white">
-                          {"🌸".repeat(Number(review.rating || 0))}{" "}
-                          {review.rating}/5
-                        </p>
-                      </div>
-
-                      <p className="mt-3 text-sm leading-7 text-white/70">
-                        {review.review_text}
-                      </p>
-
-                      {toArray(review.ai_keywords).length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {toArray(review.ai_keywords)
-                            .slice(0, 6)
-                            .map((keyword) => (
-                              <span
-                                key={keyword}
-                                className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-100"
-                              >
-                                {keyword}
-                              </span>
-                            ))}
-                        </div>
-                      )}
-
-                      {(review.vibe ||
-                        review.noise_level ||
-                        review.service_quality) && (
-                        <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                          {review.vibe && (
-                            <MiniInsight label="Vibe" value={review.vibe} />
-                          )}
-
-                          {review.noise_level && (
-                            <MiniInsight
-                              label="Noise"
-                              value={review.noise_level}
-                            />
-                          )}
-
-                          {review.service_quality && (
-                            <MiniInsight
-                              label="Service"
-                              value={review.service_quality}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </LuxuryCard>
-
-            <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-1 shadow-2xl backdrop-blur-xl">
-              <LocationReviewForm
-                locationId={location.id}
-                locationName={name}
-                onReviewSubmitted={handleReviewSubmitted}
-              />
-            </section>
-          </div>
-
-          <aside className="space-y-6 lg:sticky lg:top-6 lg:self-start">
-            <LuxuryCard
-              eyebrow="Plan Your Visit"
-              title={isActivity ? "Book the experience." : "Reserve the table."}
-            >
-              <div className="mt-6 grid gap-3">
-                {reservationUrl && (
-                  <a
-                    href={reservationUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full bg-red-600 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-red-500"
-                  >
-                    {isActivity ? "Book Activity" : "Reserve Table"}
-                  </a>
+                {[...tags, ...reviewKeywords].length > 0 && (
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {[...new Set([...tags, ...reviewKeywords])].map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-white/60"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 )}
+              </LuxuryCard>
 
-                {location.website && (
+              {bestFor.length > 0 && (
+                <DetailGrid title="Best For" items={bestFor} />
+              )}
+
+              {specialFeatures.length > 0 && (
+                <DetailGrid title="Special Features" items={specialFeatures} />
+              )}
+
+              {signatureItems.length > 0 && (
+                <DetailGrid title="Signature Picks" items={signatureItems} />
+              )}
+
+              <LuxuryCard
+                eyebrow="Customer Reviews"
+                title="What people are saying."
+              >
+                {reviews.length === 0 ? (
+                  <p className="text-sm leading-7 text-white/60">
+                    No reviews yet. Be the first to type a full-sentence review.
+                  </p>
+                ) : (
+                  <div className="mt-6 space-y-4">
+                    {reviews.map((review) => (
+                      <div
+                        key={review.id}
+                        className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="font-black text-white">
+                            {review.customer_name || "RoseOut Guest"}
+                          </p>
+
+                          <p className="rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white">
+                            {"🌸".repeat(Number(review.rating || 0))}{" "}
+                            {review.rating}/5
+                          </p>
+                        </div>
+
+                        <p className="mt-3 text-sm leading-7 text-white/70">
+                          {review.review_text}
+                        </p>
+
+                        {toArray(review.ai_keywords).length > 0 && (
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {toArray(review.ai_keywords)
+                              .slice(0, 6)
+                              .map((keyword) => (
+                                <span
+                                  key={keyword}
+                                  className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-100"
+                                >
+                                  {keyword}
+                                </span>
+                              ))}
+                          </div>
+                        )}
+
+                        {(review.vibe ||
+                          review.noise_level ||
+                          review.service_quality) && (
+                          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                            {review.vibe && (
+                              <MiniInsight label="Vibe" value={review.vibe} />
+                            )}
+
+                            {review.noise_level && (
+                              <MiniInsight
+                                label="Noise"
+                                value={review.noise_level}
+                              />
+                            )}
+
+                            {review.service_quality && (
+                              <MiniInsight
+                                label="Service"
+                                value={review.service_quality}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </LuxuryCard>
+
+              <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-1 shadow-2xl backdrop-blur-xl">
+                <LocationReviewForm
+                  locationId={location.id}
+                  locationName={name}
+                  onReviewSubmitted={handleReviewSubmitted}
+                />
+              </section>
+            </div>
+
+            <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+              <LuxuryCard
+                eyebrow="Plan Your Visit"
+                title={isActivity ? "Book the experience." : "Reserve the table."}
+              >
+                <div className="mt-6 grid gap-3">
+                  {reservationUrl && (
+                    <a
+                      href={reservationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full bg-red-600 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-red-500"
+                    >
+                      {isActivity ? "Book Activity" : "Reserve Table"}
+                    </a>
+                  )}
+
+                  {location.website && (
+                    <a
+                      href={location.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
+                    >
+                      Visit Website
+                    </a>
+                  )}
+
                   <a
-                    href={location.website}
+                    href={mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
                   >
-                    Visit Website
+                    Get Directions
                   </a>
-                )}
 
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
-                >
-                  Get Directions
-                </a>
+                  <button
+                    onClick={trackAndGoBack}
+                    className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
+                  >
+                    Back to Results
+                  </button>
+                </div>
+              </LuxuryCard>
 
-                <button
-                  onClick={trackAndGoBack}
-                  className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
-                >
-                  Back to Results
-                </button>
-              </div>
-            </LuxuryCard>
+              <LuxuryCard
+                eyebrow="Review Intelligence"
+                title="Powered by real words."
+              >
+                <div className="mt-5 space-y-4 text-sm">
+                  <InfoRow
+                    label="Review Score"
+                    value={location.review_score || 0}
+                  />
 
-            <LuxuryCard eyebrow="Review Intelligence" title="Powered by real words.">
-              <div className="mt-5 space-y-4 text-sm">
-                <InfoRow label="Review Score" value={location.review_score || 0} />
+                  <InfoRow
+                    label="Review Count"
+                    value={location.review_count || reviews.length || 0}
+                  />
 
-                <InfoRow
-                  label="Review Count"
-                  value={location.review_count || reviews.length || 0}
-                />
+                  <InfoRow
+                    label="AI Keywords"
+                    value={
+                      reviewKeywords.length > 0
+                        ? reviewKeywords.slice(0, 6).join(", ")
+                        : "Not enough reviews yet"
+                    }
+                  />
+                </div>
+              </LuxuryCard>
+            </aside>
+          </div>
+        </section>
+      </main>
 
-                <InfoRow
-                  label="AI Keywords"
-                  value={
-                    reviewKeywords.length > 0
-                      ? reviewKeywords.slice(0, 6).join(", ")
-                      : "Not enough reviews yet"
-                  }
-                />
-              </div>
-            </LuxuryCard>
-          </aside>
+      {reservationUrl && (
+        <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-full border border-white/10 bg-black/85 p-2 shadow-2xl backdrop-blur-xl md:hidden">
+          <a
+            href={reservationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block rounded-full bg-red-600 px-6 py-4 text-center text-sm font-black text-white"
+          >
+            {isActivity ? "Book Now" : "Reserve"} at {name}
+          </a>
         </div>
-      </section>
-    </main>
+      )}
+    </>
+  );
+}
+
+function DynamicHeader({
+  scrolled,
+  name,
+  category,
+  from,
+  onBack,
+  reservationUrl,
+  isActivity,
+}: {
+  scrolled: boolean;
+  name: string;
+  category: string;
+  from: string;
+  onBack: () => void;
+  reservationUrl: string;
+  isActivity: boolean;
+}) {
+  return (
+    <header
+      className={`fixed left-0 top-0 z-50 w-full border-b transition-all duration-300 ${
+        scrolled
+          ? "border-white/10 bg-black/85 shadow-2xl backdrop-blur-2xl"
+          : "border-transparent bg-black/20 backdrop-blur-sm"
+      }`}
+    >
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-8">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            onClick={onBack}
+            className="shrink-0 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-black"
+          >
+            ←
+          </button>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-white/45">
+              <button
+                onClick={() => (window.location.href = "/")}
+                className="transition hover:text-white"
+              >
+                Home
+              </button>
+              <span>/</span>
+              <button
+                onClick={() => (window.location.href = from)}
+                className="transition hover:text-white"
+              >
+                Results
+              </button>
+              <span>/</span>
+              <span className="truncate text-red-300">{category}</span>
+            </div>
+
+            <p
+              className={`mt-1 truncate font-black tracking-tight transition-all ${
+                scrolled
+                  ? "max-w-[210px] text-base text-white sm:max-w-[520px] sm:text-xl"
+                  : "max-w-[180px] text-sm text-white/70 sm:max-w-[420px]"
+              }`}
+            >
+              {scrolled ? name : "RoseOut"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <a
+            href="/create"
+            className="hidden rounded-full border border-white/15 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-black sm:inline-flex"
+          >
+            New Search
+          </a>
+
+          {reservationUrl && (
+            <a
+              href={reservationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`rounded-full px-5 py-2.5 text-sm font-black shadow-lg transition ${
+                scrolled
+                  ? "bg-red-600 text-white shadow-red-950/40 hover:bg-red-500"
+                  : "bg-white text-black hover:bg-red-600 hover:text-white"
+              }`}
+            >
+              {isActivity ? "Book" : "Reserve"}
+            </a>
+          )}
+        </div>
+      </div>
+    </header>
   );
 }
 
