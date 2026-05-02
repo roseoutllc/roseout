@@ -107,6 +107,7 @@ function calculateImportScores(place: any) {
   const hasPhoto = Boolean(place.photos?.length);
 
   const reviewScore = Math.min(Math.round((rating / 5) * 40), 40);
+
   const popularityScore = Math.min(
     Math.round(Math.log10(Math.max(reviews, 1)) * 15),
     35
@@ -117,9 +118,21 @@ function calculateImportScores(place: any) {
     100
   );
 
+  const trendScore = Math.min(Math.round(reviews / 10), 100);
+
+  const conversionScore = Math.min(
+    Math.round((rating * reviews) / 100),
+    100
+  );
+
   const roseoutScore = Math.min(
     100,
-    Math.round(qualityScore * 0.65 + reviewScore * 0.2 + popularityScore * 0.15)
+    Math.round(
+      qualityScore * 0.5 +
+      popularityScore * 0.2 +
+      reviewScore * 0.2 +
+      trendScore * 0.1
+    )
   );
 
   return {
@@ -127,6 +140,8 @@ function calculateImportScores(place: any) {
     review_score: reviewScore,
     popularity_score: popularityScore,
     roseout_score: roseoutScore,
+    trend_score: trendScore,
+    conversion_score: conversionScore,
   };
 }
 
