@@ -2,6 +2,18 @@ import crypto from "crypto";
 import { supabase } from "@/lib/supabase";
 import { sendLocationClaimApproved } from "@/lib/notifications";
 
+function getJoinedValue<T extends Record<string, any>>(
+  value: T | T[] | null | undefined,
+  key: keyof T,
+  fallback: string
+) {
+  if (Array.isArray(value)) {
+    return value[0]?.[key] || fallback;
+  }
+
+  return value?.[key] || fallback;
+}
+
 export async function POST(req: Request) {
   try {
     const { id, type, status } = await req.json();
@@ -33,7 +45,8 @@ export async function POST(req: Request) {
     if (type === "restaurant") {
       const { data: claim, error: claimLookupError } = await supabase
         .from("restaurant_claims")
-        .select(`
+        .select(
+          `
           id,
           restaurant_id,
           owner_name,
@@ -42,7 +55,8 @@ export async function POST(req: Request) {
           restaurants (
             restaurant_name
           )
-        `)
+        `
+        )
         .eq("id", id)
         .maybeSingle();
 
@@ -94,8 +108,11 @@ export async function POST(req: Request) {
         await sendLocationClaimApproved({
           email: claim.owner_email,
           phone: claim.owner_phone,
-          locationName:
-            claim.restaurants?.restaurant_name || "your RoseOut location",
+          locationName: getJoinedValue(
+            claim.restaurants,
+            "restaurant_name",
+            "your RoseOut location"
+          ),
           signupUrl,
         });
       }
@@ -109,7 +126,8 @@ export async function POST(req: Request) {
     if (type === "activity") {
       const { data: claim, error: claimLookupError } = await supabase
         .from("activity_claims")
-        .select(`
+        .select(
+          `
           id,
           activity_id,
           owner_name,
@@ -118,7 +136,8 @@ export async function POST(req: Request) {
           activities (
             activity_name
           )
-        `)
+        `
+        )
         .eq("id", id)
         .maybeSingle();
 
@@ -170,8 +189,11 @@ export async function POST(req: Request) {
         await sendLocationClaimApproved({
           email: claim.owner_email,
           phone: claim.owner_phone,
-          locationName:
-            claim.activities?.activity_name || "your RoseOut location",
+          locationName: getJoinedValue(
+            claim.activities,
+            "activity_name",
+            "your RoseOut location"
+          ),
           signupUrl,
         });
       }
