@@ -46,20 +46,16 @@ export default function LoginPage() {
         return;
       }
 
+      const userEmail = data.user.email.toLowerCase();
+
       const { data: adminUser, error: adminError } = await supabase
         .from("admin_users")
         .select("id, role")
-        .eq("email", data.user.email.toLowerCase())
+        .eq("email", userEmail)
         .maybeSingle();
 
       if (adminError) {
         setError(adminError.message);
-        return;
-      }
-
-      if (!adminUser) {
-        await supabase.auth.signOut();
-        setError("You are not authorized for the admin dashboard.");
         return;
       }
 
@@ -71,10 +67,14 @@ export default function LoginPage() {
         viewer: "/admin/import-history",
       };
 
+      const redirectPath = adminUser
+        ? roleRedirects[adminUser.role] || "/admin"
+        : "/create";
+
       setMessage("Login successful. Redirecting...");
 
       setTimeout(() => {
-        router.replace(roleRedirects[adminUser.role] || "/admin");
+        router.replace(redirectPath);
       }, 500);
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
@@ -92,28 +92,28 @@ export default function LoginPage() {
         <div className="hidden min-h-[620px] flex-col justify-between border-r border-white/10 bg-[radial-gradient(circle_at_20%_20%,rgba(225,6,42,0.22),transparent_35%),#080808] p-8 lg:flex">
           <div>
             <div className="inline-flex rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-red-200">
-              RoseOut Admin
+              RoseOut
             </div>
 
             <h1 className="mt-8 max-w-md text-6xl font-black leading-[0.95] tracking-tight">
-              Manage the
+              Welcome
               <br />
-              <span className="text-red-500">experience.</span>
+              <span className="text-red-500">back.</span>
             </h1>
 
             <p className="mt-6 max-w-md text-sm leading-7 text-white/55">
-              Sign in to manage listings, claims, reviews, QR flows, and the
-              RoseOut recommendation engine.
+              Sign in to manage your account, access your dashboard, review
+              activity, and continue your RoseOut experience.
             </p>
           </div>
 
           <div className="rounded-[2rem] border border-white/10 bg-black/35 p-5">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-white/35">
-              Admin Access
+              Account Access
             </p>
             <p className="mt-2 text-sm leading-6 text-white/65">
-              Authorized users only. Your role controls which dashboard area
-              opens after login.
+              Your account role determines which RoseOut dashboard opens after
+              login.
             </p>
           </div>
         </div>
@@ -127,15 +127,15 @@ export default function LoginPage() {
           </Link>
 
           <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
-            RoseOut Admin
+            RoseOut
           </p>
 
           <h2 className="mt-3 text-4xl font-black tracking-tight">
-            Admin Login
+            Welcome Back
           </h2>
 
           <p className="mt-3 text-sm leading-6 text-white/55">
-            Sign in to access your dashboard.
+            Sign in to continue to your RoseOut account.
           </p>
 
           {error && (
@@ -153,6 +153,7 @@ export default function LoginPage() {
           <label className="mt-6 block text-sm font-black text-white/80">
             Email
           </label>
+
           <input
             type="email"
             value={email}
@@ -164,6 +165,7 @@ export default function LoginPage() {
           <label className="mt-5 block text-sm font-black text-white/80">
             Password
           </label>
+
           <input
             type="password"
             value={password}
@@ -186,6 +188,11 @@ export default function LoginPage() {
           >
             Forgot password?
           </Link>
+
+          <p className="mt-6 text-center text-xs leading-6 text-white/35">
+            Admins are routed to the admin dashboard. Regular users are routed
+            to RoseOut planning.
+          </p>
         </form>
       </section>
     </main>
