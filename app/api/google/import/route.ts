@@ -310,7 +310,9 @@ async function importRestaurant(place: any) {
     cuisine: place.types?.join(", ") || null,
     rating: place.rating || 0,
     google_place_id: place.place_id,
-    image_url: null,
+    image_url: place.photos?.[0]?.photo_reference
+  ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${place.photos[0].photo_reference}&key=${getGoogleKey()}`
+  : null,
     latitude: place.geometry?.location?.lat || null,
     longitude: place.geometry?.location?.lng || null,
     status: "approved",
@@ -354,7 +356,9 @@ async function importActivity(place: any) {
     zip_code: null,
     rating: place.rating || 0,
     google_place_id: place.place_id,
-    image_url: null,
+    image_url: place.photos?.[0]?.photo_reference
+  ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${place.photos[0].photo_reference}&key=${getGoogleKey()}`
+  : null,
     latitude: place.geometry?.location?.lat || null,
     longitude: place.geometry?.location?.lng || null,
     status: "approved",
