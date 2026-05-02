@@ -57,6 +57,42 @@ function isAuthorized(request: NextRequest) {
   return false;
 }
 
+function cleanAddress(address: string | null) {
+  if (!address) return null;
+
+  return address
+    .replace(/,\s*USA$/i, "")
+    .replace(/,\s*United States$/i, "")
+    .trim();
+}
+
+function parseAddressParts(address: string | null) {
+  const cleaned = cleanAddress(address);
+
+  if (!cleaned) {
+    return {
+      fullAddress: null,
+      city: null,
+      state: null,
+      zipCode: null,
+    };
+  }
+
+  const parts = cleaned.split(",").map((part) => part.trim());
+
+  const city = parts.length >= 2 ? parts[parts.length - 2] : null;
+  const stateZip = parts.length >= 3 ? parts[parts.length - 1] : null;
+
+  const match = stateZip?.match(/^([A-Z]{2})\s+(\d{5})(?:-\d{4})?$/);
+
+  return {
+    fullAddress: cleaned,
+    city,
+    state: match?.[1] || null,
+    zipCode: match?.[2] || null,
+  };
+}
+
 function placeText(place: any) {
   return `${place.name || ""} ${place.formatted_address || ""} ${
     place.vicinity || ""
@@ -366,16 +402,19 @@ async function importRestaurant(place: any) {
   if (existing) return { imported: false, skipped: true };
 
   const claimQr = await createClaimQr("restaurant");
-
   const hookah = isHookah(place);
   const cigar = isCigar(place);
 
+  const addressParts = parseAddressParts(
+    place.formatted_address || place.vicinity || null
+  );
+
   const { error } = await supabaseAdmin.from("restaurants").insert({
     restaurant_name: place.name,
-    address: place.formatted_address || place.vicinity || null,
-    city: null,
-    state: null,
-    zip_code: null,
+    address: addressParts.fullAddress,
+    city: addressParts.city,
+    state: addressParts.state,
+    zip_code: addressParts.zipCode,
     cuisine: place.types?.join(", ") || null,
     rating: place.rating || 0,
     review_count: place.user_ratings_total || 0,
@@ -413,17 +452,20 @@ async function importActivity(place: any) {
   if (existing) return { imported: false, skipped: true };
 
   const claimQr = await createClaimQr("activity");
-
   const hookah = isHookah(place);
   const cigar = isCigar(place);
+
+  const addressParts = parseAddressParts(
+    place.formatted_address || place.vicinity || null
+  );
 
   const { error } = await supabaseAdmin.from("activities").insert({
     activity_name: place.name,
     activity_type: categorizeActivity(place.name, place.types || []),
-    address: place.formatted_address || place.vicinity || null,
-    city: null,
-    state: null,
-    zip_code: null,
+    address: addressParts.fullAddress,
+    city: addressParts.city,
+    state: addressParts.state,
+    zip_code: addressParts.zipCode,
     rating: place.rating || 0,
     review_count: place.user_ratings_total || 0,
     google_place_id: place.place_id,
@@ -456,20 +498,18 @@ const geoAreas = [
   { name: "Queens", lat: 40.7282, lng: -73.7949 },
   { name: "Bronx", lat: 40.8448, lng: -73.8648 },
   { name: "Staten Island", lat: 40.5795, lng: -74.1502 },
-
   { name: "Astoria", lat: 40.7644, lng: -73.9235 },
   { name: "Long Island City", lat: 40.7447, lng: -73.9485 },
   { name: "Flushing", lat: 40.7675, lng: -73.8331 },
   { name: "Bayside", lat: 40.7586, lng: -73.7654 },
   { name: "Forest Hills", lat: 40.7181, lng: -73.8448 },
   { name: "Rego Park", lat: 40.7256, lng: -73.8625 },
-  { name: "Jamaica", lat: 40.7027, lng: -73.7890 },
+  { name: "Jamaica", lat: 40.7027, lng: -73.789 },
   { name: "Queens Village", lat: 40.7157, lng: -73.7419 },
   { name: "Jackson Heights", lat: 40.7557, lng: -73.8831 },
   { name: "Elmhurst", lat: 40.7365, lng: -73.8772 },
   { name: "Howard Beach", lat: 40.6571, lng: -73.8436 },
   { name: "Rockaway", lat: 40.5795, lng: -73.8372 },
-
   { name: "Garden City", lat: 40.7268, lng: -73.6343 },
   { name: "Mineola", lat: 40.7493, lng: -73.6407 },
   { name: "Hempstead", lat: 40.7062, lng: -73.6187 },
@@ -482,7 +522,6 @@ const geoAreas = [
   { name: "Manhasset", lat: 40.7979, lng: -73.6996 },
   { name: "Syosset", lat: 40.8262, lng: -73.5021 },
   { name: "Oyster Bay", lat: 40.8657, lng: -73.5321 },
-
   { name: "Huntington", lat: 40.8682, lng: -73.4257 },
   { name: "Babylon", lat: 40.6957, lng: -73.3257 },
   { name: "Patchogue", lat: 40.7657, lng: -73.0151 },
@@ -490,17 +529,15 @@ const geoAreas = [
   { name: "Islip", lat: 40.7298, lng: -73.2104 },
   { name: "Ronkonkoma", lat: 40.8154, lng: -73.1123 },
   { name: "Smithtown", lat: 40.8559, lng: -73.2007 },
-  { name: "Riverhead", lat: 40.9170, lng: -72.6620 },
+  { name: "Riverhead", lat: 40.917, lng: -72.662 },
   { name: "Port Jefferson", lat: 40.9465, lng: -73.0693 },
   { name: "Stony Brook", lat: 40.9257, lng: -73.1409 },
   { name: "Commack", lat: 40.8429, lng: -73.2929 },
   { name: "Melville", lat: 40.7934, lng: -73.4151 },
-
   { name: "Yonkers", lat: 40.9312, lng: -73.8988 },
   { name: "White Plains", lat: 41.033, lng: -73.7629 },
   { name: "New Rochelle", lat: 40.9115, lng: -73.7824 },
   { name: "Mount Vernon", lat: 40.9126, lng: -73.8371 },
-
   { name: "Hoboken", lat: 40.7433, lng: -74.0324 },
   { name: "Jersey City", lat: 40.7178, lng: -74.0431 },
   { name: "Edgewater", lat: 40.827, lng: -73.9757 },
