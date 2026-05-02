@@ -25,7 +25,7 @@ export default function ClaimPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Claim link not found.");
+        setError(data.error || "Location claim link not found.");
       } else {
         setRestaurant(data.restaurant);
       }
@@ -36,8 +36,13 @@ export default function ClaimPage() {
     if (token) loadRestaurant();
   }, [token]);
 
-  const submitClaim = async () => {
+  async function submitClaim() {
     setError("");
+
+    if (!form.owner_name || !form.owner_email) {
+      setError("Please enter your name and business email.");
+      return;
+    }
 
     const res = await fetch("/api/claim", {
       method: "POST",
@@ -53,17 +58,17 @@ export default function ClaimPage() {
     const data = await res.json();
 
     if (!res.ok) {
-      setError(data.error || "Could not submit claim.");
+      setError(data.error || "Could not submit location claim.");
       return;
     }
 
     setSubmitted(true);
-  };
+  }
 
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black text-white">
-        Loading...
+        Loading location claim...
       </main>
     );
   }
@@ -72,7 +77,7 @@ export default function ClaimPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
         <div className="max-w-md rounded-3xl bg-white p-6 text-center text-black">
-          <h1 className="text-2xl font-bold">Claim Link Not Found</h1>
+          <h1 className="text-2xl font-bold">Location Claim Link Not Found</h1>
           <p className="mt-2 text-neutral-600">{error}</p>
         </div>
       </main>
@@ -83,9 +88,10 @@ export default function ClaimPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
         <div className="max-w-md rounded-3xl bg-white p-6 text-center text-black">
-          <h1 className="text-2xl font-bold">Claim Submitted</h1>
+          <h1 className="text-2xl font-bold">Location Claim Submitted</h1>
           <p className="mt-3 text-neutral-600">
-            Thank you. RoseOut will review your request and contact you soon.
+            Thank you. RoseOut will review your location claim and contact you
+            soon.
           </p>
         </div>
       </main>
@@ -95,20 +101,25 @@ export default function ClaimPage() {
   return (
     <main className="min-h-screen bg-black px-6 py-12 text-white">
       <div className="mx-auto max-w-xl">
-        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-yellow-500">
+        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-red-400">
           RoseOut
         </p>
 
-        <h1 className="mt-3 text-4xl font-bold">Claim Your Listing</h1>
+        <h1 className="mt-3 text-4xl font-black">Claim This Location</h1>
+
+        <p className="mt-3 text-sm leading-6 text-white/60">
+          Verify ownership or management access to update this RoseOut listing.
+        </p>
 
         <div className="mt-8 rounded-3xl bg-white p-6 text-black">
           <h2 className="text-2xl font-bold">
-            {restaurant?.restaurant_name}
+            {restaurant?.restaurant_name || restaurant?.name || "RoseOut Location"}
           </h2>
 
           <p className="mt-2 text-neutral-600">
-            {restaurant?.address}, {restaurant?.city}, {restaurant?.state}{" "}
-            {restaurant?.zip_code}
+            {[restaurant?.address, restaurant?.city, restaurant?.state, restaurant?.zip_code]
+              .filter(Boolean)
+              .join(", ")}
           </p>
 
           <div className="mt-6 grid gap-4">
@@ -142,9 +153,7 @@ export default function ClaimPage() {
 
             <textarea
               value={form.message}
-              onChange={(e) =>
-                setForm({ ...form, message: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
               placeholder="Optional message"
               className="min-h-28 rounded-2xl border px-4 py-3"
             />
@@ -156,10 +165,11 @@ export default function ClaimPage() {
             )}
 
             <button
+              type="button"
               onClick={submitClaim}
-              className="rounded-full bg-yellow-500 px-6 py-4 font-extrabold text-black"
+              className="rounded-full bg-red-600 px-6 py-4 font-extrabold text-white hover:bg-red-500"
             >
-              Submit Claim
+              Submit Location Claim
             </button>
           </div>
         </div>

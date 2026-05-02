@@ -31,7 +31,7 @@ export async function sendNotification({
     errors: [],
   };
 
-  if (toEmail && emailHtml) {
+  if (toEmail && emailHtml && process.env.RESEND_API_KEY) {
     try {
       const email = await resend.emails.send({
         from: process.env.EMAIL_FROM || "RoseOut <hello@roseout.com>",
@@ -61,4 +61,37 @@ export async function sendNotification({
   }
 
   return results;
+}
+
+export async function sendLocationClaimApproved({
+  email,
+  phone,
+  locationName,
+  signupUrl,
+}: {
+  email?: string | null;
+  phone?: string | null;
+  locationName: string;
+  signupUrl?: string | null;
+}) {
+  return sendNotification({
+    toEmail: email,
+    toPhone: phone,
+    subject: "Your RoseOut location claim was approved",
+    emailHtml: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+        <h2>Your RoseOut location claim was approved 🎉</h2>
+        <p>Your claim for <strong>${locationName}</strong> has been approved.</p>
+        <p>You can now create your owner account and manage your listing.</p>
+        ${
+          signupUrl
+            ? `<p><a href="${signupUrl}" style="background:#e1062a;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:bold;">Create Owner Account</a></p>`
+            : ""
+        }
+      </div>
+    `,
+    smsBody: signupUrl
+      ? `RoseOut: Your claim for ${locationName} was approved. Create your owner account: ${signupUrl}`
+      : `RoseOut: Your claim for ${locationName} was approved.`,
+  });
 }
