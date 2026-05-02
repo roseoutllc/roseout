@@ -126,6 +126,66 @@ function isCigar(place: any) {
   return text.includes("cigar");
 }
 
+function getPrimaryTag(place: any, type: "restaurant" | "activity") {
+  const text = `${place.name || ""} ${
+    place.formatted_address || ""
+  } ${place.types?.join(" ") || ""}`.toLowerCase();
+
+  if (type === "restaurant") {
+    if (text.includes("steak")) return "steak";
+    if (text.includes("seafood")) return "seafood";
+    if (text.includes("sushi")) return "sushi";
+    if (text.includes("italian")) return "italian";
+    if (text.includes("mexican")) return "mexican";
+    if (text.includes("caribbean")) return "caribbean";
+    if (text.includes("bbq")) return "bbq";
+    if (text.includes("brunch")) return "brunch";
+    if (text.includes("cafe") || text.includes("coffee")) return "cafe";
+
+    if (text.includes("rooftop")) return "rooftop";
+    if (text.includes("lounge")) return "lounge";
+    if (text.includes("bar")) return "bar";
+
+    if (text.includes("fine dining") || text.includes("upscale"))
+      return "luxury";
+
+    if (text.includes("romantic")) return "romantic";
+    if (text.includes("date")) return "date";
+
+    if (text.includes("hookah") || text.includes("shisha"))
+      return "hookah";
+    if (text.includes("cigar")) return "cigar";
+
+    return "restaurant";
+  }
+
+  if (type === "activity") {
+    if (text.includes("bowling")) return "bowling";
+    if (text.includes("arcade")) return "arcade";
+    if (text.includes("karaoke")) return "karaoke";
+    if (text.includes("escape")) return "escape_room";
+    if (text.includes("paintball")) return "paintball";
+    if (text.includes("axe")) return "axe_throwing";
+
+    if (text.includes("comedy")) return "comedy";
+    if (text.includes("jazz") || text.includes("live music"))
+      return "live_music";
+
+    if (text.includes("museum")) return "museum";
+
+    if (text.includes("nightclub") || text.includes("club"))
+      return "nightlife";
+
+    if (text.includes("hookah") || text.includes("shisha"))
+      return "hookah";
+    if (text.includes("cigar")) return "cigar";
+
+    return "activity";
+  }
+
+  return null;
+}
+
 function getReviewCount(place: any) {
   return Number(
     place.user_ratings_total ??
@@ -445,7 +505,7 @@ async function importRestaurant(place: any) {
     view_count: 0,
     click_count: 0,
     claim_count: 0,
-    primary_tag: hookah ? "hookah" : cigar ? "cigar" : null,
+    primary_tag: getPrimaryTag(place, "restaurant"),
     search_keywords: [
       ...(hookah
         ? ["hookah", "shisha", "hookah restaurant", "hookah lounge"]
@@ -495,7 +555,7 @@ async function importActivity(place: any) {
     view_count: 0,
     click_count: 0,
     claim_count: 0,
-    primary_tag: hookah ? "hookah" : cigar ? "cigar" : null,
+    primary_tag: getPrimaryTag(place, "activity"),
     search_keywords: [
       ...(hookah
         ? ["hookah", "shisha", "hookah lounge", "hookah restaurant"]
