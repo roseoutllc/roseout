@@ -1077,14 +1077,31 @@ export async function POST(req: Request) {
     }
 
     const { data: locationsData, error: locationsError } = await supabase
-      .from("locations")
-      .select("*");
+  .from("locations")
+  .select("*");
 
-    if (locationsError) {
-      return Response.json({ error: locationsError.message }, { status: 500 });
-    }
+const { data: activitiesData, error: activitiesError } = await supabase
+  .from("activities")
+  .select("*");
 
-    const locations = (locationsData || []).map(normalizeLocation);
+if (locationsError) {
+  return Response.json({ error: locationsError.message }, { status: 500 });
+}
+
+if (activitiesError) {
+  return Response.json({ error: activitiesError.message }, { status: 500 });
+}
+
+const mergedLocations = [
+  ...(locationsData || []),
+  ...(activitiesData || []).map((activity: any) => ({
+    ...activity,
+    location_type: "activity",
+    name: activity.activity_name || activity.name,
+  })),
+];
+
+const locations = mergedLocations.map(normalizeLocation);
     const intent = detectIntent(input, body, locations);
 
     if (!isRoseOutRelated(input)) {
