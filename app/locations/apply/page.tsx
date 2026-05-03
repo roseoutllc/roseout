@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import RoseOutHeader from "@/components/RoseOutHeader";
 
 type FormState = {
@@ -31,16 +31,104 @@ const initialForm: FormState = {
 };
 
 export default function LocationApplyPage() {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const scannerActiveRef = useRef(false);
+
   const [form, setForm] = useState<FormState>(initialForm);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanError, setScanError] = useState("");
 
   const updateField = (field: keyof FormState, value: string) => {
     setForm((prev) => ({
       ...prev,
       [field]: value,
     }));
+  };
+
+  const closeQrScanner = () => {
+    scannerActiveRef.current = false;
+    setScannerOpen(false);
+
+    const stream = videoRef.current?.srcObject as MediaStream | null;
+
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  const openQrScanner = async () => {
+    setScanError("");
+    setScannerOpen(true);
+    scannerActiveRef.current = true;
+
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setScanError("Camera scanning is not supported on this device.");
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      const BarcodeDetectorClass = (window as any).BarcodeDetector;
+
+      if (!BarcodeDetectorClass) {
+        setScanError(
+          "QR scanning is not supported in this browser. Please scan with your phone camera or open the QR link manually."
+        );
+        return;
+      }
+
+      const detector = new BarcodeDetectorClass({
+        formats: ["qr_code"],
+      });
+
+      const scan = async () => {
+        if (!scannerActiveRef.current || !videoRef.current) return;
+
+        try {
+          const codes = await detector.detect(videoRef.current);
+
+          if (codes.length > 0) {
+            const url = String(codes[0].rawValue || "");
+
+            if (
+              url.includes("roseout.com") ||
+              url.includes("roseout.vercel.app")
+            ) {
+              closeQrScanner();
+              window.location.href = url;
+              return;
+            }
+
+            setScanError("This QR code is not a RoseOut claim link.");
+            return;
+          }
+        } catch {
+          setScanError("Could not read the QR code. Please try again.");
+          return;
+        }
+
+        requestAnimationFrame(scan);
+      };
+
+      requestAnimationFrame(scan);
+    } catch {
+      setScanError("Camera access was denied or unavailable.");
+    }
   };
 
   const submitRequest = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -139,20 +227,56 @@ export default function LocationApplyPage() {
             </div>
 
             <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-              <h2 className="text-xl font-black">Already received a QR code?</h2>
+              <h2 className="text-xl font-black">
+                Already received a QR code?
+              </h2>
 
               <p className="mt-3 text-sm leading-7 text-white/50">
-                Scan the QR code from your RoseOut mailer to open your unique
-                claim link. If you do not have a QR code, submit the request
-                form and we’ll review your location.
+                Open your camera to scan your RoseOut claim QR code. If the code
+                is valid, you’ll be taken directly to your claim page.
               </p>
 
-              <Link
-                href="/business"
-                className="mt-5 inline-flex rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white hover:text-black"
-              >
-                Back to For Businesses
-              </Link>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={openQrScanner}
+                  className="rounded-2xl bg-[#e1062a] px-5 py-3 text-sm font-black text-white transition hover:bg-red-500"
+                >
+                  Scan QR Code
+                </button>
+
+                <Link
+                  href="/business"
+                  className="rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-center text-sm font-black text-white/70 transition hover:bg-white hover:text-black"
+                >
+                  Back to For Businesses
+                </Link>
+              </div>
+
+              {scannerOpen && (
+                <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-black p-4">
+                  <video
+                    ref={videoRef}
+                    className="h-72 w-full rounded-2xl bg-black object-cover"
+                    playsInline
+                    muted
+                  />
+
+                  <button
+                    type="button"
+                    onClick={closeQrScanner}
+                    className="mt-4 w-full rounded-2xl border border-white/15 px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white hover:text-black"
+                  >
+                    Close Camera
+                  </button>
+                </div>
+              )}
+
+              {scanError && (
+                <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">
+                  {scanError}
+                </div>
+              )}
             </div>
           </div>
 
