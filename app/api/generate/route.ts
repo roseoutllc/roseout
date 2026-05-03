@@ -139,7 +139,13 @@ const ACTIVITY_INTENTS: Record<string, string[]> = {
   bowling: ["bowling", "bowl", "bowling alley"],
   arcade: ["arcade", "games", "game room", "amusement"],
   museum: ["museum", "gallery", "art", "exhibit", "exhibits"],
-  karaoke: ["karaoke", "singing", "karaoke bar", "private karaoke", "karaoke room"],
+  karaoke: [
+    "karaoke",
+    "singing",
+    "karaoke bar",
+    "private karaoke",
+    "karaoke room",
+  ],
   escape_room: ["escape room", "escape"],
   mini_golf: ["mini golf", "miniature golf", "minigolf"],
   golf: ["golf", "topgolf", "driving range", "indoor golf"],
@@ -361,6 +367,7 @@ function itemHasTag(item: any, tag: string) {
 
   const directTags = [
     item.activity_type,
+    item.activity_name,
     item.category,
     item.categories,
     item.subcategory,
@@ -413,14 +420,24 @@ function matchesFoodIntent(item: any, foodIntent: string) {
 }
 
 function matchesActivityIntent(item: any, activityIntent: string) {
+  const activityName = String(item.activity_name || item.name || "").toLowerCase();
+  const normalizedIntent = activityIntent.replace(/_/g, " ");
+  const keywords =
+    ACTIVITY_INTENTS[activityIntent] || [activityIntent.replace(/_/g, " ")];
+
+  // ✅ Hard priority: if activity_name contains the requested activity, it matches.
+  if (activityName.includes(normalizedIntent)) return true;
+
+  // ✅ Also check every keyword directly against activity_name.
+  if (keywords.some((keyword) => activityName.includes(keyword))) return true;
+
   if (activityIntent === "hookah") return isHookahPlace(item);
   if (activityIntent === "cigar") return isCigarPlace(item);
 
   const searchable = itemText(item);
-  const keywords =
-    ACTIVITY_INTENTS[activityIntent] || [activityIntent.replace(/_/g, " ")];
 
   if (itemHasTag(item, activityIntent)) return true;
+
   return keywords.some((keyword) => searchable.includes(keyword));
 }
 
@@ -833,6 +850,20 @@ function scoreActivity(
   let score = 0;
 
   score += locationNameMatchScore(item, input);
+
+  intent.activityIntents.forEach((activity) => {
+    const name = String(item.activity_name || item.name || "").toLowerCase();
+    const normalizedActivity = activity.replace(/_/g, " ");
+    const keywords = ACTIVITY_INTENTS[activity] || [normalizedActivity];
+
+    if (
+      name.includes(normalizedActivity) ||
+      keywords.some((keyword) => name.includes(keyword))
+    ) {
+      score += 500;
+    }
+  });
+
   score += keywordBoost(item, input);
   score += weightedVibeBoost(item, intent.vibes);
   score += weightedTagBoost(item, intent.requestedTags);
@@ -987,7 +1018,7 @@ export async function POST(req: Request) {
     const intent = detectIntent(input, body);
 
     const cacheKey = normalizeQuery(
-      `roseout-universal-activity-match-v4-${input}-${intent.userLat || ""}-${
+      `roseout-activity-name-priority-v6-${input}-${intent.userLat || ""}-${
         intent.userLng || ""
       }-${intent.maxMiles || ""}`
     );
@@ -1056,12 +1087,16 @@ export async function POST(req: Request) {
     restaurants = filterRestaurantsByFoodIntent(restaurants, intent);
     activities = filterActivitiesByActivityIntent(activities, intent);
 
-    if (intent.activityIntents.length > 0 && activities.length === 0) {
-      activities = sourceLocations.filter((item: any) =>
+    if (intent.activityIntents.length > 0) {
+      const forcedActivityMatches = sourceLocations.filter((item: any) =>
         intent.activityIntents.some((activityIntent) =>
           matchesActivityIntent(item, activityIntent)
         )
       );
+
+      if (forcedActivityMatches.length > 0) {
+        activities = forcedActivityMatches;
+      }
     }
 
     const rankedRestaurants = restaurants
