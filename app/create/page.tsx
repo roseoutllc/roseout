@@ -826,3 +826,68 @@ export default function CreatePage() {
     </main>
   );
 }
+function getSuggestedFollowUps(message?: Message) {
+  const restaurants = message?.restaurants || [];
+  const activities = message?.activities || [];
+
+  const cuisine = restaurants.find((r) => r.cuisine)?.cuisine;
+  const restaurantTags = restaurants.flatMap((r) => r.date_style_tags || []);
+  const activityTags = activities.flatMap((a) => a.date_style_tags || []);
+  const allTags = [...restaurantTags, ...activityTags].join(" ").toLowerCase();
+
+  const hasRestaurants = restaurants.length > 0;
+  const hasActivities = activities.length > 0;
+
+  const suggestions: string[] = [];
+
+  suggestions.push("Make it cheaper");
+  suggestions.push("More romantic");
+
+  if (cuisine) suggestions.push(`More ${cuisine} options`);
+
+  suggestions.push("Add rooftop vibes");
+
+  if (
+    allTags.includes("family") ||
+    allTags.includes("kid") ||
+    activities.some((a) => a.group_friendly)
+  ) {
+    suggestions.push("Make it kid-friendly");
+  }
+
+  if (
+    allTags.includes("bar") ||
+    allTags.includes("drinks") ||
+    allTags.includes("music") ||
+    allTags.includes("nightlife")
+  ) {
+    suggestions.push("Add nightlife");
+  } else if (hasRestaurants) {
+    suggestions.push("Add drinks after");
+  }
+
+  if (allTags.includes("hookah") || allTags.includes("shisha")) {
+    suggestions.push("More hookah lounges");
+  }
+
+  if (allTags.includes("cigar")) {
+    suggestions.push("More cigar-friendly spots");
+  }
+
+  if (hasActivities) suggestions.push("Make the activity more fun");
+
+  suggestions.push("Change to Brooklyn");
+  suggestions.push("Show me something more upscale");
+
+  return Array.from(new Set(suggestions)).slice(0, 8);
+}
+
+function ResultSection({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-10 max-w-full overflow-x-hidden">
+      <div className="grid w-full max-w-full gap-5 lg:grid-cols-2">
+        {children}
+      </div>
+    </div>
+  );
+}
