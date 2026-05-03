@@ -9,10 +9,7 @@ export default function RoseOutFooter() {
       <div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
         {/* BRAND */}
         <div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-3 group"
-          >
+          <Link href="/" className="inline-flex items-center gap-3 group">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e1062a] text-lg font-black text-white shadow-lg shadow-red-500/20 transition group-hover:scale-105">
               R
             </span>
@@ -60,8 +57,6 @@ export default function RoseOutFooter() {
             { label: "For Businesses", href: "/business" },
             { label: "Claim Listing", href: "/locations/apply" },
             { label: "Add Location", href: "/locations/apply" },
-            { label: "Get QR Code", href: "/business" },
-            { label: "Sign In", href: "/login" },
           ]}
         />
 
@@ -72,7 +67,6 @@ export default function RoseOutFooter() {
             { label: "Terms", href: "/terms" },
             { label: "Privacy", href: "/privacy" },
             { label: "Contact", href: "/contact" },
-            { label: "Email", href: "mailto:hello@roseout.com" },
           ]}
         />
       </div>
@@ -82,8 +76,8 @@ export default function RoseOutFooter() {
         <p>© {new Date().getFullYear()} RoseOut. All rights reserved.</p>
 
         <p className="max-w-xl leading-6 md:text-right">
-          Recommendations may include third-party listings, websites, and
-          reservation links. Always confirm details directly with the business.
+          Recommendations may include third-party listings. Always confirm
+          details directly with the business.
         </p>
       </div>
     </footer>
@@ -104,25 +98,15 @@ function FooterColumn({
       </p>
 
       <div className="mt-5 flex flex-col gap-3">
-        {links.map((link) =>
-          link.href.startsWith("mailto:") ? (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-sm font-semibold text-white/45 transition hover:text-white"
-            >
-              {link.label}
-            </a>
-          ) : (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm font-semibold text-white/45 transition hover:text-white"
-            >
-              {link.label}
-            </Link>
-          )
-        )}
+        {links.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="text-sm font-semibold text-white/45 transition hover:text-white"
+          >
+            {link.label}
+          </Link>
+        ))}
       </div>
     </div>
   );
