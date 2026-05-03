@@ -1,4 +1,3 @@
-import BottomNav from "@/components/BottomNav";
 import "./globals.css";
 
 export default function RootLayout({
