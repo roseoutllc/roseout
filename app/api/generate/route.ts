@@ -72,6 +72,8 @@ const ACTIVITY_KEYWORDS = [
   "arcade",
   "museum",
   "karaoke",
+  "karoke",
+  "karoake",
   "escape",
   "escape room",
   "mini golf",
@@ -139,15 +141,15 @@ const ACTIVITY_INTENTS: Record<string, string[]> = {
   bowling: ["bowling", "bowl", "bowling alley"],
   arcade: ["arcade", "games", "game room", "amusement"],
   museum: ["museum", "gallery", "art", "exhibit", "exhibits"],
-karaoke: [
-  "karaoke",
-  "karoke",
-  "karoake",
-  "singing",
-  "karaoke bar",
-  "private karaoke",
-  "karaoke room",
-],
+  karaoke: [
+    "karaoke",
+    "karoke",
+    "karoake",
+    "singing",
+    "karaoke bar",
+    "private karaoke",
+    "karaoke room",
+  ],
   escape_room: ["escape room", "escape"],
   mini_golf: ["mini golf", "miniature golf", "minigolf"],
   golf: ["golf", "topgolf", "driving range", "indoor golf"],
@@ -213,6 +215,7 @@ function itemText(item: any) {
     item.state,
     item.zip_code,
     item.neighborhood,
+    item.borough,
     item.cuisine,
     item.cuisine_type,
     item.activity_type,
@@ -258,7 +261,6 @@ function locationNameMatchScore(item: any, input: string) {
 
   const nameWords = name.split(" ").filter((word) => word.length > 2);
   const queryWords = query.split(" ").filter((word) => word.length > 2);
-
   const matches = nameWords.filter((word) => queryWords.includes(word));
 
   if (matches.length >= 2) return LOCATION_NAME_MATCH_WEIGHT + 100;
@@ -302,6 +304,81 @@ function normalizeLocation(item: any) {
         ? item.activity_name || name
         : item.activity_name,
   };
+}
+
+function detectLocation(input: string, locations: any[]) {
+  const text = normalizeQuery(input);
+  const found = new Set<string>();
+
+  locations.forEach((item) => {
+    const fields = [
+      item.city,
+      item.neighborhood,
+      item.borough,
+      item.state,
+      item.zip_code,
+    ]
+      .filter(Boolean)
+      .map((value) => normalizeQuery(String(value)));
+
+    fields.forEach((field) => {
+      if (field.length > 1 && text.includes(field)) {
+        found.add(field);
+      }
+    });
+  });
+
+  const hardcodedLocations = [
+    "manhattan",
+    "brooklyn",
+    "queens",
+    "bronx",
+    "staten island",
+    "nyc",
+    "new york",
+    "long island",
+    "nassau",
+    "suffolk",
+    "harlem",
+    "soho",
+    "tribeca",
+    "chelsea",
+    "midtown",
+    "downtown",
+    "uptown",
+    "williamsburg",
+    "bushwick",
+    "astoria",
+    "flushing",
+    "jamaica",
+    "long island city",
+  ];
+
+  hardcodedLocations.forEach((location) => {
+    if (text.includes(location)) {
+      found.add(location);
+    }
+  });
+
+  return Array.from(found);
+}
+
+function matchesLocation(item: any, detectedLocations: string[]) {
+  if (!detectedLocations || detectedLocations.length === 0) return true;
+
+  const searchable = [
+    item.city,
+    item.neighborhood,
+    item.borough,
+    item.state,
+    item.zip_code,
+    item.address,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return detectedLocations.some((location) => searchable.includes(location));
 }
 
 function isRoseOutRelated(input: string) {
@@ -424,13 +501,9 @@ function matchesFoodIntent(item: any, foodIntent: string) {
 function matchesActivityIntent(item: any, activityIntent: string) {
   const activityName = String(item.activity_name || item.name || "").toLowerCase();
   const normalizedIntent = activityIntent.replace(/_/g, " ");
-  const keywords =
-    ACTIVITY_INTENTS[activityIntent] || [activityIntent.replace(/_/g, " ")];
+  const keywords = ACTIVITY_INTENTS[activityIntent] || [normalizedIntent];
 
-  // ✅ Hard priority: if activity_name contains the requested activity, it matches.
   if (activityName.includes(normalizedIntent)) return true;
-
-  // ✅ Also check every keyword directly against activity_name.
   if (keywords.some((keyword) => activityName.includes(keyword))) return true;
 
   if (activityIntent === "hookah") return isHookahPlace(item);
@@ -680,12 +753,13 @@ function popularityBoost(item: any) {
   return score;
 }
 
-function detectIntent(input: string, body: any = {}) {
+function detectIntent(input: string, body: any = {}, locations: any[] = []) {
   const text = normalizeQuery(input);
 
   const requestedTags = detectFromMap(input, TAG_KEYWORDS);
   const foodIntents = detectFromMap(input, FOOD_INTENTS);
   const activityIntents = detectFromMap(input, ACTIVITY_INTENTS);
+  const detectedLocations = detectLocation(input, locations);
 
   const wantsFoodMap = buildWantsMap(Object.keys(FOOD_INTENTS), foodIntents);
   const wantsActivityMap = buildWantsMap(
@@ -781,6 +855,7 @@ function detectIntent(input: string, body: any = {}) {
     maxMiles,
     vibes,
     multiIntentMode,
+    locations: detectedLocations,
 
     wantsBirthday: text.includes("birthday"),
     wantsBirthdayDinner: text.includes("birthday dinner"),
@@ -1001,6 +1076,17 @@ export async function POST(req: Request) {
       return Response.json({ error: "Missing input" }, { status: 400 });
     }
 
+    const { data: locationsData, error: locationsError } = await supabase
+      .from("locations")
+      .select("*");
+
+    if (locationsError) {
+      return Response.json({ error: locationsError.message }, { status: 500 });
+    }
+
+    const locations = (locationsData || []).map(normalizeLocation);
+    const intent = detectIntent(input, body, locations);
+
     if (!isRoseOutRelated(input)) {
       return Response.json({
         reply: OFF_TOPIC_REPLY,
@@ -1010,6 +1096,7 @@ export async function POST(req: Request) {
           activityIntents: [],
           vibes: [],
           multiIntentMode: false,
+          locations: [],
         },
         restaurants: [],
         activities: [],
@@ -1017,13 +1104,11 @@ export async function POST(req: Request) {
       });
     }
 
-    const intent = detectIntent(input, body);
-
     const cacheKey = normalizeQuery(
-  `roseout-activity-name-priority-v10-${input}-${intent.userLat || ""}-${
-    intent.userLng || ""
-  }-${intent.maxMiles || ""}`
-);
+      `roseout-location-intelligence-v12-${input}-${intent.userLat || ""}-${
+        intent.userLng || ""
+      }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
+    );
 
     const { data: cached } = await supabase
       .from("ai_response_cache")
@@ -1038,16 +1123,6 @@ export async function POST(req: Request) {
         return Response.json(cached.response);
       }
     }
-
-    const { data: locationsData, error: locationsError } = await supabase
-      .from("locations")
-      .select("*");
-
-    if (locationsError) {
-      return Response.json({ error: locationsError.message }, { status: 500 });
-    }
-
-    const locations = (locationsData || []).map(normalizeLocation);
 
     const usableLocations = locations.filter((item: any) => {
       const status = String(item.status || "approved").toLowerCase();
@@ -1089,17 +1164,45 @@ export async function POST(req: Request) {
     restaurants = filterRestaurantsByFoodIntent(restaurants, intent);
     activities = filterActivitiesByActivityIntent(activities, intent);
 
-if (intent.activityIntents.length > 0) {
-  const forcedActivityMatches = locations.filter((item: any) =>
-    intent.activityIntents.some((activityIntent) =>
-      matchesActivityIntent(item, activityIntent)
-    )
-  );
+    if (intent.locations.length > 0) {
+      const locationRestaurants = restaurants.filter((item: any) =>
+        matchesLocation(item, intent.locations)
+      );
 
-  if (forcedActivityMatches.length > 0) {
-    activities = forcedActivityMatches;
-  }
-}
+      const locationActivities = activities.filter((item: any) =>
+        matchesLocation(item, intent.locations)
+      );
+
+      if (locationRestaurants.length > 0) {
+        restaurants = locationRestaurants;
+      }
+
+      if (locationActivities.length > 0) {
+        activities = locationActivities;
+      }
+    }
+
+    if (intent.activityIntents.length > 0) {
+      let forcedActivityMatches = locations.filter((item: any) =>
+        intent.activityIntents.some((activityIntent) =>
+          matchesActivityIntent(item, activityIntent)
+        )
+      );
+
+      if (intent.locations.length > 0) {
+        const locationFiltered = forcedActivityMatches.filter((item: any) =>
+          matchesLocation(item, intent.locations)
+        );
+
+        if (locationFiltered.length > 0) {
+          forcedActivityMatches = locationFiltered;
+        }
+      }
+
+      if (forcedActivityMatches.length > 0) {
+        activities = forcedActivityMatches;
+      }
+    }
 
     const rankedRestaurants = restaurants
       .map((restaurant: any) => ({
@@ -1118,13 +1221,15 @@ if (intent.activityIntents.length > 0) {
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
     const balanced = balanceResults(rankedRestaurants, rankedActivities, intent);
-if (
-  intent.activityIntents.length > 0 &&
-  rankedActivities.length > 0 &&
-  balanced.activities.length === 0
-) {
-  balanced.activities = rankedActivities.slice(0, 2);
-}
+
+    if (
+      intent.activityIntents.length > 0 &&
+      rankedActivities.length > 0 &&
+      balanced.activities.length === 0
+    ) {
+      balanced.activities = rankedActivities.slice(0, 2);
+    }
+
     const topRestaurants = balanced.restaurants;
     const topActivities = balanced.activities;
 
@@ -1191,6 +1296,7 @@ ${JSON.stringify({
   vibes: intent.vibes,
   budget: intent.budget,
   maxMiles: intent.maxMiles,
+  locations: intent.locations,
 })}
 
 Matched location/business names from RoseOut database:
@@ -1210,15 +1316,16 @@ STRICT RULES:
 - If the user typed a specific business/location name and it appears in "Matched location/business names", prioritize it.
 - If there is a matched business/location name, mention that match first.
 - If the user asks for food plus any activity, include both a restaurant and a matching activity when available.
-- If matching activities only exist in another borough, still include the matching activity.
 - Never ignore the requested activity intent.
+- If a location is detected, prioritize restaurants and activities from that location.
+- If matching activities only exist in another borough, still include the matching activity.
 - Never say “I don’t have any.”
 - Never ask the user to provide a list.
 - Never say “let me know.”
 - Balance restaurant and activity perfectly when both are requested.
 - If budget is detected, recommend options that fit the budget first.
 - If distance is detected, prioritize closer options first.
-- Match the vibe, food intent, and activity intent together.
+- Match the vibe, food intent, activity intent, and location together.
 - Do NOT recommend museums unless the user asked for museums, art, galleries, exhibits, or culture.
 - Do NOT suggest unrelated cuisines or unrelated activities.
 - Do NOT invent business details.
@@ -1251,6 +1358,7 @@ STRICT RULES:
         budget: intent.budget,
         maxMiles: intent.maxMiles,
         multiIntentMode: intent.multiIntentMode,
+        locations: intent.locations,
       },
       matched_locations: matchedLocationResults.map((item: any) => ({
         id: String(item.id),
