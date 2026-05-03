@@ -139,13 +139,15 @@ const ACTIVITY_INTENTS: Record<string, string[]> = {
   bowling: ["bowling", "bowl", "bowling alley"],
   arcade: ["arcade", "games", "game room", "amusement"],
   museum: ["museum", "gallery", "art", "exhibit", "exhibits"],
-  karaoke: [
-    "karaoke",
-    "singing",
-    "karaoke bar",
-    "private karaoke",
-    "karaoke room",
-  ],
+karaoke: [
+  "karaoke",
+  "karoke",
+  "karoake",
+  "singing",
+  "karaoke bar",
+  "private karaoke",
+  "karaoke room",
+],
   escape_room: ["escape room", "escape"],
   mini_golf: ["mini golf", "miniature golf", "minigolf"],
   golf: ["golf", "topgolf", "driving range", "indoor golf"],
@@ -1018,10 +1020,10 @@ export async function POST(req: Request) {
     const intent = detectIntent(input, body);
 
     const cacheKey = normalizeQuery(
-      `roseout-activity-name-priority-v6-${input}-${intent.userLat || ""}-${
-        intent.userLng || ""
-      }-${intent.maxMiles || ""}`
-    );
+  `roseout-activity-name-priority-v8-${input}-${intent.userLat || ""}-${
+    intent.userLng || ""
+  }-${intent.maxMiles || ""}`
+);
 
     const { data: cached } = await supabase
       .from("ai_response_cache")
@@ -1087,17 +1089,17 @@ export async function POST(req: Request) {
     restaurants = filterRestaurantsByFoodIntent(restaurants, intent);
     activities = filterActivitiesByActivityIntent(activities, intent);
 
-    if (intent.activityIntents.length > 0) {
-      const forcedActivityMatches = sourceLocations.filter((item: any) =>
-        intent.activityIntents.some((activityIntent) =>
-          matchesActivityIntent(item, activityIntent)
-        )
-      );
+if (intent.activityIntents.length > 0) {
+  const forcedActivityMatches = sourceLocations.filter((item: any) =>
+    intent.activityIntents.some((activityIntent) =>
+      matchesActivityIntent(item, activityIntent)
+    )
+  );
 
-      if (forcedActivityMatches.length > 0) {
-        activities = forcedActivityMatches;
-      }
-    }
+  if (forcedActivityMatches.length > 0) {
+    activities = forcedActivityMatches;
+  }
+}
 
     const rankedRestaurants = restaurants
       .map((restaurant: any) => ({
@@ -1116,7 +1118,13 @@ export async function POST(req: Request) {
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
     const balanced = balanceResults(rankedRestaurants, rankedActivities, intent);
-
+if (
+  intent.activityIntents.length > 0 &&
+  rankedActivities.length > 0 &&
+  balanced.activities.length === 0
+) {
+  balanced.activities = rankedActivities.slice(0, 2);
+}
     const topRestaurants = balanced.restaurants;
     const topActivities = balanced.activities;
 
