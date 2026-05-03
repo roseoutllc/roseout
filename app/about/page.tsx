@@ -12,7 +12,6 @@ export default function AboutPage() {
     <main className="min-h-screen bg-black text-white">
       <RoseOutHeader />
 
-      {/* HERO */}
       <section className="relative overflow-hidden px-6 pt-28 pb-24 text-center">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(225,6,42,0.22),transparent_42%),linear-gradient(180deg,#050505,#000)]" />
 
@@ -51,7 +50,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* WHAT IT DOES */}
       <section className="px-6 py-20">
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
           <div>
@@ -93,7 +91,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* WHY EXISTS */}
       <section className="border-y border-white/10 bg-[#070707] px-6 py-20">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
@@ -113,7 +110,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* HOW TO USE */}
       <section className="px-6 py-20">
         <div className="mx-auto max-w-7xl">
           <div className="mb-10 max-w-3xl">
@@ -148,7 +144,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* WHO IT'S FOR */}
       <section className="bg-white px-6 py-20 text-black">
         <div className="mx-auto max-w-7xl">
           <div className="mb-10 text-center">
@@ -182,7 +177,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* TRUST SECTION */}
       <section className="px-6 py-20">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_1fr] lg:items-center">
           <div>
@@ -210,16 +204,15 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* FOR RESTAURANTS */}
       <section className="border-y border-white/10 bg-[#070707] px-6 py-20">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_0.85fr] lg:items-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
-              For restaurants & venues
+              For businesses
             </p>
 
             <h2 className="mt-4 text-4xl font-black md:text-5xl">
-              Own a restaurant, lounge, or activity venue?
+              Own a restaurant, lounge, activity, or venue?
             </h2>
 
             <p className="mt-6 text-lg leading-8 text-white/60">
@@ -231,24 +224,24 @@ export default function AboutPage() {
 
           <div className="rounded-[2rem] border border-white/10 bg-black p-7">
             <h3 className="text-2xl font-black">Business visibility</h3>
+
             <p className="mt-3 text-sm leading-7 text-white/55">
-              If your business appears on RoseOut, users may discover your
-              location while planning outings. Future business tools may include
-              listing claims, profile updates, performance insights, and
-              promotional options.
+              If your location appears on RoseOut, users may discover your
+              business while planning outings. Claiming your listing helps you
+              manage your profile, improve your details, and prepare for
+              business tools like analytics and QR claim access.
             </p>
 
             <Link
-              href="/signup"
+              href="/locations/apply"
               className="mt-6 inline-flex rounded-2xl bg-[#e1062a] px-6 py-3 text-sm font-black text-white transition hover:bg-red-500"
             >
-              Create Account
+              Claim Your Listing →
             </Link>
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
       <section id="faq" className="px-6 py-20">
         <div className="mx-auto max-w-4xl">
           <div className="text-center">
@@ -303,14 +296,13 @@ export default function AboutPage() {
             />
 
             <FAQ
-              q="Can restaurants or venues be featured?"
+              q="Can restaurants, activities, or venues be featured?"
               a="RoseOut may offer business tools in the future, including claimed profiles, enhanced listings, analytics, and promotional placements."
             />
           </div>
         </div>
       </section>
 
-      {/* CTA */}
       <section className="relative overflow-hidden px-6 py-24 text-center">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(225,6,42,0.18),transparent_38%)]" />
 
@@ -422,10 +414,10 @@ function LuxuryFooter() {
             </Link>
 
             <Link
-              href="/about"
+              href="/business"
               className="inline-flex w-fit rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-black text-white/70 transition hover:bg-white hover:text-black"
             >
-              About RoseOut
+              For Businesses
             </Link>
           </div>
         </div>
@@ -440,11 +432,11 @@ function LuxuryFooter() {
         />
 
         <FooterColumn
-          title="Account"
+          title="Business"
           links={[
-            { label: "Create Account", href: "/signup" },
+            { label: "For Businesses", href: "/business" },
+            { label: "Claim Listing", href: "/locations/apply" },
             { label: "Sign In", href: "/login" },
-            { label: "Saved Plan", href: "/plan" },
           ]}
         />
 
