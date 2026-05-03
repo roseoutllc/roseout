@@ -197,38 +197,28 @@ export default function CreatePage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  useEffect(() => {
-    setLocationSaved(!!getSavedUserLocation());
+Replace it with this:
 
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
+useEffect(() => {
+  setLocationSaved(!!getSavedUserLocation());
 
-      if (saved) {
-        const parsed = JSON.parse(saved);
+  // ✅ Clear old search/results on browser refresh or fresh page load
+  sessionStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem("roseout_plan");
+  localStorage.removeItem("roseout-search");
+  localStorage.removeItem("roseout-results");
+  sessionStorage.removeItem("roseout-search");
+  sessionStorage.removeItem("roseout-results");
 
-        setInput(parsed.input || "");
-        setMessages(Array.isArray(parsed.messages) ? parsed.messages : []);
-        setSelectedRestaurant(parsed.selectedRestaurant || null);
-        setSelectedActivity(parsed.selectedActivity || null);
-        setError("");
+  setInput("");
+  setMessages([]);
+  setSelectedRestaurant(null);
+  setSelectedActivity(null);
+  setError("");
+  restoredStateRef.current = false;
 
-        restoredStateRef.current = true;
-
-        setTimeout(() => {
-          window.scrollTo({
-            top: Number(parsed.scrollY || 0),
-            behavior: "auto",
-          });
-        }, 250);
-
-        return;
-      }
-    } catch {
-      sessionStorage.removeItem(STORAGE_KEY);
-    }
-
-    setTimeout(() => inputRef.current?.focus(), 300);
-  }, []);
+  setTimeout(() => inputRef.current?.focus(), 300);
+}, []);
 
   useEffect(() => {
     if (!restoredStateRef.current && messages.length === 0) return;
