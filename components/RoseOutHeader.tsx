@@ -40,12 +40,11 @@ export default function RoseOutHeader() {
         </Link>
 
         {/* DESKTOP NAV */}
-        <nav className="hidden items-center gap-8 md:flex">
-          <NavLink href="/" label="Home" active={isActive("/")} />
-          <NavLink href="/about" label="About" active={isActive("/about")} />
-          <NavLink href="/terms" label="Terms" active={isActive("/terms")} />
-          <NavLink href="/privacy" label="Privacy" active={isActive("/privacy")} />
-        </nav>
+<nav className="hidden items-center gap-8 md:flex">
+  <NavLink href="/" label="Home" active={isActive("/")} />
+  <NavLink href="/about" label="About" active={isActive("/about")} />
+  <NavLink href="/business" label="For Businesses" active={isActive("/business")} />
+</nav>
 
         {/* RIGHT SIDE */}
         <div className="flex items-center gap-4">
@@ -67,12 +66,12 @@ export default function RoseOutHeader() {
       </div>
 
       {/* MOBILE NAV */}
-      <div className="flex border-t border-white/5 md:hidden">
-        <MobileLink href="/" label="Home" active={isActive("/")} />
-        <MobileLink href="/create" label="Plan" active={isActive("/create")} />
-        <MobileLink href="/about" label="About" active={isActive("/about")} />
-        <MobileLink href="/login" label="Sign In" active={isActive("/login")} />
-      </div>
+<div className="flex border-t border-white/5 md:hidden">
+  <MobileLink href="/" label="Home" active={isActive("/")} />
+  <MobileLink href="/create" label="Plan" active={isActive("/create")} />
+  <MobileLink href="/business" label="Business" active={isActive("/business")} />
+  <MobileLink href="/login" label="Sign In" active={isActive("/login")} />
+</div>
     </header>
   );
 }
