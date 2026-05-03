@@ -9,7 +9,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
-        <BottomNav />
+      
       </body>
     </html>
   );
