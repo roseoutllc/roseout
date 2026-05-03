@@ -45,7 +45,7 @@ export default async function HomePage() {
     .limit(4);
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-black text-white pb-20">
       <RoseOutHeader />
 
       <section className="relative min-h-screen overflow-hidden pt-24">
