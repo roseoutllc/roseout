@@ -1020,7 +1020,7 @@ export async function POST(req: Request) {
     const intent = detectIntent(input, body);
 
     const cacheKey = normalizeQuery(
-  `roseout-activity-name-priority-v8-${input}-${intent.userLat || ""}-${
+  `roseout-activity-name-priority-v10-${input}-${intent.userLat || ""}-${
     intent.userLng || ""
   }-${intent.maxMiles || ""}`
 );
@@ -1090,7 +1090,7 @@ export async function POST(req: Request) {
     activities = filterActivitiesByActivityIntent(activities, intent);
 
 if (intent.activityIntents.length > 0) {
-  const forcedActivityMatches = sourceLocations.filter((item: any) =>
+  const forcedActivityMatches = locations.filter((item: any) =>
     intent.activityIntents.some((activityIntent) =>
       matchesActivityIntent(item, activityIntent)
     )
@@ -1210,6 +1210,7 @@ STRICT RULES:
 - If the user typed a specific business/location name and it appears in "Matched location/business names", prioritize it.
 - If there is a matched business/location name, mention that match first.
 - If the user asks for food plus any activity, include both a restaurant and a matching activity when available.
+- If matching activities only exist in another borough, still include the matching activity.
 - Never ignore the requested activity intent.
 - Never say “I don’t have any.”
 - Never ask the user to provide a list.
