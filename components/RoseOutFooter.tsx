@@ -1,15 +1,19 @@
 import Link from "next/link";
 
-export default function Footer() {
+export default function RoseOutFooter() {
   return (
     <footer className="relative overflow-hidden border-t border-white/10 bg-[#050505] px-6 py-14 text-white">
+      {/* BACKGROUND */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(225,6,42,0.16),transparent_28%),linear-gradient(180deg,#050505,#000)]" />
 
       <div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
         {/* BRAND */}
         <div>
-          <Link href="/" className="inline-flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e1062a] text-lg font-black text-white shadow-lg shadow-red-500/20">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-3 group"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e1062a] text-lg font-black text-white shadow-lg shadow-red-500/20 transition group-hover:scale-105">
               R
             </span>
             <span className="text-2xl font-black tracking-tight">
@@ -25,21 +29,21 @@ export default function Footer() {
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/create"
-              className="rounded-2xl bg-[#e1062a] px-6 py-3 text-sm font-black text-white hover:bg-red-500"
+              className="rounded-2xl bg-[#e1062a] px-6 py-3 text-sm font-black text-white transition hover:bg-red-500 hover:shadow-lg hover:shadow-red-500/20"
             >
               Plan My Outing
             </Link>
 
             <Link
               href="/business"
-              className="rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-black text-white/70 hover:bg-white hover:text-black"
+              className="rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-black text-white/70 transition hover:bg-white hover:text-black"
             >
               For Businesses
             </Link>
           </div>
         </div>
 
-        {/* COLUMNS */}
+        {/* EXPLORE */}
         <FooterColumn
           title="Explore"
           links={[
@@ -49,32 +53,37 @@ export default function Footer() {
           ]}
         />
 
+        {/* BUSINESS */}
         <FooterColumn
           title="Business"
           links={[
             { label: "For Businesses", href: "/business" },
             { label: "Claim Listing", href: "/locations/apply" },
+            { label: "Add Location", href: "/locations/apply" },
+            { label: "Get QR Code", href: "/business" },
             { label: "Sign In", href: "/login" },
           ]}
         />
 
+        {/* LEGAL */}
         <FooterColumn
           title="Legal"
           links={[
             { label: "Terms", href: "/terms" },
             { label: "Privacy", href: "/privacy" },
             { label: "Contact", href: "/contact" },
+            { label: "Email", href: "mailto:hello@roseout.com" },
           ]}
         />
       </div>
 
       {/* BOTTOM */}
       <div className="relative mx-auto mt-12 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-6 text-xs text-white/35 md:flex-row md:items-center md:justify-between">
-        <p>© {new Date().getFullYear()} RoseOut</p>
+        <p>© {new Date().getFullYear()} RoseOut. All rights reserved.</p>
 
         <p className="max-w-xl leading-6 md:text-right">
-          Recommendations may include third-party listings. Always confirm
-          details directly with the business.
+          Recommendations may include third-party listings, websites, and
+          reservation links. Always confirm details directly with the business.
         </p>
       </div>
     </footer>
@@ -95,15 +104,25 @@ function FooterColumn({
       </p>
 
       <div className="mt-5 flex flex-col gap-3">
-        {links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="text-sm font-semibold text-white/45 hover:text-white"
-          >
-            {link.label}
-          </Link>
-        ))}
+        {links.map((link) =>
+          link.href.startsWith("mailto:") ? (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-sm font-semibold text-white/45 transition hover:text-white"
+            >
+              {link.label}
+            </a>
+          ) : (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-sm font-semibold text-white/45 transition hover:text-white"
+            >
+              {link.label}
+            </Link>
+          )
+        )}
       </div>
     </div>
   );
