@@ -1,42 +1,101 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function RoseOutHeader() {
-  return (
-    <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-2xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 text-xl">
-            🌹
-          </div>
+  const pathname = usePathname();
 
-          <span className="text-2xl font-black tracking-tight">
-            Rose<span className="text-[#e1062a]">Out</span>
+  const isActive = (href: string) =>
+    pathname === href ? "text-white" : "text-white/45 hover:text-white";
+
+  return (
+    <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/85 backdrop-blur-xl">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 md:px-6">
+        <Link href="/" className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e1062a] text-sm font-black text-white">
+            R
+          </span>
+
+          <span className="text-xl font-black tracking-tight text-white">
+            RoseOut
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 text-sm font-bold text-white/65 md:flex">
-          <Link href="/" className="text-[#e1062a]">
+        <nav className="hidden items-center gap-8 md:flex">
+          <Link
+            href="/"
+            className={`text-sm font-bold transition ${isActive("/")}`}
+          >
             Home
           </Link>
-          <Link href="/create" className="hover:text-white">
-            Plan
+
+          <Link
+            href="/about"
+            className={`text-sm font-bold transition ${isActive("/about")}`}
+          >
+            About
           </Link>
-          <Link href="/user/saved" className="hover:text-white">
-            Saved
+
+          <Link
+            href="/terms"
+            className={`text-sm font-bold transition ${isActive("/terms")}`}
+          >
+            Terms
           </Link>
-          <Link href="/user/dashboard" className="hover:text-white">
-            Profile
+
+          <Link
+            href="/privacy"
+            className={`text-sm font-bold transition ${isActive("/privacy")}`}
+          >
+            Privacy
           </Link>
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link href="/create" className="rose-btn px-5 py-2 text-sm">
-            Plan My Outing
+          <Link
+            href="/login"
+            className="hidden text-sm font-bold text-white/45 transition hover:text-white sm:inline-flex"
+          >
+            Sign In
           </Link>
 
-          <button className="text-2xl text-white/70 md:hidden">☰</button>
+          <Link
+            href="/create"
+            className="rounded-full bg-white px-5 py-2.5 text-sm font-black text-black transition hover:bg-[#e1062a] hover:text-white"
+          >
+            Plan
+          </Link>
         </div>
       </div>
+
+      <div className="flex border-t border-white/5 md:hidden">
+        <MobileLink href="/" label="Home" active={pathname === "/"} />
+        <MobileLink href="/create" label="Plan" active={pathname === "/create"} />
+        <MobileLink href="/about" label="About" active={pathname === "/about"} />
+        <MobileLink href="/login" label="Sign In" active={pathname === "/login"} />
+      </div>
     </header>
+  );
+}
+
+function MobileLink({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`flex-1 py-3 text-center text-xs font-black transition ${
+        active ? "text-white" : "text-white/40 hover:text-white"
+      }`}
+    >
+      {label}
+    </Link>
   );
 }
