@@ -7,7 +7,7 @@ export default function AboutPage() {
       <RoseOutHeader />
 
       {/* HERO */}
-      <section className="relative overflow-hidden px-6 pt-28 pb-20 text-center">
+      <section className="relative px-6 pt-28 pb-20 text-center">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(225,6,42,0.18),transparent_40%)]" />
 
         <div className="relative mx-auto max-w-4xl">
@@ -16,57 +16,121 @@ export default function AboutPage() {
           </p>
 
           <h1 className="mt-4 text-5xl font-black tracking-tight md:text-6xl">
-            Built for real outings,
+            Go out better.
             <br />
-            not endless scrolling.
+            Not longer.
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white/55">
-            RoseOut is an AI-powered outing planner that helps you find the
-            perfect restaurant, activity, and experience — all in one place.
+            RoseOut helps you find the perfect restaurant, activity, and
+            experience — without spending hours searching.
           </p>
         </div>
       </section>
 
-      {/* STORY */}
+      {/* WHY */}
       <section className="px-6 py-20">
         <div className="mx-auto max-w-5xl">
           <h2 className="text-4xl font-black">Why RoseOut exists</h2>
 
           <p className="mt-6 text-lg leading-8 text-white/60">
-            Planning a night out shouldn’t take 45 minutes of scrolling,
-            switching apps, and second-guessing decisions.
+            Planning a night out today means jumping between apps, reading
+            reviews, checking menus, and still not being sure if it’s the right
+            choice.
           </p>
 
           <p className="mt-4 text-lg leading-8 text-white/60">
-            RoseOut was created to eliminate that friction. Instead of showing
-            endless lists, we give you curated, high-quality recommendations
-            based on what actually works — vibe, location, behavior, and real
-            user signals.
+            RoseOut removes that friction. Instead of overwhelming you with
+            options, we guide you to the right ones — based on your vibe,
+            location, and intent.
           </p>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
+      {/* WHAT MAKES US DIFFERENT */}
       <section className="border-y border-white/10 bg-[#070707] px-6 py-20">
         <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-3">
-          <FeatureBlock
-            number="01"
-            title="Tell us what you want"
-            text="Type naturally — dinner, birthday, rooftop, fun, luxury, or budget. RoseOut understands."
+          <Feature
+            title="Intent-based recommendations"
+            text="We focus on what you're actually trying to do — date night, birthday, quick outing — not just random listings."
           />
 
-          <FeatureBlock
-            number="02"
-            title="Get curated matches"
-            text="We combine restaurants + activities into one complete outing — no guesswork."
+          <Feature
+            title="Full outing planning"
+            text="Restaurants and activities are combined into one seamless experience."
           />
 
-          <FeatureBlock
-            number="03"
-            title="Go out with confidence"
-            text="Every recommendation is optimized for quality, vibe, and real-world success."
+          <Feature
+            title="Quality over quantity"
+            text="You get curated matches, not endless scrolling."
           />
+        </div>
+      </section>
+
+      {/* USE CASES */}
+      <section className="px-6 py-20">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="text-4xl font-black text-center">
+            Built for real life
+          </h2>
+
+          <div className="mt-12 grid gap-6 md:grid-cols-2">
+            <UseCase
+              title="Date nights"
+              text="Find a restaurant and activity that actually work together."
+            />
+            <UseCase
+              title="Birthdays"
+              text="Plan something memorable without the stress."
+            />
+            <UseCase
+              title="Quick nights out"
+              text="No overthinking — just go."
+            />
+            <UseCase
+              title="Luxury experiences"
+              text="Discover high-end spots that match your vibe."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="border-t border-white/10 px-6 py-20">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-4xl font-black text-center">FAQ</h2>
+
+          <div className="mt-12 space-y-6">
+            <FAQ
+              q="How do I use RoseOut?"
+              a="Just type what you're looking for — like 'romantic dinner in Manhattan with something fun after.' RoseOut will generate a curated plan instantly."
+            />
+
+            <FAQ
+              q="Do I need to book through RoseOut?"
+              a="No. We provide direct links so you can book through the restaurant or venue."
+            />
+
+            <FAQ
+              q="Is RoseOut free?"
+              a="Yes. You can explore and plan outings without any cost."
+            />
+
+            <FAQ
+              q="How are recommendations chosen?"
+              a="We consider multiple factors like vibe, location, and real-world signals to find the best matches."
+            />
+
+            <FAQ
+              q="Can I plan both food and activities?"
+              a="Yes. RoseOut is designed to combine restaurants and experiences into one outing."
+            />
+
+            <FAQ
+              q="Does RoseOut work in all cities?"
+              a="We are expanding, starting with major cities and growing continuously."
+            />
+          </div>
         </div>
       </section>
 
@@ -74,7 +138,7 @@ export default function AboutPage() {
       <section className="px-6 py-24 text-center">
         <div className="mx-auto max-w-3xl">
           <h2 className="text-4xl font-black md:text-5xl">
-            Ready to plan your next outing?
+            Your next outing is one sentence away
           </h2>
 
           <p className="mt-5 text-lg text-white/55">
@@ -95,109 +159,46 @@ export default function AboutPage() {
   );
 }
 
-function FeatureBlock({
-  number,
-  title,
-  text,
-}: {
-  number: string;
-  title: string;
-  text: string;
-}) {
+/* COMPONENTS */
+
+function Feature({ title, text }: any) {
   return (
     <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-7">
-      <p className="text-sm font-black text-[#e1062a]">{number}</p>
-      <h3 className="mt-4 text-2xl font-black">{title}</h3>
-      <p className="mt-3 text-sm leading-7 text-white/50">{text}</p>
+      <h3 className="text-xl font-black">{title}</h3>
+      <p className="mt-3 text-sm text-white/50">{text}</p>
+    </div>
+  );
+}
+
+function UseCase({ title, text }: any) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-6">
+      <h3 className="text-lg font-black">{title}</h3>
+      <p className="mt-2 text-sm text-white/50">{text}</p>
+    </div>
+  );
+}
+
+function FAQ({ q, a }: any) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-6">
+      <p className="text-sm font-black">{q}</p>
+      <p className="mt-2 text-sm text-white/50">{a}</p>
     </div>
   );
 }
 
 function LuxuryFooter() {
   return (
-    <footer className="relative overflow-hidden border-t border-white/10 bg-[#050505] px-6 py-14 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(225,6,42,0.16),transparent_28%),linear-gradient(180deg,#050505,#000)]" />
-
-      <div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
-        <div>
-          <Link href="/" className="inline-flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e1062a] text-lg font-black text-white">
-              R
-            </span>
-            <span className="text-2xl font-black">RoseOut</span>
-          </Link>
-
-          <p className="mt-5 max-w-md text-sm text-white/45">
-            AI-powered planning for restaurants, activities, and unforgettable
-            outings.
-          </p>
-
-          <Link
-            href="/create"
-            className="mt-6 inline-flex rounded-2xl bg-[#e1062a] px-6 py-3 text-sm font-black text-white hover:bg-red-500"
-          >
-            Plan My Outing
-          </Link>
-        </div>
-
-        <FooterColumn
-          title="Explore"
-          links={[
-            { label: "Home", href: "/" },
-            { label: "Plan", href: "/create" },
-            { label: "About", href: "/about" },
-          ]}
-        />
-
-        <FooterColumn
-          title="Account"
-          links={[
-            { label: "Sign In", href: "/login" },
-            { label: "Join", href: "/signup" },
-          ]}
-        />
-
-        <FooterColumn
-          title="Legal"
-          links={[
-            { label: "Terms", href: "/terms" },
-            { label: "Privacy", href: "/privacy" },
-          ]}
-        />
-      </div>
-
-      <div className="relative mx-auto mt-10 max-w-7xl border-t border-white/10 pt-6 text-xs text-white/35 flex justify-between">
+    <footer className="border-t border-white/10 bg-black px-6 py-10 text-sm text-white/40">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 md:flex-row">
         <p>© {new Date().getFullYear()} RoseOut</p>
-        <p>All rights reserved</p>
+
+        <div className="flex gap-5">
+          <Link href="/terms">Terms</Link>
+          <Link href="/privacy">Privacy</Link>
+        </div>
       </div>
     </footer>
-  );
-}
-
-function FooterColumn({
-  title,
-  links,
-}: {
-  title: string;
-  links: { label: string; href: string }[];
-}) {
-  return (
-    <div>
-      <p className="text-xs font-black uppercase tracking-[0.28em] text-[#e1062a]">
-        {title}
-      </p>
-
-      <div className="mt-5 flex flex-col gap-3">
-        {links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="text-sm text-white/45 hover:text-white"
-          >
-            {link.label}
-          </Link>
-        ))}
-      </div>
-    </div>
   );
 }
