@@ -1,252 +1,182 @@
-"use client";
+import Link from "next/link";
+import RoseOutHeader from "@/components/RoseOutHeader";
 
-import { useEffect, useRef, useState } from "react";
+export const metadata = {
+  title: "Claim or Add Your Location – RoseOut",
+  description:
+    "Claim or add your restaurant, activity, lounge, venue, or experience on RoseOut.",
+};
 
-declare global {
-  interface Window {
-    google: any;
-  }
+export default function LocationApplyPage() {
+  return (
+    <main className="min-h-screen bg-black text-white">
+      <RoseOutHeader />
+
+      <section className="relative overflow-hidden px-6 pt-32 pb-20">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(225,6,42,0.2),transparent_35%),linear-gradient(180deg,#050505,#000)]" />
+
+        <div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-[#e1062a]">
+              Claim or Add Location
+            </p>
+
+            <h1 className="mt-5 text-5xl font-black leading-tight md:text-6xl">
+              Manage how your location appears on RoseOut.
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/60">
+              This page is for restaurants, activities, lounges, venues, and
+              experience-based businesses that want to claim or submit a
+              location on RoseOut.
+            </p>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <InfoBox title="Claim" text="Already listed? Start the claim process." />
+              <InfoBox title="Submit" text="Not listed yet? Submit your location." />
+              <InfoBox title="Improve" text="Update details, links, photos, and tags." />
+              <InfoBox title="Track" text="Understand views, clicks, and user interest." />
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-6 shadow-2xl shadow-black/40">
+            <h2 className="text-2xl font-black">Location request</h2>
+
+            <p className="mt-2 text-sm leading-6 text-white/45">
+              Use this form as your front-end request page. Connect it to
+              Supabase when ready.
+            </p>
+
+            <form className="mt-6 space-y-4">
+              <Field label="Business / Location Name" placeholder="Example: Rose Lounge" />
+
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  Location Type
+                </span>
+                <select className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-bold text-white outline-none focus:border-[#e1062a]">
+                  <option>Restaurant</option>
+                  <option>Activity</option>
+                  <option>Lounge / Nightlife</option>
+                  <option>Venue</option>
+                  <option>Other Experience</option>
+                </select>
+              </label>
+
+              <Field label="Business Website" placeholder="https://example.com" />
+              <Field label="Address" placeholder="Street address" />
+              <Field label="City" placeholder="New York" />
+              <Field label="Owner / Manager Name" placeholder="Full name" />
+              <Field label="Email" placeholder="name@example.com" />
+              <Field label="Phone" placeholder="Phone number" />
+
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  Request Type
+                </span>
+                <select className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-bold text-white outline-none focus:border-[#e1062a]">
+                  <option>Claim existing listing</option>
+                  <option>Add new location</option>
+                  <option>Update listing details</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  Notes
+                </span>
+                <textarea
+                  rows={4}
+                  placeholder="Tell us anything helpful about this location."
+                  className="mt-2 w-full resize-none rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-[#e1062a]"
+                />
+              </label>
+
+              <button
+                type="button"
+                className="w-full rounded-2xl bg-[#e1062a] px-6 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500"
+              >
+                Submit Request
+              </button>
+
+              <p className="text-center text-xs leading-5 text-white/35">
+                Submissions may be reviewed before approval. This form does not
+                guarantee immediate listing access.
+              </p>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-white/10 bg-[#070707] px-6 py-16">
+        <div className="mx-auto max-w-5xl text-center">
+          <h2 className="text-3xl font-black">Already received a QR code?</h2>
+
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-white/50">
+            Scan the QR code from your RoseOut mailer to open your unique claim
+            link. If you do not have a QR code, submit the request form above.
+          </p>
+
+          <Link
+            href="/business"
+            className="mt-7 inline-flex rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-black text-white/70 transition hover:bg-white hover:text-black"
+          >
+            Back to For Businesses
+          </Link>
+        </div>
+      </section>
+
+      <LuxuryFooter />
+    </main>
+  );
 }
 
-export default function RestaurantApplyPage() {
-  const addressRef = useRef<HTMLInputElement | null>(null);
-
-  const [form, setForm] = useState({
-    restaurant_name: "",
-    address: "",
-    city: "",
-    state: "",
-    zip_code: "",
-    email: "",
-    description: "",
-  });
-
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const update = (key: string, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  useEffect(() => {
-    const initAutocomplete = () => {
-      if (!addressRef.current || !window.google) return;
-
-      const autocomplete = new window.google.maps.places.Autocomplete(
-        addressRef.current,
-        {
-          types: ["address"],
-          componentRestrictions: { country: "us" },
-        }
-      );
-
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-
-        let streetNumber = "";
-        let route = "";
-        let city = "";
-        let state = "";
-        let zip = "";
-
-        place.address_components?.forEach((component: any) => {
-          const types = component.types;
-
-          if (types.includes("street_number")) {
-            streetNumber = component.long_name;
-          }
-
-          if (types.includes("route")) {
-            route = component.long_name;
-          }
-
-          if (types.includes("locality")) {
-            city = component.long_name;
-          }
-
-          if (types.includes("sublocality")) {
-            city = city || component.long_name;
-          }
-
-          if (types.includes("administrative_area_level_1")) {
-            state = component.short_name;
-          }
-
-          if (types.includes("postal_code")) {
-            zip = component.long_name;
-          }
-        });
-
-        setForm((prev) => ({
-          ...prev,
-          address: `${streetNumber} ${route}`.trim(),
-          city,
-          state,
-          zip_code: zip,
-        }));
-      });
-    };
-
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-    if (!apiKey) {
-      console.warn("Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
-      return;
-    }
-
-    if (window.google?.maps?.places) {
-      initAutocomplete();
-      return;
-    }
-
-    const existingScript = document.querySelector(
-      'script[src*="maps.googleapis.com/maps/api/js"]'
-    );
-
-    if (existingScript) {
-      existingScript.addEventListener("load", initAutocomplete);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = initAutocomplete;
-
-    document.head.appendChild(script);
-  }, []);
-
-  const submit = async () => {
-    setLoading(true);
-    setMessage("");
-
-    try {
-      const res = await fetch("/api/restaurants/apply", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setMessage(data.error || "Submission failed.");
-        return;
-      }
-
-      setMessage(
-        "Success! Your restaurant was submitted. Check your email for your login link."
-      );
-
-      setForm({
-        restaurant_name: "",
-        address: "",
-        city: "",
-        state: "",
-        zip_code: "",
-        email: "",
-        description: "",
-      });
-    } catch {
-      setMessage("Network error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+function Field({ label, placeholder }: { label: string; placeholder: string }) {
   return (
-    <main className="min-h-screen bg-black px-6 py-12 text-white">
-      <div className="mx-auto max-w-xl">
-        <h1 className="text-4xl font-bold">
-          List Your Restaurant on RoseOut
-        </h1>
+    <label className="block">
+      <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
+        {label}
+      </span>
+      <input
+        placeholder={placeholder}
+        className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-[#e1062a]"
+      />
+    </label>
+  );
+}
 
-        <p className="mt-3 text-neutral-400">
-          Get discovered in AI-powered date and outing plans.
+function InfoBox({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+      <h3 className="text-lg font-black">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-white/45">{text}</p>
+    </div>
+  );
+}
+
+function LuxuryFooter() {
+  return (
+    <footer className="border-t border-white/10 bg-[#050505] px-6 py-10 text-white">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <p className="text-sm text-white/35">
+          © {new Date().getFullYear()} RoseOut. All rights reserved.
         </p>
 
-        <div className="mt-8 space-y-4 rounded-3xl bg-white p-6 text-black">
-          <input
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder="Restaurant Name"
-            value={form.restaurant_name}
-            onChange={(e) => update("restaurant_name", e.target.value)}
-          />
-
-          <input
-            ref={addressRef}
-            type="text"
-            autoComplete="street-address"
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder="Start typing restaurant address"
-            value={form.address}
-            onChange={(e) => update("address", e.target.value)}
-          />
-
-          <input
-            type="text"
-            autoComplete="address-level2"
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder="City"
-            value={form.city}
-            onChange={(e) => update("city", e.target.value)}
-          />
-
-          <input
-            type="text"
-            autoComplete="address-level1"
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder="State"
-            value={form.state}
-            onChange={(e) => update("state", e.target.value)}
-          />
-
-          <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="postal-code"
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder="Zip Code"
-            value={form.zip_code}
-            onChange={(e) => update("zip_code", e.target.value)}
-          />
-
-          <input
-            type="email"
-            autoComplete="email"
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => update("email", e.target.value)}
-          />
-
-          <textarea
-            className="min-h-28 w-full rounded-xl border px-4 py-3"
-            placeholder="Describe your restaurant (vibe, cuisine, atmosphere)"
-            value={form.description}
-            onChange={(e) => update("description", e.target.value)}
-          />
-
-          <button
-            onClick={submit}
-            disabled={
-              loading ||
-              !form.restaurant_name.trim() ||
-              !form.email.trim()
-            }
-            className="w-full rounded-xl bg-yellow-500 px-6 py-3 font-bold text-black disabled:opacity-50"
-          >
-            {loading ? "Submitting..." : "Submit Restaurant"}
-          </button>
-
-          {message && (
-            <p className="text-center font-semibold">{message}</p>
-          )}
+        <div className="flex flex-wrap gap-5 text-sm font-semibold text-white/45">
+          <Link href="/about" className="hover:text-white">
+            About
+          </Link>
+          <Link href="/business" className="hover:text-white">
+            For Businesses
+          </Link>
+          <Link href="/terms" className="hover:text-white">
+            Terms
+          </Link>
+          <Link href="/privacy" className="hover:text-white">
+            Privacy
+          </Link>
         </div>
       </div>
-    </main>
+    </footer>
   );
 }

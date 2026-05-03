@@ -9,10 +9,7 @@ export default function RoseOutHeader() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
-    };
-
+    const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -28,7 +25,6 @@ export default function RoseOutHeader() {
       }`}
     >
       <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-5 md:px-6">
-        {/* LOGO */}
         <Link href="/" className="flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e1062a] text-sm font-black text-white">
             R
@@ -39,14 +35,16 @@ export default function RoseOutHeader() {
           </span>
         </Link>
 
-        {/* DESKTOP NAV */}
-<nav className="hidden items-center gap-8 md:flex">
-  <NavLink href="/" label="Home" active={isActive("/")} />
-  <NavLink href="/about" label="About" active={isActive("/about")} />
-  <NavLink href="/business" label="For Businesses" active={isActive("/business")} />
-</nav>
+        <nav className="hidden items-center gap-8 md:flex">
+          <NavLink href="/" label="Home" active={isActive("/")} />
+          <NavLink href="/about" label="About" active={isActive("/about")} />
+          <NavLink
+            href="/business"
+            label="For Businesses"
+            active={isActive("/business")}
+          />
+        </nav>
 
-        {/* RIGHT SIDE */}
         <div className="flex items-center gap-4">
           <Link
             href="/login"
@@ -55,7 +53,6 @@ export default function RoseOutHeader() {
             Sign In
           </Link>
 
-          {/* DESKTOP CTA */}
           <Link
             href="/create"
             className="hidden rounded-full bg-white px-5 py-2.5 text-sm font-black text-black transition hover:bg-[#e1062a] hover:text-white md:inline-flex"
@@ -65,18 +62,19 @@ export default function RoseOutHeader() {
         </div>
       </div>
 
-      {/* MOBILE NAV */}
-<div className="flex border-t border-white/5 md:hidden">
-  <MobileLink href="/" label="Home" active={isActive("/")} />
-  <MobileLink href="/create" label="Plan" active={isActive("/create")} />
-  <MobileLink href="/business" label="Business" active={isActive("/business")} />
-  <MobileLink href="/login" label="Sign In" active={isActive("/login")} />
-</div>
+      <div className="flex border-t border-white/5 md:hidden">
+        <MobileLink href="/" label="Home" active={isActive("/")} />
+        <MobileLink href="/create" label="Plan" active={isActive("/create")} />
+        <MobileLink
+          href="/business"
+          label="Business"
+          active={isActive("/business")}
+        />
+        <MobileLink href="/login" label="Sign In" active={isActive("/login")} />
+      </div>
     </header>
   );
 }
-
-/* ---------- DESKTOP NAV LINK ---------- */
 
 function NavLink({
   href,
@@ -95,18 +93,14 @@ function NavLink({
       }`}
     >
       {label}
-
-      {/* underline animation */}
       <span
         className={`absolute -bottom-1 left-0 h-[2px] bg-[#e1062a] transition-all duration-300 ${
-          active ? "w-full" : "w-0 group-hover:w-full"
+          active ? "w-full" : "w-0"
         }`}
       />
     </Link>
   );
 }
-
-/* ---------- MOBILE NAV LINK ---------- */
 
 function MobileLink({
   href,
