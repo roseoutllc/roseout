@@ -12,7 +12,6 @@ const CACHE_HOURS = 6;
 const OFF_TOPIC_REPLY =
   "I can only help with RoseOut outing plans, restaurants, activities, nightlife, brunch, and date ideas.";
 
-// ✅ NEW: location/name match weight
 const LOCATION_NAME_MATCH_WEIGHT = 500;
 
 const FOOD_KEYWORDS = [
@@ -137,26 +136,26 @@ const FOOD_INTENTS: Record<string, string[]> = {
 };
 
 const ACTIVITY_INTENTS: Record<string, string[]> = {
-  bowling: ["bowling", "bowl"],
-  arcade: ["arcade", "games"],
-  museum: ["museum", "gallery", "art"],
-  karaoke: ["karaoke"],
+  bowling: ["bowling", "bowl", "bowling alley"],
+  arcade: ["arcade", "games", "game room", "amusement"],
+  museum: ["museum", "gallery", "art", "exhibit", "exhibits"],
+  karaoke: ["karaoke", "singing", "karaoke bar", "private karaoke", "karaoke room"],
   escape_room: ["escape room", "escape"],
   mini_golf: ["mini golf", "miniature golf", "minigolf"],
   golf: ["golf", "topgolf", "driving range", "indoor golf"],
   axe_throwing: ["axe throwing", "axe"],
   paintball: ["paintball"],
-  paint_and_sip: ["paint and sip"],
-  comedy: ["comedy", "stand up"],
+  paint_and_sip: ["paint and sip", "paint sip", "painting"],
+  comedy: ["comedy", "stand up", "stand-up", "comedy club"],
   movie: ["movie", "movies", "cinema", "theater"],
-  nightclub: ["nightclub", "night club", "dance club"],
+  nightclub: ["nightclub", "night club", "dance club", "club"],
   hookah: ["hookah", "shisha", "hookah lounge", "hookah restaurant"],
   cigar: ["cigar", "cigar lounge", "cigar bar", "cigar friendly"],
   lounge: ["lounge"],
-  rooftop: ["rooftop", "roof top"],
-  live_music: ["live music", "jazz"],
-  spa: ["spa"],
-  pool: ["pool", "billiards"],
+  rooftop: ["rooftop", "roof top", "skyline", "view"],
+  live_music: ["live music", "jazz", "music venue"],
+  spa: ["spa", "massage", "wellness"],
+  pool: ["pool", "billiards", "billiard"],
 };
 
 const PRIORITY_WEIGHTS = {
@@ -209,6 +208,12 @@ function itemText(item: any) {
     item.cuisine,
     item.cuisine_type,
     item.activity_type,
+    item.category,
+    item.categories,
+    item.subcategory,
+    item.google_types,
+    item.types,
+    item.business_status,
     item.atmosphere,
     item.lighting,
     item.noise_level,
@@ -233,7 +238,6 @@ function locationDisplayName(item: any) {
     .toLowerCase();
 }
 
-// ✅ NEW: checks if user typed an actual location/business name
 function locationNameMatchScore(item: any, input: string) {
   const name = locationDisplayName(item);
   const query = normalizeQuery(input);
@@ -250,12 +254,13 @@ function locationNameMatchScore(item: any, input: string) {
   const matches = nameWords.filter((word) => queryWords.includes(word));
 
   if (matches.length >= 2) return LOCATION_NAME_MATCH_WEIGHT + 100;
-  if (matches.length === 1 && nameWords.length <= 2) return LOCATION_NAME_MATCH_WEIGHT + 40;
+  if (matches.length === 1 && nameWords.length <= 2) {
+    return LOCATION_NAME_MATCH_WEIGHT + 40;
+  }
 
   return 0;
 }
 
-// ✅ NEW: creates matched location list to send before OpenAI responds
 function buildMatchedLocationResults(locations: any[], input: string) {
   return locations
     .map((item: any) => ({
@@ -356,7 +361,12 @@ function itemHasTag(item: any, tag: string) {
 
   const directTags = [
     item.activity_type,
+    item.category,
+    item.categories,
+    item.subcategory,
     item.primary_tag,
+    ...toArray(item.google_types),
+    ...toArray(item.types),
     ...toArray(item.date_style_tags),
     ...toArray(item.search_keywords),
     ...toArray(item.best_for),
@@ -777,9 +787,7 @@ function scoreRestaurant(
 ) {
   let score = 0;
 
-  // ✅ NEW: exact/close business-name boost
   score += locationNameMatchScore(item, input);
-
   score += keywordBoost(item, input);
   score += weightedVibeBoost(item, intent.vibes);
   score += weightedTagBoost(item, intent.requestedTags);
@@ -824,9 +832,7 @@ function scoreActivity(
 ) {
   let score = 0;
 
-  // ✅ NEW: exact/close business-name boost
   score += locationNameMatchScore(item, input);
-
   score += keywordBoost(item, input);
   score += weightedVibeBoost(item, intent.vibes);
   score += weightedTagBoost(item, intent.requestedTags);
@@ -981,7 +987,7 @@ export async function POST(req: Request) {
     const intent = detectIntent(input, body);
 
     const cacheKey = normalizeQuery(
-      `roseout-location-name-match-v2-${input}-${intent.userLat || ""}-${
+      `roseout-universal-activity-match-v4-${input}-${intent.userLat || ""}-${
         intent.userLng || ""
       }-${intent.maxMiles || ""}`
     );
@@ -1018,7 +1024,6 @@ export async function POST(req: Request) {
     const sourceLocations =
       usableLocations.length > 0 ? usableLocations : locations;
 
-    // ✅ NEW: find business/location names before OpenAI
     const matchedLocationResults = buildMatchedLocationResults(
       sourceLocations,
       input
@@ -1041,12 +1046,23 @@ export async function POST(req: Request) {
       return (
         type === "activity" ||
         Boolean(item.activity_name) ||
-        Boolean(item.activity_type)
+        Boolean(item.activity_type) ||
+        intent.activityIntents.some((activityIntent) =>
+          matchesActivityIntent(item, activityIntent)
+        )
       );
     });
 
     restaurants = filterRestaurantsByFoodIntent(restaurants, intent);
     activities = filterActivitiesByActivityIntent(activities, intent);
+
+    if (intent.activityIntents.length > 0 && activities.length === 0) {
+      activities = sourceLocations.filter((item: any) =>
+        intent.activityIntents.some((activityIntent) =>
+          matchesActivityIntent(item, activityIntent)
+        )
+      );
+    }
 
     const rankedRestaurants = restaurants
       .map((restaurant: any) => ({
@@ -1076,7 +1092,7 @@ export async function POST(req: Request) {
       city: item.city,
       address: item.address,
       cuisine: item.cuisine || item.cuisine_type || null,
-      activity_type: item.activity_type || null,
+      activity_type: item.activity_type || item.category || item.subcategory || null,
       score: item.location_name_match_score,
     }));
 
@@ -1096,7 +1112,7 @@ export async function POST(req: Request) {
     const slimActivities = topActivities.map((a: any) => ({
       name: a.activity_name || a.name,
       city: a.city,
-      type: a.activity_type,
+      type: a.activity_type || a.category || a.subcategory,
       score: clampScore(a.roseout_score),
       location_name_match_score: a.location_name_match_score || 0,
       tag: a.primary_tag,
@@ -1150,6 +1166,8 @@ STRICT RULES:
 - Use ONLY the listed restaurants and activities.
 - If the user typed a specific business/location name and it appears in "Matched location/business names", prioritize it.
 - If there is a matched business/location name, mention that match first.
+- If the user asks for food plus any activity, include both a restaurant and a matching activity when available.
+- Never ignore the requested activity intent.
 - Never say “I don’t have any.”
 - Never ask the user to provide a list.
 - Never say “let me know.”
@@ -1157,6 +1175,7 @@ STRICT RULES:
 - If budget is detected, recommend options that fit the budget first.
 - If distance is detected, prioritize closer options first.
 - Match the vibe, food intent, and activity intent together.
+- Do NOT recommend museums unless the user asked for museums, art, galleries, exhibits, or culture.
 - Do NOT suggest unrelated cuisines or unrelated activities.
 - Do NOT invent business details.
 - Do NOT add times unless asked.
@@ -1189,8 +1208,6 @@ STRICT RULES:
         maxMiles: intent.maxMiles,
         multiIntentMode: intent.multiIntentMode,
       },
-
-      // ✅ NEW: return matched names to frontend/debug
       matched_locations: matchedLocationResults.map((item: any) => ({
         id: String(item.id),
         name: item.restaurant_name || item.activity_name || item.name,
@@ -1200,13 +1217,12 @@ STRICT RULES:
         state: item.state,
         zip_code: item.zip_code,
         cuisine: item.cuisine || item.cuisine_type || null,
-        activity_type: item.activity_type || null,
+        activity_type: item.activity_type || item.category || item.subcategory || null,
         website: item.website,
         image_url: item.image_url || null,
         reservation_url: item.reservation_url || item.booking_url || null,
         location_name_match_score: item.location_name_match_score,
       })),
-
       restaurants: topRestaurants.map((r: any) => ({
         id: String(r.id),
         restaurant_name: r.restaurant_name || r.name,
@@ -1235,7 +1251,7 @@ STRICT RULES:
       activities: topActivities.map((a: any) => ({
         id: String(a.id),
         activity_name: a.activity_name || a.name,
-        activity_type: a.activity_type,
+        activity_type: a.activity_type || a.category || a.subcategory,
         address: a.address,
         city: a.city,
         state: a.state,
