@@ -1076,7 +1076,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "Missing input" }, { status: 400 });
     }
 
-    const { data: locationsData, error: locationsError } = await supabase
+const { data: locationsData, error: locationsError } = await supabase
   .from("locations")
   .select("*");
 
@@ -1098,6 +1098,7 @@ const mergedLocations = [
     ...activity,
     location_type: "activity",
     name: activity.activity_name || activity.name,
+    activity_name: activity.activity_name || activity.name,
   })),
 ];
 
@@ -1122,7 +1123,7 @@ const locations = mergedLocations.map(normalizeLocation);
     }
 
     const cacheKey = normalizeQuery(
-      `roseout-location-intelligence-v12-${input}-${intent.userLat || ""}-${
+      `roseout-location-intelligence-v13-${input}-${intent.userLat || ""}-${
         intent.userLng || ""
       }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
     );
