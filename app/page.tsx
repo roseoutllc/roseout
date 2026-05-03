@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import RoseOutHeader from "@/components/RoseOutHeader";
-import BottomNav from "@/components/BottomNav";
 
 export const dynamic = "force-dynamic";
 
