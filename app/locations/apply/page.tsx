@@ -1,13 +1,101 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import RoseOutHeader from "@/components/RoseOutHeader";
 
-export const metadata = {
-  title: "Claim or Add Your Location – RoseOut",
-  description:
-    "Claim or add your restaurant, activity, lounge, venue, or experience on RoseOut.",
+type FormState = {
+  location_name: string;
+  location_type: string;
+  request_type: string;
+  website: string;
+  address: string;
+  city: string;
+  owner_name: string;
+  owner_email: string;
+  owner_phone: string;
+  notes: string;
+};
+
+const initialForm: FormState = {
+  location_name: "",
+  location_type: "Restaurant",
+  request_type: "Claim existing listing",
+  website: "",
+  address: "",
+  city: "",
+  owner_name: "",
+  owner_email: "",
+  owner_phone: "",
+  notes: "",
 };
 
 export default function LocationApplyPage() {
+  const [form, setForm] = useState<FormState>(initialForm);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+
+  const updateField = (field: keyof FormState, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const submitRequest = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (loading) return;
+
+    setError("");
+    setSuccess("");
+
+    if (!form.location_name.trim()) {
+      setError("Please enter your business / location name.");
+      return;
+    }
+
+    if (!form.owner_name.trim()) {
+      setError("Please enter the owner or manager name.");
+      return;
+    }
+
+    if (!form.owner_email.trim()) {
+      setError("Please enter an email address.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/locations/apply", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Something went wrong.");
+        return;
+      }
+
+      setSuccess(
+        data.message || "Request submitted. We’ll review and follow up shortly."
+      );
+
+      setForm(initialForm);
+    } catch {
+      setError("Could not submit request. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-black text-white">
       <RoseOutHeader />
@@ -32,10 +120,39 @@ export default function LocationApplyPage() {
             </p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              <InfoBox title="Claim" text="Already listed? Start the claim process." />
-              <InfoBox title="Submit" text="Not listed yet? Submit your location." />
-              <InfoBox title="Improve" text="Update details, links, photos, and tags." />
-              <InfoBox title="Track" text="Understand views, clicks, and user interest." />
+              <InfoBox
+                title="Claim"
+                text="Already listed? Start the claim process."
+              />
+              <InfoBox
+                title="Submit"
+                text="Not listed yet? Submit your location for review."
+              />
+              <InfoBox
+                title="Improve"
+                text="Update details, links, photos, and tags after approval."
+              />
+              <InfoBox
+                title="Track"
+                text="Understand views, clicks, and customer interest."
+              />
+            </div>
+
+            <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+              <h2 className="text-xl font-black">Already received a QR code?</h2>
+
+              <p className="mt-3 text-sm leading-7 text-white/50">
+                Scan the QR code from your RoseOut mailer to open your unique
+                claim link. If you do not have a QR code, submit the request
+                form and we’ll review your location.
+              </p>
+
+              <Link
+                href="/business"
+                className="mt-5 inline-flex rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white hover:text-black"
+              >
+                Back to For Businesses
+              </Link>
             </div>
           </div>
 
@@ -43,60 +160,121 @@ export default function LocationApplyPage() {
             <h2 className="text-2xl font-black">Location request</h2>
 
             <p className="mt-2 text-sm leading-6 text-white/45">
-              Use this form as your front-end request page. Connect it to
-              Supabase when ready.
+              Submit your request to claim or add your location. Our team will
+              review and follow up if needed.
             </p>
 
-            <form className="mt-6 space-y-4">
-              <Field label="Business / Location Name" placeholder="Example: Rose Lounge" />
+            {success && (
+              <div className="mt-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-200">
+                {success}
+              </div>
+            )}
 
-              <label className="block">
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
-                  Location Type
-                </span>
-                <select className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-bold text-white outline-none focus:border-[#e1062a]">
-                  <option>Restaurant</option>
-                  <option>Activity</option>
-                  <option>Lounge / Nightlife</option>
-                  <option>Venue</option>
-                  <option>Other Experience</option>
-                </select>
-              </label>
+            {error && (
+              <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">
+                {error}
+              </div>
+            )}
 
-              <Field label="Business Website" placeholder="https://example.com" />
-              <Field label="Address" placeholder="Street address" />
-              <Field label="City" placeholder="New York" />
-              <Field label="Owner / Manager Name" placeholder="Full name" />
-              <Field label="Email" placeholder="name@example.com" />
-              <Field label="Phone" placeholder="Phone number" />
+            <form onSubmit={submitRequest} className="mt-6 space-y-4">
+              <Field
+                label="Business / Location Name"
+                placeholder="Example: Rose Lounge"
+                value={form.location_name}
+                onChange={(value) => updateField("location_name", value)}
+                required
+              />
 
-              <label className="block">
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
-                  Request Type
-                </span>
-                <select className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-bold text-white outline-none focus:border-[#e1062a]">
-                  <option>Claim existing listing</option>
-                  <option>Add new location</option>
-                  <option>Update listing details</option>
-                </select>
-              </label>
+              <SelectField
+                label="Location Type"
+                value={form.location_type}
+                onChange={(value) => updateField("location_type", value)}
+                options={[
+                  "Restaurant",
+                  "Activity",
+                  "Lounge / Nightlife",
+                  "Venue",
+                  "Other Experience",
+                ]}
+              />
+
+              <Field
+                label="Business Website"
+                placeholder="https://example.com"
+                value={form.website}
+                onChange={(value) => updateField("website", value)}
+              />
+
+              <Field
+                label="Address"
+                placeholder="Street address"
+                value={form.address}
+                onChange={(value) => updateField("address", value)}
+              />
+
+              <Field
+                label="City"
+                placeholder="New York"
+                value={form.city}
+                onChange={(value) => updateField("city", value)}
+              />
+
+              <Field
+                label="Owner / Manager Name"
+                placeholder="Full name"
+                value={form.owner_name}
+                onChange={(value) => updateField("owner_name", value)}
+                required
+              />
+
+              <Field
+                label="Email"
+                placeholder="name@example.com"
+                value={form.owner_email}
+                onChange={(value) => updateField("owner_email", value)}
+                required
+                type="email"
+              />
+
+              <Field
+                label="Phone"
+                placeholder="Phone number"
+                value={form.owner_phone}
+                onChange={(value) => updateField("owner_phone", value)}
+                type="tel"
+              />
+
+              <SelectField
+                label="Request Type"
+                value={form.request_type}
+                onChange={(value) => updateField("request_type", value)}
+                options={[
+                  "Claim existing listing",
+                  "Add new location",
+                  "Update listing details",
+                ]}
+              />
 
               <label className="block">
                 <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
                   Notes
                 </span>
+
                 <textarea
                   rows={4}
+                  value={form.notes}
+                  onChange={(e) => updateField("notes", e.target.value)}
                   placeholder="Tell us anything helpful about this location."
                   className="mt-2 w-full resize-none rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-[#e1062a]"
                 />
               </label>
 
               <button
-                type="button"
-                className="w-full rounded-2xl bg-[#e1062a] px-6 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500"
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-2xl bg-[#e1062a] px-6 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Submit Request
+                {loading ? "Submitting..." : "Submit Request"}
               </button>
 
               <p className="text-center text-xs leading-5 text-white/35">
@@ -108,39 +286,70 @@ export default function LocationApplyPage() {
         </div>
       </section>
 
-      <section className="border-y border-white/10 bg-[#070707] px-6 py-16">
-        <div className="mx-auto max-w-5xl text-center">
-          <h2 className="text-3xl font-black">Already received a QR code?</h2>
-
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-white/50">
-            Scan the QR code from your RoseOut mailer to open your unique claim
-            link. If you do not have a QR code, submit the request form above.
-          </p>
-
-          <Link
-            href="/business"
-            className="mt-7 inline-flex rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-black text-white/70 transition hover:bg-white hover:text-black"
-          >
-            Back to For Businesses
-          </Link>
-        </div>
-      </section>
-
       <LuxuryFooter />
     </main>
   );
 }
 
-function Field({ label, placeholder }: { label: string; placeholder: string }) {
+function Field({
+  label,
+  placeholder,
+  value,
+  onChange,
+  required,
+  type = "text",
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+  type?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
+        {label}
+        {required ? <span className="text-[#e1062a]"> *</span> : null}
+      </span>
+
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-[#e1062a]"
+      />
+    </label>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+}) {
   return (
     <label className="block">
       <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
         {label}
       </span>
-      <input
-        placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-[#e1062a]"
-      />
+
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-bold text-white outline-none focus:border-[#e1062a]"
+      >
+        {options.map((option) => (
+          <option key={option}>{option}</option>
+        ))}
+      </select>
     </label>
   );
 }
