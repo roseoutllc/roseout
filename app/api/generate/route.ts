@@ -12,6 +12,9 @@ const CACHE_HOURS = 6;
 const OFF_TOPIC_REPLY =
   "I can only help with RoseOut outing plans, restaurants, activities, nightlife, brunch, and date ideas.";
 
+// ✅ NEW: location/name match weight
+const LOCATION_NAME_MATCH_WEIGHT = 500;
+
 const FOOD_KEYWORDS = [
   "food",
   "eat",
@@ -224,6 +227,49 @@ function itemText(item: any) {
     .toLowerCase();
 }
 
+function locationDisplayName(item: any) {
+  return String(item.restaurant_name || item.activity_name || item.name || "")
+    .trim()
+    .toLowerCase();
+}
+
+// ✅ NEW: checks if user typed an actual location/business name
+function locationNameMatchScore(item: any, input: string) {
+  const name = locationDisplayName(item);
+  const query = normalizeQuery(input);
+
+  if (!name || !query) return 0;
+
+  if (query === name) return LOCATION_NAME_MATCH_WEIGHT + 300;
+  if (query.includes(name)) return LOCATION_NAME_MATCH_WEIGHT + 220;
+  if (name.includes(query)) return LOCATION_NAME_MATCH_WEIGHT + 180;
+
+  const nameWords = name.split(" ").filter((word) => word.length > 2);
+  const queryWords = query.split(" ").filter((word) => word.length > 2);
+
+  const matches = nameWords.filter((word) => queryWords.includes(word));
+
+  if (matches.length >= 2) return LOCATION_NAME_MATCH_WEIGHT + 100;
+  if (matches.length === 1 && nameWords.length <= 2) return LOCATION_NAME_MATCH_WEIGHT + 40;
+
+  return 0;
+}
+
+// ✅ NEW: creates matched location list to send before OpenAI responds
+function buildMatchedLocationResults(locations: any[], input: string) {
+  return locations
+    .map((item: any) => ({
+      ...item,
+      location_name_match_score: locationNameMatchScore(item, input),
+    }))
+    .filter((item: any) => item.location_name_match_score > 0)
+    .sort(
+      (a: any, b: any) =>
+        b.location_name_match_score - a.location_name_match_score
+    )
+    .slice(0, 10);
+}
+
 function normalizeLocation(item: any) {
   const name = item.name || item.restaurant_name || item.activity_name || "";
   const type =
@@ -278,7 +324,7 @@ function isRoseOutRelated(input: string) {
     "long island",
   ];
 
-  return allowedWords.some((word) => text.includes(word));
+  return allowedWords.some((word) => text.includes(word)) || text.length >= 3;
 }
 
 function detectFromMap(input: string, map: Record<string, string[]>) {
@@ -415,7 +461,11 @@ function detectBudget(input: string) {
 function priceLevel(item: any) {
   const price = String(item.price_range || item.price || "").toLowerCase();
 
-  if (price.includes("$$$$") || price.includes("expensive") || price.includes("luxury")) {
+  if (
+    price.includes("$$$$") ||
+    price.includes("expensive") ||
+    price.includes("luxury")
+  ) {
     return "high";
   }
 
@@ -423,7 +473,11 @@ function priceLevel(item: any) {
     return "medium";
   }
 
-  if (price.includes("$") || price.includes("cheap") || price.includes("affordable")) {
+  if (
+    price.includes("$") ||
+    price.includes("cheap") ||
+    price.includes("affordable")
+  ) {
     return "low";
   }
 
@@ -438,7 +492,12 @@ function budgetBoost(item: any, budget: ReturnType<typeof detectBudget>) {
 
   if (!level) {
     if (budget.level === "low" && searchable.includes("affordable")) return 70;
-    if (budget.level === "high" && (searchable.includes("upscale") || searchable.includes("luxury"))) return 90;
+    if (
+      budget.level === "high" &&
+      (searchable.includes("upscale") || searchable.includes("luxury"))
+    ) {
+      return 90;
+    }
     return 0;
   }
 
@@ -467,7 +526,12 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
   return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function distanceBoost(item: any, userLat?: number, userLng?: number, maxMiles?: number | null) {
+function distanceBoost(
+  item: any,
+  userLat?: number,
+  userLng?: number,
+  maxMiles?: number | null
+) {
   if (!userLat || !userLng || !item.latitude || !item.longitude) return 0;
 
   const miles = haversineMiles(
@@ -495,7 +559,11 @@ function detectDistance(input: string) {
 
   if (match) return Number(match[1]);
 
-  if (text.includes("near me") || text.includes("nearby") || text.includes("close by")) {
+  if (
+    text.includes("near me") ||
+    text.includes("nearby") ||
+    text.includes("close by")
+  ) {
     return 10;
   }
 
@@ -554,14 +622,16 @@ function weightedActivityBoost(item: any, activityIntents: string[]) {
 
 function weightedTagBoost(item: any, requestedTags: string[]) {
   return requestedTags.reduce(
-    (total, tag) => total + (itemHasTag(item, tag) ? PRIORITY_WEIGHTS.tagExact : 0),
+    (total, tag) =>
+      total + (itemHasTag(item, tag) ? PRIORITY_WEIGHTS.tagExact : 0),
     0
   );
 }
 
 function weightedVibeBoost(item: any, vibes: string[]) {
   return vibes.reduce(
-    (total, vibe) => total + (itemHasTag(item, vibe) ? PRIORITY_WEIGHTS.vibeExact : 0),
+    (total, vibe) =>
+      total + (itemHasTag(item, vibe) ? PRIORITY_WEIGHTS.vibeExact : 0),
     0
   );
 }
@@ -589,7 +659,10 @@ function detectIntent(input: string, body: any = {}) {
   const activityIntents = detectFromMap(input, ACTIVITY_INTENTS);
 
   const wantsFoodMap = buildWantsMap(Object.keys(FOOD_INTENTS), foodIntents);
-  const wantsActivityMap = buildWantsMap(Object.keys(ACTIVITY_INTENTS), activityIntents);
+  const wantsActivityMap = buildWantsMap(
+    Object.keys(ACTIVITY_INTENTS),
+    activityIntents
+  );
 
   const wantsFood =
     FOOD_KEYWORDS.some((word) => text.includes(word)) || foodIntents.length > 0;
@@ -632,11 +705,21 @@ function detectIntent(input: string, body: any = {}) {
   const vibes = Array.from(
     new Set([
       ...requestedTags.filter((tag) =>
-        ["romantic", "fun", "luxury", "chill", "nightlife", "scenic", "birthday"].includes(tag)
+        [
+          "romantic",
+          "fun",
+          "luxury",
+          "chill",
+          "nightlife",
+          "scenic",
+          "birthday",
+        ].includes(tag)
       ),
       ...(text.includes("romantic") ? ["romantic"] : []),
       ...(text.includes("fun") ? ["fun"] : []),
-      ...(text.includes("luxury") || text.includes("upscale") ? ["luxury"] : []),
+      ...(text.includes("luxury") || text.includes("upscale")
+        ? ["luxury"]
+        : []),
       ...(text.includes("chill") ? ["chill"] : []),
     ])
   );
@@ -687,8 +770,15 @@ function detectIntent(input: string, body: any = {}) {
   };
 }
 
-function scoreRestaurant(item: any, input: string, intent: ReturnType<typeof detectIntent>) {
+function scoreRestaurant(
+  item: any,
+  input: string,
+  intent: ReturnType<typeof detectIntent>
+) {
   let score = 0;
+
+  // ✅ NEW: exact/close business-name boost
+  score += locationNameMatchScore(item, input);
 
   score += keywordBoost(item, input);
   score += weightedVibeBoost(item, intent.vibes);
@@ -727,8 +817,15 @@ function scoreRestaurant(item: any, input: string, intent: ReturnType<typeof det
   return clampScore(score);
 }
 
-function scoreActivity(item: any, input: string, intent: ReturnType<typeof detectIntent>) {
+function scoreActivity(
+  item: any,
+  input: string,
+  intent: ReturnType<typeof detectIntent>
+) {
   let score = 0;
+
+  // ✅ NEW: exact/close business-name boost
+  score += locationNameMatchScore(item, input);
 
   score += keywordBoost(item, input);
   score += weightedVibeBoost(item, intent.vibes);
@@ -779,7 +876,10 @@ function scoreActivity(item: any, input: string, intent: ReturnType<typeof detec
   return clampScore(score);
 }
 
-function filterRestaurantsByFoodIntent(restaurants: any[], intent: ReturnType<typeof detectIntent>) {
+function filterRestaurantsByFoodIntent(
+  restaurants: any[],
+  intent: ReturnType<typeof detectIntent>
+) {
   if (intent.foodIntents.length === 0) return restaurants;
 
   const exactMatches = restaurants.filter((restaurant: any) =>
@@ -820,7 +920,11 @@ function filterActivitiesByActivityIntent(
   return [];
 }
 
-function balanceResults(restaurants: any[], activities: any[], intent: ReturnType<typeof detectIntent>) {
+function balanceResults(
+  restaurants: any[],
+  activities: any[],
+  intent: ReturnType<typeof detectIntent>
+) {
   if (intent.multiIntentMode) {
     return {
       restaurants: restaurants.slice(0, 2),
@@ -870,12 +974,16 @@ export async function POST(req: Request) {
         },
         restaurants: [],
         activities: [],
+        matched_locations: [],
       });
     }
 
     const intent = detectIntent(input, body);
+
     const cacheKey = normalizeQuery(
-      `roseout-budget-distance-vibe-balance-v1-${input}-${intent.userLat || ""}-${intent.userLng || ""}-${intent.maxMiles || ""}`
+      `roseout-location-name-match-v2-${input}-${intent.userLat || ""}-${
+        intent.userLng || ""
+      }-${intent.maxMiles || ""}`
     );
 
     const { data: cached } = await supabase
@@ -907,7 +1015,14 @@ export async function POST(req: Request) {
       return status === "approved" || status === "active" || status === "";
     });
 
-    const sourceLocations = usableLocations.length > 0 ? usableLocations : locations;
+    const sourceLocations =
+      usableLocations.length > 0 ? usableLocations : locations;
+
+    // ✅ NEW: find business/location names before OpenAI
+    const matchedLocationResults = buildMatchedLocationResults(
+      sourceLocations,
+      input
+    );
 
     let restaurants = sourceLocations.filter((item: any) => {
       const type = String(item.location_type || "").toLowerCase();
@@ -937,6 +1052,7 @@ export async function POST(req: Request) {
       .map((restaurant: any) => ({
         ...restaurant,
         roseout_score: scoreRestaurant(restaurant, input, intent),
+        location_name_match_score: locationNameMatchScore(restaurant, input),
       }))
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
@@ -944,6 +1060,7 @@ export async function POST(req: Request) {
       .map((activity: any) => ({
         ...activity,
         roseout_score: scoreActivity(activity, input, intent),
+        location_name_match_score: locationNameMatchScore(activity, input),
       }))
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
@@ -952,11 +1069,23 @@ export async function POST(req: Request) {
     const topRestaurants = balanced.restaurants;
     const topActivities = balanced.activities;
 
+    const slimMatchedLocations = matchedLocationResults.map((item: any) => ({
+      id: String(item.id),
+      name: item.restaurant_name || item.activity_name || item.name,
+      location_type: item.location_type,
+      city: item.city,
+      address: item.address,
+      cuisine: item.cuisine || item.cuisine_type || null,
+      activity_type: item.activity_type || null,
+      score: item.location_name_match_score,
+    }));
+
     const slimRestaurants = topRestaurants.map((r: any) => ({
       name: r.restaurant_name || r.name,
       city: r.city,
       cuisine: r.cuisine || r.cuisine_type,
       score: clampScore(r.roseout_score),
+      location_name_match_score: r.location_name_match_score || 0,
       tag: r.primary_tag,
       rating: r.rating,
       review_count: r.review_count,
@@ -969,6 +1098,7 @@ export async function POST(req: Request) {
       city: a.city,
       type: a.activity_type,
       score: clampScore(a.roseout_score),
+      location_name_match_score: a.location_name_match_score || 0,
       tag: a.primary_tag,
       rating: a.rating,
       review_count: a.review_count,
@@ -1004,6 +1134,9 @@ ${JSON.stringify({
   maxMiles: intent.maxMiles,
 })}
 
+Matched location/business names from RoseOut database:
+${JSON.stringify(slimMatchedLocations)}
+
 Restaurants:
 ${JSON.stringify(slimRestaurants)}
 
@@ -1015,6 +1148,8 @@ STRICT RULES:
 - If the user asks anything outside RoseOut, respond exactly: "${OFF_TOPIC_REPLY}"
 - Keep the answer short and direct.
 - Use ONLY the listed restaurants and activities.
+- If the user typed a specific business/location name and it appears in "Matched location/business names", prioritize it.
+- If there is a matched business/location name, mention that match first.
 - Never say “I don’t have any.”
 - Never ask the user to provide a list.
 - Never say “let me know.”
@@ -1028,7 +1163,10 @@ STRICT RULES:
 - Do NOT add dessert, walks, or extra stops unless asked.
 `;
 
-    const hasResults = topRestaurants.length > 0 || topActivities.length > 0;
+    const hasResults =
+      topRestaurants.length > 0 ||
+      topActivities.length > 0 ||
+      matchedLocationResults.length > 0;
 
     const response = hasResults
       ? await openai.responses.create({
@@ -1051,6 +1189,24 @@ STRICT RULES:
         maxMiles: intent.maxMiles,
         multiIntentMode: intent.multiIntentMode,
       },
+
+      // ✅ NEW: return matched names to frontend/debug
+      matched_locations: matchedLocationResults.map((item: any) => ({
+        id: String(item.id),
+        name: item.restaurant_name || item.activity_name || item.name,
+        location_type: item.location_type,
+        address: item.address,
+        city: item.city,
+        state: item.state,
+        zip_code: item.zip_code,
+        cuisine: item.cuisine || item.cuisine_type || null,
+        activity_type: item.activity_type || null,
+        website: item.website,
+        image_url: item.image_url || null,
+        reservation_url: item.reservation_url || item.booking_url || null,
+        location_name_match_score: item.location_name_match_score,
+      })),
+
       restaurants: topRestaurants.map((r: any) => ({
         id: String(r.id),
         restaurant_name: r.restaurant_name || r.name,
@@ -1062,6 +1218,7 @@ STRICT RULES:
         atmosphere: r.atmosphere || null,
         price_range: r.price_range || null,
         roseout_score: clampScore(r.roseout_score),
+        location_name_match_score: r.location_name_match_score || 0,
         reservation_link: r.reservation_link,
         reservation_url: r.reservation_url || r.booking_url,
         website: r.website,
@@ -1087,6 +1244,7 @@ STRICT RULES:
         atmosphere: a.atmosphere,
         group_friendly: a.group_friendly,
         roseout_score: clampScore(a.roseout_score),
+        location_name_match_score: a.location_name_match_score || 0,
         reservation_link: a.reservation_link,
         reservation_url: a.reservation_url || a.booking_url,
         website: a.website,
