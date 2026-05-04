@@ -6,6 +6,7 @@ type ImportLog = {
   id: string;
   job_name: string;
   run_date: string;
+  created_at?: string;
   meta: any;
   error: string | null;
 };
@@ -15,25 +16,44 @@ function getNumber(value: any) {
   return Number.isFinite(num) ? num : 0;
 }
 
-function getFound(meta: any) {
+function getImported(meta: any) {
   return getNumber(
-    meta?.total_found_from_google ??
-      meta?.restaurant?.total_found_from_google ??
-      meta?.activity?.total_found_from_google ??
+    meta?.imported ??
+      meta?.restaurant?.imported + meta?.activity?.imported ??
       0
   );
 }
 
-function getImported(meta: any) {
-  return getNumber(meta?.imported ?? 0);
-}
-
 function getSkipped(meta: any) {
-  return getNumber(meta?.skipped ?? 0);
+  return getNumber(
+    meta?.skipped ??
+      meta?.restaurant?.skipped + meta?.activity?.skipped ??
+      0
+  );
 }
 
 function getFailed(meta: any) {
-  return getNumber(meta?.failed ?? 0);
+  return getNumber(
+    meta?.failed ??
+      meta?.restaurant?.failed + meta?.activity?.failed ??
+      0
+  );
+}
+
+function getFound(meta: any) {
+  return getNumber(
+    meta?.total_found_from_google ??
+      getNumber(meta?.restaurant?.total_found_from_google) +
+        getNumber(meta?.activity?.total_found_from_google)
+  );
+}
+
+function getRestaurantImported(meta: any) {
+  return getNumber(meta?.restaurant?.imported);
+}
+
+function getActivityImported(meta: any) {
+  return getNumber(meta?.activity?.imported);
 }
 
 export default function ImportHistoryPage() {
@@ -86,11 +106,17 @@ export default function ImportHistoryPage() {
   const totals = useMemo(() => {
     return logs.reduce(
       (acc, log) => {
-        acc.imported += getImported(log.meta);
-        acc.skipped += getSkipped(log.meta);
-        acc.failed += getFailed(log.meta);
-        acc.found += getFound(log.meta);
+        const meta = log.meta || {};
+
+        acc.imported += getImported(meta);
+        acc.skipped += getSkipped(meta);
+        acc.failed += getFailed(meta);
+        acc.found += getFound(meta);
+        acc.restaurants += getRestaurantImported(meta);
+        acc.activities += getActivityImported(meta);
+
         if (log.error) acc.errors += 1;
+
         return acc;
       },
       {
@@ -98,6 +124,8 @@ export default function ImportHistoryPage() {
         skipped: 0,
         failed: 0,
         found: 0,
+        restaurants: 0,
+        activities: 0,
         errors: 0,
       }
     );
@@ -116,6 +144,7 @@ export default function ImportHistoryPage() {
 
     logs.forEach((log) => {
       const meta = log.meta || {};
+
       const queries = [
         ...(meta.queries_used || []),
         ...(meta.restaurant?.queries_used || []),
@@ -142,9 +171,21 @@ export default function ImportHistoryPage() {
     const max = Math.max(totals.imported, totals.skipped, totals.failed, 1);
 
     return [
-      { label: "Imported", value: totals.imported, width: `${(totals.imported / max) * 100}%` },
-      { label: "Skipped", value: totals.skipped, width: `${(totals.skipped / max) * 100}%` },
-      { label: "Failed", value: totals.failed, width: `${(totals.failed / max) * 100}%` },
+      {
+        label: "Imported",
+        value: totals.imported,
+        width: `${(totals.imported / max) * 100}%`,
+      },
+      {
+        label: "Skipped",
+        value: totals.skipped,
+        width: `${(totals.skipped / max) * 100}%`,
+      },
+      {
+        label: "Failed",
+        value: totals.failed,
+        width: `${(totals.failed / max) * 100}%`,
+      },
     ];
   }, [totals]);
 
@@ -250,55 +291,23 @@ export default function ImportHistoryPage() {
           </div>
         </div>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
-            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
-              Total Imported
-            </p>
-            <p className="mt-3 text-3xl font-black">{totals.imported}</p>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
-            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
-              Total Found
-            </p>
-            <p className="mt-3 text-3xl font-black">{totals.found}</p>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
-            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
-              Skipped
-            </p>
-            <p className="mt-3 text-3xl font-black">{totals.skipped}</p>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
-            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
-              Failed
-            </p>
-            <p className="mt-3 text-3xl font-black">{totals.failed}</p>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
-            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
-              Success Rate
-            </p>
-            <p className="mt-3 text-3xl font-black">{successRate}%</p>
-          </div>
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          <StatCard label="Total Imported" value={totals.imported} />
+          <StatCard label="Restaurants" value={totals.restaurants} />
+          <StatCard label="Activities" value={totals.activities} />
+          <StatCard label="Total Found" value={totals.found} />
+          <StatCard label="Skipped" value={totals.skipped} />
+          <StatCard label="Success Rate" value={`${successRate}%`} />
         </div>
 
         <div className="mb-6 grid gap-6 lg:grid-cols-3">
           <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 lg:col-span-2">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold">Import Breakdown</h2>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Overview across recent import logs.
-                </p>
-              </div>
-            </div>
+            <h2 className="text-lg font-bold">Import Breakdown</h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Overview across recent import logs.
+            </p>
 
-            <div className="space-y-5">
+            <div className="mt-6 space-y-5">
               {breakdown.map((item) => (
                 <div key={item.label}>
                   <div className="mb-2 flex items-center justify-between text-sm">
@@ -372,13 +381,9 @@ export default function ImportHistoryPage() {
           </div>
 
           {loading && logs.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-8 text-center text-sm text-zinc-400">
-              Loading import logs...
-            </div>
+            <EmptyState text="Loading import logs..." />
           ) : logs.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-8 text-center text-sm text-zinc-400">
-              No import history yet.
-            </div>
+            <EmptyState text="No import history yet." />
           ) : (
             <div className="space-y-4">
               {logs.map((log) => {
@@ -394,7 +399,9 @@ export default function ImportHistoryPage() {
                         <p className="font-semibold">
                           {log.job_name || "Google Import"}
                         </p>
-                        <p className="text-sm text-zinc-500">{log.run_date}</p>
+                        <p className="text-sm text-zinc-500">
+                          {log.run_date || log.created_at}
+                        </p>
                       </div>
 
                       <span
@@ -409,36 +416,15 @@ export default function ImportHistoryPage() {
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-4">
-                      <div className="rounded-xl bg-white/[0.04] p-3">
-                        <p className="text-xs text-zinc-500">Imported</p>
-                        <p className="mt-1 text-lg font-bold">
-                          {getImported(meta)}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl bg-white/[0.04] p-3">
-                        <p className="text-xs text-zinc-500">Skipped</p>
-                        <p className="mt-1 text-lg font-bold">
-                          {getSkipped(meta)}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl bg-white/[0.04] p-3">
-                        <p className="text-xs text-zinc-500">Failed</p>
-                        <p className="mt-1 text-lg font-bold">
-                          {getFailed(meta)}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl bg-white/[0.04] p-3">
-                        <p className="text-xs text-zinc-500">Found</p>
-                        <p className="mt-1 text-lg font-bold">
-                          {getFound(meta)}
-                        </p>
-                      </div>
+                      <MiniStat label="Imported" value={getImported(meta)} />
+                      <MiniStat label="Skipped" value={getSkipped(meta)} />
+                      <MiniStat label="Failed" value={getFailed(meta)} />
+                      <MiniStat label="Found" value={getFound(meta)} />
                     </div>
 
-                    {meta?.type === "both" && (
+                    {(meta?.type === "both" ||
+                      meta?.restaurant ||
+                      meta?.activity) && (
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                           <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
@@ -446,7 +432,8 @@ export default function ImportHistoryPage() {
                           </p>
                           <p className="mt-2 text-sm text-zinc-300">
                             Imported: {meta.restaurant?.imported ?? 0} ·
-                            Skipped: {meta.restaurant?.skipped ?? 0}
+                            Skipped: {meta.restaurant?.skipped ?? 0} · Failed:{" "}
+                            {meta.restaurant?.failed ?? 0}
                           </p>
                         </div>
 
@@ -456,7 +443,8 @@ export default function ImportHistoryPage() {
                           </p>
                           <p className="mt-2 text-sm text-zinc-300">
                             Imported: {meta.activity?.imported ?? 0} · Skipped:{" "}
-                            {meta.activity?.skipped ?? 0}
+                            {meta.activity?.skipped ?? 0} · Failed:{" "}
+                            {meta.activity?.failed ?? 0}
                           </p>
                         </div>
                       </div>
@@ -475,5 +463,39 @@ export default function ImportHistoryPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
+      <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-3 text-3xl font-black">{value}</p>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl bg-white/[0.04] p-3">
+      <p className="text-xs text-zinc-500">{label}</p>
+      <p className="mt-1 text-lg font-bold">{value}</p>
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/30 p-8 text-center text-sm text-zinc-400">
+      {text}
+    </div>
   );
 }
