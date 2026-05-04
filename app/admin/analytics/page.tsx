@@ -64,6 +64,11 @@ export default async function AdminAnalyticsPage() {
       ? Math.round((reservationStats.noShow / reservationStats.total) * 100)
       : 0;
 
+  const totalViews = totalRestaurantViews + totalActivityViews;
+  const totalClicks = totalRestaurantClicks + totalActivityClicks;
+  const clickRate =
+    totalViews > 0 ? Math.round((totalClicks / totalViews) * 100) : 0;
+
   return (
     <div>
       <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
@@ -75,29 +80,132 @@ export default async function AdminAnalyticsPage() {
       </h1>
 
       <p className="mt-3 text-neutral-400">
-        View restaurant and activity views, clicks, reservation performance, and
+        View discovery performance, reservation activity, arrival trends, and
         recent analytics events.
       </p>
 
-      <section className="mt-8 grid gap-5 md:grid-cols-4">
-        <MetricCard label="Restaurant Views" value={totalRestaurantViews} />
-        <MetricCard label="Restaurant Clicks" value={totalRestaurantClicks} />
-        <MetricCard label="Activity Views" value={totalActivityViews} />
-        <MetricCard label="Activity Clicks" value={totalActivityClicks} />
+      <section className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+        <div className="rounded-[2rem] bg-white p-6 text-black">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-500">
+                Discovery Overview
+              </p>
+              <h2 className="mt-2 text-3xl font-extrabold">
+                {totalViews.toLocaleString()} total views
+              </h2>
+              <p className="mt-2 text-sm font-medium text-neutral-500">
+                Restaurants and activities combined.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-black px-5 py-4 text-white">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">
+                Click Rate
+              </p>
+              <p className="mt-1 text-3xl font-extrabold">{clickRate}%</p>
+            </div>
+          </div>
+
+          <div className="mt-7 grid gap-4 md:grid-cols-4">
+            <MiniMetric label="Restaurant Views" value={totalRestaurantViews} />
+            <MiniMetric label="Restaurant Clicks" value={totalRestaurantClicks} />
+            <MiniMetric label="Activity Views" value={totalActivityViews} />
+            <MiniMetric label="Activity Clicks" value={totalActivityClicks} />
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] bg-gradient-to-br from-red-700 via-red-600 to-black p-6 text-white">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-white/60">
+            Reserve Performance
+          </p>
+
+          <h2 className="mt-2 text-5xl font-extrabold">
+            {reservationStats.total}
+          </h2>
+
+          <p className="mt-2 text-sm font-semibold text-white/65">
+            Total reservations captured through RoseOut Reserve.
+          </p>
+
+          <div className="mt-7 grid grid-cols-2 gap-3">
+            <DarkMetric label="Arrival Rate" value={`${arrivalRate}%`} />
+            <DarkMetric label="No-Show Rate" value={`${noShowRate}%`} />
+          </div>
+        </div>
       </section>
 
-      <section className="mt-5 grid gap-5 md:grid-cols-4">
-        <MetricCard label="Reservations" value={reservationStats.total} />
-        <MetricCard label="Confirmed" value={reservationStats.confirmed} />
-        <MetricCard label="Arrived" value={reservationStats.arrived} />
-        <MetricCard label="Completed" value={reservationStats.completed} />
-      </section>
+      <section className="mt-6 grid gap-6 lg:grid-cols-3">
+        <div className="rounded-[2rem] bg-white p-6 text-black lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-500">
+                Reservation Pipeline
+              </p>
+              <h2 className="mt-2 text-2xl font-extrabold">
+                Booking status breakdown
+              </h2>
+            </div>
+          </div>
 
-      <section className="mt-5 grid gap-5 md:grid-cols-4">
-        <MetricCard label="Cancelled" value={reservationStats.cancelled} />
-        <MetricCard label="No Shows" value={reservationStats.noShow} />
-        <MetricCard label="Arrival Rate" value={`${arrivalRate}%`} />
-        <MetricCard label="No-Show Rate" value={`${noShowRate}%`} />
+          <div className="mt-6 space-y-4">
+            <PipelineRow
+              label="Confirmed"
+              value={reservationStats.confirmed}
+              total={reservationStats.total}
+            />
+            <PipelineRow
+              label="Arrived"
+              value={reservationStats.arrived}
+              total={reservationStats.total}
+            />
+            <PipelineRow
+              label="Completed"
+              value={reservationStats.completed}
+              total={reservationStats.total}
+            />
+            <PipelineRow
+              label="Cancelled"
+              value={reservationStats.cancelled}
+              total={reservationStats.total}
+            />
+            <PipelineRow
+              label="No Shows"
+              value={reservationStats.noShow}
+              total={reservationStats.total}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] bg-white p-6 text-black">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-neutral-500">
+            Key Takeaway
+          </p>
+
+          <h2 className="mt-3 text-2xl font-extrabold">
+            {arrivalRate >= 70
+              ? "Strong arrival quality"
+              : reservationStats.total > 0
+                ? "Improve show-up rate"
+                : "Ready for bookings"}
+          </h2>
+
+          <p className="mt-3 text-sm leading-6 text-neutral-500">
+            {reservationStats.total === 0
+              ? "Once locations start using RoseOut Reserve, this section will show booking quality and no-show trends."
+              : `RoseOut has a ${arrivalRate}% arrival rate and ${noShowRate}% no-show rate across current reservations.`}
+          </p>
+
+          <div className="mt-6 rounded-2xl bg-neutral-100 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">
+              Best Sales Angle
+            </p>
+            <p className="mt-2 text-sm font-bold text-neutral-800">
+              “RoseOut does not just send clicks. It tracks reservations,
+              arrivals, and no-shows.”
+            </p>
+          </div>
+        </div>
       </section>
 
       <section className="mt-8 overflow-hidden rounded-[2rem] bg-white text-black">
@@ -195,17 +303,54 @@ export default async function AdminAnalyticsPage() {
   );
 }
 
-function MetricCard({
+function MiniMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl bg-neutral-100 p-4">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-extrabold">{value}</p>
+    </div>
+  );
+}
+
+function DarkMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-extrabold">{value}</p>
+    </div>
+  );
+}
+
+function PipelineRow({
   label,
   value,
+  total,
 }: {
   label: string;
-  value: number | string;
+  value: number;
+  total: number;
 }) {
+  const percent = total > 0 ? Math.round((value / total) * 100) : 0;
+
   return (
-    <div className="rounded-2xl bg-white p-6 text-black">
-      <p className="text-sm font-bold text-neutral-500">{label}</p>
-      <p className="mt-2 text-4xl font-extrabold">{value}</p>
+    <div>
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm font-bold text-neutral-700">{label}</p>
+        <p className="text-sm font-extrabold text-neutral-900">
+          {value} · {percent}%
+        </p>
+      </div>
+
+      <div className="mt-2 h-3 overflow-hidden rounded-full bg-neutral-100">
+        <div
+          className="h-full rounded-full bg-red-600"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
     </div>
   );
 }
