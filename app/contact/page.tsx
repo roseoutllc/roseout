@@ -91,7 +91,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <LuxuryFooter />
+    
     </main>
   );
 }
