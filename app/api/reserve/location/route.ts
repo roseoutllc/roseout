@@ -7,12 +7,10 @@ function cleanString(value: unknown) {
 
 function normalizeType(value: string) {
   const type = value.toLowerCase().trim();
-
   if (["activity", "activities"].includes(type)) return "activity";
   if (["bar", "bars"].includes(type)) return "bar";
   if (["lounge", "lounges"].includes(type)) return "lounge";
   if (["venue", "venues"].includes(type)) return "venue";
-
   return "restaurant";
 }
 
@@ -43,14 +41,201 @@ function getLocationName(location: any, type: string) {
 }
 
 function getAddress(location: any) {
-  return [
-    location?.address,
-    location?.city,
-    location?.state,
-    location?.zip_code,
-  ]
+  return [location?.address, location?.city, location?.state, location?.zip_code]
     .filter(Boolean)
     .join(", ");
+}
+
+function getLocationEmail(location: any) {
+  return (
+    location?.email ||
+    location?.contact_email ||
+    location?.owner_email ||
+    location?.business_email ||
+    ""
+  );
+}
+
+function getLocationPhone(location: any) {
+  return (
+    location?.phone ||
+    location?.phone_number ||
+    location?.contact_phone ||
+    location?.business_phone ||
+    ""
+  );
+}
+
+function generateTimeSlots() {
+  return [
+    "12:00",
+    "12:30",
+    "13:00",
+    "13:30",
+    "14:00",
+    "14:30",
+    "17:00",
+    "17:30",
+    "18:00",
+    "18:30",
+    "19:00",
+    "19:30",
+    "20:00",
+    "20:30",
+    "21:00",
+    "21:30",
+    "22:00",
+  ];
+}
+
+function formatTime(time: string) {
+  const [hourRaw, minute] = time.split(":");
+  const hour = Number(hourRaw);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${minute} ${suffix}`;
+}
+
+async function sendEmail({
+  to,
+  subject,
+  html,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+}) {
+  if (!process.env.RESEND_API_KEY || !to) return;
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from:
+        process.env.RESERVE_FROM_EMAIL ||
+        "RoseOut Reserve <hello@roseout.com>",
+      to,
+      subject,
+      html,
+    }),
+  });
+}
+
+async function sendSms({ to, body }: { to: string; body: string }) {
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM_PHONE;
+
+  if (!sid || !token || !from || !to) return;
+
+  const auth = Buffer.from(`${sid}:${token}`).toString("base64");
+
+  const params = new URLSearchParams();
+  params.append("To", to);
+  params.append("From", from);
+  params.append("Body", body);
+
+  await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params,
+  });
+}
+
+async function notifyReservation({
+  location,
+  locationType,
+  reservation,
+}: {
+  location: any;
+  locationType: string;
+  reservation: any;
+}) {
+  const locationName = getLocationName(location, locationType);
+  const locationEmail = getLocationEmail(location);
+  const locationPhone = getLocationPhone(location);
+
+  const statusText =
+    reservation.status === "confirmed"
+      ? "confirmed"
+      : "received and pending confirmation";
+
+  const customerHtml = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+      <h2>RoseOut Reserve</h2>
+      <p>Hi ${reservation.customer_name}, your reservation request at <strong>${locationName}</strong> has been ${statusText}.</p>
+      <p><strong>Date:</strong> ${reservation.reservation_date}</p>
+      <p><strong>Time:</strong> ${formatTime(reservation.reservation_time.slice(0, 5))}</p>
+      <p><strong>Party Size:</strong> ${reservation.party_size}</p>
+      ${
+        reservation.bookable_item_name
+          ? `<p><strong>Reserved:</strong> ${reservation.bookable_item_name}</p>`
+          : ""
+      }
+      <p>Thank you for using RoseOut.</p>
+    </div>
+  `;
+
+  const ownerHtml = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+      <h2>New RoseOut Reservation</h2>
+      <p><strong>${reservation.customer_name}</strong> submitted a reservation for <strong>${locationName}</strong>.</p>
+      <p><strong>Date:</strong> ${reservation.reservation_date}</p>
+      <p><strong>Time:</strong> ${formatTime(reservation.reservation_time.slice(0, 5))}</p>
+      <p><strong>Party Size:</strong> ${reservation.party_size}</p>
+      ${
+        reservation.bookable_item_name
+          ? `<p><strong>Item:</strong> ${reservation.bookable_item_name}</p>`
+          : ""
+      }
+      ${
+        reservation.customer_phone
+          ? `<p><strong>Phone:</strong> ${reservation.customer_phone}</p>`
+          : ""
+      }
+      ${
+        reservation.customer_email
+          ? `<p><strong>Email:</strong> ${reservation.customer_email}</p>`
+          : ""
+      }
+      ${
+        reservation.special_request
+          ? `<p><strong>Request:</strong> ${reservation.special_request}</p>`
+          : ""
+      }
+    </div>
+  `;
+
+  await Promise.allSettled([
+    sendEmail({
+      to: reservation.customer_email,
+      subject: `Your Reservation: ${locationName}`,
+      html: customerHtml,
+    }),
+    sendEmail({
+      to: locationEmail,
+      subject: `Your Reservation: ${reservation.customer_name}`,
+      html: ownerHtml,
+    }),
+    sendSms({
+      to: reservation.customer_phone,
+      body: `Your reservation at ${locationName} for ${reservation.reservation_date} at ${formatTime(
+        reservation.reservation_time.slice(0, 5)
+      )} is ${statusText}.`,
+    }),
+    sendSms({
+      to: locationPhone,
+      body: `Your Reservation: ${reservation.customer_name}, ${reservation.party_size} guests, ${reservation.reservation_date} at ${formatTime(
+        reservation.reservation_time.slice(0, 5)
+      )}.`,
+    }),
+  ]);
 }
 
 export async function GET(request: NextRequest) {
@@ -59,12 +244,11 @@ export async function GET(request: NextRequest) {
 
     const locationId = searchParams.get("locationId");
     const locationType = normalizeType(searchParams.get("type") || "restaurant");
+    const reservationDate = cleanString(searchParams.get("reservationDate"));
+    const partySize = Number(searchParams.get("partySize") || 2);
 
     if (!locationId) {
-      return NextResponse.json(
-        { error: "Missing locationId." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing locationId." }, { status: 400 });
     }
 
     const { data: location, error: locationError } = await supabaseAdmin
@@ -74,17 +258,11 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (locationError) {
-      return NextResponse.json(
-        { error: locationError.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: locationError.message }, { status: 500 });
     }
 
     if (!location) {
-      return NextResponse.json(
-        { error: "Location not found." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Location not found." }, { status: 404 });
     }
 
     const { data: items, error: itemsError } = await supabaseAdmin
@@ -100,6 +278,61 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: itemsError.message }, { status: 500 });
     }
 
+    let enrichedItems = items || [];
+
+    if (reservationDate) {
+      const slots = generateTimeSlots();
+
+      const { data: existingReservations, error: existingError } =
+        await supabaseAdmin
+          .from("location_reservations")
+          .select("bookable_item_id, reservation_time, status")
+          .eq("location_id", locationId)
+          .eq("location_type", locationType)
+          .eq("reservation_date", reservationDate)
+          .in("status", ["pending", "confirmed"]);
+
+      if (existingError) {
+        return NextResponse.json(
+          { error: existingError.message },
+          { status: 500 }
+        );
+      }
+
+      enrichedItems = enrichedItems.map((item: any) => {
+        const maxConcurrent = Number(item.max_concurrent || 1);
+
+        const available_slots = slots
+          .map((slot) => {
+            const bookedCount =
+              existingReservations?.filter(
+                (reservation: any) =>
+                  reservation.bookable_item_id === item.id &&
+                  String(reservation.reservation_time).slice(0, 5) === slot
+              ).length || 0;
+
+            return {
+              time: slot,
+              label: formatTime(slot),
+              available: bookedCount < maxConcurrent,
+              remaining: Math.max(maxConcurrent - bookedCount, 0),
+            };
+          })
+          .filter((slot) => slot.available);
+
+        return {
+          ...item,
+          available_slots,
+        };
+      });
+    }
+
+    const partyFilteredItems = enrichedItems.filter(
+      (item: any) =>
+        partySize >= Number(item.capacity_min || 1) &&
+        partySize <= Number(item.capacity_max || 999)
+    );
+
     return NextResponse.json({
       location: {
         id: locationId,
@@ -107,10 +340,7 @@ export async function GET(request: NextRequest) {
         name: getLocationName(location, locationType),
         address: getAddress(location),
         image_url:
-          location.image_url ||
-          location.photo_url ||
-          location.image ||
-          null,
+          location.image_url || location.photo_url || location.image || null,
         category:
           location.cuisine ||
           location.activity_type ||
@@ -118,7 +348,7 @@ export async function GET(request: NextRequest) {
           location.location_type ||
           locationType,
       },
-      items: items || [],
+      items: partyFilteredItems,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -147,10 +377,7 @@ export async function POST(request: NextRequest) {
     const bookableItemId = cleanString(body.bookable_item_id);
 
     if (!locationId) {
-      return NextResponse.json(
-        { error: "Missing location." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing location." }, { status: 400 });
     }
 
     if (!customerName) {
@@ -179,6 +406,20 @@ export async function POST(request: NextRequest) {
         { error: "Please enter a valid party size." },
         { status: 400 }
       );
+    }
+
+    const { data: location, error: locationError } = await supabaseAdmin
+      .from(getTableName(locationType))
+      .select("*")
+      .eq("id", locationId)
+      .maybeSingle();
+
+    if (locationError) {
+      return NextResponse.json({ error: locationError.message }, { status: 500 });
+    }
+
+    if (!location) {
+      return NextResponse.json({ error: "Location not found." }, { status: 404 });
     }
 
     let selectedItem: any = null;
@@ -240,13 +481,14 @@ export async function POST(request: NextRequest) {
       if (currentCount >= maxConcurrent) {
         return NextResponse.json(
           {
-            error:
-              "This time slot is fully booked. Please select another time.",
+            error: "This time slot is fully booked. Please select another time.",
           },
           { status: 400 }
         );
       }
     }
+
+    const status = selectedItem?.auto_confirm === false ? "pending" : "confirmed";
 
     const { data: reservation, error } = await supabaseAdmin
       .from("location_reservations")
@@ -267,7 +509,7 @@ export async function POST(request: NextRequest) {
         party_size: partySize,
 
         special_request: specialRequest || null,
-        status: "pending",
+        status,
         source: "roseout",
       })
       .select("*")
@@ -277,9 +519,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    await notifyReservation({
+      location,
+      locationType,
+      reservation,
+    });
+
     return NextResponse.json({
       success: true,
       reservation,
+      auto_confirmed: status === "confirmed",
     });
   } catch (error: any) {
     return NextResponse.json(
