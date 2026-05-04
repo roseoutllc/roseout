@@ -215,6 +215,37 @@ export async function POST(request: NextRequest) {
       }
 
       selectedItem = item;
+
+      const { data: existingReservations, error: existingError } =
+        await supabaseAdmin
+          .from("location_reservations")
+          .select("id")
+          .eq("location_id", locationId)
+          .eq("location_type", locationType)
+          .eq("bookable_item_id", selectedItem.id)
+          .eq("reservation_date", reservationDate)
+          .eq("reservation_time", reservationTime)
+          .in("status", ["pending", "confirmed"]);
+
+      if (existingError) {
+        return NextResponse.json(
+          { error: existingError.message },
+          { status: 500 }
+        );
+      }
+
+      const currentCount = existingReservations?.length || 0;
+      const maxConcurrent = Number(selectedItem.max_concurrent || 1);
+
+      if (currentCount >= maxConcurrent) {
+        return NextResponse.json(
+          {
+            error:
+              "This time slot is fully booked. Please select another time.",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const { data: reservation, error } = await supabaseAdmin
