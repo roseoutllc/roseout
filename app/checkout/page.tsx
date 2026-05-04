@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Script from "next/script";
 import {
@@ -21,6 +21,12 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
+
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
 
 const proBenefits = [
   "Priority AI discovery in customer outing plans",
@@ -44,22 +50,10 @@ export default function CheckoutInfoPage() {
 
   const passwordChecks = useMemo(
     () => [
-      {
-        label: "At least 8 characters",
-        valid: password.length >= 8,
-      },
-      {
-        label: "One uppercase letter",
-        valid: /[A-Z]/.test(password),
-      },
-      {
-        label: "One lowercase letter",
-        valid: /[a-z]/.test(password),
-      },
-      {
-        label: "One number",
-        valid: /[0-9]/.test(password),
-      },
+      { label: "At least 8 characters", valid: password.length >= 8 },
+      { label: "One uppercase letter", valid: /[A-Z]/.test(password) },
+      { label: "One lowercase letter", valid: /[a-z]/.test(password) },
+      { label: "One number", valid: /[0-9]/.test(password) },
       {
         label: "One special character",
         valid: /[^A-Za-z0-9]/.test(password),
@@ -69,6 +63,7 @@ export default function CheckoutInfoPage() {
   );
 
   const passwordStrength = passwordChecks.filter((check) => check.valid).length;
+
   const passwordsMatch =
     password.length > 0 &&
     confirmPassword.length > 0 &&
@@ -99,6 +94,13 @@ export default function CheckoutInfoPage() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#050505] text-white">
+      <Script
+        src={`https://maps.googleapis.com/maps/api/js?key=${
+          process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+        }&libraries=places`}
+        strategy="afterInteractive"
+      />
+
       <Script
         src="https://challenges.cloudflare.com/turnstile/v0/api.js"
         async
@@ -142,8 +144,9 @@ export default function CheckoutInfoPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">
-            Enter your business details, create a secure password, complete the
-            captcha, then continue to Stripe checkout.
+            Enter your business details, choose your Google-verified address,
+            create a secure password, complete the captcha, then continue to
+            Stripe checkout.
           </p>
         </div>
 
@@ -207,13 +210,7 @@ export default function CheckoutInfoPage() {
                 />
               </div>
 
-              <Field
-                icon={MapPin}
-                label="Business Address"
-                name="address"
-                placeholder="Street address, city, state"
-                required
-              />
+              <GoogleAddressField />
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-zinc-300">
@@ -482,6 +479,76 @@ export default function CheckoutInfoPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function GoogleAddressField() {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [displayAddress, setDisplayAddress] = useState("");
+  const [address, setAddress] = useState("");
+  const [googlePlaceId, setGooglePlaceId] = useState("");
+
+  useEffect(() => {
+    if (!inputRef.current || !window.google?.maps?.places) return;
+
+    const autocomplete = new window.google.maps.places.Autocomplete(
+      inputRef.current,
+      {
+        types: ["establishment", "geocode"],
+        componentRestrictions: { country: "us" },
+        fields: ["formatted_address", "place_id", "name"],
+      }
+    );
+
+    const listener = autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+
+      const formattedAddress = place.formatted_address || "";
+      const placeId = place.place_id || "";
+
+      setDisplayAddress(formattedAddress);
+      setAddress(formattedAddress);
+      setGooglePlaceId(placeId);
+    });
+
+    return () => {
+      if (window.google?.maps?.event && listener) {
+        window.google.maps.event.removeListener(listener);
+      }
+    };
+  }, []);
+
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-zinc-300">
+        Google Business Address
+      </label>
+
+      <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-4 transition focus-within:border-rose-400/60">
+        <MapPin className="h-5 w-5 shrink-0 text-rose-300" />
+
+        <input
+          ref={inputRef}
+          value={displayAddress}
+          onChange={(event) => {
+            setDisplayAddress(event.target.value);
+            setAddress(event.target.value);
+            setGooglePlaceId("");
+          }}
+          required
+          placeholder="Start typing your business name or address..."
+          className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
+        />
+      </div>
+
+      <p className="mt-2 text-xs leading-5 text-zinc-500">
+        Select your business from Google to improve accuracy and prevent
+        duplicate listings.
+      </p>
+
+      <input type="hidden" name="address" value={address} />
+      <input type="hidden" name="google_place_id" value={googlePlaceId} />
+    </div>
   );
 }
 
