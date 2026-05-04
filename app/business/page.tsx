@@ -205,7 +205,7 @@ export default function BusinessPage() {
         </div>
       </section>
 
-      <LuxuryFooter />
+    
     </main>
   );
 }
@@ -250,97 +250,6 @@ function LightCard({ title, text }: { title: string; text: string }) {
     <div className="rounded-[2rem] border border-black/10 bg-white p-6 shadow-lg shadow-black/5">
       <h3 className="text-xl font-black">{title}</h3>
       <p className="mt-3 text-sm leading-7 text-black/60">{text}</p>
-    </div>
-  );
-}
-
-function LuxuryFooter() {
-  return (
-    <footer className="relative overflow-hidden border-t border-white/10 bg-[#050505] px-6 py-14 text-white">
-      <div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
-        <div>
-          <Link href="/" className="inline-flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e1062a] text-lg font-black text-white">
-              R
-            </span>
-            <span className="text-2xl font-black tracking-tight">RoseOut</span>
-          </Link>
-
-          <p className="mt-5 max-w-md text-sm leading-7 text-white/45">
-            AI-powered planning for date nights, birthdays, restaurants,
-            activities, and unforgettable outings.
-          </p>
-        </div>
-
-        <FooterColumn
-          title="Explore"
-          links={[
-            { label: "Home", href: "/" },
-            { label: "Plan Outing", href: "/create" },
-            { label: "About", href: "/about" },
-          ]}
-        />
-
-        <FooterColumn
-          title="Business"
-          links={[
-            { label: "For Businesses", href: "/business" },
-            { label: "Claim Listing", href: "/locations/apply" },
-            { label: "Sign In", href: "/login" },
-          ]}
-        />
-
-        <FooterColumn
-          title="Legal"
-          links={[
-            { label: "Terms", href: "/terms" },
-            { label: "Privacy", href: "/privacy" },
-            { label: "Contact", href: "mailto:hello@roseout.com" },
-          ]}
-        />
-      </div>
-
-      <div className="relative mx-auto mt-12 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-6 text-xs text-white/35 md:flex-row md:items-center md:justify-between">
-        <p>© {new Date().getFullYear()} RoseOut. All rights reserved.</p>
-      </div>
-    </footer>
-  );
-}
-
-function FooterColumn({
-  title,
-  links,
-}: {
-  title: string;
-  links: { label: string; href: string }[];
-}) {
-  return (
-    <div>
-      <p className="text-xs font-black uppercase tracking-[0.28em] text-[#e1062a]">
-        {title}
-      </p>
-
-      <div className="mt-5 flex flex-col gap-3">
-        {links.map((link) =>
-          link.href.startsWith("mailto:") ? (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-sm font-semibold text-white/45 transition hover:text-white"
-            >
-              {link.label}
-            </a>
-          ) : (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm font-semibold text-white/45 transition hover:text-white"
-            >
-              {link.label}
-            </Link>
-          )
-        )}
-      </div>
     </div>
   );
 }
