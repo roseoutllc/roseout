@@ -279,13 +279,8 @@ export default function EditLocationPage() {
       longitude: form.longitude === "" ? null : Number(form.longitude),
     };
 
-    if (type === "restaurants") {
-      payload.cuisine = form.cuisine;
-    }
-
-    if (type === "activities") {
-      payload.activity_type = form.activity_type;
-    }
+    if (type === "restaurants") payload.cuisine = form.cuisine;
+    if (type === "activities") payload.activity_type = form.activity_type;
 
     const calculatedScore = calculateUpdatedScore(payload);
     payload.roseout_score = calculatedScore;
@@ -335,10 +330,10 @@ export default function EditLocationPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#080403] text-white">
+      <main className="flex min-h-screen items-center justify-center bg-[#080407] pt-28 text-white">
         <div className="text-center">
-          <div className="mx-auto mb-5 h-12 w-12 animate-pulse rounded-full bg-[#e85d75]" />
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-[#f6c6cf]">
+          <div className="mx-auto mb-5 h-12 w-12 animate-pulse rounded-full bg-gradient-to-br from-rose-500 to-fuchsia-600 shadow-lg shadow-rose-500/30" />
+          <p className="text-sm font-black uppercase tracking-[0.3em] text-rose-200/70">
             Loading Location
           </p>
         </div>
@@ -347,16 +342,16 @@ export default function EditLocationPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#080403] text-white">
-      <section className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(232,93,117,0.28),_transparent_34%),linear-gradient(135deg,#180808,#080403_60%,#000)]">
-        <div className="absolute right-[-120px] top-[-120px] h-80 w-80 rounded-full bg-[#e85d75]/20 blur-3xl" />
-        <div className="absolute bottom-[-170px] left-[-120px] h-96 w-96 rounded-full bg-[#f5b700]/10 blur-3xl" />
+    <main className="min-h-screen bg-[#080407] pt-28 text-white">
+      <section className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(244,63,94,0.28),_transparent_34%),linear-gradient(135deg,#16080d,#080407_62%,#000)]">
+        <div className="absolute right-[-120px] top-[-120px] h-80 w-80 rounded-full bg-rose-600/20 blur-3xl" />
+        <div className="absolute bottom-[-170px] left-[-120px] h-96 w-96 rounded-full bg-fuchsia-600/10 blur-3xl" />
 
-        <div className="relative mx-auto max-w-7xl px-5 py-6 sm:px-8">
+        <div className="relative mx-auto max-w-7xl px-5 py-8 sm:px-8">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <button
               onClick={() => router.push(from)}
-              className="rounded-full border border-white/15 bg-white/[0.06] px-5 py-2.5 text-sm font-black text-white/85 transition hover:bg-white hover:text-black"
+              className="rounded-full border border-white/10 bg-white/[0.06] px-5 py-2.5 text-sm font-black text-white/85 transition hover:bg-white hover:text-black"
             >
               ← Back
             </button>
@@ -366,7 +361,7 @@ export default function EditLocationPage() {
                 type="button"
                 onClick={optimizeWithAI}
                 disabled={optimizing || saving}
-                className="rounded-full border border-[#f5b700]/60 bg-[#f5b700]/10 px-5 py-2.5 text-sm font-black text-[#f5b700] transition hover:bg-[#f5b700] hover:text-black disabled:opacity-50"
+                className="rounded-full border border-rose-300/30 bg-rose-500/10 px-5 py-2.5 text-sm font-black text-rose-100 transition hover:bg-rose-500 hover:text-white disabled:opacity-50"
               >
                 {optimizing ? "Optimizing..." : "✨ Improve With AI"}
               </button>
@@ -374,7 +369,7 @@ export default function EditLocationPage() {
               <button
                 onClick={saveLocation}
                 disabled={saving || optimizing}
-                className="rounded-full bg-white px-6 py-2.5 text-sm font-black text-black transition hover:bg-[#ffe6eb] disabled:opacity-50"
+                className="rounded-full bg-white px-6 py-2.5 text-sm font-black text-black transition hover:bg-rose-100 disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>
@@ -382,14 +377,14 @@ export default function EditLocationPage() {
           </div>
 
           {isImpersonating && (
-            <div className="mb-5 inline-flex rounded-full border border-[#e85d75]/40 bg-[#e85d75]/15 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#ffd6df]">
+            <div className="mb-5 inline-flex rounded-full border border-rose-300/30 bg-rose-500/15 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-rose-100">
               Admin viewing this location
             </div>
           )}
 
           <div className="grid gap-8 lg:grid-cols-[1fr_340px] lg:items-end">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.35em] text-[#f5b700]">
+              <p className="text-xs font-black uppercase tracking-[0.35em] text-rose-200/70">
                 RoseOut Reserve
               </p>
 
@@ -398,8 +393,8 @@ export default function EditLocationPage() {
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/60">
-                Refine the listing details, improve search matching, and preview
-                how this location will appear inside RoseOut.
+                Refine this listing, improve search matching, and preview the
+                way it appears across RoseOut.
               </p>
             </div>
 
@@ -407,7 +402,7 @@ export default function EditLocationPage() {
               <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-white/45">
                 Current Score
               </p>
-              <div className="rounded-[1.5rem] bg-white p-5 text-black">
+              <div className="rounded-[1.5rem] border border-white/10 bg-black/35 p-5 text-white">
                 <ScoreBadge score={safeScore} />
               </div>
             </div>
@@ -431,11 +426,7 @@ export default function EditLocationPage() {
         <div className="grid gap-6 lg:grid-cols-[1fr_410px]">
           <section className="space-y-6">
             <Panel title="Basic Listing Details">
-              <Field
-                label="Location Name"
-                value={form.name}
-                onChange={(v) => update("name", v)}
-              />
+              <Field label="Location Name" value={form.name} onChange={(v) => update("name", v)} />
 
               <TextArea
                 label="Short Description"
@@ -480,159 +471,59 @@ export default function EditLocationPage() {
             </Panel>
 
             <Panel title="Address & Nearby Search">
-              <Field
-                label="Address"
-                value={form.address}
-                onChange={(v) => update("address", v)}
-              />
+              <Field label="Address" value={form.address} onChange={(v) => update("address", v)} />
 
               <div className="grid gap-4 md:grid-cols-4">
                 <Field label="City" value={form.city} onChange={(v) => update("city", v)} />
                 <Field label="State" value={form.state} onChange={(v) => update("state", v)} />
                 <Field label="Zip Code" value={form.zip_code} onChange={(v) => update("zip_code", v)} />
-                <Field
-                  label="Neighborhood"
-                  value={form.neighborhood}
-                  onChange={(v) => update("neighborhood", v)}
-                  placeholder="Astoria, Flushing"
-                />
+                <Field label="Neighborhood" value={form.neighborhood} onChange={(v) => update("neighborhood", v)} />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Field
-                  label="Latitude"
-                  value={String(form.latitude || "")}
-                  onChange={(v) => update("latitude", v)}
-                  placeholder="40.7282"
-                />
-
-                <Field
-                  label="Longitude"
-                  value={String(form.longitude || "")}
-                  onChange={(v) => update("longitude", v)}
-                  placeholder="-73.7949"
-                />
+                <Field label="Latitude" value={String(form.latitude || "")} onChange={(v) => update("latitude", v)} />
+                <Field label="Longitude" value={String(form.longitude || "")} onChange={(v) => update("longitude", v)} />
               </div>
             </Panel>
 
             <Panel title="Experience Matching Details">
               <div className="grid gap-4 md:grid-cols-2">
-                <Field
-                  label="Atmosphere"
-                  value={form.atmosphere}
-                  onChange={(v) => update("atmosphere", v)}
-                  placeholder="Romantic, lively, cozy, upscale"
-                />
-
-                <Field
-                  label="Noise Level"
-                  value={form.noise_level}
-                  onChange={(v) => update("noise_level", v)}
-                  placeholder="Quiet, moderate, lively"
-                />
-
-                <Field
-                  label="Dress Code"
-                  value={form.dress_code}
-                  onChange={(v) => update("dress_code", v)}
-                  placeholder="Casual, smart casual, dressy"
-                />
-
-                <Field
-                  label="Parking Info"
-                  value={form.parking_info}
-                  onChange={(v) => update("parking_info", v)}
-                  placeholder="Street parking, valet, garage nearby"
-                />
+                <Field label="Atmosphere" value={form.atmosphere} onChange={(v) => update("atmosphere", v)} />
+                <Field label="Noise Level" value={form.noise_level} onChange={(v) => update("noise_level", v)} />
+                <Field label="Dress Code" value={form.dress_code} onChange={(v) => update("dress_code", v)} />
+                <Field label="Parking Info" value={form.parking_info} onChange={(v) => update("parking_info", v)} />
               </div>
 
-              <Field
-                label="Best For"
-                helper="Separate with commas."
-                value={form.best_for}
-                onChange={(v) => update("best_for", v)}
-                placeholder="Date night, birthday, brunch, first date"
-              />
-
-              <Field
-                label="Special Features"
-                helper="Separate with commas."
-                value={form.special_features}
-                onChange={(v) => update("special_features", v)}
-                placeholder="Outdoor seating, live music, waterfront, rooftop"
-              />
-
-              <Field
-                label="Signature Items / Highlights"
-                helper="Separate with commas."
-                value={form.signature_items}
-                onChange={(v) => update("signature_items", v)}
-                placeholder="Wine list, lobster pasta, mocktails, private rooms"
-              />
+              <Field label="Best For" helper="Separate with commas." value={form.best_for} onChange={(v) => update("best_for", v)} />
+              <Field label="Special Features" helper="Separate with commas." value={form.special_features} onChange={(v) => update("special_features", v)} />
+              <Field label="Signature Items / Highlights" helper="Separate with commas." value={form.signature_items} onChange={(v) => update("signature_items", v)} />
             </Panel>
 
             <Panel title="Search Tags & Ranking">
-              <Field
-                label="Date Style Tags"
-                helper="Separate with commas. These display on result cards."
-                value={form.date_style_tags}
-                onChange={(v) => update("date_style_tags", v)}
-                placeholder="Romantic, Dinner, Quiet, Upscale"
-              />
-
-              <Field
-                label="Search Keywords"
-                helper="Separate with commas. These help AI/search match better."
-                value={form.search_keywords}
-                onChange={(v) => update("search_keywords", v)}
-                placeholder="wine, brunch, date night, anniversary, Queens"
-              />
+              <Field label="Date Style Tags" helper="Separate with commas." value={form.date_style_tags} onChange={(v) => update("date_style_tags", v)} />
+              <Field label="Search Keywords" helper="Separate with commas." value={form.search_keywords} onChange={(v) => update("search_keywords", v)} />
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Field
-                  label="RoseOut Score"
-                  value={String(safeScore)}
-                  onChange={(v) => update("roseout_score", v)}
-                  helper="This updates automatically when you save."
-                />
-
-                <Field
-                  label="Claim Status"
-                  value={form.claim_status}
-                  onChange={(v) => update("claim_status", v)}
-                  placeholder="claimed, pending, unclaimed"
-                />
+                <Field label="RoseOut Score" value={String(safeScore)} onChange={(v) => update("roseout_score", v)} helper="This updates automatically when you save." />
+                <Field label="Claim Status" value={form.claim_status} onChange={(v) => update("claim_status", v)} />
               </div>
             </Panel>
 
             <Panel title="Links & Owner Contact">
-              <Field
-                label="Image URL"
-                value={form.image_url}
-                onChange={(v) => update("image_url", v)}
-              />
+              <Field label="Image URL" value={form.image_url} onChange={(v) => update("image_url", v)} />
 
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Website" value={form.website} onChange={(v) => update("website", v)} />
-                <Field
-                  label="Reservation / Booking URL"
-                  value={form.reservation_url}
-                  onChange={(v) => update("reservation_url", v)}
-                />
+                <Field label="Reservation / Booking URL" value={form.reservation_url} onChange={(v) => update("reservation_url", v)} />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Public Phone" value={form.phone} onChange={(v) => update("phone", v)} />
-                <Field
-                  label="Hours"
-                  value={form.hours}
-                  onChange={(v) => update("hours", v)}
-                  placeholder="Mon–Fri 11am–10pm"
-                />
+                <Field label="Hours" value={form.hours} onChange={(v) => update("hours", v)} />
               </div>
 
-              <div className="rounded-[1.5rem] border border-black/10 bg-[#f8f1eb] p-5">
-                <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-black/45">
+              <div className="rounded-[1.5rem] border border-white/10 bg-black/25 p-5">
+                <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-white/45">
                   Owner Contact
                 </p>
 
@@ -647,14 +538,14 @@ export default function EditLocationPage() {
             <button
               onClick={saveLocation}
               disabled={saving || optimizing}
-              className="w-full rounded-full bg-white px-5 py-4 font-black text-black transition hover:bg-[#ffe6eb] disabled:opacity-50"
+              className="w-full rounded-full bg-white px-5 py-4 font-black text-black transition hover:bg-rose-100 disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save All Changes"}
             </button>
           </section>
 
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#f8f1eb] text-black shadow-2xl">
+          <aside className="lg:sticky lg:top-28 lg:self-start">
+            <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#12090d] text-white shadow-2xl">
               {form.image_url ? (
                 <Image
                   src={form.image_url}
@@ -664,13 +555,13 @@ export default function EditLocationPage() {
                   className="h-72 w-full object-cover"
                 />
               ) : (
-                <div className="flex h-72 items-center justify-center bg-neutral-200 text-neutral-500">
+                <div className="flex h-72 items-center justify-center bg-black/40 text-white/35">
                   No image preview
                 </div>
               )}
 
               <div className="p-5">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-black/45">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-white/45">
                   Listing Preview
                 </p>
 
@@ -678,40 +569,26 @@ export default function EditLocationPage() {
                   {form.name || "Location Name"}
                 </h2>
 
-                <p className="mt-2 text-sm text-black/55">
+                <p className="mt-2 text-sm text-white/50">
                   {[form.address, form.city, form.state, form.zip_code]
                     .filter(Boolean)
                     .join(", ") || "Address will appear here"}
                 </p>
 
-                <div className="mt-5 rounded-[1.5rem] bg-black p-5 text-white">
+                <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-black/35 p-5">
                   <ScoreBadge score={safeScore} />
                 </div>
 
                 {form.description && (
-                  <p className="mt-4 text-sm leading-6 text-black/65">
+                  <p className="mt-4 text-sm leading-6 text-white/60">
                     {form.description}
                   </p>
                 )}
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {form.primary_tag && (
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black">
-                      {form.primary_tag}
-                    </span>
-                  )}
-
-                  {form.price_range && (
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black">
-                      {form.price_range}
-                    </span>
-                  )}
-
-                  {form.claim_status && (
-                    <span className="rounded-full bg-black px-3 py-1 text-xs font-black text-white">
-                      {form.claim_status}
-                    </span>
-                  )}
+                  {form.primary_tag && <Tag>{form.primary_tag}</Tag>}
+                  {form.price_range && <Tag>{form.price_range}</Tag>}
+                  {form.claim_status && <Tag>{form.claim_status}</Tag>}
                 </div>
 
                 <PreviewBlock title="Why It Stands Out">
@@ -734,19 +611,12 @@ export default function EditLocationPage() {
   );
 }
 
-function Panel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-[#f8f1eb] p-6 text-black shadow-2xl">
-      <p className="mb-5 text-xs font-black uppercase tracking-[0.25em] text-black/45">
+    <section className="rounded-[2rem] border border-white/10 bg-[#12090d] p-6 text-white shadow-2xl">
+      <p className="mb-5 text-xs font-black uppercase tracking-[0.25em] text-white/45">
         {title}
       </p>
-
       <div className="grid gap-5">{children}</div>
     </section>
   );
@@ -767,7 +637,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-xs font-black uppercase tracking-[0.2em] text-black/45">
+      <label className="text-xs font-black uppercase tracking-[0.2em] text-white/45">
         {label}
       </label>
 
@@ -775,10 +645,10 @@ function Field({
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold outline-none transition placeholder:text-black/25 focus:border-black"
+        className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-white/30 focus:border-rose-400"
       />
 
-      {helper && <p className="mt-1 text-xs font-semibold text-black/40">{helper}</p>}
+      {helper && <p className="mt-1 text-xs font-semibold text-white/35">{helper}</p>}
     </div>
   );
 }
@@ -796,7 +666,7 @@ function TextArea({
 }) {
   return (
     <div>
-      <label className="text-xs font-black uppercase tracking-[0.2em] text-black/45">
+      <label className="text-xs font-black uppercase tracking-[0.2em] text-white/45">
         {label}
       </label>
 
@@ -804,42 +674,37 @@ function TextArea({
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         rows={5}
-        className="mt-2 w-full resize-none rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold outline-none transition placeholder:text-black/25 focus:border-black"
+        className="mt-2 w-full resize-none rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-white/30 focus:border-rose-400"
       />
 
-      {helper && <p className="mt-1 text-xs font-semibold text-black/40">{helper}</p>}
+      {helper && <p className="mt-1 text-xs font-semibold text-white/35">{helper}</p>}
     </div>
   );
 }
 
-function PreviewBlock({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Tag({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-5 rounded-[1.5rem] bg-white p-4">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-black/40">
+    <span className="rounded-full border border-white/10 bg-white/[0.08] px-3 py-1 text-xs font-black text-white/70">
+      {children}
+    </span>
+  );
+}
+
+function PreviewBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
         {title}
       </p>
-
       <div className="mt-3 space-y-1">{children}</div>
     </div>
   );
 }
 
-function PreviewLine({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string;
-}) {
+function PreviewLine({ label, value }: { label: string; value?: string }) {
   return (
-    <p className="text-sm text-black/70">
-      <b>{label}:</b> {value || "Not added"}
+    <p className="text-sm text-white/60">
+      <b className="text-white/80">{label}:</b> {value || "Not added"}
     </p>
   );
 }
