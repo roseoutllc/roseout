@@ -455,7 +455,7 @@ export default function CreatePage() {
 
                 <p className="mt-6 max-w-xl text-base leading-7 text-white/55 md:text-lg">
                   Type naturally. RoseOut understands your vibe, budget,
-                  borough, mood, and outing style.
+                  location, mood, and outing style.
                 </p>
               </div>
 
