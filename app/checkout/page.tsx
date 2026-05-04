@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -37,8 +39,72 @@ const trustPoints = [
 ];
 
 export default function CheckoutInfoPage() {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const passwordChecks = useMemo(
+    () => [
+      {
+        label: "At least 8 characters",
+        valid: password.length >= 8,
+      },
+      {
+        label: "One uppercase letter",
+        valid: /[A-Z]/.test(password),
+      },
+      {
+        label: "One lowercase letter",
+        valid: /[a-z]/.test(password),
+      },
+      {
+        label: "One number",
+        valid: /[0-9]/.test(password),
+      },
+      {
+        label: "One special character",
+        valid: /[^A-Za-z0-9]/.test(password),
+      },
+    ],
+    [password]
+  );
+
+  const passwordStrength = passwordChecks.filter((check) => check.valid).length;
+  const passwordsMatch =
+    password.length > 0 &&
+    confirmPassword.length > 0 &&
+    password === confirmPassword;
+
+  const strengthLabel =
+    passwordStrength <= 2 ? "Weak" : passwordStrength === 3 ? "Good" : "Strong";
+
+  const strengthWidth =
+    passwordStrength === 0
+      ? "0%"
+      : passwordStrength === 1
+      ? "20%"
+      : passwordStrength === 2
+      ? "40%"
+      : passwordStrength === 3
+      ? "65%"
+      : passwordStrength === 4
+      ? "85%"
+      : "100%";
+
+  const strengthColor =
+    passwordStrength <= 2
+      ? "bg-red-500"
+      : passwordStrength === 3
+      ? "bg-yellow-400"
+      : "bg-green-500";
+
   return (
     <main className="min-h-screen overflow-hidden bg-[#050505] text-white">
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+        async
+        defer
+      />
+
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute left-1/2 top-[-180px] h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-rose-700/25 blur-[140px]" />
         <div className="absolute bottom-[-180px] right-[-120px] h-[420px] w-[420px] rounded-full bg-red-900/20 blur-[130px]" />
@@ -71,13 +137,13 @@ export default function CheckoutInfoPage() {
           <h1 className="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
             Before checkout,
             <span className="block bg-gradient-to-r from-rose-200 via-rose-500 to-red-500 bg-clip-text text-transparent">
-              tell us about your business.
+              create your business account.
             </span>
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">
-            This helps RoseOut prepare your Pro listing, connect your business
-            information, and carry your details into Stripe securely.
+            Enter your business details, create a secure password, complete the
+            captcha, then continue to Stripe checkout.
           </p>
         </div>
 
@@ -96,8 +162,8 @@ export default function CheckoutInfoPage() {
                   Set up your RoseOut Pro profile
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  Enter the main contact and location information for the
-                  business joining RoseOut.
+                  This information helps create your business profile before
+                  your subscription is completed.
                 </p>
               </div>
             </div>
@@ -186,6 +252,106 @@ export default function CheckoutInfoPage() {
                 />
               </div>
 
+              <div className="rounded-[1.5rem] border border-white/10 bg-black/30 p-5">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-300">
+                    <LockKeyhole className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-black">Create a secure password</h3>
+                    <p className="text-sm text-zinc-500">
+                      This will be used for your RoseOut business account.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <PasswordField
+                    label="Password"
+                    name="password"
+                    value={password}
+                    onChange={setPassword}
+                    placeholder="Create password"
+                  />
+
+                  <PasswordField
+                    label="Confirm Password"
+                    name="confirmPassword"
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
+                    placeholder="Repeat password"
+                  />
+                </div>
+
+                <div className="mt-5">
+                  <div className="mb-2 flex items-center justify-between text-xs font-bold">
+                    <span className="text-zinc-400">Password strength</span>
+                    <span
+                      className={
+                        passwordStrength <= 2
+                          ? "text-red-400"
+                          : passwordStrength === 3
+                          ? "text-yellow-300"
+                          : "text-green-400"
+                      }
+                    >
+                      {password ? strengthLabel : "Required"}
+                    </span>
+                  </div>
+
+                  <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${strengthColor}`}
+                      style={{ width: strengthWidth }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {passwordChecks.map((check) => (
+                    <div
+                      key={check.label}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                        check.valid
+                          ? "border-green-500/30 bg-green-500/10 text-green-300"
+                          : "border-white/10 bg-white/[0.03] text-zinc-500"
+                      }`}
+                    >
+                      {check.valid ? "✓" : "○"} {check.label}
+                    </div>
+                  ))}
+
+                  <div
+                    className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                      passwordsMatch
+                        ? "border-green-500/30 bg-green-500/10 text-green-300"
+                        : "border-white/10 bg-white/[0.03] text-zinc-500"
+                    }`}
+                  >
+                    {passwordsMatch ? "✓" : "○"} Passwords match
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-white/10 bg-black/30 p-5">
+                <h3 className="mb-3 flex items-center gap-2 font-black">
+                  <ShieldCheck className="h-5 w-5 text-rose-300" />
+                  Security Check
+                </h3>
+
+                <p className="mb-4 text-sm leading-6 text-zinc-500">
+                  Complete the captcha before continuing to checkout.
+                </p>
+
+                <div
+                  className="cf-turnstile"
+                  data-sitekey={
+                    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
+                  }
+                  data-theme="dark"
+                />
+              </div>
+
               <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
                 <label className="flex items-start gap-3 text-sm leading-6 text-zinc-400">
                   <input
@@ -259,13 +425,12 @@ export default function CheckoutInfoPage() {
 
               <div className="mt-6 space-y-5">
                 <Step number="01" title="Submit business details">
-                  Your contact and business information is attached to your
-                  checkout session.
+                  Your business information and secure account details are
+                  submitted before checkout.
                 </Step>
 
                 <Step number="02" title="Complete Stripe checkout">
-                  Stripe securely processes your $99/month RoseOut Pro
-                  subscription.
+                  Stripe securely processes your RoseOut Pro subscription.
                 </Step>
 
                 <Step number="03" title="Activate Pro tools">
@@ -347,6 +512,42 @@ function Field({
           type={type}
           name={name}
           required={required}
+          placeholder={placeholder}
+          className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
+        />
+      </div>
+    </div>
+  );
+}
+
+function PasswordField({
+  label,
+  name,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-zinc-300">
+        {label}
+      </label>
+
+      <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-4 transition focus-within:border-rose-400/60">
+        <LockKeyhole className="h-5 w-5 shrink-0 text-rose-300" />
+        <input
+          type="password"
+          name={name}
+          required
+          minLength={8}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
         />
