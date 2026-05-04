@@ -1,53 +1,43 @@
-async function importRestaurant(place: any) {
-  const { data: existing } = await supabaseAdmin
-    .from("restaurants")
-    .select("id")
-    .eq("google_place_id", place.place_id)
-    .maybeSingle();
+import { NextRequest, NextResponse } from "next/server";
 
-  if (existing) return { imported: false, skipped: true };
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-  const claimQr = await createClaimQr("restaurant");
-  const scores = calculateImportScores(place);
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
 
-  const addressParts = parseAddressParts(
-    place.formatted_address || place.vicinity || null
-  );
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
 
-  const primaryTag = getPrimaryTag(place, "restaurant");
+    const url = new URL("/api/google/import", siteUrl);
 
-  const { error } = await supabaseAdmin.from("restaurants").insert({
-    restaurant_name: place.name,
-    address: addressParts.fullAddress,
-    city: addressParts.city,
-    state: addressParts.state,
-    zip_code: addressParts.zipCode,
+    url.searchParams.set("type", body.type || "both");
+    url.searchParams.set("limit", String(body.limit || 20));
 
-    // ✅ FIXED: clean cuisine instead of Google junk types
-    cuisine: primaryTag || "restaurant",
+    if (body.batch) {
+      url.searchParams.set("batch", body.batch);
+    }
 
-    rating: place.rating || 0,
-    review_count: getReviewCount(place),
-    google_place_id: place.place_id,
-    image_url: googlePhotoUrl(place),
-    latitude: place.geometry?.location?.lat || null,
-    longitude: place.geometry?.location?.lng || null,
+    if (body.areas) {
+      url.searchParams.set("areas", body.areas);
+    }
 
-    status: "approved",
-    claimed: false,
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${process.env.CRON_SECRET}`,
+      },
+      cache: "no-store",
+    });
 
-    view_count: 0,
-    click_count: 0,
-    claim_count: 0,
+    const data = await response.json();
 
-    primary_tag: primaryTag,
-    search_keywords: buildSearchKeywords(place, "restaurant"),
-
-    ...scores,
-    ...claimQr,
-  });
-
-  if (error) throw new Error(error.message);
-
-  return { imported: true, skipped: false };
+    return NextResponse.json(data, { status: response.status });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Google import failed" },
+      { status: 500 }
+    );
+  }
 }
