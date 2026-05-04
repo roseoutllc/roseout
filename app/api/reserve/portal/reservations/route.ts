@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 const allowedStatuses = [
   "pending",
   "confirmed",
+  "arrived",
   "declined",
   "cancelled",
   "completed",
