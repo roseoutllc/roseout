@@ -31,6 +31,53 @@ type ImportBatch =
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const GENERIC_PLACE_TAGS = [
+  "restaurant",
+  "food",
+  "establishment",
+  "point of interest",
+  "point_of_interest",
+  "bar",
+  "night club",
+  "night_club",
+  "cafe",
+  "bakery",
+  "meal takeaway",
+  "meal_takeaway",
+  "meal delivery",
+  "meal_delivery",
+  "store",
+  "lodging",
+  "tourist attraction",
+  "tourist_attraction",
+  "gym",
+  "spa",
+  "park",
+  "shopping mall",
+  "shopping_mall",
+  "movie theater",
+  "movie_theater",
+  "bowling alley",
+  "bowling_alley",
+  "lounge",
+  "rooftop",
+  "brunch",
+  "dessert",
+  "drinks",
+  "venue",
+  "place",
+  "location",
+];
+
+function normalizeTag(tag: string) {
+  return tag.toLowerCase().replace(/_/g, " ").trim();
+}
+
+function isGenericTag(tag: string) {
+  const normalized = normalizeTag(tag);
+  return GENERIC_PLACE_TAGS.map(normalizeTag).includes(normalized);
+}
+
 function getGoogleKey() {
   return (
     process.env.GOOGLE_PLACES_API_KEY ||
@@ -273,14 +320,13 @@ function getPrimaryTag(place: any, type: "restaurant" | "activity") {
 }
 
 function getCuisineFromPlace(place: any) {
-  const tag = getPrimaryTag(place, "restaurant");
-  const genericTags = ["restaurant", "bar", "cafe", "lounge", "rooftop"];
+  const primaryTag = getPrimaryTag(place, "restaurant");
 
-  if (!tag || genericTags.includes(tag)) {
+  if (!primaryTag || isGenericTag(primaryTag)) {
     return null;
   }
 
-  return tag;
+  return primaryTag;
 }
 
 function buildSearchKeywords(place: any, type: ImportType) {
@@ -764,7 +810,7 @@ async function importRestaurant(place: any) {
     city: addressParts.city,
     state: addressParts.state,
     zip_code: addressParts.zipCode,
-    cuisine: getCuisineFromPlace(place),
+    cuisine: cuisine,
     rating: place.rating || 0,
     review_count: getReviewCount(place),
     google_place_id: place.place_id,
