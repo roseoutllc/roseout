@@ -137,7 +137,7 @@ export default function CheckoutInfoPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_38%)]" />
       </div>
 
-      <section className="relative mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-12">
+      <section className="relative mx-auto max-w-7xl px-5 pt-28 pb-8 sm:px-8 lg:px-10 lg:pt-32 lg:pb-12">
         <div className="mb-8 flex items-center justify-between">
           <Link
             href="/pricing"
