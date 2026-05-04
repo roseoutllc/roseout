@@ -58,8 +58,6 @@ async function logImportRun(result: any, errorMessage?: string) {
 }
 
 function isAuthorized(request: NextRequest) {
-
-function isAuthorized(request: NextRequest) {
   if (process.env.NODE_ENV === "development") return true;
 
   const importSecret = request.headers.get("x-internal-import-secret");
@@ -139,18 +137,15 @@ function calculateImportScores(place: any) {
 
   const trendScore = Math.min(Math.round(reviews / 10), 100);
 
-  const conversionScore = Math.min(
-    Math.round((rating * reviews) / 100),
-    100
-  );
+  const conversionScore = Math.min(Math.round((rating * reviews) / 100), 100);
 
   const roseoutScore = Math.min(
     100,
     Math.round(
       qualityScore * 0.5 +
-      popularityScore * 0.2 +
-      reviewScore * 0.2 +
-      trendScore * 0.1
+        popularityScore * 0.2 +
+        reviewScore * 0.2 +
+        trendScore * 0.1
     )
   );
 
@@ -177,16 +172,6 @@ function googlePhotoUrl(place: any) {
   if (!apiKey || !ref) return null;
 
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${ref}&key=${apiKey}`;
-}
-
-function isHookah(place: any) {
-  const text = placeText(place);
-  return text.includes("hookah") || text.includes("shisha");
-}
-
-function isCigar(place: any) {
-  const text = placeText(place);
-  return text.includes("cigar");
 }
 
 function getPrimaryTag(place: any, type: "restaurant" | "activity") {
@@ -1355,6 +1340,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: any) {
+    await logImportRun(null, error.message || "Import failed");
+
     return NextResponse.json(
       { error: error.message || "Import failed" },
       { status: 500 }
@@ -1406,6 +1393,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: any) {
+    await logImportRun(null, error.message || "Import failed");
+
     return NextResponse.json(
       { error: error.message || "Import failed" },
       { status: 500 }
