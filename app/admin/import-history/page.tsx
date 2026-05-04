@@ -1,264 +1,146 @@
+```tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import AdminTopBar from "@/app/admin/components/AdminTopBar";
-import { createClient } from "@/lib/supabase-browser";
 
 type ImportLog = {
   id: string;
-  job_name: string | null;
-  run_date: string | null;
-  created_at: string | null;
+  job_name: string;
+  run_date: string;
+  meta: any;
+  error: string | null;
 };
 
 export default function ImportHistoryPage() {
-  const supabase = createClient();
-
   const [logs, setLogs] = useState<ImportLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
-  const [message, setMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [running, setRunning] = useState(false);
 
-  const today = new Date().toISOString().split("T")[0];
-
-  const loadLogs = async () => {
-    setLoading(true);
-
+  // 🔥 FETCH IMPORT LOGS
+  const fetchLogs = async () => {
     try {
-      const res = await fetch("/api/admin/import-logs", {
-        method: "GET",
-        cache: "no-store",
-      });
+      setLoading(true);
 
+      const res = await fetch("/api/admin/import-logs");
       const data = await res.json();
 
-      if (!res.ok) {
-        setErrorMessage(data.error || "Could not load import logs.");
-        setLogs([]);
-        return;
-      }
-
       setLogs(data.logs || []);
-    } catch {
-      setErrorMessage("Could not load import logs.");
-      setLogs([]);
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error("Failed to fetch logs:", err);
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadLogs();
+    fetchLogs();
   }, []);
 
-  const lastRunToday = logs.some((log) => log.run_date === today);
-  const latestRun = logs[0];
-
-  const runGoogleImport = async () => {
-    setImporting(true);
-    setMessage("");
-    setErrorMessage("");
+  // 🚀 RUN IMPORT
+  const handleRunImport = async () => {
+    setRunning(true);
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.access_token) {
-        setErrorMessage("You must be logged in as an admin to run the import.");
-        return;
-      }
-
-      const res = await fetch("/api/google/import", {
+      const res = await fetch("/api/admin/run-google-import", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          query: "restaurants in Queens NY",
-          type: "restaurant",
+          type: "both",
+          limit: 10,
+          batch: "fun",
+          areas: "Queens",
         }),
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        setErrorMessage(data.error || "Import failed.");
-        return;
-      }
+      console.log("Import result:", data);
 
-      setMessage(`Google import completed. Imported ${data.imported ?? 0} places.`);
-      await loadLogs();
-    } catch (error: any) {
-      setErrorMessage(error?.message || "Import failed.");
-    } finally {
-      setImporting(false);
+      alert(
+        `✅ Imported: ${data.imported}\n⏭ Skipped: ${data.skipped}\n❌ Failed: ${data.failed}`
+      );
+
+      fetchLogs(); // refresh logs after run
+    } catch (err) {
+      console.error(err);
+      alert("Import failed");
     }
+
+    setRunning(false);
   };
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white">
-      <AdminTopBar />
+    <div className="min-h-screen bg-black text-white p-6">
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold">Google Import Dashboard</h1>
 
-      <div className="mx-auto max-w-5xl px-6 py-10">
-        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
-              RoseOut Admin
-            </p>
-
-            <h1 className="text-4xl font-extrabold tracking-tight">
-              Import History
-            </h1>
-
-            <p className="mt-3 text-neutral-400">
-              View when your Google import cron job last ran.
-            </p>
-          </div>
-
-          <div className="flex flex-col items-end gap-3">
-            <button
-              type="button"
-              onClick={runGoogleImport}
-              disabled={importing}
-              className="rounded-2xl bg-yellow-500 px-5 py-4 text-sm font-bold text-black transition hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {importing ? "Running Import..." : "Run Google Import"}
-            </button>
-
-            <div
-              className={`rounded-2xl px-5 py-4 text-sm font-bold ${
-                lastRunToday
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-              }`}
-            >
-              {lastRunToday ? "✅ Last Run Today" : "⚠️ Not Run Today"}
-            </div>
-          </div>
-        </div>
-
-        {message && (
-          <div className="mb-6 rounded-2xl bg-green-100 p-4 text-green-700">
-            {message}
-          </div>
-        )}
-
-        {errorMessage && (
-          <div className="mb-6 rounded-2xl bg-red-100 p-4 text-red-700">
-            {errorMessage}
-          </div>
-        )}
-
-        <div className="mb-6 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">
-              Today Status
-            </p>
-            <p
-              className={`mt-2 text-2xl font-extrabold ${
-                lastRunToday ? "text-green-400" : "text-red-400"
-              }`}
-            >
-              {lastRunToday ? "Completed" : "Pending"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">
-              Latest Run Date
-            </p>
-            <p className="mt-2 text-2xl font-extrabold">
-              {latestRun?.run_date || "N/A"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">
-              Total Logs
-            </p>
-            <p className="mt-2 text-2xl font-extrabold">{logs.length}</p>
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white text-black shadow-2xl">
-          <div className="border-b border-neutral-200 p-5">
-            <h2 className="text-xl font-bold">Recent Import Runs</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              Showing the latest 100 import logs.
-            </p>
-          </div>
-
-          {loading ? (
-            <div className="p-8 text-center text-neutral-500">
-              Loading import history...
-            </div>
-          ) : !logs.length ? (
-            <div className="p-8 text-center text-neutral-500">
-              No import history found yet.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-neutral-100 text-xs uppercase tracking-wide text-neutral-500">
-                  <tr>
-                    <th className="px-5 py-4">Job Name</th>
-                    <th className="px-5 py-4">Run Date</th>
-                    <th className="px-5 py-4">Ran At</th>
-                    <th className="px-5 py-4">Status</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {logs.map((log) => {
-                    const isToday = log.run_date === today;
-
-                    return (
-                      <tr
-                        key={log.id}
-                        className="border-t border-neutral-200 hover:bg-neutral-50"
-                      >
-                        <td className="px-5 py-4 font-bold">
-                          {log.job_name || "Google Import"}
-                        </td>
-
-                        <td className="px-5 py-4">{log.run_date || "N/A"}</td>
-
-                        <td className="px-5 py-4">
-                          {log.created_at
-                            ? new Date(log.created_at).toLocaleString()
-                            : "N/A"}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
-                              isToday
-                                ? "bg-green-100 text-green-700"
-                                : "bg-neutral-100 text-neutral-600"
-                            }`}
-                          >
-                            {isToday ? "Today" : "Completed"}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
-          <p className="text-sm text-neutral-400">
-            If the badge says “Last Run Today,” your Google import route has
-            logged a run for today.
-          </p>
-        </div>
+        <button
+          onClick={handleRunImport}
+          disabled={running}
+          className={`px-6 py-3 rounded-xl font-semibold transition ${
+            running
+              ? "bg-gray-600 cursor-not-allowed"
+              : "bg-rose-600 hover:bg-rose-700"
+          }`}
+        >
+          {running ? "Running..." : "Run Google Import"}
+        </button>
       </div>
-    </main>
+
+      {/* LOADING */}
+      {loading && (
+        <div className="text-center text-gray-400">Loading logs...</div>
+      )}
+
+      {/* EMPTY STATE */}
+      {!loading && logs.length === 0 && (
+        <div className="text-center text-gray-500">
+          No import history yet.
+        </div>
+      )}
+
+      {/* LOG TABLE */}
+      <div className="grid gap-4">
+        {logs.map((log) => (
+          <div
+            key={log.id}
+            className="bg-zinc-900 border border-zinc-800 rounded-xl p-4"
+          >
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-sm text-gray-400">
+                {log.job_name} — {log.run_date}
+              </div>
+
+              {log.error ? (
+                <span className="text-red-400 text-xs">Error</span>
+              ) : (
+                <span className="text-green-400 text-xs">Success</span>
+              )}
+            </div>
+
+            {/* META */}
+            {log.meta && (
+              <div className="text-sm text-gray-300 grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div>Imported: {log.meta.imported ?? 0}</div>
+                <div>Skipped: {log.meta.skipped ?? 0}</div>
+                <div>Failed: {log.meta.failed ?? 0}</div>
+                <div>Found: {log.meta.total_found_from_google ?? 0}</div>
+              </div>
+            )}
+
+            {/* ERROR */}
+            {log.error && (
+              <div className="mt-2 text-xs text-red-400">
+                {log.error}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
+```
