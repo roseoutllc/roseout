@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
@@ -7,10 +8,12 @@ function cleanString(value: unknown) {
 
 function normalizeType(value: string) {
   const type = value.toLowerCase().trim();
+
   if (["activity", "activities"].includes(type)) return "activity";
   if (["bar", "bars"].includes(type)) return "bar";
   if (["lounge", "lounges"].includes(type)) return "lounge";
   if (["venue", "venues"].includes(type)) return "venue";
+
   return "restaurant";
 }
 
@@ -100,10 +103,12 @@ async function sendEmail({
   to,
   subject,
   html,
+  replyTo,
 }: {
   to: string;
   subject: string;
   html: string;
+  replyTo?: string;
 }) {
   if (!process.env.RESEND_API_KEY || !to) return;
 
@@ -120,6 +125,7 @@ async function sendEmail({
       to,
       subject,
       html,
+      reply_to: replyTo || undefined,
     }),
   });
 }
@@ -157,9 +163,14 @@ async function notifyReservation({
   locationType: string;
   reservation: any;
 }) {
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.com";
+
   const locationName = getLocationName(location, locationType);
   const locationEmail = getLocationEmail(location);
   const locationPhone = getLocationPhone(location);
+
+  const confirmationUrl = `${siteUrl}/reserve/confirmation/${reservation.customer_token}`;
 
   const statusText =
     reservation.status === "confirmed"
@@ -167,71 +178,102 @@ async function notifyReservation({
       : "received and pending confirmation";
 
   const customerHtml = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-      <h2>RoseOut Reserve</h2>
-      <p>Hi ${reservation.customer_name}, your reservation request at <strong>${locationName}</strong> has been ${statusText}.</p>
-      <p><strong>Date:</strong> ${reservation.reservation_date}</p>
-      <p><strong>Time:</strong> ${formatTime(reservation.reservation_time.slice(0, 5))}</p>
-      <p><strong>Party Size:</strong> ${reservation.party_size}</p>
-      ${
-        reservation.bookable_item_name
-          ? `<p><strong>Reserved:</strong> ${reservation.bookable_item_name}</p>`
-          : ""
-      }
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;background:#fff;padding:24px;">
+      <h2 style="margin:0 0 12px;color:#111;">RoseOut Reserve</h2>
+      <p>Hi ${reservation.customer_name}, your reservation at <strong>${locationName}</strong> has been <strong>${statusText}</strong>.</p>
+
+      <div style="background:#f8f8f8;border-radius:16px;padding:16px;margin:18px 0;">
+        <p style="margin:0 0 8px;"><strong>Date:</strong> ${reservation.reservation_date}</p>
+        <p style="margin:0 0 8px;"><strong>Time:</strong> ${formatTime(
+          reservation.reservation_time.slice(0, 5)
+        )}</p>
+        <p style="margin:0 0 8px;"><strong>Party Size:</strong> ${reservation.party_size}</p>
+        ${
+          reservation.bookable_item_name
+            ? `<p style="margin:0;"><strong>Reserved:</strong> ${reservation.bookable_item_name}</p>`
+            : ""
+        }
+      </div>
+
+      <p>
+        <a href="${confirmationUrl}" style="display:inline-block;background:#dc2626;color:white;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:bold;">
+          View / Manage Reservation
+        </a>
+      </p>
+
+      <p style="font-size:13px;color:#666;">Use this link to view your reservation or cancel if needed.</p>
       <p>Thank you for using RoseOut.</p>
     </div>
   `;
 
   const ownerHtml = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-      <h2>New RoseOut Reservation</h2>
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;background:#fff;padding:24px;">
+      <h2 style="margin:0 0 12px;color:#111;">New RoseOut Reservation</h2>
       <p><strong>${reservation.customer_name}</strong> submitted a reservation for <strong>${locationName}</strong>.</p>
-      <p><strong>Date:</strong> ${reservation.reservation_date}</p>
-      <p><strong>Time:</strong> ${formatTime(reservation.reservation_time.slice(0, 5))}</p>
-      <p><strong>Party Size:</strong> ${reservation.party_size}</p>
-      ${
-        reservation.bookable_item_name
-          ? `<p><strong>Item:</strong> ${reservation.bookable_item_name}</p>`
-          : ""
-      }
-      ${
-        reservation.customer_phone
-          ? `<p><strong>Phone:</strong> ${reservation.customer_phone}</p>`
-          : ""
-      }
-      ${
-        reservation.customer_email
-          ? `<p><strong>Email:</strong> ${reservation.customer_email}</p>`
-          : ""
-      }
-      ${
-        reservation.special_request
-          ? `<p><strong>Request:</strong> ${reservation.special_request}</p>`
-          : ""
-      }
+
+      <div style="background:#f8f8f8;border-radius:16px;padding:16px;margin:18px 0;">
+        <p style="margin:0 0 8px;"><strong>Status:</strong> ${reservation.status}</p>
+        <p style="margin:0 0 8px;"><strong>Date:</strong> ${reservation.reservation_date}</p>
+        <p style="margin:0 0 8px;"><strong>Time:</strong> ${formatTime(
+          reservation.reservation_time.slice(0, 5)
+        )}</p>
+        <p style="margin:0 0 8px;"><strong>Party Size:</strong> ${reservation.party_size}</p>
+        ${
+          reservation.bookable_item_name
+            ? `<p style="margin:0 0 8px;"><strong>Item:</strong> ${reservation.bookable_item_name}</p>`
+            : ""
+        }
+        ${
+          reservation.customer_phone
+            ? `<p style="margin:0 0 8px;"><strong>Phone:</strong> ${reservation.customer_phone}</p>`
+            : ""
+        }
+        ${
+          reservation.customer_email
+            ? `<p style="margin:0 0 8px;"><strong>Email:</strong> ${reservation.customer_email}</p>`
+            : ""
+        }
+        ${
+          reservation.special_request
+            ? `<p style="margin:0;"><strong>Request:</strong> ${reservation.special_request}</p>`
+            : ""
+        }
+      </div>
+
+      <p>
+        <a href="${siteUrl}/reserve/portal/reservations?locationId=${reservation.location_id}&type=${reservation.location_type}" style="display:inline-block;background:#111;color:white;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:bold;">
+          Open Reserve Portal
+        </a>
+      </p>
     </div>
   `;
 
   await Promise.allSettled([
     sendEmail({
       to: reservation.customer_email,
-      subject: `Your Reservation: ${locationName}`,
+      subject: `Your ${locationName} reservation:`,
       html: customerHtml,
+      replyTo: locationEmail,
     }),
     sendEmail({
       to: locationEmail,
-      subject: `Your Reservation: ${reservation.customer_name}`,
+      subject: `Your ${locationName} reservation: ${reservation.customer_name}`,
       html: ownerHtml,
+      replyTo: reservation.customer_email || undefined,
     }),
     sendSms({
       to: reservation.customer_phone,
-      body: `Your reservation at ${locationName} for ${reservation.reservation_date} at ${formatTime(
+      body: `Your reservation at ${locationName} for ${
+        reservation.reservation_date
+      } at ${formatTime(
         reservation.reservation_time.slice(0, 5)
-      )} is ${statusText}.`,
+      )} is ${statusText}. Manage: ${confirmationUrl}`,
     }),
     sendSms({
       to: locationPhone,
-      body: `Your Reservation: ${reservation.customer_name}, ${reservation.party_size} guests, ${reservation.reservation_date} at ${formatTime(
+      body: `Your reservation: ${reservation.customer_name}, ${
+        reservation.party_size
+      } guests, ${reservation.reservation_date} at ${formatTime(
         reservation.reservation_time.slice(0, 5)
       )}.`,
     }),
@@ -489,6 +531,11 @@ export async function POST(request: NextRequest) {
     }
 
     const status = selectedItem?.auto_confirm === false ? "pending" : "confirmed";
+    const customerToken = crypto.randomUUID();
+
+    const customerTokenExpiresAt = new Date(
+  Date.now() + 72 * 60 * 60 * 1000
+).toISOString();
 
     const { data: reservation, error } = await supabaseAdmin
       .from("location_reservations")
@@ -511,6 +558,8 @@ export async function POST(request: NextRequest) {
         special_request: specialRequest || null,
         status,
         source: "roseout",
+
+        customer_token: customerToken,
       })
       .select("*")
       .single();
