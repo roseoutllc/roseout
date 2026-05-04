@@ -44,6 +44,21 @@ function getBearerToken(request: NextRequest) {
   return auth.slice(7).trim();
 }
 
+async function logImportRun(result: any, errorMessage?: string) {
+  try {
+    await supabaseAdmin.from("import_logs").insert({
+      job_name: "daily_google_import",
+      run_date: new Date().toISOString().split("T")[0],
+      meta: result || {},
+      error: errorMessage || null,
+    });
+  } catch (err) {
+    console.error("Import logging failed:", err);
+  }
+}
+
+function isAuthorized(request: NextRequest) {
+
 function isAuthorized(request: NextRequest) {
   if (process.env.NODE_ENV === "development") return true;
 
