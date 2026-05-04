@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  RefreshCw,
   ShieldCheck,
   Users,
   XCircle,
@@ -19,6 +20,7 @@ type Reservation = {
   id: string;
   location_id: string;
   location_type: string;
+  bookable_item_id: string | null;
   bookable_item_name: string | null;
   bookable_item_type: string | null;
   customer_name: string;
@@ -34,7 +36,9 @@ type Reservation = {
 };
 
 function formatStatus(status: string) {
-  return status.replace("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return status
+    .replace("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatTime(time: string) {
@@ -110,6 +114,14 @@ export default function ReservationConfirmationPage() {
   const isCancelled = reservation?.status === "cancelled";
   const isCustomerConfirmed = Boolean(reservation?.customer_confirmed_at);
 
+  const rescheduleHref = reservation
+    ? `/reserve/location/${reservation.location_id}?type=${
+        reservation.location_type
+      }&rescheduleToken=${token}&date=${reservation.reservation_date}&partySize=${
+        reservation.party_size
+      }&item=${reservation.bookable_item_id || ""}`
+    : "/create";
+
   return (
     <>
       <RoseOutHeader />
@@ -161,7 +173,7 @@ export default function ReservationConfirmationPage() {
                       </h1>
                       <p className="mt-3 text-sm leading-7 text-white/60">
                         View your reservation details, confirm you’re attending,
-                        or cancel if your plans changed.
+                        cancel, or reschedule your booking.
                       </p>
                     </div>
 
@@ -235,14 +247,37 @@ export default function ReservationConfirmationPage() {
                       </p>
                     </div>
                   ) : isCustomerConfirmed ? (
-                    <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5 text-center">
-                      <CheckCircle2 className="mx-auto text-emerald-300" size={34} />
-                      <p className="mt-3 font-black text-emerald-100">
-                        You confirmed this reservation.
-                      </p>
-                    </div>
+                    <>
+                      <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5 text-center">
+                        <CheckCircle2
+                          className="mx-auto text-emerald-300"
+                          size={34}
+                        />
+                        <p className="mt-3 font-black text-emerald-100">
+                          You confirmed this reservation.
+                        </p>
+                      </div>
+
+                      <div className="mt-6">
+                        <Link
+                          href={rescheduleHref}
+                          className="flex items-center justify-center gap-2 rounded-full bg-red-600 px-6 py-4 text-sm font-black text-white shadow-lg shadow-red-950/30 transition hover:bg-red-500"
+                        >
+                          <RefreshCw size={18} />
+                          Reschedule Reservation
+                        </Link>
+                      </div>
+                    </>
                   ) : (
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                      <Link
+                        href={rescheduleHref}
+                        className="flex items-center justify-center gap-2 rounded-full bg-red-600 px-6 py-4 text-sm font-black text-white shadow-lg shadow-red-950/30 transition hover:bg-red-500"
+                      >
+                        <RefreshCw size={18} />
+                        Reschedule
+                      </Link>
+
                       <button
                         type="button"
                         disabled={Boolean(acting)}
@@ -254,7 +289,7 @@ export default function ReservationConfirmationPage() {
                         ) : (
                           <CheckCircle2 size={18} />
                         )}
-                        Confirm I’m Coming
+                        Confirm
                       </button>
 
                       <button
@@ -268,14 +303,15 @@ export default function ReservationConfirmationPage() {
                         ) : (
                           <XCircle size={18} />
                         )}
-                        Cancel Reservation
+                        Cancel
                       </button>
                     </div>
                   )}
 
                   <p className="mt-6 text-center text-xs leading-6 text-white/40">
-                    Need to change the time, party size, or reservation type?
-                    Cancel this reservation and create a new one through RoseOut.
+                    Rescheduling opens a new reservation form with your current
+                    details prefilled. After creating the new reservation, you
+                    can cancel this one if needed.
                   </p>
                 </>
               ) : null}

@@ -14,20 +14,12 @@ function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function normalizeType(value: string) {
-  const type = value.toLowerCase().trim();
-
-  if (["activity", "activities"].includes(type)) return "activity";
-  if (["bar", "bars"].includes(type)) return "bar";
-  if (["lounge", "lounges"].includes(type)) return "lounge";
-  if (["venue", "venues"].includes(type)) return "venue";
-
-  return "restaurant";
-}
-
 function normalizeStatus(value: string) {
   const status = value.toLowerCase().trim();
-  return allowedStatuses.includes(status) ? status : "";
+
+  if (allowedStatuses.includes(status)) return status;
+
+  return "";
 }
 
 export async function POST(request: NextRequest) {
@@ -36,9 +28,7 @@ export async function POST(request: NextRequest) {
 
     const reservationId = cleanString(body.reservation_id);
     const locationId = cleanString(body.location_id);
-    const locationType = normalizeType(
-      cleanString(body.location_type) || "restaurant"
-    );
+    const locationType = cleanString(body.location_type) || "restaurant";
     const status = normalizeStatus(cleanString(body.status));
 
     if (!reservationId) {

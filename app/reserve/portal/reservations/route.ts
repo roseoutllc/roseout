@@ -1,33 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
-const allowedStatuses = [
-  "pending",
-  "confirmed",
-  "declined",
-  "cancelled",
-  "completed",
-  "no_show",
-];
-
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function normalizeType(value: string) {
-  const type = value.toLowerCase().trim();
-
-  if (["activity", "activities"].includes(type)) return "activity";
-  if (["bar", "bars"].includes(type)) return "bar";
-  if (["lounge", "lounges"].includes(type)) return "lounge";
-  if (["venue", "venues"].includes(type)) return "venue";
-
-  return "restaurant";
-}
-
 function normalizeStatus(value: string) {
   const status = value.toLowerCase().trim();
-  return allowedStatuses.includes(status) ? status : "";
+
+  if (
+    ["pending", "confirmed", "declined", "cancelled", "completed", "no_show"].includes(
+      status
+    )
+  ) {
+    return status;
+  }
+
+  return "";
 }
 
 export async function GET(request: NextRequest) {
@@ -35,17 +24,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const locationId = cleanString(searchParams.get("locationId"));
-    const locationType = normalizeType(
-      cleanString(searchParams.get("type")) || "restaurant"
-    );
+    const locationType = cleanString(searchParams.get("type")) || "restaurant";
     const status = normalizeStatus(cleanString(searchParams.get("status")));
-
-    if (!locationId) {
-      return NextResponse.json(
-        { error: "Missing locationId." },
-        { status: 400 }
-      );
-    }
 
     let query = supabaseAdmin
       .from("location_reservations")
@@ -55,6 +35,13 @@ export async function GET(request: NextRequest) {
       .order("reservation_date", { ascending: true })
       .order("reservation_time", { ascending: true })
       .order("created_at", { ascending: false });
+
+    if (!locationId) {
+      return NextResponse.json(
+        { error: "Missing locationId." },
+        { status: 400 }
+      );
+    }
 
     if (status) {
       query = query.eq("status", status);
