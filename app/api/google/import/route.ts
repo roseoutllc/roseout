@@ -174,7 +174,17 @@ function googlePhotoUrl(place: any) {
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${ref}&key=${apiKey}`;
 }
 
-function getPrimaryTag(place: any, type: "restaurant" | "activity") {
+function getCuisineFromPlace(place: any) {
+  const tag = getPrimaryTag(place, "restaurant");
+
+  const genericTags = ["restaurant", "bar", "cafe", "lounge", "rooftop"];
+
+  if (!tag || genericTags.includes(tag)) {
+    return null;
+  }
+
+  return tag;
+}
   const text = placeText(place);
 
   if (type === "restaurant") {
@@ -762,7 +772,7 @@ async function importRestaurant(place: any) {
     city: addressParts.city,
     state: addressParts.state,
     zip_code: addressParts.zipCode,
-    cuisine: primaryTag || "restaurant",
+    cuisine: getCuisineFromPlace(place),
     rating: place.rating || 0,
     review_count: getReviewCount(place),
     google_place_id: place.place_id,
