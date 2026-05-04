@@ -575,10 +575,6 @@ function GoogleLocationAddressField({ googleReady }: { googleReady: boolean }) {
         />
       </div>
 
-      <p className="mt-2 text-xs leading-5 text-zinc-500">
-        Select the correct address from Google to improve listing accuracy.
-      </p>
-
       <input type="hidden" name="address" value={address || displayAddress} />
       <input type="hidden" name="google_place_id" value={googlePlaceId} />
       <input type="hidden" name="google_place_name" value={googlePlaceName} />
