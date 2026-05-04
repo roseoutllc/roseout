@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase-browser";
 import { clampScore } from "@/lib/clampScore";
 import ScoreBadge from "@/components/ScoreBadge";
 
@@ -36,7 +35,6 @@ function calculateUpdatedScore(location: any) {
 }
 
 export default function EditLocationPage() {
-  const supabase = createClient();
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -52,6 +50,8 @@ export default function EditLocationPage() {
   const [saving, setSaving] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [message, setMessage] = useState("");
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [effectiveId, setEffectiveId] = useState(id);
 
   const [form, setForm] = useState<any>({
     name: "",
@@ -91,69 +91,80 @@ export default function EditLocationPage() {
   useEffect(() => {
     const loadLocation = async () => {
       setLoading(true);
+      setMessage("");
 
-      const { data, error } = await supabase
-        .from(table)
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
+      try {
+        const res = await fetch(
+          `/api/locations/edit-context?type=${table}&id=${encodeURIComponent(id)}`,
+          { cache: "no-store" }
+        );
 
-      if (error || !data) {
-        setMessage("Location not found.");
+        const result = await res.json();
+
+        if (!res.ok || !result.location) {
+          setMessage(result.error || "Location not found.");
+          setLoading(false);
+          return;
+        }
+
+        const data = result.location;
+
+        setIsImpersonating(Boolean(result.isImpersonating));
+        setEffectiveId(result.effectiveId || id);
+
+        setForm({
+          name: data[nameField] || "",
+          description: data.description || "",
+          address: data.address || "",
+          city: data.city || "",
+          state: data.state || "",
+          zip_code: data.zip_code || "",
+          neighborhood: data.neighborhood || "",
+          image_url: data.image_url || "",
+          website: data.website || "",
+          reservation_url: data.reservation_url || data.reservation_link || "",
+          phone: data.phone || "",
+          price_range: data.price_range || "",
+          cuisine: data.cuisine || "",
+          activity_type: data.activity_type || "",
+          atmosphere: data.atmosphere || "",
+          noise_level: data.noise_level || "",
+          dress_code: data.dress_code || "",
+          parking_info: data.parking_info || "",
+          hours: data.hours || "",
+          best_for: Array.isArray(data.best_for)
+            ? data.best_for.join(", ")
+            : data.best_for || "",
+          special_features: Array.isArray(data.special_features)
+            ? data.special_features.join(", ")
+            : data.special_features || "",
+          signature_items: Array.isArray(data.signature_items)
+            ? data.signature_items.join(", ")
+            : data.signature_items || "",
+          primary_tag: data.primary_tag || "",
+          date_style_tags: Array.isArray(data.date_style_tags)
+            ? data.date_style_tags.join(", ")
+            : data.date_style_tags || "",
+          search_keywords: Array.isArray(data.search_keywords)
+            ? data.search_keywords.join(", ")
+            : data.search_keywords || "",
+          owner_name: data.owner_name || "",
+          owner_email: data.owner_email || "",
+          owner_phone: data.owner_phone || "",
+          claim_status: data.claim_status || "",
+          roseout_score: clampScore(data.roseout_score ?? data.quality_score ?? 0),
+          latitude: data.latitude ?? "",
+          longitude: data.longitude ?? "",
+        });
+      } catch {
+        setMessage("Location failed to load.");
+      } finally {
         setLoading(false);
-        return;
       }
-
-      setForm({
-        name: data[nameField] || "",
-        description: data.description || "",
-        address: data.address || "",
-        city: data.city || "",
-        state: data.state || "",
-        zip_code: data.zip_code || "",
-        neighborhood: data.neighborhood || "",
-        image_url: data.image_url || "",
-        website: data.website || "",
-        reservation_url: data.reservation_url || data.reservation_link || "",
-        phone: data.phone || "",
-        price_range: data.price_range || "",
-        cuisine: data.cuisine || "",
-        activity_type: data.activity_type || "",
-        atmosphere: data.atmosphere || "",
-        noise_level: data.noise_level || "",
-        dress_code: data.dress_code || "",
-        parking_info: data.parking_info || "",
-        hours: data.hours || "",
-        best_for: Array.isArray(data.best_for)
-          ? data.best_for.join(", ")
-          : data.best_for || "",
-        special_features: Array.isArray(data.special_features)
-          ? data.special_features.join(", ")
-          : data.special_features || "",
-        signature_items: Array.isArray(data.signature_items)
-          ? data.signature_items.join(", ")
-          : data.signature_items || "",
-        primary_tag: data.primary_tag || "",
-        date_style_tags: Array.isArray(data.date_style_tags)
-          ? data.date_style_tags.join(", ")
-          : data.date_style_tags || "",
-        search_keywords: Array.isArray(data.search_keywords)
-          ? data.search_keywords.join(", ")
-          : data.search_keywords || "",
-        owner_name: data.owner_name || "",
-        owner_email: data.owner_email || "",
-        owner_phone: data.owner_phone || "",
-        claim_status: data.claim_status || "",
-        roseout_score: clampScore(data.roseout_score ?? data.quality_score ?? 0),
-        latitude: data.latitude ?? "",
-        longitude: data.longitude ?? "",
-      });
-
-      setLoading(false);
     };
 
     if (id && type) loadLocation();
-  }, [id, type, supabase, table, nameField]);
+  }, [id, type, table, nameField]);
 
   const update = (key: string, value: string) => {
     setForm((prev: any) => ({
@@ -279,21 +290,40 @@ export default function EditLocationPage() {
     const calculatedScore = calculateUpdatedScore(payload);
     payload.roseout_score = calculatedScore;
 
-    const { error } = await supabase.from(table).update(payload).eq("id", id);
+    try {
+      const res = await fetch("/api/locations/edit-context", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: table,
+          id: effectiveId || id,
+          payload,
+        }),
+      });
 
-    if (error) {
-      setMessage(error.message);
+      const result = await res.json();
+
+      if (!res.ok) {
+        setMessage(result.error || "Failed to save location.");
+        setSaving(false);
+        return;
+      }
+
+      setEffectiveId(result.effectiveId || effectiveId);
+
+      setForm((prev: any) => ({
+        ...prev,
+        roseout_score: calculatedScore,
+      }));
+
+      setMessage(`✅ Saved successfully. RoseOut Score: ${calculatedScore}/100`);
+    } catch {
+      setMessage("Failed to save location.");
+    } finally {
       setSaving(false);
-      return;
     }
-
-    setForm((prev: any) => ({
-      ...prev,
-      roseout_score: calculatedScore,
-    }));
-
-    setMessage(`✅ Saved successfully. RoseOut Score: ${calculatedScore}/100`);
-    setSaving(false);
   };
 
   const safeScore = clampScore(form.roseout_score);
@@ -305,78 +335,107 @@ export default function EditLocationPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-black text-white">
-        <p className="text-sm font-black uppercase tracking-[0.3em] text-yellow-500">
-          Loading Location...
-        </p>
+      <main className="flex min-h-screen items-center justify-center bg-[#080403] text-white">
+        <div className="text-center">
+          <div className="mx-auto mb-5 h-12 w-12 animate-pulse rounded-full bg-[#e85d75]" />
+          <p className="text-sm font-black uppercase tracking-[0.3em] text-[#f6c6cf]">
+            Loading Location
+          </p>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-black px-5 py-6 text-white">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <button
-            onClick={() => router.push(from)}
-            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold transition hover:bg-white hover:text-black"
-          >
-            ← Back
-          </button>
+    <main className="min-h-screen bg-[#080403] text-white">
+      <section className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(232,93,117,0.28),_transparent_34%),linear-gradient(135deg,#180808,#080403_60%,#000)]">
+        <div className="absolute right-[-120px] top-[-120px] h-80 w-80 rounded-full bg-[#e85d75]/20 blur-3xl" />
+        <div className="absolute bottom-[-170px] left-[-120px] h-96 w-96 rounded-full bg-[#f5b700]/10 blur-3xl" />
 
-          <div className="flex flex-wrap gap-3">
+        <div className="relative mx-auto max-w-7xl px-5 py-6 sm:px-8">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <button
-              type="button"
-              onClick={optimizeWithAI}
-              disabled={optimizing || saving}
-              className="rounded-full border border-yellow-500 px-6 py-3 text-sm font-black text-yellow-500 transition hover:bg-yellow-500 hover:text-black disabled:opacity-50"
+              onClick={() => router.push(from)}
+              className="rounded-full border border-white/15 bg-white/[0.06] px-5 py-2.5 text-sm font-black text-white/85 transition hover:bg-white hover:text-black"
             >
-              {optimizing ? "Optimizing..." : "✨ Improve With AI"}
+              ← Back
             </button>
 
-            <button
-              onClick={saveLocation}
-              disabled={saving || optimizing}
-              className="rounded-full bg-yellow-500 px-6 py-3 text-sm font-black text-black transition hover:bg-yellow-400 disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={optimizeWithAI}
+                disabled={optimizing || saving}
+                className="rounded-full border border-[#f5b700]/60 bg-[#f5b700]/10 px-5 py-2.5 text-sm font-black text-[#f5b700] transition hover:bg-[#f5b700] hover:text-black disabled:opacity-50"
+              >
+                {optimizing ? "Optimizing..." : "✨ Improve With AI"}
+              </button>
+
+              <button
+                onClick={saveLocation}
+                disabled={saving || optimizing}
+                className="rounded-full bg-white px-6 py-2.5 text-sm font-black text-black transition hover:bg-[#ffe6eb] disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+
+          {isImpersonating && (
+            <div className="mb-5 inline-flex rounded-full border border-[#e85d75]/40 bg-[#e85d75]/15 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#ffd6df]">
+              Admin viewing this location
+            </div>
+          )}
+
+          <div className="grid gap-8 lg:grid-cols-[1fr_340px] lg:items-end">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.35em] text-[#f5b700]">
+                RoseOut Reserve
+              </p>
+
+              <h1 className="mt-3 max-w-3xl text-4xl font-black tracking-tight sm:text-6xl">
+                Edit Location
+              </h1>
+
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/60">
+                Refine the listing details, improve search matching, and preview
+                how this location will appear inside RoseOut.
+              </p>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl backdrop-blur">
+              <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-white/45">
+                Current Score
+              </p>
+              <div className="rounded-[1.5rem] bg-white p-5 text-black">
+                <ScoreBadge score={safeScore} />
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
+      <div className="mx-auto max-w-7xl px-5 py-6 sm:px-8">
         {message && (
           <div
-            className={`mb-6 rounded-[1.5rem] p-4 text-sm font-bold shadow-xl ${
-              isSuccess ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            className={`mb-6 rounded-[1.5rem] border p-4 text-sm font-bold shadow-xl ${
+              isSuccess
+                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
+                : "border-red-400/30 bg-red-400/10 text-red-100"
             }`}
           >
             {message}
           </div>
         )}
 
-        <section className="mb-6 grid gap-6 rounded-[2rem] border border-white/10 bg-[#111] p-6 shadow-2xl lg:grid-cols-[1fr_320px]">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-500">
-              RoseOut
-            </p>
-
-            <h1 className="mt-2 text-4xl font-black">Edit Location</h1>
-
-            <p className="mt-2 text-sm text-neutral-400">
-              Add stronger details so RoseOut can match this location to better
-              customer searches.
-            </p>
-          </div>
-
-          <div className="rounded-[1.5rem] bg-white p-5 text-black">
-            <ScoreBadge score={safeScore} />
-          </div>
-        </section>
-
-        <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+        <div className="grid gap-6 lg:grid-cols-[1fr_410px]">
           <section className="space-y-6">
             <Panel title="Basic Listing Details">
-              <Field label="Location Name" value={form.name} onChange={(v) => update("name", v)} />
+              <Field
+                label="Location Name"
+                value={form.name}
+                onChange={(v) => update("name", v)}
+              />
 
               <TextArea
                 label="Short Description"
@@ -421,7 +480,11 @@ export default function EditLocationPage() {
             </Panel>
 
             <Panel title="Address & Nearby Search">
-              <Field label="Address" value={form.address} onChange={(v) => update("address", v)} />
+              <Field
+                label="Address"
+                value={form.address}
+                onChange={(v) => update("address", v)}
+              />
 
               <div className="grid gap-4 md:grid-cols-4">
                 <Field label="City" value={form.city} onChange={(v) => update("city", v)} />
@@ -543,7 +606,11 @@ export default function EditLocationPage() {
             </Panel>
 
             <Panel title="Links & Owner Contact">
-              <Field label="Image URL" value={form.image_url} onChange={(v) => update("image_url", v)} />
+              <Field
+                label="Image URL"
+                value={form.image_url}
+                onChange={(v) => update("image_url", v)}
+              />
 
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Website" value={form.website} onChange={(v) => update("website", v)} />
@@ -564,8 +631,8 @@ export default function EditLocationPage() {
                 />
               </div>
 
-              <div className="rounded-[1.5rem] bg-neutral-100 p-5">
-                <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
+              <div className="rounded-[1.5rem] border border-black/10 bg-[#f8f1eb] p-5">
+                <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-black/45">
                   Owner Contact
                 </p>
 
@@ -580,14 +647,14 @@ export default function EditLocationPage() {
             <button
               onClick={saveLocation}
               disabled={saving || optimizing}
-              className="w-full rounded-full bg-yellow-500 px-5 py-4 font-black text-black transition hover:bg-yellow-400 disabled:opacity-50"
+              className="w-full rounded-full bg-white px-5 py-4 font-black text-black transition hover:bg-[#ffe6eb] disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save All Changes"}
             </button>
           </section>
 
-          <aside className="lg:sticky lg:top-6 lg:self-start">
-            <div className="overflow-hidden rounded-[2rem] bg-white text-black shadow-2xl">
+          <aside className="lg:sticky lg:top-24 lg:self-start">
+            <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#f8f1eb] text-black shadow-2xl">
               {form.image_url ? (
                 <Image
                   src={form.image_url}
@@ -603,7 +670,7 @@ export default function EditLocationPage() {
               )}
 
               <div className="p-5">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-black/45">
                   Listing Preview
                 </p>
 
@@ -611,7 +678,7 @@ export default function EditLocationPage() {
                   {form.name || "Location Name"}
                 </h2>
 
-                <p className="mt-2 text-sm text-neutral-600">
+                <p className="mt-2 text-sm text-black/55">
                   {[form.address, form.city, form.state, form.zip_code]
                     .filter(Boolean)
                     .join(", ") || "Address will appear here"}
@@ -622,56 +689,42 @@ export default function EditLocationPage() {
                 </div>
 
                 {form.description && (
-                  <p className="mt-4 text-sm leading-6 text-neutral-700">
+                  <p className="mt-4 text-sm leading-6 text-black/65">
                     {form.description}
                   </p>
                 )}
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   {form.primary_tag && (
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black">
                       {form.primary_tag}
                     </span>
                   )}
 
                   {form.price_range && (
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black">
                       {form.price_range}
+                    </span>
+                  )}
+
+                  {form.claim_status && (
+                    <span className="rounded-full bg-black px-3 py-1 text-xs font-black text-white">
+                      {form.claim_status}
                     </span>
                   )}
                 </div>
 
-                <div className="mt-5 rounded-[1.5rem] bg-neutral-100 p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-500">
-                    Why It Stands Out
-                  </p>
+                <PreviewBlock title="Why It Stands Out">
+                  <PreviewLine label="Atmosphere" value={form.atmosphere} />
+                  <PreviewLine label="Best For" value={form.best_for} />
+                  <PreviewLine label="Features" value={form.special_features} />
+                </PreviewBlock>
 
-                  <p className="mt-2 text-sm">
-                    <b>Atmosphere:</b> {form.atmosphere || "Not added"}
-                  </p>
-                  <p className="mt-1 text-sm">
-                    <b>Best For:</b> {form.best_for || "Not added"}
-                  </p>
-                  <p className="mt-1 text-sm">
-                    <b>Features:</b> {form.special_features || "Not added"}
-                  </p>
-                </div>
-
-                <div className="mt-5 rounded-[1.5rem] bg-neutral-100 p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-500">
-                    Owner
-                  </p>
-
-                  <p className="mt-2 text-sm">
-                    <b>Name:</b> {form.owner_name || "Not added"}
-                  </p>
-                  <p className="mt-1 text-sm">
-                    <b>Email:</b> {form.owner_email || "Not added"}
-                  </p>
-                  <p className="mt-1 text-sm">
-                    <b>Phone:</b> {form.owner_phone || "Not added"}
-                  </p>
-                </div>
+                <PreviewBlock title="Owner">
+                  <PreviewLine label="Name" value={form.owner_name} />
+                  <PreviewLine label="Email" value={form.owner_email} />
+                  <PreviewLine label="Phone" value={form.owner_phone} />
+                </PreviewBlock>
               </div>
             </div>
           </aside>
@@ -689,8 +742,8 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[2rem] bg-white p-6 text-black shadow-2xl">
-      <p className="mb-5 text-xs font-black uppercase tracking-[0.25em] text-neutral-500">
+    <section className="rounded-[2rem] border border-white/10 bg-[#f8f1eb] p-6 text-black shadow-2xl">
+      <p className="mb-5 text-xs font-black uppercase tracking-[0.25em] text-black/45">
         {title}
       </p>
 
@@ -714,7 +767,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-xs font-black uppercase tracking-[0.2em] text-neutral-500">
+      <label className="text-xs font-black uppercase tracking-[0.2em] text-black/45">
         {label}
       </label>
 
@@ -722,10 +775,10 @@ function Field({
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-black"
+        className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold outline-none transition placeholder:text-black/25 focus:border-black"
       />
 
-      {helper && <p className="mt-1 text-xs text-neutral-500">{helper}</p>}
+      {helper && <p className="mt-1 text-xs font-semibold text-black/40">{helper}</p>}
     </div>
   );
 }
@@ -743,7 +796,7 @@ function TextArea({
 }) {
   return (
     <div>
-      <label className="text-xs font-black uppercase tracking-[0.2em] text-neutral-500">
+      <label className="text-xs font-black uppercase tracking-[0.2em] text-black/45">
         {label}
       </label>
 
@@ -751,10 +804,42 @@ function TextArea({
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         rows={5}
-        className="mt-2 w-full resize-none rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-black"
+        className="mt-2 w-full resize-none rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold outline-none transition placeholder:text-black/25 focus:border-black"
       />
 
-      {helper && <p className="mt-1 text-xs text-neutral-500">{helper}</p>}
+      {helper && <p className="mt-1 text-xs font-semibold text-black/40">{helper}</p>}
     </div>
+  );
+}
+
+function PreviewBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-5 rounded-[1.5rem] bg-white p-4">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-black/40">
+        {title}
+      </p>
+
+      <div className="mt-3 space-y-1">{children}</div>
+    </div>
+  );
+}
+
+function PreviewLine({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string;
+}) {
+  return (
+    <p className="text-sm text-black/70">
+      <b>{label}:</b> {value || "Not added"}
+    </p>
   );
 }
