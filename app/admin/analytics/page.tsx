@@ -22,6 +22,10 @@ export default async function AdminAnalyticsPage() {
     .order("created_at", { ascending: false })
     .limit(20);
 
+  const { data: reservations } = await supabase
+    .from("location_reservations")
+    .select("id, status, arrived_at, completed_at");
+
   const totalRestaurantViews =
     restaurants?.reduce((sum, r) => sum + Number(r.view_count || 0), 0) || 0;
 
@@ -34,6 +38,32 @@ export default async function AdminAnalyticsPage() {
   const totalActivityClicks =
     activities?.reduce((sum, a) => sum + Number(a.click_count || 0), 0) || 0;
 
+  const reservationStats = {
+    total: reservations?.length || 0,
+    confirmed:
+      reservations?.filter((r) => r.status === "confirmed").length || 0,
+    arrived: reservations?.filter((r) => r.status === "arrived").length || 0,
+    completed:
+      reservations?.filter((r) => r.status === "completed").length || 0,
+    cancelled:
+      reservations?.filter((r) => r.status === "cancelled").length || 0,
+    noShow: reservations?.filter((r) => r.status === "no_show").length || 0,
+  };
+
+  const arrivalRate =
+    reservationStats.total > 0
+      ? Math.round(
+          ((reservationStats.arrived + reservationStats.completed) /
+            reservationStats.total) *
+            100
+        )
+      : 0;
+
+  const noShowRate =
+    reservationStats.total > 0
+      ? Math.round((reservationStats.noShow / reservationStats.total) * 100)
+      : 0;
+
   return (
     <div>
       <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
@@ -45,33 +75,29 @@ export default async function AdminAnalyticsPage() {
       </h1>
 
       <p className="mt-3 text-neutral-400">
-        View restaurant and activity views, clicks, and recent analytics events.
+        View restaurant and activity views, clicks, reservation performance, and
+        recent analytics events.
       </p>
 
       <section className="mt-8 grid gap-5 md:grid-cols-4">
-        <div className="rounded-2xl bg-white p-6 text-black">
-          <p className="text-sm font-bold text-neutral-500">Restaurant Views</p>
-          <p className="mt-2 text-4xl font-extrabold">
-            {totalRestaurantViews}
-          </p>
-        </div>
+        <MetricCard label="Restaurant Views" value={totalRestaurantViews} />
+        <MetricCard label="Restaurant Clicks" value={totalRestaurantClicks} />
+        <MetricCard label="Activity Views" value={totalActivityViews} />
+        <MetricCard label="Activity Clicks" value={totalActivityClicks} />
+      </section>
 
-        <div className="rounded-2xl bg-white p-6 text-black">
-          <p className="text-sm font-bold text-neutral-500">Restaurant Clicks</p>
-          <p className="mt-2 text-4xl font-extrabold">
-            {totalRestaurantClicks}
-          </p>
-        </div>
+      <section className="mt-5 grid gap-5 md:grid-cols-4">
+        <MetricCard label="Reservations" value={reservationStats.total} />
+        <MetricCard label="Confirmed" value={reservationStats.confirmed} />
+        <MetricCard label="Arrived" value={reservationStats.arrived} />
+        <MetricCard label="Completed" value={reservationStats.completed} />
+      </section>
 
-        <div className="rounded-2xl bg-white p-6 text-black">
-          <p className="text-sm font-bold text-neutral-500">Activity Views</p>
-          <p className="mt-2 text-4xl font-extrabold">{totalActivityViews}</p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-6 text-black">
-          <p className="text-sm font-bold text-neutral-500">Activity Clicks</p>
-          <p className="mt-2 text-4xl font-extrabold">{totalActivityClicks}</p>
-        </div>
+      <section className="mt-5 grid gap-5 md:grid-cols-4">
+        <MetricCard label="Cancelled" value={reservationStats.cancelled} />
+        <MetricCard label="No Shows" value={reservationStats.noShow} />
+        <MetricCard label="Arrival Rate" value={`${arrivalRate}%`} />
+        <MetricCard label="No-Show Rate" value={`${noShowRate}%`} />
       </section>
 
       <section className="mt-8 overflow-hidden rounded-[2rem] bg-white text-black">
@@ -165,6 +191,21 @@ export default async function AdminAnalyticsPage() {
           </tbody>
         </table>
       </section>
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-6 text-black">
+      <p className="text-sm font-bold text-neutral-500">{label}</p>
+      <p className="mt-2 text-4xl font-extrabold">{value}</p>
     </div>
   );
 }
