@@ -1,71 +1,151 @@
 import Link from "next/link";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { supabase } from "@/lib/supabase";
+import ReserveLiveRefresh from "@/components/ReserveLiveRefresh";
 
 function formatNumber(value: number | null | undefined) {
   return Number(value || 0).toLocaleString();
 }
 
+function formatTime(value: string) {
+  return new Date(value).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function statusClass(status?: string | null) {
+  const value = status || "pending";
+
+  if (value === "confirmed") return "bg-emerald-50 text-emerald-700";
+  if (value === "cancelled") return "bg-red-50 text-red-700";
+  if (value === "seated") return "bg-black text-white";
+  if (value === "completed") return "bg-neutral-100 text-neutral-700";
+
+  return "bg-amber-50 text-amber-700";
+}
+
+function estimateTablesNeeded(partySize: number | null | undefined) {
+  const party = Number(partySize || 0);
+  if (party <= 4) return 1;
+  if (party <= 8) return 2;
+  return Math.ceil(party / 4);
+}
+
+function getReservationDay(value: string) {
+  return new Date(value).toISOString().split("T")[0];
+}
+
 export default async function ReserveDashboardPage() {
   await requireAdminRole(["superuser", "admin", "editor", "viewer"]);
 
-  // 🔥 Fetch stats
+  const now = new Date();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const weekEnd = new Date();
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  const totalTables = 20;
+
   const { count: totalReservations } = await supabase
     .from("reservations")
     .select("id", { count: "exact", head: true });
 
+  const { count: todayReservations } = await supabase
+    .from("reservations")
+    .select("id", { count: "exact", head: true })
+    .gte("reservation_time", todayStart.toISOString())
+    .lte("reservation_time", todayEnd.toISOString());
+
   const { count: upcomingReservations } = await supabase
     .from("reservations")
     .select("id", { count: "exact", head: true })
-    .gte("reservation_time", new Date().toISOString());
+    .gte("reservation_time", now.toISOString());
 
-  const { count: pastReservations } = await supabase
-    .from("reservations")
-    .select("id", { count: "exact", head: true })
-    .lt("reservation_time", new Date().toISOString());
-
-  const { data: latestReservations } = await supabase
+  const { data: reservations } = await supabase
     .from("reservations")
     .select("id, name, party_size, reservation_time, status")
+    .gte("reservation_time", todayStart.toISOString())
+    .lte("reservation_time", weekEnd.toISOString())
     .order("reservation_time", { ascending: true })
-    .limit(5);
+    .limit(40);
+
+  const todaysReservations =
+    reservations?.filter(
+      (item) =>
+        new Date(item.reservation_time) >= todayStart &&
+        new Date(item.reservation_time) <= todayEnd
+    ) || [];
+
+  const tablesBookedNow = todaysReservations
+    .filter((item) => {
+      const reservationTime = new Date(item.reservation_time);
+      const reservationEnd = new Date(reservationTime.getTime() + 90 * 60000);
+      return now >= reservationTime && now <= reservationEnd;
+    })
+    .reduce((sum, item) => sum + estimateTablesNeeded(item.party_size), 0);
+
+  const availableTables = Math.max(0, totalTables - tablesBookedNow);
+
+  const groupedByDay =
+    reservations?.reduce<Record<string, typeof reservations>>((acc, item) => {
+      const key = getReservationDay(item.reservation_time);
+      acc[key] = acc[key] || [];
+      acc[key].push(item);
+      return acc;
+    }, {}) || {};
 
   return (
     <main className="min-h-screen bg-[#090706] px-4 pb-10 pt-4 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1400px]">
-
-        {/* 🔥 HEADER */}
-        <section className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[linear-gradient(135deg,#160b0b,#090706_60%,#140f0a)] p-6 shadow-2xl">
+      <div className="mx-auto max-w-[1500px]">
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,29,72,0.22),transparent_35%),linear-gradient(135deg,#160b0b,#090706_60%,#140f0a)] p-5 shadow-2xl sm:p-6">
           <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-rose-500/20 blur-3xl" />
 
-          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="mb-2 text-xs font-black uppercase tracking-[0.3em] text-rose-300">
                 RoseOut Reserve
               </p>
 
-              <h1 className="text-3xl font-black sm:text-4xl">
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
                 Reservations Dashboard
               </h1>
 
-              <p className="mt-2 text-sm text-white/60">
-                Manage bookings, track activity, and monitor your reservation flow.
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
+                Live booking overview, table availability, today’s service flow,
+                and a calendar-style reservation preview.
               </p>
             </div>
 
-            <Link
-              href="/reserve/dashboard/reservations"
-              className="rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-6 py-3 text-sm font-black text-white shadow-lg hover:scale-[1.03] transition"
-            >
-              View All Reservations
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <ReserveLiveRefresh />
+
+              <Link
+                href="/reserve/dashboard/reservations"
+                className="rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-rose-950/30 transition hover:scale-[1.02]"
+              >
+                View Reservations
+              </Link>
+            </div>
           </div>
         </section>
 
-        {/* 🔥 STATS */}
-        <section className="mt-6 grid gap-4 md:grid-cols-3">
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5">
-            <p className="text-xs uppercase tracking-wide text-white/50">
+        <section className="mt-5 grid gap-4 md:grid-cols-4">
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
               Total Reservations
             </p>
             <p className="mt-2 text-3xl font-black">
@@ -73,8 +153,17 @@ export default async function ReserveDashboardPage() {
             </p>
           </div>
 
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5">
-            <p className="text-xs uppercase tracking-wide text-white/50">
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Today
+            </p>
+            <p className="mt-2 text-3xl font-black text-rose-200">
+              {formatNumber(todayReservations)}
+            </p>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
               Upcoming
             </p>
             <p className="mt-2 text-3xl font-black text-emerald-300">
@@ -82,97 +171,230 @@ export default async function ReserveDashboardPage() {
             </p>
           </div>
 
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5">
-            <p className="text-xs uppercase tracking-wide text-white/50">
-              Past
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Tables Open Now
             </p>
-            <p className="mt-2 text-3xl font-black text-white/70">
-              {formatNumber(pastReservations)}
+            <p className="mt-2 text-3xl font-black text-white">
+              {availableTables}/{totalTables}
             </p>
           </div>
         </section>
 
-        {/* 🔥 QUICK ACTIONS */}
-        <section className="mt-6 grid gap-4 md:grid-cols-3">
-          <Link
-            href="/reserve/dashboard/reservations"
-            className="rounded-[1.5rem] border border-white/10 bg-white/[0.05] p-5 hover:bg-white/[0.08] transition"
-          >
-            <p className="text-sm font-black">View Reservations</p>
-            <p className="text-xs text-white/50 mt-1">
-              Manage all bookings
-            </p>
-          </Link>
+        <section className="mt-5 grid gap-5 lg:grid-cols-[1fr_420px]">
+          <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#f8f3ef] text-[#1b1210] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-black/10 bg-white/70 p-4">
+              <div>
+                <h2 className="text-lg font-black">Today’s Service Flow</h2>
+                <p className="mt-1 text-xs font-medium text-black/50">
+                  Estimated table usage assumes a 90-minute reservation window.
+                </p>
+              </div>
 
-          <Link
-            href="/reserve/dashboard/reservations?filter=upcoming"
-            className="rounded-[1.5rem] border border-white/10 bg-white/[0.05] p-5 hover:bg-white/[0.08] transition"
-          >
-            <p className="text-sm font-black">Upcoming Bookings</p>
-            <p className="text-xs text-white/50 mt-1">
-              See upcoming guests
-            </p>
-          </Link>
+              <Link
+                href="/reserve/dashboard/reservations?filter=today"
+                className="rounded-full bg-black px-4 py-2 text-xs font-black text-white"
+              >
+                Today
+              </Link>
+            </div>
 
-          <Link
-            href="/reserve/dashboard/reservations?filter=today"
-            className="rounded-[1.5rem] border border-white/10 bg-white/[0.05] p-5 hover:bg-white/[0.08] transition"
-          >
-            <p className="text-sm font-black">Today’s Reservations</p>
-            <p className="text-xs text-white/50 mt-1">
-              Live service view
-            </p>
-          </Link>
+            {!todaysReservations.length ? (
+              <div className="p-12 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-2xl">
+                  🌹
+                </div>
+                <p className="mt-4 text-lg font-black">No reservations today</p>
+                <p className="mt-1 text-sm text-black/50">
+                  Today’s bookings will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-black/10">
+                {todaysReservations.slice(0, 10).map((item) => (
+                  <div
+                    key={item.id}
+                    className="grid gap-3 p-4 transition hover:bg-rose-50/70 md:grid-cols-[110px_1fr_90px_120px]"
+                  >
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-black/40">
+                        Time
+                      </p>
+                      <p className="mt-1 font-black">
+                        {formatTime(item.reservation_time)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="truncate font-black">
+                        {item.name || "Guest"}
+                      </p>
+                      <p className="mt-1 text-xs font-bold text-black/45">
+                        Party of {item.party_size || 0}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-black/40">
+                        Tables
+                      </p>
+                      <p className="mt-1 font-black">
+                        {estimateTablesNeeded(item.party_size)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase ${statusClass(
+                          item.status
+                        )}`}
+                      >
+                        {item.status || "pending"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-[1.75rem] border border-white/10 bg-[#120d0b] p-4 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-black">Table Availability</h2>
+                <p className="mt-1 text-xs text-white/45">
+                  Live estimate based on active reservations.
+                </p>
+              </div>
+
+              <div className="rounded-full bg-white px-4 py-2 text-xs font-black text-black">
+                {availableTables} Open
+              </div>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5">
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+                    Current Capacity
+                  </p>
+                  <p className="mt-2 text-4xl font-black">
+                    {Math.round((availableTables / totalTables) * 100)}%
+                  </p>
+                </div>
+
+                <p className="text-sm font-bold text-white/50">
+                  {tablesBookedNow} booked now
+                </p>
+              </div>
+
+              <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-rose-500 to-emerald-400"
+                  style={{
+                    width: `${Math.round(
+                      (availableTables / totalTables) * 100
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <Link
+                href="/reserve/dashboard/reservations?filter=upcoming"
+                className="rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-4 transition hover:bg-white/[0.1]"
+              >
+                <p className="font-black">Upcoming</p>
+                <p className="mt-1 text-xs text-white/45">Future bookings</p>
+              </Link>
+
+              <Link
+                href="/reserve/dashboard/reservations?filter=today"
+                className="rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-4 transition hover:bg-white/[0.1]"
+              >
+                <p className="font-black">Service View</p>
+                <p className="mt-1 text-xs text-white/45">Today’s flow</p>
+              </Link>
+            </div>
+          </div>
         </section>
 
-        {/* 🔥 RECENT TABLE */}
-        <section className="mt-6 rounded-[1.75rem] border border-white/10 bg-[#f8f3ef] text-black shadow-2xl overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-black/10">
-            <h2 className="font-black">Latest Reservations</h2>
+        <section className="mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#f8f3ef] text-[#1b1210] shadow-2xl">
+          <div className="flex flex-col gap-3 border-b border-black/10 bg-white/70 p-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-black">Reservation Calendar</h2>
+              <p className="mt-1 text-xs font-medium text-black/50">
+                Next 7 days grouped by booking date.
+              </p>
+            </div>
 
             <Link
               href="/reserve/dashboard/reservations"
-              className="text-xs font-black text-rose-600"
+              className="rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-4 py-2 text-xs font-black text-white"
             >
-              View all →
+              Manage All
             </Link>
           </div>
 
-          {!latestReservations?.length ? (
-            <div className="p-10 text-center text-sm text-black/50">
-              No reservations yet
+          {!reservations?.length ? (
+            <div className="p-12 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-2xl">
+                📅
+              </div>
+              <p className="mt-4 text-lg font-black">No upcoming bookings</p>
+              <p className="mt-1 text-sm text-black/50">
+                Upcoming reservations will appear here.
+              </p>
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-[#efe7df] text-xs uppercase text-black/50">
-                <tr>
-                  <th className="px-4 py-3 text-left">Name</th>
-                  <th className="px-4 py-3 text-left">Party</th>
-                  <th className="px-4 py-3 text-left">Time</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                </tr>
-              </thead>
+            <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-4">
+              {Object.entries(groupedByDay).map(([day, items]) => (
+                <div
+                  key={day}
+                  className="rounded-[1.5rem] border border-black/10 bg-white p-4 shadow-sm"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="font-black">{formatDate(day)}</p>
+                    <span className="rounded-full bg-black px-3 py-1 text-xs font-black text-white">
+                      {items.length}
+                    </span>
+                  </div>
 
-              <tbody>
-                {latestReservations.map((r) => (
-                  <tr key={r.id} className="border-t border-black/10">
-                    <td className="px-4 py-3 font-bold">{r.name}</td>
-                    <td className="px-4 py-3">{r.party_size}</td>
-                    <td className="px-4 py-3">
-                      {new Date(r.reservation_time).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="rounded-full bg-black/10 px-3 py-1 text-xs font-bold">
-                        {r.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  <div className="space-y-2">
+                    {items.slice(0, 5).map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-2xl bg-[#f5eee8] p-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="truncate text-sm font-black">
+                            {item.name || "Guest"}
+                          </p>
+                          <p className="shrink-0 text-xs font-black text-rose-700">
+                            {formatTime(item.reservation_time)}
+                          </p>
+                        </div>
+
+                        <p className="mt-1 text-xs font-bold text-black/45">
+                          Party of {item.party_size || 0} ·{" "}
+                          {estimateTablesNeeded(item.party_size)} table
+                          {estimateTablesNeeded(item.party_size) > 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    ))}
+
+                    {items.length > 5 && (
+                      <p className="pt-1 text-xs font-black text-black/40">
+                        + {items.length - 5} more
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </section>
-
       </div>
     </main>
   );
