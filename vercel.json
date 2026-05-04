@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/google/import?type=both&limit=20&batch=core",
+      "path": "/api/google/import?type=both&limit=20",
       "schedule": "0 6 * * *"
     }
   ]
