@@ -899,25 +899,6 @@ const rotatingBatches: ImportBatch[] = [
   "outdoor",
 ];
 
-function getDayOfYear() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-
-  return Math.floor(diff / 86400000);
-}
-
-function getRotatingAreaName() {
-  const day = getDayOfYear();
-
-  return geoAreas[day % geoAreas.length]?.name || "Queens";
-}
-
-function getRotatingBatch() {
-  const day = getDayOfYear();
-
-  return rotatingBatches[day % rotatingBatches.length] || "core";
-}
 
 const rotatingBatches: ImportBatch[] = [
   "core",
