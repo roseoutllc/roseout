@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { supabase } from "@/lib/supabase";
 
@@ -6,6 +7,21 @@ type SearchParams = {
   status?: string;
   page?: string;
 };
+
+function formatNumber(value: number | null | undefined) {
+  return Number(value || 0).toLocaleString();
+}
+
+function statusBadge(status?: string | null) {
+  const value = status || "unknown";
+
+  if (value === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (value === "pending") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (value === "rejected") return "border-red-200 bg-red-50 text-red-700";
+  if (value === "draft") return "border-neutral-200 bg-neutral-100 text-neutral-700";
+
+  return "border-neutral-200 bg-neutral-100 text-neutral-600";
+}
 
 export default async function AdminRestaurantsPage({
   searchParams,
@@ -23,7 +39,6 @@ export default async function AdminRestaurantsPage({
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  // Main filtered/paginated query
   let query = supabase
     .from("restaurants")
     .select(
@@ -33,9 +48,7 @@ export default async function AdminRestaurantsPage({
     .order("created_at", { ascending: false })
     .range(from, to);
 
-  if (status !== "all") {
-    query = query.eq("status", status);
-  }
+  if (status !== "all") query = query.eq("status", status);
 
   if (q) {
     query = query.or(
@@ -45,7 +58,6 @@ export default async function AdminRestaurantsPage({
 
   const { data: restaurants, error, count } = await query;
 
-  // Full database counts
   const { count: totalRestaurants } = await supabase
     .from("restaurants")
     .select("id", { count: "exact", head: true });
@@ -69,254 +81,295 @@ export default async function AdminRestaurantsPage({
     `/admin/restaurants?q=${encodeURIComponent(q)}&status=${status}&page=${newPage}`;
 
   return (
-    <div>
-      <div className="mb-8">
-        <p className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-yellow-500">
-          RoseOut Admin
-        </p>
+    <main className="min-h-screen bg-[#090706] px-4 pb-10 pt-4 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1600px]">
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,29,72,0.22),transparent_35%),linear-gradient(135deg,#160b0b,#090706_55%,#140f0a)] p-5 shadow-2xl sm:p-6">
+          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-rose-500/20 blur-3xl" />
 
-        <h1 className="text-4xl font-extrabold tracking-tight">
-          Restaurants Admin
-        </h1>
+          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.3em] text-rose-300">
+                RoseOut Admin
+              </p>
 
-        <p className="mt-3 text-neutral-400">
-          Manage large restaurant inventory with search, filters, claim status,
-          stats, and fast editing.
-        </p>
-      </div>
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
+                Restaurants Admin
+              </h1>
 
-      {error && (
-        <div className="mb-6 rounded-2xl bg-red-100 p-4 text-red-700">
-          {error.message}
-        </div>
-      )}
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
+                Manage restaurant inventory, claim status, performance,
+                approval status, and quick listing edits.
+              </p>
+            </div>
 
-      <section className="mb-6 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl bg-white p-5 text-black">
-          <p className="text-xs font-bold uppercase text-neutral-500">
-            Total Restaurants
-          </p>
-          <p className="mt-1 text-3xl font-extrabold">
-            {totalRestaurants || 0}
-          </p>
-        </div>
+            <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-3 backdrop-blur">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">
+                Locations
+              </p>
+              <p className="mt-1 text-3xl font-black">
+                {formatNumber(count)}
+              </p>
+            </div>
+          </div>
+        </section>
 
-        <div className="rounded-2xl bg-white p-5 text-black">
-          <p className="text-xs font-bold uppercase text-neutral-500">
-            Claimed
-          </p>
-          <p className="mt-1 text-3xl font-extrabold">
-            {claimedRestaurants || 0}
-          </p>
-        </div>
+        {error && (
+          <div className="mt-5 rounded-3xl border border-red-500/30 bg-red-500/10 p-5 text-sm font-bold text-red-200">
+            {error.message}
+          </div>
+        )}
 
-        <div className="rounded-2xl bg-white p-5 text-black">
-          <p className="text-xs font-bold uppercase text-neutral-500">
-            Unclaimed
-          </p>
-          <p className="mt-1 text-3xl font-extrabold">
-            {unclaimedRestaurants || 0}
-          </p>
-        </div>
-      </section>
-
-      <section className="mb-6 rounded-[2rem] bg-white p-5 text-black shadow-xl">
-        <form className="grid gap-4 md:grid-cols-[1fr_220px_140px]">
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="Search by restaurant, city, or cuisine..."
-            className="rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
-          />
-
-          <select
-            name="status"
-            defaultValue={status}
-            className="rounded-2xl border border-neutral-300 px-4 py-3 outline-none focus:border-yellow-500"
-          >
-            <option value="all">All Statuses</option>
-            <option value="approved">Approved</option>
-            <option value="pending">Pending</option>
-            <option value="draft">Draft</option>
-            <option value="rejected">Rejected</option>
-          </select>
-
-          <input type="hidden" name="page" value="1" />
-
-          <button
-            type="submit"
-            className="rounded-full bg-yellow-500 px-5 py-3 font-extrabold text-black"
-          >
-            Search
-          </button>
-        </form>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {["all", "approved", "pending", "draft", "rejected"].map((item) => (
-            <a
-              key={item}
-              href={statusUrl(item)}
-              className={`rounded-full px-4 py-2 text-xs font-bold uppercase ${
-                status === item
-                  ? "bg-black text-white"
-                  : "bg-neutral-100 text-neutral-700"
-              }`}
-            >
-              {item}
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-[2rem] bg-white text-black shadow-2xl">
-        <div className="flex flex-col gap-3 border-b border-neutral-200 p-5 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-xl font-bold">Restaurant Listings</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              Click any row to edit the restaurant.
+        <section className="mt-5 grid gap-4 md:grid-cols-3">
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Total Locations
+            </p>
+            <p className="mt-2 text-3xl font-black">
+              {formatNumber(totalRestaurants)}
             </p>
           </div>
 
-          <div className="text-sm font-bold text-neutral-500">
-            Showing {from + 1}-{Math.min(to + 1, count || 0)} of {count || 0}
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Claimed
+            </p>
+            <p className="mt-2 text-3xl font-black text-emerald-300">
+              {formatNumber(claimedRestaurants)}
+            </p>
           </div>
-        </div>
 
-        {!restaurants?.length ? (
-          <div className="p-8 text-center text-neutral-500">
-            No restaurants found.
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Unclaimed
+            </p>
+            <p className="mt-2 text-3xl font-black text-rose-200">
+              {formatNumber(unclaimedRestaurants)}
+            </p>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left text-sm">
-              <thead className="bg-neutral-100 text-xs uppercase tracking-wide text-neutral-500">
-                <tr>
-                  <th className="px-5 py-4">Restaurant</th>
-                  <th className="px-5 py-4">City</th>
-                  <th className="px-5 py-4">Cuisine</th>
-                  <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4">Claim</th>
-                  <th className="px-5 py-4">Rating</th>
-                  <th className="px-5 py-4">Views</th>
-                  <th className="px-5 py-4">Clicks</th>
-                  <th className="px-5 py-4">Score</th>
-                  <th className="px-5 py-4">Edit</th>
-                </tr>
-              </thead>
+        </section>
 
-              <tbody>
-                {restaurants.map((restaurant) => (
-                  <tr
-                    key={restaurant.id}
-                    className="border-t border-neutral-200 hover:bg-yellow-50"
-                  >
-                    <td className="px-5 py-4">
-                      <a
-                        href={`/locations/restaurants/${restaurant.id}?from=/admin/restaurants`}
-                        className="flex items-center gap-3"
-                      >
-                        <div className="h-12 w-12 overflow-hidden rounded-xl bg-neutral-200">
-                          {restaurant.image_url ? (
-                            <img
-                              src={restaurant.image_url}
-                              alt={restaurant.restaurant_name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-xs text-neutral-400">
-                              —
-                            </div>
-                          )}
-                        </div>
+        <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-[#120d0b] p-4 shadow-2xl">
+          <form className="grid gap-3 md:grid-cols-[1fr_200px_120px]">
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="Search restaurant, city, or cuisine..."
+              className="h-11 rounded-full border border-white/10 bg-white/[0.07] px-5 text-sm font-semibold text-white outline-none placeholder:text-white/35 focus:border-rose-300"
+            />
 
-                        <div>
-                          <p className="font-extrabold">
-                            {restaurant.restaurant_name}
-                          </p>
-                          <p className="text-xs text-neutral-500">
-                            {restaurant.state || "N/A"}
-                          </p>
-                        </div>
-                      </a>
-                    </td>
+            <select
+              name="status"
+              defaultValue={status}
+              className="h-11 rounded-full border border-white/10 bg-white/[0.07] px-5 text-sm font-bold text-white outline-none focus:border-rose-300"
+            >
+              <option className="text-black" value="all">All Statuses</option>
+              <option className="text-black" value="approved">Approved</option>
+              <option className="text-black" value="pending">Pending</option>
+              <option className="text-black" value="draft">Draft</option>
+              <option className="text-black" value="rejected">Rejected</option>
+            </select>
 
-                    <td className="px-5 py-4">{restaurant.city || "N/A"}</td>
+            <input type="hidden" name="page" value="1" />
 
-                    <td className="px-5 py-4">
-                      {restaurant.cuisine_type || "N/A"}
-                    </td>
+            <button
+              type="submit"
+              className="h-11 rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-5 text-sm font-black text-white shadow-lg shadow-rose-950/30 transition hover:scale-[1.02]"
+            >
+              Search
+            </button>
+          </form>
 
-                    <td className="px-5 py-4">
-                      <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase text-yellow-700">
-                        {restaurant.status || "unknown"}
-                      </span>
-                    </td>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {["all", "approved", "pending", "draft", "rejected"].map((item) => (
+              <Link
+                key={item}
+                href={statusUrl(item)}
+                className={`rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-wide transition ${
+                  status === item
+                    ? "border-rose-400 bg-rose-500 text-white"
+                    : "border-white/10 bg-white/[0.06] text-white/55 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {item}
+              </Link>
+            ))}
+          </div>
+        </section>
 
-                    <td className="px-5 py-4">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
-                          restaurant.claimed
-                            ? "bg-green-100 text-green-700"
-                            : "bg-neutral-100 text-neutral-600"
-                        }`}
-                      >
-                        {restaurant.claimed ? "Claimed" : "Unclaimed"}
-                      </span>
-                    </td>
+        <section className="mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#f8f3ef] text-[#1b1210] shadow-2xl">
+          <div className="flex flex-col gap-3 border-b border-black/10 bg-white/70 p-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-black">Restaurant Listings</h2>
+              <p className="mt-1 text-xs font-medium text-black/50">
+                Click the restaurant name to view details or use Edit for quick
+                updates.
+              </p>
+            </div>
 
-                    <td className="px-5 py-4">⭐ {restaurant.rating || 0}</td>
+            <div className="rounded-full bg-black px-4 py-2 text-[11px] font-black uppercase tracking-wide text-white">
+              Showing {count ? from + 1 : 0}-{Math.min(to + 1, count || 0)} of{" "}
+              {formatNumber(count)}
+            </div>
+          </div>
 
-                    <td className="px-5 py-4">{restaurant.view_count || 0}</td>
-
-                    <td className="px-5 py-4">{restaurant.click_count || 0}</td>
-
-                    <td className="px-5 py-4 font-bold">
-                      {restaurant.roseout_score || 0}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <a
-                        href={`/locations/edit/restaurants/${restaurant.id}?from=/admin/restaurants`}
-                        className="rounded-full bg-black px-4 py-2 text-xs font-bold text-white"
-                      >
-                        Edit
-                      </a>
-                    </td>
+          {!restaurants?.length ? (
+            <div className="p-12 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-2xl">
+                🌹
+              </div>
+              <p className="mt-4 text-lg font-black">No restaurants found</p>
+              <p className="mt-1 text-sm text-black/50">
+                Try changing your search or filter.
+              </p>
+            </div>
+          ) : (
+            <div className="w-full">
+              <table className="w-full table-fixed text-left text-xs">
+                <thead className="bg-[#efe7df] text-[10px] uppercase tracking-[0.14em] text-black/45">
+                  <tr>
+                    <th className="w-[25%] px-3 py-3">Restaurant</th>
+                    <th className="w-[10%] px-3 py-3">City</th>
+                    <th className="w-[12%] px-3 py-3">Cuisine</th>
+                    <th className="w-[10%] px-3 py-3">Status</th>
+                    <th className="w-[10%] px-3 py-3">Claim</th>
+                    <th className="w-[7%] px-3 py-3">Rating</th>
+                    <th className="w-[7%] px-3 py-3">Views</th>
+                    <th className="w-[7%] px-3 py-3">Clicks</th>
+                    <th className="w-[6%] px-3 py-3">Score</th>
+                    <th className="w-[6%] px-3 py-3">Edit</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                </thead>
 
-      <div className="mt-6 flex items-center justify-between">
-        <a
-          href={pageUrl(Math.max(1, page - 1))}
-          className={`rounded-full px-5 py-3 font-bold ${
-            page <= 1
-              ? "pointer-events-none bg-white/10 text-neutral-500"
-              : "bg-white text-black"
-          }`}
-        >
-          Previous
-        </a>
+                <tbody>
+                  {restaurants.map((restaurant) => (
+                    <tr
+                      key={restaurant.id}
+                      className="border-t border-black/10 transition hover:bg-rose-50/70"
+                    >
+                      <td className="px-3 py-3">
+                        <Link
+                          href={`/locations/restaurants/${restaurant.id}?from=/admin/restaurants`}
+                          className="flex min-w-0 items-center gap-2"
+                        >
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-neutral-200 shadow-sm">
+                            {restaurant.image_url ? (
+                              <img
+                                src={restaurant.image_url}
+                                alt={restaurant.restaurant_name || "Restaurant"}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-[#eadfd8] text-[10px] font-black text-black/30">
+                                RO
+                              </div>
+                            )}
+                          </div>
 
-        <p className="text-sm text-neutral-400">
-          Page {page} of {totalPages}
-        </p>
+                          <div className="min-w-0">
+                            <p className="truncate font-black">
+                              {restaurant.restaurant_name || "Untitled Restaurant"}
+                            </p>
+                            <p className="mt-0.5 truncate text-[10px] font-bold uppercase tracking-wide text-black/40">
+                              {restaurant.state || "N/A"}
+                            </p>
+                          </div>
+                        </Link>
+                      </td>
 
-        <a
-          href={pageUrl(Math.min(totalPages, page + 1))}
-          className={`rounded-full px-5 py-3 font-bold ${
-            page >= totalPages
-              ? "pointer-events-none bg-white/10 text-neutral-500"
-              : "bg-yellow-500 text-black"
-          }`}
-        >
-          Next
-        </a>
+                      <td className="truncate px-3 py-3 font-bold">
+                        {restaurant.city || "N/A"}
+                      </td>
+
+                      <td className="px-3 py-3">
+                        <span className="block truncate rounded-full bg-black/[0.06] px-2 py-1 text-[10px] font-black uppercase text-black/60">
+                          {restaurant.cuisine_type || "N/A"}
+                        </span>
+                      </td>
+
+                      <td className="px-3 py-3">
+                        <span
+                          className={`block truncate rounded-full border px-2 py-1 text-center text-[10px] font-black uppercase ${statusBadge(
+                            restaurant.status
+                          )}`}
+                        >
+                          {restaurant.status || "unknown"}
+                        </span>
+                      </td>
+
+                      <td className="px-3 py-3">
+                        <span
+                          className={`block truncate rounded-full border px-2 py-1 text-center text-[10px] font-black uppercase ${
+                            restaurant.claimed
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-neutral-200 bg-neutral-100 text-neutral-600"
+                          }`}
+                        >
+                          {restaurant.claimed ? "Claimed" : "Open"}
+                        </span>
+                      </td>
+
+                      <td className="truncate px-3 py-3 font-black">
+                        🌹 {restaurant.rating || 0}
+                      </td>
+
+                      <td className="truncate px-3 py-3 font-bold">
+                        {formatNumber(restaurant.view_count)}
+                      </td>
+
+                      <td className="truncate px-3 py-3 font-bold">
+                        {formatNumber(restaurant.click_count)}
+                      </td>
+
+                      <td className="px-3 py-3">
+                        <span className="block rounded-full bg-[#1b1210] px-2 py-1 text-center text-[10px] font-black text-white">
+                          {restaurant.roseout_score || 0}
+                        </span>
+                      </td>
+
+                      <td className="px-3 py-3">
+                        <Link
+                          href={`/locations/edit/restaurants/${restaurant.id}?from=/admin/restaurants`}
+                          className="block rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-3 py-2 text-center text-[10px] font-black text-white shadow-sm transition hover:scale-[1.03]"
+                        >
+                          Edit
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <div className="mt-5 flex items-center justify-between gap-4">
+          <Link
+            href={pageUrl(Math.max(1, page - 1))}
+            className={`rounded-full px-5 py-3 text-sm font-black transition ${
+              page <= 1
+                ? "pointer-events-none border border-white/10 bg-white/[0.04] text-white/30"
+                : "border border-white/10 bg-white text-black hover:scale-[1.02]"
+            }`}
+          >
+            Previous
+          </Link>
+
+          <p className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-white/55">
+            Page {page} of {totalPages}
+          </p>
+
+          <Link
+            href={pageUrl(Math.min(totalPages, page + 1))}
+            className={`rounded-full px-5 py-3 text-sm font-black transition ${
+              page >= totalPages
+                ? "pointer-events-none border border-white/10 bg-white/[0.04] text-white/30"
+                : "bg-gradient-to-r from-rose-500 to-rose-700 text-white hover:scale-[1.02]"
+            }`}
+          >
+            Next
+          </Link>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
