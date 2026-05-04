@@ -33,7 +33,7 @@ function statusClass(status?: string | null) {
   return "bg-amber-50 text-amber-700";
 }
 
-function estimateTablesNeeded(partySize: number | null | undefined) {
+function estimateCapacityNeeded(partySize: number | null | undefined) {
   const party = Number(partySize || 0);
   if (party <= 4) return 1;
   if (party <= 8) return 2;
@@ -48,6 +48,7 @@ export default async function ReserveDashboardPage() {
   await requireAdminRole(["superuser", "admin", "editor", "viewer"]);
 
   const now = new Date();
+
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -58,7 +59,7 @@ export default async function ReserveDashboardPage() {
   weekEnd.setDate(weekEnd.getDate() + 7);
   weekEnd.setHours(23, 59, 59, 999);
 
-  const totalTables = 20;
+  const totalCapacitySlots = 20;
 
   const { count: totalReservations } = await supabase
     .from("reservations")
@@ -77,7 +78,7 @@ export default async function ReserveDashboardPage() {
 
   const { data: reservations } = await supabase
     .from("reservations")
-    .select("id, name, party_size, reservation_time, status")
+    .select("id, name, party_size, reservation_time, status, duration_minutes")
     .gte("reservation_time", todayStart.toISOString())
     .lte("reservation_time", weekEnd.toISOString())
     .order("reservation_time", { ascending: true })
@@ -90,15 +91,27 @@ export default async function ReserveDashboardPage() {
         new Date(item.reservation_time) <= todayEnd
     ) || [];
 
-  const tablesBookedNow = todaysReservations
+  const capacityBookedNow = todaysReservations
     .filter((item) => {
       const reservationTime = new Date(item.reservation_time);
-      const reservationEnd = new Date(reservationTime.getTime() + 90 * 60000);
+      const duration = item.duration_minutes || 90;
+
+      const reservationEnd = new Date(
+        reservationTime.getTime() + duration * 60000
+      );
+
       return now >= reservationTime && now <= reservationEnd;
     })
-    .reduce((sum, item) => sum + estimateTablesNeeded(item.party_size), 0);
+    .reduce((sum, item) => sum + estimateCapacityNeeded(item.party_size), 0);
 
-  const availableTables = Math.max(0, totalTables - tablesBookedNow);
+  const availableCapacitySlots = Math.max(
+    0,
+    totalCapacitySlots - capacityBookedNow
+  );
+
+  const availabilityPercentage = Math.round(
+    (availableCapacitySlots / totalCapacitySlots) * 100
+  );
 
   const groupedByDay =
     reservations?.reduce<Record<string, typeof reservations>>((acc, item) => {
@@ -125,8 +138,8 @@ export default async function ReserveDashboardPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
-                Live booking overview, table availability, today’s service flow,
-                and a calendar-style reservation preview.
+                Live booking overview, flexible duration settings, availability
+                tracking, and calendar-style reservation previews.
               </p>
             </div>
 
@@ -173,10 +186,10 @@ export default async function ReserveDashboardPage() {
 
           <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
-              Tables Open Now
+              Availability Open Now
             </p>
             <p className="mt-2 text-3xl font-black text-white">
-              {availableTables}/{totalTables}
+              {availableCapacitySlots}/{totalCapacitySlots}
             </p>
           </div>
         </section>
@@ -185,9 +198,9 @@ export default async function ReserveDashboardPage() {
           <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#f8f3ef] text-[#1b1210] shadow-2xl">
             <div className="flex items-center justify-between border-b border-black/10 bg-white/70 p-4">
               <div>
-                <h2 className="text-lg font-black">Today’s Service Flow</h2>
+                <h2 className="text-lg font-black">Today’s Booking Flow</h2>
                 <p className="mt-1 text-xs font-medium text-black/50">
-                  Estimated table usage assumes a 90-minute reservation window.
+                  Estimated availability uses each booking’s duration window.
                 </p>
               </div>
 
@@ -211,49 +224,60 @@ export default async function ReserveDashboardPage() {
               </div>
             ) : (
               <div className="divide-y divide-black/10">
-                {todaysReservations.slice(0, 10).map((item) => (
-                  <div
-                    key={item.id}
-                    className="grid gap-3 p-4 transition hover:bg-rose-50/70 md:grid-cols-[110px_1fr_90px_120px]"
-                  >
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-wide text-black/40">
-                        Time
-                      </p>
-                      <p className="mt-1 font-black">
-                        {formatTime(item.reservation_time)}
-                      </p>
-                    </div>
+                {todaysReservations.slice(0, 10).map((item) => {
+                  const duration = item.duration_minutes || 90;
 
-                    <div>
-                      <p className="truncate font-black">
-                        {item.name || "Guest"}
-                      </p>
-                      <p className="mt-1 text-xs font-bold text-black/45">
-                        Party of {item.party_size || 0}
-                      </p>
-                    </div>
+                  return (
+                    <div
+                      key={item.id}
+                      className="grid gap-3 p-4 transition hover:bg-rose-50/70 md:grid-cols-[110px_1fr_110px_110px_120px]"
+                    >
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-black/40">
+                          Time
+                        </p>
+                        <p className="mt-1 font-black">
+                          {formatTime(item.reservation_time)}
+                        </p>
+                      </div>
 
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-wide text-black/40">
-                        Tables
-                      </p>
-                      <p className="mt-1 font-black">
-                        {estimateTablesNeeded(item.party_size)}
-                      </p>
-                    </div>
+                      <div>
+                        <p className="truncate font-black">
+                          {item.name || "Guest"}
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-black/45">
+                          Party of {item.party_size || 0}
+                        </p>
+                      </div>
 
-                    <div>
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase ${statusClass(
-                          item.status
-                        )}`}
-                      >
-                        {item.status || "pending"}
-                      </span>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-black/40">
+                          Duration
+                        </p>
+                        <p className="mt-1 font-black">{duration} min</p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-black/40">
+                          Capacity
+                        </p>
+                        <p className="mt-1 font-black">
+                          {estimateCapacityNeeded(item.party_size)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase ${statusClass(
+                            item.status
+                          )}`}
+                        >
+                          {item.status || "pending"}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -261,14 +285,15 @@ export default async function ReserveDashboardPage() {
           <div className="rounded-[1.75rem] border border-white/10 bg-[#120d0b] p-4 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-black">Table Availability</h2>
+                <h2 className="text-lg font-black">Live Availability</h2>
                 <p className="mt-1 text-xs text-white/45">
-                  Live estimate based on active reservations.
+                  Works for restaurants, lounges, activities, event spaces, and
+                  appointment-style reservations.
                 </p>
               </div>
 
               <div className="rounded-full bg-white px-4 py-2 text-xs font-black text-black">
-                {availableTables} Open
+                {availableCapacitySlots} Open
               </div>
             </div>
 
@@ -276,26 +301,22 @@ export default async function ReserveDashboardPage() {
               <div className="flex items-end justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
-                    Current Capacity
+                    Current Availability
                   </p>
                   <p className="mt-2 text-4xl font-black">
-                    {Math.round((availableTables / totalTables) * 100)}%
+                    {availabilityPercentage}%
                   </p>
                 </div>
 
                 <p className="text-sm font-bold text-white/50">
-                  {tablesBookedNow} booked now
+                  {capacityBookedNow} booked now
                 </p>
               </div>
 
               <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-rose-500 to-emerald-400"
-                  style={{
-                    width: `${Math.round(
-                      (availableTables / totalTables) * 100
-                    )}%`,
-                  }}
+                  style={{ width: `${availabilityPercentage}%` }}
                 />
               </div>
             </div>
@@ -362,27 +383,32 @@ export default async function ReserveDashboardPage() {
                   </div>
 
                   <div className="space-y-2">
-                    {items.slice(0, 5).map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-2xl bg-[#f5eee8] p-3"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="truncate text-sm font-black">
-                            {item.name || "Guest"}
-                          </p>
-                          <p className="shrink-0 text-xs font-black text-rose-700">
-                            {formatTime(item.reservation_time)}
+                    {items.slice(0, 5).map((item) => {
+                      const duration = item.duration_minutes || 90;
+                      const capacity = estimateCapacityNeeded(item.party_size);
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-2xl bg-[#f5eee8] p-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="truncate text-sm font-black">
+                              {item.name || "Guest"}
+                            </p>
+                            <p className="shrink-0 text-xs font-black text-rose-700">
+                              {formatTime(item.reservation_time)}
+                            </p>
+                          </div>
+
+                          <p className="mt-1 text-xs font-bold text-black/45">
+                            Party of {item.party_size || 0} · {duration} min ·{" "}
+                            {capacity} capacity slot
+                            {capacity > 1 ? "s" : ""}
                           </p>
                         </div>
-
-                        <p className="mt-1 text-xs font-bold text-black/45">
-                          Party of {item.party_size || 0} ·{" "}
-                          {estimateTablesNeeded(item.party_size)} table
-                          {estimateTablesNeeded(item.party_size) > 1 ? "s" : ""}
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {items.length > 5 && (
                       <p className="pt-1 text-xs font-black text-black/40">
