@@ -899,19 +899,6 @@ const rotatingBatches: ImportBatch[] = [
   "outdoor",
 ];
 
-
-const rotatingBatches: ImportBatch[] = [
-  "core",
-  "date",
-  "birthday",
-  "brunch",
-  "luxury",
-  "nightlife",
-  "fun",
-  "culture",
-  "outdoor",
-];
-
 function getDayOfYear() {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
