@@ -6,7 +6,6 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 import { clampScore } from "@/lib/clampScore";
-import RoseOutHeader from "@/components/RoseOutHeader";
 
 type RestaurantCard = {
   id: string;
@@ -427,8 +426,6 @@ export default function CreatePage() {
 
   return (
     <main className="min-h-screen w-full overflow-x-hidden bg-black text-white">
-      <RoseOutHeader />
-
       <section
         className={`relative overflow-hidden border-b border-white/10 transition-all duration-500 ${
           hasSearched
@@ -515,6 +512,8 @@ export default function CreatePage() {
                     {locationSaved ? "✓ Location Saved" : "Use My Location"}
                   </button>
                 </div>
+
+                <SearchInspirationPanel onPick={(value) => sendMessage(value)} />
               </div>
             </div>
           )}
@@ -835,6 +834,87 @@ export default function CreatePage() {
         }
       `}</style>
     </main>
+  );
+}
+
+function SearchInspirationPanel({
+  onPick,
+}: {
+  onPick: (value: string) => void;
+}) {
+  const trendingSearches = [
+    "Steak dinner and karaoke in Manhattan",
+    "Romantic dinner in Brooklyn",
+    "Birthday dinner with lounge vibes",
+    "Affordable date night in Queens",
+    "Rooftop drinks and dinner",
+    "Fun activity after dinner",
+  ];
+
+  const quickIdeas = [
+    "Date Night",
+    "Birthday",
+    "Luxury",
+    "Affordable",
+    "Near Me",
+    "Dinner + Activity",
+  ];
+
+  return (
+    <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="rounded-[1.75rem] border border-white/10 bg-black/45 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
+              Trending Searches
+            </p>
+            <h3 className="mt-2 text-xl font-black">
+              What people are searching right now
+            </h3>
+          </div>
+
+          <span className="hidden rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/45 sm:inline-flex">
+            Live ideas
+          </span>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {trendingSearches.map((search) => (
+            <button
+              key={search}
+              type="button"
+              onClick={() => onPick(search)}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-left text-xs font-black text-white/65 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"
+            >
+              {search}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5">
+        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
+          Quick Starts
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {quickIdeas.map((idea) => (
+            <button
+              key={idea}
+              type="button"
+              onClick={() => onPick(idea)}
+              className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-black text-white/60 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"
+            >
+              {idea}
+            </button>
+          ))}
+        </div>
+
+        <p className="mt-4 text-xs font-semibold leading-5 text-white/35">
+          Tap one to instantly build a RoseOut search.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -1322,13 +1402,16 @@ function SkeletonCard({ index }: { index: number }) {
 
       <div className="max-w-full space-y-3 p-5">
         <div className="h-3 w-24 animate-pulse rounded-full bg-red-500/15" />
+
         <div
           className={`mt-3 h-7 animate-pulse rounded-full bg-white/[0.055] ${
             index % 2 === 0 ? "w-4/5" : "w-2/3"
           }`}
         />
+
         <div className="h-4 w-full animate-pulse rounded-full bg-white/[0.05]" />
         <div className="h-4 w-3/4 animate-pulse rounded-full bg-white/[0.045]" />
+
         <div className="mt-5 flex max-w-full flex-wrap gap-3">
           <div className="h-10 w-20 animate-pulse rounded-full border border-white/5 bg-white/[0.035]" />
           <div className="h-10 w-28 animate-pulse rounded-full bg-white/[0.08]" />
