@@ -191,6 +191,20 @@ function normalizeQuery(input: string) {
     .replace(/\s+/g, " ");
 }
 
+async function logSearchQuery(input: string) {
+  const query = normalizeQuery(input);
+
+  if (!query || query.length < 3) return;
+
+  try {
+    await supabase.from("search_logs").insert({
+      query,
+    });
+  } catch (error) {
+    console.error("SEARCH LOG ERROR:", error);
+  }
+}
+
 function toArray(value: any): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
@@ -414,7 +428,34 @@ function isRoseOutRelated(input: string) {
     "long island",
   ];
 
-  return allowedWords.some((word) => text.includes(word)) || text.length >= 3;
+  return allowedWords.some((word) => text.includes(word));
+}
+
+function isUnsafeOrOffTopic(input: string) {
+  const text = normalizeQuery(input);
+
+  const blockedWords = [
+    "fever",
+    "sick",
+    "ill",
+    "medicine",
+    "medical",
+    "doctor",
+    "hospital",
+    "pain",
+    "injury",
+    "blood",
+    "emergency",
+    "suicide",
+    "kill myself",
+    "hurt myself",
+    "weapon",
+    "gun",
+    "drug",
+    "legal advice",
+  ];
+
+  return blockedWords.some((word) => text.includes(word));
 }
 
 function detectFromMap(input: string, map: Record<string, string[]>) {
@@ -499,7 +540,10 @@ function matchesFoodIntent(item: any, foodIntent: string) {
 }
 
 function matchesActivityIntent(item: any, activityIntent: string) {
-  const activityName = String(item.activity_name || item.name || "").toLowerCase();
+  const activityName = String(
+    item.activity_name || item.name || ""
+  ).toLowerCase();
+
   const normalizedIntent = activityIntent.replace(/_/g, " ");
   const keywords = ACTIVITY_INTENTS[activityIntent] || [normalizedIntent];
 
@@ -1076,36 +1120,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "Missing input" }, { status: 400 });
     }
 
-const { data: locationsData, error: locationsError } = await supabase
-  .from("locations")
-  .select("*");
-
-const { data: activitiesData, error: activitiesError } = await supabase
-  .from("activities")
-  .select("*");
-
-if (locationsError) {
-  return Response.json({ error: locationsError.message }, { status: 500 });
-}
-
-if (activitiesError) {
-  return Response.json({ error: activitiesError.message }, { status: 500 });
-}
-
-const mergedLocations = [
-  ...(locationsData || []),
-  ...(activitiesData || []).map((activity: any) => ({
-    ...activity,
-    location_type: "activity",
-    name: activity.activity_name || activity.name,
-    activity_name: activity.activity_name || activity.name,
-  })),
-];
-
-const locations = mergedLocations.map(normalizeLocation);
-    const intent = detectIntent(input, body, locations);
-
-    if (!isRoseOutRelated(input)) {
+    if (isUnsafeOrOffTopic(input) || !isRoseOutRelated(input)) {
       return Response.json({
         reply: OFF_TOPIC_REPLY,
         intent: {
@@ -1122,8 +1137,39 @@ const locations = mergedLocations.map(normalizeLocation);
       });
     }
 
+    await logSearchQuery(input);
+
+    const { data: locationsData, error: locationsError } = await supabase
+      .from("locations")
+      .select("*");
+
+    const { data: activitiesData, error: activitiesError } = await supabase
+      .from("activities")
+      .select("*");
+
+    if (locationsError) {
+      return Response.json({ error: locationsError.message }, { status: 500 });
+    }
+
+    if (activitiesError) {
+      return Response.json({ error: activitiesError.message }, { status: 500 });
+    }
+
+    const mergedLocations = [
+      ...(locationsData || []),
+      ...(activitiesData || []).map((activity: any) => ({
+        ...activity,
+        location_type: "activity",
+        name: activity.activity_name || activity.name,
+        activity_name: activity.activity_name || activity.name,
+      })),
+    ];
+
+    const locations = mergedLocations.map(normalizeLocation);
+    const intent = detectIntent(input, body, locations);
+
     const cacheKey = normalizeQuery(
-      `roseout-location-intelligence-v13-${input}-${intent.userLat || ""}-${
+      `roseout-location-intelligence-v15-${input}-${intent.userLat || ""}-${
         intent.userLng || ""
       }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
     );
@@ -1258,7 +1304,8 @@ const locations = mergedLocations.map(normalizeLocation);
       city: item.city,
       address: item.address,
       cuisine: item.cuisine || item.cuisine_type || null,
-      activity_type: item.activity_type || item.category || item.subcategory || null,
+      activity_type:
+        item.activity_type || item.category || item.subcategory || null,
       score: item.location_name_match_score,
     }));
 
@@ -1387,7 +1434,8 @@ STRICT RULES:
         state: item.state,
         zip_code: item.zip_code,
         cuisine: item.cuisine || item.cuisine_type || null,
-        activity_type: item.activity_type || item.category || item.subcategory || null,
+        activity_type:
+          item.activity_type || item.category || item.subcategory || null,
         website: item.website,
         image_url: item.image_url || null,
         reservation_url: item.reservation_url || item.booking_url || null,
