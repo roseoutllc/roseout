@@ -1,13 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import RoseOutHeader from "@/components/RoseOutHeader";
 
-export const metadata = {
-  title: "For Businesses – RoseOut",
-  description:
-    "Choose a RoseOut business package to claim or add your restaurant, activity, lounge, venue, or experience.",
-};
-
 export default function BusinessPage() {
+  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+
+  const isYearly = billing === "yearly";
+
   return (
     <main className="min-h-screen bg-black text-white">
       <RoseOutHeader />
@@ -32,7 +33,7 @@ export default function BusinessPage() {
 
           <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
-              href="/pricing"
+              href="#packages"
               className="rounded-2xl bg-[#e1062a] px-8 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/30 transition hover:bg-red-500"
             >
               View Packages →
@@ -106,7 +107,7 @@ export default function BusinessPage() {
         </div>
       </section>
 
-      <section className="px-6 py-20">
+      <section id="packages" className="px-6 py-20">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
@@ -123,21 +124,50 @@ export default function BusinessPage() {
               QR growth tools, and more control over how customers discover you.
             </p>
 
-            <Link
-              href="/pricing"
-              className="mt-8 inline-flex rounded-2xl bg-[#e1062a] px-7 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500"
-            >
-              Compare Packages →
-            </Link>
+            <div className="mt-8 inline-flex rounded-2xl border border-white/10 bg-[#0d0d0d] p-1">
+              <button
+                type="button"
+                onClick={() => setBilling("monthly")}
+                className={`rounded-xl px-5 py-3 text-sm font-black transition ${
+                  billing === "monthly"
+                    ? "bg-white text-black"
+                    : "text-white/55 hover:text-white"
+                }`}
+              >
+                Monthly
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBilling("yearly")}
+                className={`rounded-xl px-5 py-3 text-sm font-black transition ${
+                  billing === "yearly"
+                    ? "bg-[#e1062a] text-white"
+                    : "text-white/55 hover:text-white"
+                }`}
+              >
+                Yearly
+                <span className="ml-2 rounded-full bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.12em]">
+                  Save 20%
+                </span>
+              </button>
+            </div>
+
+            <p className="mt-4 text-sm font-semibold text-white/45">
+              {isYearly
+                ? "Yearly billing gives Pro businesses two months free."
+                : "Switch to yearly to save 20% on RoseOut Pro."}
+            </p>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid items-stretch gap-5 md:grid-cols-2">
             <PlanCard
               title="Free"
-              price="$0/mo"
+              price="$0"
+              period="/mo"
               text="Basic visibility for businesses that want to get listed and appear in limited AI discovery."
               cta="Start Free"
-              href="/pricing"
+              href="/locations/apply?plan=free"
               features={[
                 "Basic listing",
                 "Limited AI discovery",
@@ -150,10 +180,13 @@ export default function BusinessPage() {
             <PlanCard
               featured
               title="RoseOut Pro"
-              price="$99/mo"
+              price={isYearly ? "$79" : "$99"}
+              period="/mo"
+              yearlyNote={isYearly ? "Billed yearly at $948/year" : undefined}
+              oldPrice={isYearly ? "$99/mo" : undefined}
               text="Premium growth tools for businesses that want more discovery, bookings, and customer insight."
-              cta="View Pro"
-              href="/pricing"
+              cta={isYearly ? "Choose Yearly Pro" : "Choose Monthly Pro"}
+              href={`/checkout?plan=pro&billing=${billing}`}
               features={[
                 "Priority AI discovery",
                 "RoseOut Reserve",
@@ -217,7 +250,7 @@ export default function BusinessPage() {
           </p>
 
           <Link
-            href="/pricing"
+            href="#packages"
             className="mt-10 inline-flex rounded-2xl bg-[#e1062a] px-10 py-5 text-lg font-black text-white shadow-2xl shadow-red-500/30 transition hover:bg-red-500"
           >
             View Packages →
@@ -258,6 +291,9 @@ function Feature({
 function PlanCard({
   title,
   price,
+  period,
+  oldPrice,
+  yearlyNote,
   text,
   features,
   cta,
@@ -266,6 +302,9 @@ function PlanCard({
 }: {
   title: string;
   price: string;
+  period: string;
+  oldPrice?: string;
+  yearlyNote?: string;
   text: string;
   features: string[];
   cta: string;
@@ -274,38 +313,59 @@ function PlanCard({
 }) {
   return (
     <div
-      className={`rounded-[2rem] border p-7 shadow-2xl ${
+      className={`relative flex h-full flex-col rounded-[2rem] border p-7 shadow-2xl transition duration-300 hover:-translate-y-2 ${
         featured
-          ? "border-[#e1062a]/60 bg-[#12060a] shadow-red-500/20"
+          ? "border-[#e1062a]/70 bg-[#12060a] shadow-red-500/20"
           : "border-white/10 bg-[#0d0d0d] shadow-black/40"
       }`}
     >
       {featured && (
-        <p className="mb-4 inline-flex rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-white">
-          Most Popular
-        </p>
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+          <span className="whitespace-nowrap rounded-full bg-[#e1062a] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-red-500/30">
+            Most Popular
+          </span>
+        </div>
       )}
 
-      <h3 className="text-2xl font-black">{title}</h3>
-      <p className="mt-3 text-4xl font-black">{price}</p>
-      <p className="mt-4 text-sm leading-7 text-white/55">{text}</p>
+      <div className="mt-4 flex flex-1 flex-col">
+        <h3 className="text-2xl font-black">{title}</h3>
 
-      <div className="mt-6 space-y-3">
-        {features.map((feature) => (
-          <Check key={feature} text={feature} />
-        ))}
+        <div className="mt-3 flex items-end gap-1">
+          <p className="text-4xl font-black">{price}</p>
+          <p className="pb-1 text-sm font-bold text-white/45">{period}</p>
+        </div>
+
+        {oldPrice && (
+          <p className="mt-2 text-sm font-bold text-white/35 line-through">
+            {oldPrice}
+          </p>
+        )}
+
+        {yearlyNote && (
+          <p className="mt-2 rounded-full bg-[#e1062a]/15 px-3 py-2 text-xs font-black text-[#ff8a9b]">
+            {yearlyNote}
+          </p>
+        )}
+
+        <p className="mt-4 text-sm leading-7 text-white/55">{text}</p>
+
+        <div className="mt-6 flex-1 space-y-3">
+          {features.map((feature) => (
+            <Check key={feature} text={feature} />
+          ))}
+        </div>
+
+        <Link
+          href={href}
+          className={`mt-7 inline-flex w-full justify-center rounded-2xl px-6 py-3 text-sm font-black transition ${
+            featured
+              ? "bg-[#e1062a] text-white hover:bg-red-500"
+              : "border border-white/15 bg-white/5 text-white/80 hover:bg-white hover:text-black"
+          }`}
+        >
+          {cta}
+        </Link>
       </div>
-
-      <Link
-        href={href}
-        className={`mt-7 inline-flex w-full justify-center rounded-2xl px-6 py-3 text-sm font-black transition ${
-          featured
-            ? "bg-[#e1062a] text-white hover:bg-red-500"
-            : "border border-white/15 bg-white/5 text-white/80 hover:bg-white hover:text-black"
-        }`}
-      >
-        {cta}
-      </Link>
     </div>
   );
 }
