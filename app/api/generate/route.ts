@@ -1139,21 +1139,45 @@ export async function POST(req: Request) {
 
     await logSearchQuery(input);
 
-    const { data: locationsData, error: locationsError } = await supabase
-      .from("locations")
-      .select("*");
+const { data: locationsData, error: locationsError } = await supabase
+  .from("locations")
+  .select("*");
 
-    const { data: activitiesData, error: activitiesError } = await supabase
-      .from("activities")
-      .select("*");
+const { data: restaurantsData, error: restaurantsError } = await supabase
+  .from("restaurants")
+  .select("*");
 
-    if (locationsError) {
-      return Response.json({ error: locationsError.message }, { status: 500 });
-    }
+const { data: activitiesData, error: activitiesError } = await supabase
+  .from("activities")
+  .select("*");
 
-    if (activitiesError) {
-      return Response.json({ error: activitiesError.message }, { status: 500 });
-    }
+if (locationsError) {
+  return Response.json({ error: locationsError.message }, { status: 500 });
+}
+
+if (restaurantsError) {
+  return Response.json({ error: restaurantsError.message }, { status: 500 });
+}
+
+if (activitiesError) {
+  return Response.json({ error: activitiesError.message }, { status: 500 });
+}
+
+const mergedLocations = [
+  ...(locationsData || []),
+  ...(restaurantsData || []).map((restaurant: any) => ({
+    ...restaurant,
+    location_type: "restaurant",
+    name: restaurant.restaurant_name || restaurant.name,
+    restaurant_name: restaurant.restaurant_name || restaurant.name,
+  })),
+  ...(activitiesData || []).map((activity: any) => ({
+    ...activity,
+    location_type: "activity",
+    name: activity.activity_name || activity.name,
+    activity_name: activity.activity_name || activity.name,
+  })),
+];
 
     const mergedLocations = [
       ...(locationsData || []),
