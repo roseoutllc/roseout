@@ -803,6 +803,7 @@ async function importRestaurant(place: any) {
   );
 
   const primaryTag = getPrimaryTag(place, "restaurant");
+const cuisine = getCuisineFromPlace(place);
 
   const { error } = await supabaseAdmin.from("restaurants").insert({
     restaurant_name: place.name,
