@@ -6,7 +6,6 @@ import RoseOutHeader from "@/components/RoseOutHeader";
 
 export default function BusinessPage() {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
-
   const isYearly = billing === "yearly";
 
   return (
@@ -83,7 +82,7 @@ export default function BusinessPage() {
             <Feature
               number="01"
               title="Choose your package"
-              text="Start with a free listing or upgrade to RoseOut Pro for priority discovery, reservations, analytics, and QR growth tools."
+              text="Start with free Basic AI discovery or upgrade to RoseOut Pro for priority discovery, reservations, analytics, and QR growth tools."
             />
 
             <Feature
@@ -119,9 +118,10 @@ export default function BusinessPage() {
             </h2>
 
             <p className="mt-6 text-lg leading-8 text-white/60">
-              The free plan helps your business appear on RoseOut. RoseOut Pro
-              gives your listing stronger placement, booking tools, analytics,
-              QR growth tools, and more control over how customers discover you.
+              The free plan gives your business Basic AI discovery on RoseOut.
+              RoseOut Pro gives your listing stronger placement, booking tools,
+              analytics, QR growth tools, and more control over how customers
+              discover you.
             </p>
 
             <div className="mt-8 inline-flex rounded-2xl border border-white/10 bg-[#0d0d0d] p-1">
@@ -165,12 +165,12 @@ export default function BusinessPage() {
               title="Free"
               price="$0"
               period="/mo"
-              text="Basic visibility for businesses that want to get listed and appear in limited AI discovery."
+              text="Basic visibility for businesses that want to appear in RoseOut AI discovery."
               cta="Start Free"
               href="/locations/apply?plan=free"
               features={[
-                "Basic listing",
-                "Limited AI discovery",
+                "Basic AI discovery",
+                "Appears in search results",
                 "1 photo",
                 "Claim your business",
                 "Basic views",
@@ -184,7 +184,6 @@ export default function BusinessPage() {
               period="/mo"
               yearlyNote={isYearly ? "Billed yearly at $948/year" : undefined}
               oldPrice={isYearly ? "$99/mo" : undefined}
-              text="Premium growth tools for businesses that want more discovery, bookings, and customer insight."
               cta={isYearly ? "Choose Yearly Pro" : "Choose Monthly Pro"}
               href={`/checkout?plan=pro&billing=${billing}`}
               features={[
@@ -193,6 +192,7 @@ export default function BusinessPage() {
                 "Advanced analytics",
                 "QR Growth Tools",
                 "Up to 10 photos",
+                "Full listing customization",
               ]}
             />
           </div>
@@ -305,7 +305,7 @@ function PlanCard({
   period: string;
   oldPrice?: string;
   yearlyNote?: string;
-  text: string;
+  text?: string;
   features: string[];
   cta: string;
   href: string;
@@ -320,7 +320,7 @@ function PlanCard({
       }`}
     >
       {featured && (
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+        <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2">
           <span className="whitespace-nowrap rounded-full bg-[#e1062a] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-red-500/30">
             Most Popular
           </span>
@@ -335,19 +335,23 @@ function PlanCard({
           <p className="pb-1 text-sm font-bold text-white/45">{period}</p>
         </div>
 
-        {oldPrice && (
-          <p className="mt-2 text-sm font-bold text-white/35 line-through">
-            {oldPrice}
-          </p>
-        )}
+        <div className="min-h-[82px]">
+          {oldPrice && (
+            <p className="mt-2 text-sm font-bold text-white/35 line-through">
+              {oldPrice}
+            </p>
+          )}
 
-        {yearlyNote && (
-          <p className="mt-2 rounded-full bg-[#e1062a]/15 px-3 py-2 text-xs font-black text-[#ff8a9b]">
-            {yearlyNote}
-          </p>
-        )}
+          {yearlyNote && (
+            <p className="mt-2 rounded-full bg-[#e1062a]/15 px-3 py-2 text-xs font-black text-[#ff8a9b]">
+              {yearlyNote}
+            </p>
+          )}
 
-        <p className="mt-4 text-sm leading-7 text-white/55">{text}</p>
+          {text ? (
+            <p className="mt-4 text-sm leading-7 text-white/55">{text}</p>
+          ) : null}
+        </div>
 
         <div className="mt-6 flex-1 space-y-3">
           {features.map((feature) => (
@@ -372,7 +376,7 @@ function PlanCard({
 
 function Check({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+    <div className="flex min-h-[58px] items-center rounded-2xl border border-white/10 bg-white/[0.04] p-4">
       <p className="text-sm font-semibold leading-6 text-white/60">✓ {text}</p>
     </div>
   );
