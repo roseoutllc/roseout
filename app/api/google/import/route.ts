@@ -12,7 +12,7 @@ const supabaseAdmin = createClient(
 );
 
 type ImportType = "restaurant" | "activity";
-type RequestImportType = ImportType | "all" | "both";
+type RequestImportType = ImportType | "both";
 type ImportMode = "text" | "nearby";
 type ImportBatch =
   | "core"
