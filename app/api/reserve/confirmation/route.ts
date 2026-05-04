@@ -5,16 +5,18 @@ function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function isExpired(expiresAt?: string | null) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() < Date.now();
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const token = cleanString(searchParams.get("token"));
 
     if (!token) {
-      return NextResponse.json(
-        { error: "Missing token." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing token." }, { status: 400 });
     }
 
     const { data, error } = await supabaseAdmin
@@ -24,10 +26,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     if (!data) {
@@ -37,9 +36,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      reservation: data,
-    });
+    if (isExpired(data.customer_token_expires_at)) {
+      return NextResponse.json(
+        { error: "This reservation link has expired." },
+        { status: 410 }
+      );
+    }
+
+    return NextResponse.json({ reservation: data });
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || "Something went wrong." },
@@ -56,20 +60,13 @@ export async function POST(request: NextRequest) {
     const action = cleanString(body.action);
 
     if (!token) {
-      return NextResponse.json(
-        { error: "Missing token." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing token." }, { status: 400 });
     }
 
     if (!["confirm", "cancel"].includes(action)) {
-      return NextResponse.json(
-        { error: "Invalid action." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid action." }, { status: 400 });
     }
 
-    // Get existing reservation
     const { data: existing, error: fetchError } = await supabaseAdmin
       .from("location_reservations")
       .select("*")
@@ -77,10 +74,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (fetchError) {
-      return NextResponse.json(
-        { error: fetchError.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
     }
 
     if (!existing) {
@@ -90,7 +84,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Prevent actions on cancelled reservations
+    if (isExpired(existing.customer_token_expires_at)) {
+      return NextResponse.json(
+        { error: "This reservation link has expired." },
+        { status: 410 }
+      );
+    }
+
     if (existing.status === "cancelled") {
       return NextResponse.json(
         { error: "This reservation is already cancelled." },
@@ -98,21 +98,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let update: any = {};
-
-    if (action === "confirm") {
-      update = {
-        customer_confirmed_at: new Date().toISOString(),
-      };
-    }
-
-    if (action === "cancel") {
-      update = {
-        status: "cancelled",
-        customer_cancelled_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-    }
+    const update =
+      action === "confirm"
+        ? {
+            customer_confirmed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+        : {
+            status: "cancelled",
+            customer_cancelled_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
 
     const { data, error } = await supabaseAdmin
       .from("location_reservations")
@@ -122,10 +118,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({
