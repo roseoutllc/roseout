@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import RoseOutHeader from "@/components/RoseOutHeader";
 
 type Step = "plan" | "confirm" | "book";
 
@@ -112,288 +111,213 @@ export default function PlanPage() {
     return backToResults();
   };
 
+  const nextStep = () => {
+    if (step === "plan") return setStep("confirm");
+    if (step === "confirm") return setStep("book");
+  };
+
+  const nextButtonText =
+    step === "plan"
+      ? "Continue to Confirm"
+      : step === "confirm"
+        ? "Continue to Book"
+        : "Finish Booking";
+
   if (!loaded) {
     return (
-      <>
-        <RoseOutHeader />
-        <main className="flex min-h-screen items-center justify-center bg-black pt-20 text-white">
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-red-400">
-            Loading your plan...
-          </p>
-        </main>
-      </>
+      <main className="flex min-h-screen items-center justify-center bg-black px-5 pt-24 text-white">
+        <p className="text-center text-xs font-black uppercase tracking-[0.3em] text-red-400">
+          Loading your plan...
+        </p>
+      </main>
     );
   }
 
   if (!plan) {
     return (
-      <>
-        <RoseOutHeader />
-        <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-6 pt-20 text-white">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.28),transparent_32%),#000]" />
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 pt-24 text-white">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.28),transparent_32%),#000]" />
 
-          <div className="relative z-10 max-w-md rounded-[2rem] border border-white/10 bg-white/[0.05] p-8 text-center shadow-2xl backdrop-blur-xl">
-            <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">
-              RoseOut Plan
-            </p>
+        <div className="relative z-10 w-full max-w-sm rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-6 text-center shadow-2xl backdrop-blur-xl">
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-red-400">
+            RoseOut Plan
+          </p>
 
-            <h1 className="mt-4 text-4xl font-black">No plan found</h1>
+          <h1 className="mt-4 text-3xl font-black">No plan found</h1>
 
-            <p className="mt-3 text-sm leading-7 text-white/60">
-              Choose a restaurant or activity from your RoseOut results to build
-              a plan.
-            </p>
+          <p className="mt-3 text-sm leading-7 text-white/60">
+            Choose a restaurant or activity from your RoseOut results to build a
+            plan.
+          </p>
 
-            <button
-              onClick={startNewSearch}
-              className="mt-6 rounded-full bg-red-600 px-7 py-3 text-sm font-black text-white transition hover:bg-red-500"
-            >
-              Create a Plan
-            </button>
-          </div>
-        </main>
-      </>
+          <button
+            onClick={startNewSearch}
+            className="mt-6 w-full rounded-full bg-red-600 px-7 py-3 text-sm font-black text-white transition hover:bg-red-500"
+          >
+            Create a Plan
+          </button>
+        </div>
+      </main>
     );
   }
 
   return (
-    <>
-      <RoseOutHeader />
+    <main className="min-h-screen overflow-x-hidden bg-black pb-28 pt-20 text-white lg:pb-0">
+      <section className="relative border-b border-white/10 px-4 pb-7 pt-6 sm:px-5 sm:py-10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_5%,rgba(225,6,42,0.3),transparent_32%),linear-gradient(180deg,#050505,#000)]" />
 
-      <main className="min-h-screen overflow-hidden bg-black pt-20 text-white">
-        <section className="relative border-b border-white/10 px-5 py-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_5%,rgba(225,6,42,0.32),transparent_32%),linear-gradient(180deg,#050505,#000)]" />
+        <div className="relative mx-auto max-w-6xl">
+          <div className="mb-5 flex items-center justify-between gap-2">
+            <button
+              onClick={goBackStep}
+              className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-black text-white transition hover:bg-white hover:text-black"
+            >
+              ← Back
+            </button>
 
-          <div className="relative mx-auto max-w-6xl">
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-              <button
-                onClick={goBackStep}
-                className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-black"
-              >
-                ← Back
-              </button>
+            <button
+              onClick={startNewSearch}
+              className="rounded-full bg-red-600 px-4 py-2 text-xs font-black text-white transition hover:bg-red-500"
+            >
+              New Search
+            </button>
+          </div>
 
-              <button
-                onClick={startNewSearch}
-                className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-red-500"
-              >
-                Start New Search
-              </button>
-            </div>
+          <Breadcrumb step={step} setStep={setStep} />
 
-            <Breadcrumb step={step} setStep={setStep} />
+          <p className="mt-7 text-[10px] font-black uppercase tracking-[0.28em] text-red-400 sm:text-xs">
+            RoseOut Plan Flow
+          </p>
 
-            <p className="mt-8 text-xs font-black uppercase tracking-[0.35em] text-red-400">
-              RoseOut Plan Flow
+          <h1 className="mt-4 text-4xl font-black leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
+            {step === "plan" && (
+              <>
+                Your night is
+                <br />
+                <span className="text-red-500">ready.</span>
+              </>
+            )}
+
+            {step === "confirm" && (
+              <>
+                Confirm your
+                <br />
+                <span className="text-red-500">outing.</span>
+              </>
+            )}
+
+            {step === "book" && (
+              <>
+                Time to
+                <br />
+                <span className="text-red-500">book.</span>
+              </>
+            )}
+          </h1>
+
+          <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.05] p-4 shadow-2xl backdrop-blur-xl sm:rounded-[2rem] sm:p-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
+              Selected Plan
             </p>
 
-            <h1 className="mt-5 max-w-5xl text-5xl font-black leading-[0.95] tracking-tight sm:text-7xl">
-              {step === "plan" && (
-                <>
-                  Your night is
-                  <br />
-                  <span className="text-red-500">ready.</span>
-                </>
-              )}
-
-              {step === "confirm" && (
-                <>
-                  Confirm your
-                  <br />
-                  <span className="text-red-500">outing.</span>
-                </>
-              )}
-
-              {step === "book" && (
-                <>
-                  Time to
-                  <br />
-                  <span className="text-red-500">book.</span>
-                </>
-              )}
-            </h1>
-
-            <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.05] p-5 shadow-2xl backdrop-blur-xl">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-white/35">
-                Selected Plan
-              </p>
-
-              <h2 className="mt-2 break-words text-2xl font-black sm:text-3xl">
-                {planTitle}
-              </h2>
-            </div>
+            <h2 className="mt-2 break-words text-xl font-black leading-tight sm:text-3xl">
+              {planTitle}
+            </h2>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="relative px-5 py-12">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(225,6,42,0.16),transparent_30%)]" />
+      <section className="relative px-4 py-7 sm:px-5 sm:py-12">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(225,6,42,0.16),transparent_30%)]" />
 
-          <div className="relative mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_360px]">
-            <div className="space-y-6">
-              {step === "plan" && (
-                <>
-                  {restaurant && (
-                    <PlanCard
-                      eyebrow={restaurantLabel}
-                      title={restaurant.restaurant_name}
-                      imageUrl={restaurant.image_url}
-                      address={restaurantAddress}
-                      rating={restaurant.rating}
-                      reviewCount={restaurant.review_count}
-                      primaryTag={restaurant.primary_tag}
-                      tags={restaurant.date_style_tags}
-                      reservationUrl={
-                        restaurant.reservation_url ||
-                        restaurant.reservation_link
-                      }
-                      reservationLabel="Reserve"
-                      websiteUrl={restaurant.website}
-                      mapsUrl={restaurantMapsUrl}
-                    />
-                  )}
-
-                  {activity && (
-                    <PlanCard
-                      eyebrow={activity.activity_type || "Activity"}
-                      title={activity.activity_name}
-                      imageUrl={activity.image_url}
-                      address={activityAddress}
-                      rating={activity.rating}
-                      reviewCount={activity.review_count}
-                      primaryTag={activity.primary_tag}
-                      tags={activity.date_style_tags}
-                      reservationUrl={
-                        activity.reservation_url || activity.reservation_link
-                      }
-                      reservationLabel="Book"
-                      websiteUrl={activity.website}
-                      mapsUrl={activityMapsUrl}
-                    />
-                  )}
-                </>
-              )}
-
-              {step === "confirm" && (
-                <ConfirmStep
-                  restaurant={restaurant}
-                  activity={activity}
-                  restaurantLabel={restaurantLabel}
-                />
-              )}
-
-              {step === "book" && (
-                <BookStep
-                  restaurant={restaurant}
-                  activity={activity}
-                  restaurantLabel={restaurantLabel}
-                  restaurantMapsUrl={restaurantMapsUrl}
-                  activityMapsUrl={activityMapsUrl}
-                />
-              )}
-            </div>
-
-            <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
-              <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
-                <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
-                  Next Step
-                </p>
-
-                <h2 className="mt-3 text-3xl font-black">
-                  {step === "plan" && "Review your plan"}
-                  {step === "confirm" && "Confirm details"}
-                  {step === "book" && "Book your outing"}
-                </h2>
-
-                <p className="mt-3 text-sm leading-7 text-white/60">
-                  {step === "plan" &&
-                    "Review your selected restaurant and activity before confirming."}
-                  {step === "confirm" &&
-                    "Make sure this is the outing you want before booking."}
-                  {step === "book" &&
-                    "Use the booking, website, and directions links to finish your plan."}
-                </p>
-
-                <div className="mt-6 grid gap-3">
-                  {step === "plan" && (
-                    <button
-                      onClick={() => setStep("confirm")}
-                      className="rounded-full bg-red-600 px-5 py-3 text-sm font-black text-white transition hover:bg-red-500"
-                    >
-                      Continue to Confirm
-                    </button>
-                  )}
-
-                  {step === "confirm" && (
-                    <button
-                      onClick={() => setStep("book")}
-                      className="rounded-full bg-red-600 px-5 py-3 text-sm font-black text-white transition hover:bg-red-500"
-                    >
-                      Continue to Book
-                    </button>
-                  )}
-
-                  {step === "book" && (
-                    <>
-                      {restaurant?.reservation_url ||
-                      restaurant?.reservation_link ? (
-                        <a
-                          href={
-                            restaurant.reservation_url ||
-                            restaurant.reservation_link
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-full bg-red-600 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-red-500"
-                        >
-                          Reserve {restaurantLabel}
-                        </a>
-                      ) : null}
-
-                      {activity?.reservation_url || activity?.reservation_link ? (
-                        <a
-                          href={
-                            activity.reservation_url ||
-                            activity.reservation_link
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-full border border-red-500/40 bg-red-500/10 px-5 py-3 text-center text-sm font-black text-red-100 transition hover:bg-red-600 hover:text-white"
-                        >
-                          Book Activity
-                        </a>
-                      ) : null}
-                    </>
-                  )}
-
-                  <button
-                    onClick={backToResults}
-                    className="rounded-full border border-white/15 px-5 py-3 text-sm font-black text-white transition hover:bg-white hover:text-black"
-                  >
-                    Back to Results
-                  </button>
-                </div>
-              </section>
-
-              <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
-                <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
-                  Flow
-                </p>
-
-                <div className="mt-5 space-y-4">
-                  <TimelineItem active={step === "plan"} number="1" title="Plan" />
-                  <TimelineItem
-                    active={step === "confirm"}
-                    number="2"
-                    title="Confirm"
+        <div className="relative mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_360px]">
+          <div className="space-y-5">
+            {step === "plan" && (
+              <>
+                {restaurant && (
+                  <PlanCard
+                    eyebrow={restaurantLabel}
+                    title={restaurant.restaurant_name}
+                    imageUrl={restaurant.image_url}
+                    address={restaurantAddress}
+                    rating={restaurant.rating}
+                    reviewCount={restaurant.review_count}
+                    primaryTag={restaurant.primary_tag}
+                    tags={restaurant.date_style_tags}
+                    reservationUrl={
+                      restaurant.reservation_url || restaurant.reservation_link
+                    }
+                    reservationLabel="Reserve"
+                    websiteUrl={restaurant.website}
+                    mapsUrl={restaurantMapsUrl}
                   />
-                  <TimelineItem active={step === "book"} number="3" title="Book" />
-                </div>
-              </section>
-            </aside>
+                )}
+
+                {activity && (
+                  <PlanCard
+                    eyebrow={activity.activity_type || "Activity"}
+                    title={activity.activity_name}
+                    imageUrl={activity.image_url}
+                    address={activityAddress}
+                    rating={activity.rating}
+                    reviewCount={activity.review_count}
+                    primaryTag={activity.primary_tag}
+                    tags={activity.date_style_tags}
+                    reservationUrl={
+                      activity.reservation_url || activity.reservation_link
+                    }
+                    reservationLabel="Book"
+                    websiteUrl={activity.website}
+                    mapsUrl={activityMapsUrl}
+                  />
+                )}
+              </>
+            )}
+
+            {step === "confirm" && (
+              <ConfirmStep
+                restaurant={restaurant}
+                activity={activity}
+                restaurantLabel={restaurantLabel}
+              />
+            )}
+
+            {step === "book" && (
+              <BookStep
+                restaurant={restaurant}
+                activity={activity}
+                restaurantLabel={restaurantLabel}
+                restaurantMapsUrl={restaurantMapsUrl}
+                activityMapsUrl={activityMapsUrl}
+              />
+            )}
           </div>
-        </section>
-      </main>
-    </>
+
+          <aside className="hidden space-y-6 lg:block lg:sticky lg:top-28 lg:self-start">
+            <NextStepCard
+              step={step}
+              restaurant={restaurant}
+              activity={activity}
+              restaurantLabel={restaurantLabel}
+              backToResults={backToResults}
+              setStep={setStep}
+            />
+
+            <FlowCard step={step} />
+          </aside>
+        </div>
+      </section>
+
+      <MobileActionBar
+        step={step}
+        nextButtonText={nextButtonText}
+        nextStep={nextStep}
+        backToResults={backToResults}
+        restaurant={restaurant}
+        activity={activity}
+        restaurantLabel={restaurantLabel}
+      />
+    </main>
   );
 }
 
@@ -407,10 +331,10 @@ function Breadcrumb({
   const steps: Step[] = ["plan", "confirm", "book"];
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
       <button
         onClick={() => (window.location.href = "/create")}
-        className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white/50 transition hover:bg-white hover:text-black"
+        className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/50 transition hover:bg-white hover:text-black sm:px-4 sm:text-xs"
       >
         Results
       </button>
@@ -419,20 +343,17 @@ function Breadcrumb({
         const active = step === item;
 
         return (
-          <div key={item} className="flex items-center gap-2">
-            <span className="text-white/20">/</span>
-
-            <button
-              onClick={() => setStep(item)}
-              className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition ${
-                active
-                  ? "bg-red-600 text-white"
-                  : "border border-white/10 bg-white/[0.05] text-white/50 hover:bg-white hover:text-black"
-              }`}
-            >
-              {index + 1}. {item}
-            </button>
-          </div>
+          <button
+            key={item}
+            onClick={() => setStep(item)}
+            className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] transition sm:px-4 sm:text-xs ${
+              active
+                ? "bg-red-600 text-white"
+                : "border border-white/10 bg-white/[0.05] text-white/50 hover:bg-white hover:text-black"
+            }`}
+          >
+            {index + 1}. {item}
+          </button>
         );
       })}
     </div>
@@ -454,9 +375,10 @@ function PlanCard({
   mapsUrl,
 }: any) {
   return (
-    <article className="overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#0d0d0d] shadow-2xl shadow-black/40">
-      <div className="relative h-72 overflow-hidden">
+    <article className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#0d0d0d] shadow-2xl shadow-black/40 sm:rounded-[2.25rem]">
+      <div className="relative h-52 overflow-hidden sm:h-72">
         {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-neutral-900 text-neutral-500">
@@ -466,30 +388,36 @@ function PlanCard({
 
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/10" />
 
-        <div className="absolute left-4 top-4 rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-black">
+        <div className="absolute left-3 top-3 max-w-[70%] rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-black sm:left-4 sm:top-4 sm:px-4 sm:py-2 sm:text-xs">
           {eyebrow}
         </div>
 
         {rating && (
-          <div className="absolute bottom-4 right-4 rounded-full bg-red-600 px-4 py-2 text-xs font-black text-white">
+          <div className="absolute bottom-3 right-3 rounded-full bg-red-600 px-3 py-1.5 text-[10px] font-black text-white sm:bottom-4 sm:right-4 sm:px-4 sm:py-2 sm:text-xs">
             {flowers(rating)} {rating}
           </div>
         )}
       </div>
 
-      <div className="p-6">
-        <h2 className="break-words text-3xl font-black">{title}</h2>
+      <div className="p-4 sm:p-6">
+        <h2 className="break-words text-2xl font-black leading-tight sm:text-3xl">
+          {title}
+        </h2>
 
-        {address && <p className="mt-3 text-sm leading-6 text-white/55">{address}</p>}
+        {address && (
+          <p className="mt-3 text-sm leading-6 text-white/55">{address}</p>
+        )}
 
         {reviewCount ? (
-          <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-white/35">
+          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 sm:text-xs">
             {reviewCount} review{reviewCount === 1 ? "" : "s"}
           </p>
         ) : null}
 
         {primaryTag && (
-          <p className="mt-4 text-sm font-black text-red-100">✨ {primaryTag}</p>
+          <p className="mt-4 text-sm font-black text-red-100">
+            ✨ {primaryTag}
+          </p>
         )}
 
         {tags?.length ? (
@@ -505,7 +433,7 @@ function PlanCard({
           </div>
         ) : null}
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
           {reservationUrl && (
             <a
               href={reservationUrl}
@@ -552,21 +480,21 @@ function ConfirmStep({
   restaurantLabel: string;
 }) {
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-6 shadow-2xl">
+    <section className="rounded-[1.75rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl sm:rounded-[2rem] sm:p-6">
       <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
         Confirm
       </p>
 
-      <h2 className="mt-3 text-3xl font-black">Confirm your selected outing.</h2>
+      <h2 className="mt-3 text-2xl font-black leading-tight sm:text-3xl">
+        Confirm your selected outing.
+      </h2>
 
       <div className="mt-6 grid gap-4">
         {restaurant && (
           <ConfirmRow label={restaurantLabel} value={restaurant.restaurant_name} />
         )}
 
-        {activity && (
-          <ConfirmRow label="Activity" value={activity.activity_name} />
-        )}
+        {activity && <ConfirmRow label="Activity" value={activity.activity_name} />}
       </div>
     </section>
   );
@@ -574,11 +502,11 @@ function ConfirmStep({
 
 function ConfirmRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
       <p className="text-xs font-black uppercase tracking-[0.2em] text-white/35">
         {label}
       </p>
-      <p className="mt-2 text-xl font-black">{value}</p>
+      <p className="mt-2 break-words text-lg font-black sm:text-xl">{value}</p>
     </div>
   );
 }
@@ -597,18 +525,22 @@ function BookStep({
   activityMapsUrl: string;
 }) {
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-6 shadow-2xl">
+    <section className="rounded-[1.75rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl sm:rounded-[2rem] sm:p-6">
       <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
         Book
       </p>
 
-      <h2 className="mt-3 text-3xl font-black">Finish booking your outing.</h2>
+      <h2 className="mt-3 text-2xl font-black leading-tight sm:text-3xl">
+        Finish booking your outing.
+      </h2>
 
       <div className="mt-6 grid gap-4">
         {restaurant && (
           <BookBox
             title={restaurant.restaurant_name}
-            reservationUrl={restaurant.reservation_url || restaurant.reservation_link}
+            reservationUrl={
+              restaurant.reservation_url || restaurant.reservation_link
+            }
             websiteUrl={restaurant.website}
             mapsUrl={restaurantMapsUrl}
             reserveLabel={`Reserve ${restaurantLabel}`}
@@ -629,10 +561,16 @@ function BookStep({
   );
 }
 
-function BookBox({ title, reservationUrl, websiteUrl, mapsUrl, reserveLabel }: any) {
+function BookBox({
+  title,
+  reservationUrl,
+  websiteUrl,
+  mapsUrl,
+  reserveLabel,
+}: any) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-      <h3 className="text-xl font-black">{title}</h3>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+      <h3 className="break-words text-lg font-black sm:text-xl">{title}</h3>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         {reservationUrl && (
@@ -670,6 +608,114 @@ function BookBox({ title, reservationUrl, websiteUrl, mapsUrl, reserveLabel }: a
   );
 }
 
+function NextStepCard({
+  step,
+  restaurant,
+  activity,
+  restaurantLabel,
+  backToResults,
+  setStep,
+}: {
+  step: Step;
+  restaurant: any;
+  activity: any;
+  restaurantLabel: string;
+  backToResults: () => void;
+  setStep: (step: Step) => void;
+}) {
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
+        Next Step
+      </p>
+
+      <h2 className="mt-3 text-3xl font-black">
+        {step === "plan" && "Review your plan"}
+        {step === "confirm" && "Confirm details"}
+        {step === "book" && "Book your outing"}
+      </h2>
+
+      <p className="mt-3 text-sm leading-7 text-white/60">
+        {step === "plan" &&
+          "Review your selected restaurant and activity before confirming."}
+        {step === "confirm" &&
+          "Make sure this is the outing you want before booking."}
+        {step === "book" &&
+          "Use the booking, website, and directions links to finish your plan."}
+      </p>
+
+      <div className="mt-6 grid gap-3">
+        {step === "plan" && (
+          <button
+            onClick={() => setStep("confirm")}
+            className="rounded-full bg-red-600 px-5 py-3 text-sm font-black text-white transition hover:bg-red-500"
+          >
+            Continue to Confirm
+          </button>
+        )}
+
+        {step === "confirm" && (
+          <button
+            onClick={() => setStep("book")}
+            className="rounded-full bg-red-600 px-5 py-3 text-sm font-black text-white transition hover:bg-red-500"
+          >
+            Continue to Book
+          </button>
+        )}
+
+        {step === "book" && (
+          <>
+            {restaurant?.reservation_url || restaurant?.reservation_link ? (
+              <a
+                href={restaurant.reservation_url || restaurant.reservation_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-red-600 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-red-500"
+              >
+                Reserve {restaurantLabel}
+              </a>
+            ) : null}
+
+            {activity?.reservation_url || activity?.reservation_link ? (
+              <a
+                href={activity.reservation_url || activity.reservation_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-red-500/40 bg-red-500/10 px-5 py-3 text-center text-sm font-black text-red-100 transition hover:bg-red-600 hover:text-white"
+              >
+                Book Activity
+              </a>
+            ) : null}
+          </>
+        )}
+
+        <button
+          onClick={backToResults}
+          className="rounded-full border border-white/15 px-5 py-3 text-sm font-black text-white transition hover:bg-white hover:text-black"
+        >
+          Back to Results
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function FlowCard({ step }: { step: Step }) {
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
+        Flow
+      </p>
+
+      <div className="mt-5 space-y-4">
+        <TimelineItem active={step === "plan"} number="1" title="Plan" />
+        <TimelineItem active={step === "confirm"} number="2" title="Confirm" />
+        <TimelineItem active={step === "book"} number="3" title="Book" />
+      </div>
+    </section>
+  );
+}
+
 function TimelineItem({
   number,
   title,
@@ -690,12 +736,80 @@ function TimelineItem({
       </div>
 
       <div>
-        <p className={`text-sm font-black ${active ? "text-white" : "text-white/45"}`}>
+        <p
+          className={`text-sm font-black ${
+            active ? "text-white" : "text-white/45"
+          }`}
+        >
           {title}
         </p>
         <p className="text-xs font-bold text-white/35">
           RoseOut planning step
         </p>
+      </div>
+    </div>
+  );
+}
+
+function MobileActionBar({
+  step,
+  nextButtonText,
+  nextStep,
+  backToResults,
+  restaurant,
+  activity,
+  restaurantLabel,
+}: {
+  step: Step;
+  nextButtonText: string;
+  nextStep: () => void;
+  backToResults: () => void;
+  restaurant: any;
+  activity: any;
+  restaurantLabel: string;
+}) {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-black/95 p-3 backdrop-blur-2xl lg:hidden">
+      <div className="grid gap-2">
+        {step !== "book" ? (
+          <button
+            onClick={nextStep}
+            className="rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white"
+          >
+            {nextButtonText}
+          </button>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {restaurant?.reservation_url || restaurant?.reservation_link ? (
+              <a
+                href={restaurant.reservation_url || restaurant.reservation_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-2xl bg-red-600 px-4 py-3 text-center text-xs font-black text-white"
+              >
+                Reserve {restaurantLabel}
+              </a>
+            ) : null}
+
+            {activity?.reservation_url || activity?.reservation_link ? (
+              <a
+                href={activity.reservation_url || activity.reservation_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center text-xs font-black text-red-100"
+              >
+                Book Activity
+              </a>
+            ) : null}
+          </div>
+        )}
+
+        <button
+          onClick={backToResults}
+          className="rounded-2xl border border-white/15 px-5 py-3 text-xs font-black text-white"
+        >
+          Back to Results
+        </button>
       </div>
     </div>
   );
