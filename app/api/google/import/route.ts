@@ -178,24 +178,83 @@ function getPrimaryTag(place: any, type: "restaurant" | "activity") {
   const text = placeText(place);
 
   if (type === "restaurant") {
-    if (text.includes("steak")) return "steak";
-    if (text.includes("seafood")) return "seafood";
-    if (text.includes("sushi")) return "sushi";
-    if (text.includes("italian")) return "italian";
-    if (text.includes("mexican")) return "mexican";
-    if (text.includes("caribbean")) return "caribbean";
+    if (text.includes("steakhouse") || text.includes("steak")) return "steak";
+
+    if (
+      text.includes("seafood") ||
+      text.includes("fish") ||
+      text.includes("crab") ||
+      text.includes("lobster") ||
+      text.includes("oyster")
+    ) {
+      return "seafood";
+    }
+
+    if (text.includes("sushi") || text.includes("omakase")) return "sushi";
+    if (text.includes("ramen")) return "ramen";
+    if (text.includes("japanese") || text.includes("izakaya")) return "japanese";
+    if (text.includes("korean") || text.includes("kbbq")) return "korean";
+    if (text.includes("thai")) return "thai";
+    if (text.includes("vietnamese") || text.includes("pho")) return "vietnamese";
+
+    if (
+      text.includes("chinese") ||
+      text.includes("dim sum") ||
+      text.includes("szechuan") ||
+      text.includes("sichuan")
+    ) {
+      return "chinese";
+    }
+
+    if (text.includes("indian")) return "indian";
+    if (text.includes("italian") || text.includes("pizza") || text.includes("pasta")) return "italian";
+    if (text.includes("mexican") || text.includes("taco") || text.includes("taqueria")) return "mexican";
+    if (text.includes("peruvian")) return "peruvian";
+    if (text.includes("dominican")) return "dominican";
+    if (text.includes("puerto rican")) return "puerto_rican";
+    if (text.includes("cuban")) return "cuban";
     if (text.includes("jamaican")) return "jamaican";
-    if (text.includes("bbq") || text.includes("barbecue")) return "bbq";
-    if (text.includes("brunch")) return "brunch";
+    if (text.includes("haitian")) return "haitian";
+    if (text.includes("caribbean") || text.includes("west indian")) return "caribbean";
+    if (text.includes("latin") || text.includes("spanish")) return "latin";
+
+    if (text.includes("soul food") || text.includes("southern")) return "soul_food";
+
+    if (
+      text.includes("bbq") ||
+      text.includes("barbecue") ||
+      text.includes("smokehouse")
+    ) {
+      return "bbq";
+    }
+
+    if (text.includes("burger")) return "burgers";
+    if (text.includes("wings")) return "wings";
+    if (text.includes("chicken")) return "chicken";
+
+    if (text.includes("vegan")) return "vegan";
+    if (text.includes("vegetarian")) return "vegetarian";
+    if (text.includes("halal")) return "halal";
+    if (text.includes("kosher")) return "kosher";
+
+    if (text.includes("brunch") || text.includes("breakfast")) return "brunch";
+    if (text.includes("bakery") || text.includes("bake shop")) return "bakery";
+
+    if (
+      text.includes("dessert") ||
+      text.includes("ice cream") ||
+      text.includes("gelato")
+    ) {
+      return "dessert";
+    }
+
     if (text.includes("cafe") || text.includes("coffee")) return "cafe";
+
     if (text.includes("rooftop")) return "rooftop";
-    if (text.includes("lounge")) return "lounge";
-    if (text.includes("bar")) return "bar";
-    if (text.includes("fine dining") || text.includes("upscale")) return "luxury";
-    if (text.includes("romantic")) return "romantic";
-    if (text.includes("date")) return "date";
     if (text.includes("hookah") || text.includes("shisha")) return "hookah";
     if (text.includes("cigar")) return "cigar";
+    if (text.includes("lounge")) return "lounge";
+    if (text.includes("bar")) return "bar";
 
     return "restaurant";
   }
@@ -209,6 +268,8 @@ function getPrimaryTag(place: any, type: "restaurant" | "activity") {
   if (text.includes("comedy")) return "comedy";
   if (text.includes("jazz") || text.includes("live music")) return "live_music";
   if (text.includes("museum")) return "museum";
+  if (text.includes("gallery") || text.includes("art")) return "art_gallery";
+  if (text.includes("theater") || text.includes("theatre")) return "theater";
   if (text.includes("nightclub") || text.includes("club")) return "nightlife";
   if (text.includes("hookah") || text.includes("shisha")) return "hookah";
   if (text.includes("cigar")) return "cigar";
@@ -693,13 +754,15 @@ async function importRestaurant(place: any) {
     place.formatted_address || place.vicinity || null
   );
 
+  const primaryTag = getPrimaryTag(place, "restaurant");
+
   const { error } = await supabaseAdmin.from("restaurants").insert({
     restaurant_name: place.name,
     address: addressParts.fullAddress,
     city: addressParts.city,
     state: addressParts.state,
     zip_code: addressParts.zipCode,
-    cuisine: place.types?.join(", ") || null,
+    cuisine: primaryTag || "restaurant",
     rating: place.rating || 0,
     review_count: getReviewCount(place),
     google_place_id: place.place_id,
@@ -711,7 +774,7 @@ async function importRestaurant(place: any) {
     view_count: 0,
     click_count: 0,
     claim_count: 0,
-    primary_tag: getPrimaryTag(place, "restaurant"),
+    primary_tag: primaryTag || "restaurant",
     search_keywords: buildSearchKeywords(place, "restaurant"),
     ...scores,
     ...claimQr,
@@ -819,6 +882,35 @@ const geoAreas = [
   { name: "Fort Lee", lat: 40.8509, lng: -73.9701 },
   { name: "Newark", lat: 40.7357, lng: -74.1724 },
 ];
+
+const rotatingBatches: ImportBatch[] = [
+  "core",
+  "date",
+  "birthday",
+  "brunch",
+  "luxury",
+  "nightlife",
+  "fun",
+  "culture",
+  "outdoor",
+];
+
+function getDayOfYear() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  return Math.floor(diff / 86400000);
+}
+
+function getRotatingAreaName() {
+  const day = getDayOfYear();
+  return geoAreas[day % geoAreas.length]?.name || "Queens";
+}
+
+function getRotatingBatch() {
+  const day = getDayOfYear();
+  return rotatingBatches[day % rotatingBatches.length] || "core";
+}
 
 const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
   core: ["restaurants", "best restaurants", "top rated restaurants", "new restaurants", "popular restaurants", "local restaurants", "must try restaurants", "highly rated restaurants"],
@@ -1071,7 +1163,11 @@ export async function GET(request: NextRequest) {
     const params = request.nextUrl.searchParams;
 
     const requestType = normalizeRequestType(params.get("type"));
-    const batch = normalizeBatch(params.get("batch"));
+
+    const batch = params.get("batch")
+      ? normalizeBatch(params.get("batch"))
+      : getRotatingBatch();
+
     const limit = Math.min(Number(params.get("limit") || 50), 500);
 
     const lat = params.get("lat") ? Number(params.get("lat")) : undefined;
@@ -1081,9 +1177,12 @@ export async function GET(request: NextRequest) {
     const mode: ImportMode = lat && lng ? "nearby" : "text";
 
     const areaParams = params.getAll("area");
+
     const areas = areaParams.length
       ? areaParams
-      : parseAreas(params.get("areas"));
+      : params.get("areas")
+        ? parseAreas(params.get("areas"))
+        : [getRotatingAreaName()];
 
     const queryParams = params.getAll("query");
 
@@ -1126,20 +1225,19 @@ export async function GET(request: NextRequest) {
         mode,
         type: "both",
         batch,
+        areas,
         requested_limit: limit,
         balance: {
           restaurant_limit: restaurantLimit,
           activity_limit: activityLimit,
         },
-        imported:
-          restaurantResult.imported + activityResult.imported,
-        skipped:
-          restaurantResult.skipped + activityResult.skipped,
-        failed:
-          restaurantResult.failed + activityResult.failed,
+        imported: restaurantResult.imported + activityResult.imported,
+        skipped: restaurantResult.skipped + activityResult.skipped,
+        failed: restaurantResult.failed + activityResult.failed,
         restaurant: restaurantResult,
         activity: activityResult,
         smart_filtering: true,
+        rotation_enabled: true,
       };
 
       await logImportRun(result);
@@ -1162,9 +1260,15 @@ export async function GET(request: NextRequest) {
       batch,
     });
 
-    await logImportRun(result);
+    const finalResult = {
+      ...result,
+      areas,
+      rotation_enabled: !params.get("areas") && !areaParams.length,
+    };
 
-    return NextResponse.json(result);
+    await logImportRun(finalResult);
+
+    return NextResponse.json(finalResult);
   } catch (error: any) {
     await logImportRun(null, error.message || "Import failed");
 
@@ -1184,7 +1288,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
 
     const requestType = normalizeRequestType(body.type);
-    const batch = normalizeBatch(body.batch);
+    const batch = body.batch ? normalizeBatch(body.batch) : getRotatingBatch();
+
     const limit = Math.min(Number(body.limit || 50), 500);
 
     const lat = body.lat ? Number(body.lat) : undefined;
@@ -1192,7 +1297,11 @@ export async function POST(request: NextRequest) {
     const radius = body.radius ? Number(body.radius) : 10000;
 
     const mode: ImportMode = lat && lng ? "nearby" : "text";
-    const areas = parseAreas(body.areas || body.area);
+
+    const areas =
+      body.areas || body.area
+        ? parseAreas(body.areas || body.area)
+        : [getRotatingAreaName()];
 
     if (requestType === "both") {
       const restaurantLimit = Math.ceil(limit / 2);
@@ -1239,20 +1348,19 @@ export async function POST(request: NextRequest) {
         mode,
         type: "both",
         batch,
+        areas,
         requested_limit: limit,
         balance: {
           restaurant_limit: restaurantLimit,
           activity_limit: activityLimit,
         },
-        imported:
-          restaurantResult.imported + activityResult.imported,
-        skipped:
-          restaurantResult.skipped + activityResult.skipped,
-        failed:
-          restaurantResult.failed + activityResult.failed,
+        imported: restaurantResult.imported + activityResult.imported,
+        skipped: restaurantResult.skipped + activityResult.skipped,
+        failed: restaurantResult.failed + activityResult.failed,
         restaurant: restaurantResult,
         activity: activityResult,
         smart_filtering: true,
+        rotation_enabled: true,
       };
 
       await logImportRun(result);
@@ -1278,9 +1386,15 @@ export async function POST(request: NextRequest) {
       batch,
     });
 
-    await logImportRun(result);
+    const finalResult = {
+      ...result,
+      areas,
+      rotation_enabled: !(body.areas || body.area),
+    };
 
-    return NextResponse.json(result);
+    await logImportRun(finalResult);
+
+    return NextResponse.json(finalResult);
   } catch (error: any) {
     await logImportRun(null, error.message || "Import failed");
 
