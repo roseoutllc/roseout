@@ -31,44 +31,71 @@ function normalizeStatus(value: string) {
   return allowedStatuses.includes(status) ? status : "";
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const body = await request.json();
 
-    const locationId = cleanString(searchParams.get("locationId"));
+    const reservationId = cleanString(body.reservation_id);
+    const locationId = cleanString(body.location_id);
     const locationType = normalizeType(
-      cleanString(searchParams.get("type")) || "restaurant"
+      cleanString(body.location_type) || "restaurant"
     );
-    const status = normalizeStatus(cleanString(searchParams.get("status")));
+    const status = normalizeStatus(cleanString(body.status));
 
-    if (!locationId) {
+    if (!reservationId) {
       return NextResponse.json(
-        { error: "Missing locationId." },
+        { error: "Missing reservation ID." },
         { status: 400 }
       );
     }
 
-    let query = supabaseAdmin
-      .from("location_reservations")
-      .select("*")
-      .eq("location_id", locationId)
-      .eq("location_type", locationType)
-      .order("reservation_date", { ascending: true })
-      .order("reservation_time", { ascending: true })
-      .order("created_at", { ascending: false });
-
-    if (status) {
-      query = query.eq("status", status);
+    if (!locationId) {
+      return NextResponse.json(
+        { error: "Missing location ID." },
+        { status: 400 }
+      );
     }
 
-    const { data, error } = await query;
+    if (!status) {
+      return NextResponse.json(
+        { error: "Invalid reservation status." },
+        { status: 400 }
+      );
+    }
+
+    const updatePayload: any = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status === "arrived") {
+      updatePayload.arrived_at = new Date().toISOString();
+    }
+
+    if (status === "completed") {
+      updatePayload.completed_at = new Date().toISOString();
+    }
+
+    if (status === "cancelled") {
+      updatePayload.customer_cancelled_at = new Date().toISOString();
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("location_reservations")
+      .update(updatePayload)
+      .eq("id", reservationId)
+      .eq("location_id", locationId)
+      .eq("location_type", locationType)
+      .select("*")
+      .single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({
-      reservations: data || [],
+      success: true,
+      reservation: data,
     });
   } catch (error: any) {
     return NextResponse.json(
