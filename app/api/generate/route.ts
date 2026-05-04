@@ -1179,15 +1179,6 @@ const mergedLocations = [
   })),
 ];
 
-    const mergedLocations = [
-      ...(locationsData || []),
-      ...(activitiesData || []).map((activity: any) => ({
-        ...activity,
-        location_type: "activity",
-        name: activity.activity_name || activity.name,
-        activity_name: activity.activity_name || activity.name,
-      })),
-    ];
 
     const locations = mergedLocations.map(normalizeLocation);
     const intent = detectIntent(input, body, locations);
