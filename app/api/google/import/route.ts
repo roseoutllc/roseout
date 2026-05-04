@@ -217,6 +217,7 @@ function getPrimaryTag(place: any, type: "restaurant" | "activity") {
     if (text.includes("caribbean") || text.includes("west indian")) return "caribbean";
     if (text.includes("latin") || text.includes("spanish")) return "latin";
     if (text.includes("soul food") || text.includes("southern")) return "soul_food";
+
     if (
       text.includes("bbq") ||
       text.includes("barbecue") ||
@@ -628,9 +629,7 @@ async function fetchGooglePlacesPaged(query: string, limit: number) {
   let tokenRetryCount = 0;
 
   while (allPlaces.length < limit) {
-    const url = new URL(
-      "https://maps.googleapis.com/maps/api/place/textsearch/json"
-    );
+    const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
 
     url.searchParams.set("key", apiKey);
 
@@ -695,9 +694,7 @@ async function fetchGoogleNearbySearch({
   let tokenRetryCount = 0;
 
   while (allPlaces.length < limit) {
-    const url = new URL(
-      "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-    );
+    const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
 
     url.searchParams.set("key", apiKey);
 
@@ -835,11 +832,6 @@ async function importActivity(place: any) {
   return { imported: true, skipped: false };
 }
 
-// KEEP YOUR geoAreas, rotatingBatches, restaurantCategoryBatches,
-// activityCategoryBatches, normalizeBatch, normalizeRequestType,
-// getCategories, parseAreas, getAreas, defaultQueries,
-// runImport, GET, and POST exactly as they are below this point.
-
 const geoAreas = [
   { name: "Manhattan", lat: 40.7831, lng: -73.9712 },
   { name: "Brooklyn", lat: 40.6782, lng: -73.9442 },
@@ -892,6 +884,40 @@ const geoAreas = [
   { name: "Fort Lee", lat: 40.8509, lng: -73.9701 },
   { name: "Newark", lat: 40.7357, lng: -74.1724 },
 ];
+
+const rotatingBatches: ImportBatch[] = [
+  "core",
+  "date",
+  "birthday",
+  "brunch",
+  "luxury",
+  "nightlife",
+  "cuisine",
+  "casual",
+  "fun",
+  "culture",
+  "outdoor",
+];
+
+function getDayOfYear() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+
+  return Math.floor(diff / 86400000);
+}
+
+function getRotatingAreaName() {
+  const day = getDayOfYear();
+
+  return geoAreas[day % geoAreas.length]?.name || "Queens";
+}
+
+function getRotatingBatch() {
+  const day = getDayOfYear();
+
+  return rotatingBatches[day % rotatingBatches.length] || "core";
+}
 
 const rotatingBatches: ImportBatch[] = [
   "core",
