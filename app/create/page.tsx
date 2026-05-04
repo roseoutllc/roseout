@@ -458,20 +458,7 @@ export default function CreatePage() {
                   borough, mood, and outing style.
                 </p>
                 <div className="mt-8 max-w-xl rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
-  <div className="flex items-center justify-between gap-4">
-    <div>
-      <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
-        Popular right now
-      </p>
-      <h3 className="mt-2 text-xl font-black text-white">
-        What people are searching
-      </h3>
-    </div>
 
-    <span className="rounded-full bg-[#e1062a]/15 px-3 py-1 text-xs font-black text-red-100">
-      Live ideas
-    </span>
-  </div>
 
   <div className="mt-5 grid gap-2">
     {[
