@@ -12,7 +12,6 @@ import {
   CalendarCheck,
   Check,
   Crown,
-  Globe,
   LockKeyhole,
   Mail,
   MapPin,
@@ -47,10 +46,6 @@ const trustPoints = [
 
 export default function CheckoutInfoPage() {
   const [googleReady, setGoogleReady] = useState(false);
-
-  const [phone, setPhone] = useState("");
-  const [website, setWebsite] = useState("");
-
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -150,8 +145,8 @@ export default function CheckoutInfoPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">
-            Select your location address, auto-fill business details from
-            Google, create a secure password, then continue to Stripe checkout.
+            Enter your business details, select your location address, create a
+            secure password, then continue to Stripe checkout.
           </p>
         </div>
 
@@ -170,8 +165,8 @@ export default function CheckoutInfoPage() {
                   Set up your RoseOut Pro profile
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  Choose your location from Google to auto-fill phone, website,
-                  photo references, and detect duplicates.
+                  Choose your location address from Google to improve accuracy
+                  and help avoid duplicate listings.
                 </p>
               </div>
             </div>
@@ -187,11 +182,7 @@ export default function CheckoutInfoPage() {
                 required
               />
 
-              <GoogleLocationAddressField
-                googleReady={googleReady}
-                onPhoneFound={setPhone}
-                onWebsiteFound={setWebsite}
-              />
+              <GoogleLocationAddressField googleReady={googleReady} />
 
               <Field
                 icon={User}
@@ -211,27 +202,15 @@ export default function CheckoutInfoPage() {
                   required
                 />
 
-                <ControlledField
+                <Field
                   icon={Phone}
                   label="Business Phone"
                   name="phone"
                   type="tel"
-                  placeholder="Auto-filled from Google when available"
-                  value={phone}
-                  onChange={setPhone}
+                  placeholder="(555) 555-5555"
                   required
                 />
               </div>
-
-              <ControlledField
-                icon={Globe}
-                label="Website"
-                name="website"
-                type="url"
-                placeholder="Auto-filled from Google when available"
-                value={website}
-                onChange={setWebsite}
-              />
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-zinc-300">
@@ -440,14 +419,14 @@ export default function CheckoutInfoPage() {
               </h3>
 
               <div className="mt-6 space-y-5">
-                <Step number="01" title="Choose location address">
-                  Google can auto-fill phone, website, photo references, and
-                  place ID for cleaner data.
+                <Step number="01" title="Enter business details">
+                  Add your business name, location address, owner contact, email,
+                  phone, and business type.
                 </Step>
 
-                <Step number="02" title="Duplicate check">
-                  If this location already exists in your database, RoseOut can
-                  route the owner to claim or upgrade it instead.
+                <Step number="02" title="Create account password">
+                  Your password must include uppercase, lowercase, number,
+                  special character, and at least 8 characters.
                 </Step>
 
                 <Step number="03" title="Complete Stripe checkout">
@@ -501,15 +480,7 @@ export default function CheckoutInfoPage() {
   );
 }
 
-function GoogleLocationAddressField({
-  googleReady,
-  onPhoneFound,
-  onWebsiteFound,
-}: {
-  googleReady: boolean;
-  onPhoneFound: (value: string) => void;
-  onWebsiteFound: (value: string) => void;
-}) {
+function GoogleLocationAddressField({ googleReady }: { googleReady: boolean }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const [displayAddress, setDisplayAddress] = useState("");
@@ -517,10 +488,6 @@ function GoogleLocationAddressField({
   const [googlePlaceId, setGooglePlaceId] = useState("");
   const [googlePlaceName, setGooglePlaceName] = useState("");
   const [photoRefs, setPhotoRefs] = useState<string[]>([]);
-  const [duplicateStatus, setDuplicateStatus] = useState<
-    "idle" | "checking" | "found" | "clear" | "error"
-  >("idle");
-  const [duplicateMessage, setDuplicateMessage] = useState("");
 
   useEffect(() => {
     if (!googleReady) return;
@@ -532,27 +499,16 @@ function GoogleLocationAddressField({
       {
         types: ["establishment", "geocode"],
         componentRestrictions: { country: "us" },
-        fields: [
-          "formatted_address",
-          "place_id",
-          "name",
-          "international_phone_number",
-          "formatted_phone_number",
-          "website",
-          "photos",
-        ],
+        fields: ["formatted_address", "place_id", "name", "photos"],
       }
     );
 
-    const listener = autocomplete.addListener("place_changed", async () => {
+    const listener = autocomplete.addListener("place_changed", () => {
       const place = autocomplete.getPlace();
 
       const formattedAddress = place.formatted_address || "";
       const placeId = place.place_id || "";
       const placeName = place.name || "";
-      const phone =
-        place.international_phone_number || place.formatted_phone_number || "";
-      const website = place.website || "";
 
       const refs =
         place.photos
@@ -565,39 +521,6 @@ function GoogleLocationAddressField({
       setGooglePlaceId(placeId);
       setGooglePlaceName(placeName);
       setPhotoRefs(refs);
-
-      if (phone) onPhoneFound(phone);
-      if (website) onWebsiteFound(website);
-
-      if (placeId) {
-        setDuplicateStatus("checking");
-        setDuplicateMessage("Checking if this location already exists...");
-
-        try {
-          const response = await fetch(
-            `/api/locations/check-existing?google_place_id=${encodeURIComponent(
-              placeId
-            )}`
-          );
-
-          const data = await response.json();
-
-          if (data?.exists) {
-            setDuplicateStatus("found");
-            setDuplicateMessage(
-              "This location may already exist in RoseOut. You can continue, but this should be handled as a claim or upgrade."
-            );
-          } else {
-            setDuplicateStatus("clear");
-            setDuplicateMessage("No matching location found in your database.");
-          }
-        } catch {
-          setDuplicateStatus("error");
-          setDuplicateMessage(
-            "Could not check your database right now, but you can still continue."
-          );
-        }
-      }
     });
 
     return () => {
@@ -605,7 +528,7 @@ function GoogleLocationAddressField({
         window.google.maps.event.removeListener(listener);
       }
     };
-  }, [googleReady, onPhoneFound, onWebsiteFound]);
+  }, [googleReady]);
 
   return (
     <div>
@@ -625,56 +548,22 @@ function GoogleLocationAddressField({
             setGooglePlaceId("");
             setGooglePlaceName("");
             setPhotoRefs([]);
-            setDuplicateStatus("idle");
-            setDuplicateMessage("");
           }}
           required
           placeholder={
             googleReady
               ? "Start typing the location address..."
-              : "Loading Google address search..."
+              : "Loading address search..."
           }
           className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
         />
       </div>
 
       <p className="mt-2 text-xs leading-5 text-zinc-500">
-        Select the correct address from Google so RoseOut can auto-fill phone,
-        website, photos, and detect duplicate listings.
+        Select the correct address from Google to improve listing accuracy.
       </p>
 
-      {googlePlaceName && (
-        <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4">
-          <p className="text-sm font-bold text-rose-200">
-            Google match: {googlePlaceName}
-          </p>
-          <p className="mt-1 text-xs text-zinc-400">{address}</p>
-          {photoRefs.length > 0 && (
-            <p className="mt-2 text-xs text-zinc-500">
-              {photoRefs.length} Google photo reference
-              {photoRefs.length === 1 ? "" : "s"} captured.
-            </p>
-          )}
-        </div>
-      )}
-
-      {duplicateMessage && (
-        <div
-          className={`mt-3 rounded-2xl border p-4 text-sm font-semibold ${
-            duplicateStatus === "found"
-              ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-200"
-              : duplicateStatus === "clear"
-              ? "border-green-500/30 bg-green-500/10 text-green-300"
-              : duplicateStatus === "error"
-              ? "border-red-500/30 bg-red-500/10 text-red-300"
-              : "border-white/10 bg-white/[0.04] text-zinc-400"
-          }`}
-        >
-          {duplicateMessage}
-        </div>
-      )}
-
-      <input type="hidden" name="address" value={address} />
+      <input type="hidden" name="address" value={address || displayAddress} />
       <input type="hidden" name="google_place_id" value={googlePlaceId} />
       <input type="hidden" name="google_place_name" value={googlePlaceName} />
       <input
@@ -713,47 +602,6 @@ function Field({
           type={type}
           name={name}
           required={required}
-          placeholder={placeholder}
-          className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
-        />
-      </div>
-    </div>
-  );
-}
-
-function ControlledField({
-  icon: Icon,
-  label,
-  name,
-  placeholder,
-  value,
-  onChange,
-  type = "text",
-  required = false,
-}: {
-  icon: React.ElementType;
-  label: string;
-  name: string;
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-  required?: boolean;
-}) {
-  return (
-    <div>
-      <label className="mb-2 block text-sm font-semibold text-zinc-300">
-        {label}
-      </label>
-
-      <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-4 transition focus-within:border-rose-400/60">
-        <Icon className="h-5 w-5 shrink-0 text-rose-300" />
-        <input
-          type={type}
-          name={name}
-          required={required}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
         />
