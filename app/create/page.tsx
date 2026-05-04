@@ -457,6 +457,40 @@ export default function CreatePage() {
                   Type naturally. RoseOut understands your vibe, budget,
                   borough, mood, and outing style.
                 </p>
+                <div className="mt-8 max-w-xl rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
+  <div className="flex items-center justify-between gap-4">
+    <div>
+      <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
+        Popular right now
+      </p>
+      <h3 className="mt-2 text-xl font-black text-white">
+        What people are searching
+      </h3>
+    </div>
+
+    <span className="rounded-full bg-[#e1062a]/15 px-3 py-1 text-xs font-black text-red-100">
+      Live ideas
+    </span>
+  </div>
+
+  <div className="mt-5 grid gap-2">
+    {[
+      "Steak dinner and karaoke in Manhattan",
+      "Romantic dinner in Brooklyn",
+      "Birthday dinner with lounge vibes",
+      "Affordable date night in Queens",
+    ].map((search) => (
+      <button
+        key={search}
+        type="button"
+        onClick={() => sendMessage(search)}
+        className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-left text-sm font-bold text-white/60 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"
+      >
+        {search}
+      </button>
+    ))}
+  </div>
+</div>
               </div>
 
               <div className="w-full max-w-full rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur">
@@ -512,8 +546,6 @@ export default function CreatePage() {
                     {locationSaved ? "✓ Location Saved" : "Use My Location"}
                   </button>
                 </div>
-
-                <SearchInspirationPanel onPick={(value) => sendMessage(value)} />
               </div>
             </div>
           )}
