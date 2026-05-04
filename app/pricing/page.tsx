@@ -122,9 +122,12 @@ export default function PricingPage() {
 
             <form action="/api/checkout" method="POST">
               <input type="hidden" name="plan" value="pro" />
-              <button className="mt-6 w-full bg-rose-600 py-3 rounded-lg hover:bg-rose-500">
-                Upgrade to Pro
-              </button>
+             <Link
+  href="/checkout"
+  className="block rounded-2xl bg-rose-600 px-5 py-4 text-center text-sm font-black text-white shadow-[0_0_35px_rgba(225,29,72,0.35)] transition hover:bg-rose-500"
+>
+  Upgrade to Pro
+</Link>
             </form>
 
             <ul className="mt-6 space-y-3">
