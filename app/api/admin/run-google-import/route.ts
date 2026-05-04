@@ -1,40 +1,53 @@
-import { NextRequest, NextResponse } from "next/server";
+async function importRestaurant(place: any) {
+  const { data: existing } = await supabaseAdmin
+    .from("restaurants")
+    .select("id")
+    .eq("google_place_id", place.place_id)
+    .maybeSingle();
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+  if (existing) return { imported: false, skipped: true };
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json().catch(() => ({}));
+  const claimQr = await createClaimQr("restaurant");
+  const scores = calculateImportScores(place);
 
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://roseout.vercel.app";
+  const addressParts = parseAddressParts(
+    place.formatted_address || place.vicinity || null
+  );
 
-    const url = new URL("/api/google/import", siteUrl);
+  const primaryTag = getPrimaryTag(place, "restaurant");
 
-    url.searchParams.set("type", body.type || "both");
-    url.searchParams.set("limit", String(body.limit || 10));
-    url.searchParams.set("batch", body.batch || "fun");
+  const { error } = await supabaseAdmin.from("restaurants").insert({
+    restaurant_name: place.name,
+    address: addressParts.fullAddress,
+    city: addressParts.city,
+    state: addressParts.state,
+    zip_code: addressParts.zipCode,
 
-    if (body.areas) {
-      url.searchParams.set("areas", body.areas);
-    }
+    // ✅ FIXED: clean cuisine instead of Google junk types
+    cuisine: primaryTag || "restaurant",
 
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${process.env.CRON_SECRET}`,
-      },
-      cache: "no-store",
-    });
+    rating: place.rating || 0,
+    review_count: getReviewCount(place),
+    google_place_id: place.place_id,
+    image_url: googlePhotoUrl(place),
+    latitude: place.geometry?.location?.lat || null,
+    longitude: place.geometry?.location?.lng || null,
 
-    const data = await response.json();
+    status: "approved",
+    claimed: false,
 
-    return NextResponse.json(data, { status: response.status });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Google import failed" },
-      { status: 500 }
-    );
-  }
+    view_count: 0,
+    click_count: 0,
+    claim_count: 0,
+
+    primary_tag: primaryTag,
+    search_keywords: buildSearchKeywords(place, "restaurant"),
+
+    ...scores,
+    ...claimQr,
+  });
+
+  if (error) throw new Error(error.message);
+
+  return { imported: true, skipped: false };
 }
