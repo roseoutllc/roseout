@@ -174,22 +174,11 @@ function googlePhotoUrl(place: any) {
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${ref}&key=${apiKey}`;
 }
 
-function getCuisineFromPlace(place: any) {
-  const tag = getPrimaryTag(place, "restaurant");
-
-  const genericTags = ["restaurant", "bar", "cafe", "lounge", "rooftop"];
-
-  if (!tag || genericTags.includes(tag)) {
-    return null;
-  }
-
-  return tag;
-}
+function getPrimaryTag(place: any, type: "restaurant" | "activity") {
   const text = placeText(place);
 
   if (type === "restaurant") {
     if (text.includes("steakhouse") || text.includes("steak")) return "steak";
-
     if (
       text.includes("seafood") ||
       text.includes("fish") ||
@@ -227,9 +216,7 @@ function getCuisineFromPlace(place: any) {
     if (text.includes("haitian")) return "haitian";
     if (text.includes("caribbean") || text.includes("west indian")) return "caribbean";
     if (text.includes("latin") || text.includes("spanish")) return "latin";
-
     if (text.includes("soul food") || text.includes("southern")) return "soul_food";
-
     if (
       text.includes("bbq") ||
       text.includes("barbecue") ||
@@ -241,12 +228,10 @@ function getCuisineFromPlace(place: any) {
     if (text.includes("burger")) return "burgers";
     if (text.includes("wings")) return "wings";
     if (text.includes("chicken")) return "chicken";
-
     if (text.includes("vegan")) return "vegan";
     if (text.includes("vegetarian")) return "vegetarian";
     if (text.includes("halal")) return "halal";
     if (text.includes("kosher")) return "kosher";
-
     if (text.includes("brunch") || text.includes("breakfast")) return "brunch";
     if (text.includes("bakery") || text.includes("bake shop")) return "bakery";
 
@@ -259,7 +244,6 @@ function getCuisineFromPlace(place: any) {
     }
 
     if (text.includes("cafe") || text.includes("coffee")) return "cafe";
-
     if (text.includes("rooftop")) return "rooftop";
     if (text.includes("hookah") || text.includes("shisha")) return "hookah";
     if (text.includes("cigar")) return "cigar";
@@ -285,6 +269,17 @@ function getCuisineFromPlace(place: any) {
   if (text.includes("cigar")) return "cigar";
 
   return "activity";
+}
+
+function getCuisineFromPlace(place: any) {
+  const tag = getPrimaryTag(place, "restaurant");
+  const genericTags = ["restaurant", "bar", "cafe", "lounge", "rooftop"];
+
+  if (!tag || genericTags.includes(tag)) {
+    return null;
+  }
+
+  return tag;
 }
 
 function buildSearchKeywords(place: any, type: ImportType) {
@@ -839,6 +834,11 @@ async function importActivity(place: any) {
 
   return { imported: true, skipped: false };
 }
+
+// KEEP YOUR geoAreas, rotatingBatches, restaurantCategoryBatches,
+// activityCategoryBatches, normalizeBatch, normalizeRequestType,
+// getCategories, parseAreas, getAreas, defaultQueries,
+// runImport, GET, and POST exactly as they are below this point.
 
 const geoAreas = [
   { name: "Manhattan", lat: 40.7831, lng: -73.9712 },
