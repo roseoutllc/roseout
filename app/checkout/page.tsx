@@ -25,6 +25,7 @@ import {
 declare global {
   interface Window {
     google?: any;
+    turnstile?: any;
   }
 }
 
@@ -46,6 +47,10 @@ const trustPoints = [
 
 export default function CheckoutInfoPage() {
   const [googleReady, setGoogleReady] = useState(false);
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const turnstileRef = useRef<HTMLDivElement | null>(null);
+  const hasRenderedTurnstile = useRef(false);
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -93,6 +98,23 @@ export default function CheckoutInfoPage() {
       ? "bg-yellow-400"
       : "bg-green-500";
 
+  useEffect(() => {
+    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+    if (!turnstileReady) return;
+    if (!siteKey) return;
+    if (!window.turnstile) return;
+    if (!turnstileRef.current) return;
+    if (hasRenderedTurnstile.current) return;
+
+    window.turnstile.render(turnstileRef.current, {
+      sitekey: siteKey,
+      theme: "dark",
+    });
+
+    hasRenderedTurnstile.current = true;
+  }, [turnstileReady]);
+
   return (
     <main className="min-h-screen overflow-hidden bg-[#050505] text-white">
       <Script
@@ -104,9 +126,9 @@ export default function CheckoutInfoPage() {
       />
 
       <Script
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-        async
-        defer
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        strategy="afterInteractive"
+        onLoad={() => setTurnstileReady(true)}
       />
 
       <div className="pointer-events-none fixed inset-0">
@@ -340,13 +362,7 @@ export default function CheckoutInfoPage() {
                   Complete the captcha before continuing to checkout.
                 </p>
 
-                <div
-                  className="cf-turnstile"
-                  data-sitekey={
-                    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
-                  }
-                  data-theme="dark"
-                />
+                <div ref={turnstileRef} />
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
@@ -420,8 +436,8 @@ export default function CheckoutInfoPage() {
 
               <div className="mt-6 space-y-5">
                 <Step number="01" title="Enter business details">
-                  Add your business name, location address, owner contact, email,
-                  phone, and business type.
+                  Add your business name, location address, owner contact,
+                  email, phone, and business type.
                 </Step>
 
                 <Step number="02" title="Create account password">
