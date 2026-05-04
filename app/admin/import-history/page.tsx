@@ -17,27 +17,27 @@ function getNumber(value: any) {
 }
 
 function getImported(meta: any) {
-  return getNumber(
-    meta?.imported ??
-      meta?.restaurant?.imported + meta?.activity?.imported ??
-      0
-  );
+  if (meta?.imported !== undefined && meta?.imported !== null) {
+    return getNumber(meta.imported);
+  }
+
+  return getNumber(meta?.restaurant?.imported) + getNumber(meta?.activity?.imported);
 }
 
 function getSkipped(meta: any) {
-  return getNumber(
-    meta?.skipped ??
-      meta?.restaurant?.skipped + meta?.activity?.skipped ??
-      0
-  );
+  if (meta?.skipped !== undefined && meta?.skipped !== null) {
+    return getNumber(meta.skipped);
+  }
+
+  return getNumber(meta?.restaurant?.skipped) + getNumber(meta?.activity?.skipped);
 }
 
 function getFailed(meta: any) {
-  return getNumber(
-    meta?.failed ??
-      meta?.restaurant?.failed + meta?.activity?.failed ??
-      0
-  );
+  if (meta?.failed !== undefined && meta?.failed !== null) {
+    return getNumber(meta.failed);
+  }
+
+  return getNumber(meta?.restaurant?.failed) + getNumber(meta?.activity?.failed);
 }
 
 function getFound(meta: any) {
