@@ -3,6 +3,17 @@ import { requireAdminRole } from "@/lib/admin-auth";
 import { supabase } from "@/lib/supabase";
 import ReserveLiveRefresh from "@/components/ReserveLiveRefresh";
 
+type ReservationItem = {
+  id: string;
+  name: string | null;
+  party_size: number | null;
+  reservation_time: string;
+  status: string | null;
+  duration_minutes: number | null;
+  location_id: string | null;
+  location_type: string | null;
+};
+
 function formatNumber(value: number | null | undefined) {
   return Number(value || 0).toLocaleString();
 }
@@ -44,6 +55,16 @@ function getReservationDay(value: string) {
   return new Date(value).toISOString().split("T")[0];
 }
 
+function getDuration(
+  reservation: ReservationItem,
+  durationMap: Record<string, number>
+) {
+  if (reservation.duration_minutes) return reservation.duration_minutes;
+
+  const key = `${reservation.location_type}:${reservation.location_id}`;
+  return durationMap[key] || 90;
+}
+
 export default async function ReserveDashboardPage() {
   await requireAdminRole(["superuser", "admin", "editor", "viewer"]);
 
@@ -78,23 +99,58 @@ export default async function ReserveDashboardPage() {
 
   const { data: reservations } = await supabase
     .from("reservations")
-    .select("id, name, party_size, reservation_time, status, duration_minutes")
+    .select(
+      "id, name, party_size, reservation_time, status, duration_minutes, location_id, location_type"
+    )
     .gte("reservation_time", todayStart.toISOString())
     .lte("reservation_time", weekEnd.toISOString())
     .order("reservation_time", { ascending: true })
     .limit(40);
 
-  const todaysReservations =
-    reservations?.filter(
-      (item) =>
-        new Date(item.reservation_time) >= todayStart &&
-        new Date(item.reservation_time) <= todayEnd
-    ) || [];
+  const safeReservations = (reservations || []) as ReservationItem[];
+
+  const restaurantIds = safeReservations
+    .filter((item) => item.location_type === "restaurant" && item.location_id)
+    .map((item) => item.location_id as string);
+
+  const activityIds = safeReservations
+    .filter((item) => item.location_type === "activity" && item.location_id)
+    .map((item) => item.location_id as string);
+
+  const { data: restaurants } = restaurantIds.length
+    ? await supabase
+        .from("restaurants")
+        .select("id, default_duration_minutes")
+        .in("id", restaurantIds)
+    : { data: [] };
+
+  const { data: activities } = activityIds.length
+    ? await supabase
+        .from("activities")
+        .select("id, default_duration_minutes")
+        .in("id", activityIds)
+    : { data: [] };
+
+  const durationMap: Record<string, number> = {};
+
+  restaurants?.forEach((item) => {
+    durationMap[`restaurant:${item.id}`] = item.default_duration_minutes || 90;
+  });
+
+  activities?.forEach((item) => {
+    durationMap[`activity:${item.id}`] = item.default_duration_minutes || 90;
+  });
+
+  const todaysReservations = safeReservations.filter(
+    (item) =>
+      new Date(item.reservation_time) >= todayStart &&
+      new Date(item.reservation_time) <= todayEnd
+  );
 
   const capacityBookedNow = todaysReservations
     .filter((item) => {
       const reservationTime = new Date(item.reservation_time);
-      const duration = item.duration_minutes || 90;
+      const duration = getDuration(item, durationMap);
 
       const reservationEnd = new Date(
         reservationTime.getTime() + duration * 60000
@@ -113,13 +169,15 @@ export default async function ReserveDashboardPage() {
     (availableCapacitySlots / totalCapacitySlots) * 100
   );
 
-  const groupedByDay =
-    reservations?.reduce<Record<string, typeof reservations>>((acc, item) => {
+  const groupedByDay = safeReservations.reduce<Record<string, ReservationItem[]>>(
+    (acc, item) => {
       const key = getReservationDay(item.reservation_time);
       acc[key] = acc[key] || [];
       acc[key].push(item);
       return acc;
-    }, {}) || {};
+    },
+    {}
+  );
 
   return (
     <main className="min-h-screen bg-[#090706] px-4 pb-10 pt-4 text-white sm:px-6 lg:px-8">
@@ -188,7 +246,7 @@ export default async function ReserveDashboardPage() {
             <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
               Availability Open Now
             </p>
-            <p className="mt-2 text-3xl font-black text-white">
+            <p className="mt-2 text-3xl font-black">
               {availableCapacitySlots}/{totalCapacitySlots}
             </p>
           </div>
@@ -200,7 +258,7 @@ export default async function ReserveDashboardPage() {
               <div>
                 <h2 className="text-lg font-black">Today’s Booking Flow</h2>
                 <p className="mt-1 text-xs font-medium text-black/50">
-                  Estimated availability uses each booking’s duration window.
+                  Estimated availability uses each booking or location duration.
                 </p>
               </div>
 
@@ -225,7 +283,7 @@ export default async function ReserveDashboardPage() {
             ) : (
               <div className="divide-y divide-black/10">
                 {todaysReservations.slice(0, 10).map((item) => {
-                  const duration = item.duration_minutes || 90;
+                  const duration = getDuration(item, durationMap);
 
                   return (
                     <div
@@ -287,8 +345,7 @@ export default async function ReserveDashboardPage() {
               <div>
                 <h2 className="text-lg font-black">Live Availability</h2>
                 <p className="mt-1 text-xs text-white/45">
-                  Works for restaurants, lounges, activities, event spaces, and
-                  appointment-style reservations.
+                  Based on active bookings and location duration settings.
                 </p>
               </div>
 
@@ -331,11 +388,11 @@ export default async function ReserveDashboardPage() {
               </Link>
 
               <Link
-                href="/reserve/dashboard/reservations?filter=today"
+                href="/admin/activities"
                 className="rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-4 transition hover:bg-white/[0.1]"
               >
-                <p className="font-black">Service View</p>
-                <p className="mt-1 text-xs text-white/45">Today’s flow</p>
+                <p className="font-black">Location Durations</p>
+                <p className="mt-1 text-xs text-white/45">Edit defaults</p>
               </Link>
             </div>
           </div>
@@ -358,7 +415,7 @@ export default async function ReserveDashboardPage() {
             </Link>
           </div>
 
-          {!reservations?.length ? (
+          {!safeReservations.length ? (
             <div className="p-12 text-center">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-2xl">
                 📅
@@ -384,7 +441,7 @@ export default async function ReserveDashboardPage() {
 
                   <div className="space-y-2">
                     {items.slice(0, 5).map((item) => {
-                      const duration = item.duration_minutes || 90;
+                      const duration = getDuration(item, durationMap);
                       const capacity = estimateCapacityNeeded(item.party_size);
 
                       return (
