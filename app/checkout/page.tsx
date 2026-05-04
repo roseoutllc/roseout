@@ -12,6 +12,7 @@ import {
   CalendarCheck,
   Check,
   Crown,
+  Globe,
   LockKeyhole,
   Mail,
   MapPin,
@@ -45,6 +46,11 @@ const trustPoints = [
 ];
 
 export default function CheckoutInfoPage() {
+  const [googleReady, setGoogleReady] = useState(false);
+
+  const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState("");
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -99,6 +105,7 @@ export default function CheckoutInfoPage() {
           process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
         }&libraries=places`}
         strategy="afterInteractive"
+        onLoad={() => setGoogleReady(true)}
       />
 
       <Script
@@ -111,7 +118,6 @@ export default function CheckoutInfoPage() {
         <div className="absolute left-1/2 top-[-180px] h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-rose-700/25 blur-[140px]" />
         <div className="absolute bottom-[-180px] right-[-120px] h-[420px] w-[420px] rounded-full bg-red-900/20 blur-[130px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_38%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.04),transparent_22%,rgba(0,0,0,0.6))]" />
       </div>
 
       <section className="relative mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-12">
@@ -131,7 +137,7 @@ export default function CheckoutInfoPage() {
         </div>
 
         <div className="mx-auto mb-10 max-w-3xl text-center">
-          <div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-rose-200 shadow-[0_0_35px_rgba(225,29,72,0.18)]">
+          <div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-rose-200">
             <Sparkles className="h-4 w-4" />
             RoseOut Pro Enrollment
           </div>
@@ -144,16 +150,15 @@ export default function CheckoutInfoPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">
-            Enter your business details, choose your Google-verified address,
-            create a secure password, complete the captcha, then continue to
-            Stripe checkout.
+            Select your location address, auto-fill business details from
+            Google, create a secure password, then continue to Stripe checkout.
           </p>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 shadow-2xl backdrop-blur-xl sm:p-8 lg:p-10">
             <div className="mb-8 flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-300 shadow-[0_0_30px_rgba(225,29,72,0.16)]">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-300">
                 <Building2 className="h-7 w-7" />
               </div>
 
@@ -165,8 +170,8 @@ export default function CheckoutInfoPage() {
                   Set up your RoseOut Pro profile
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  This information helps create your business profile before
-                  your subscription is completed.
+                  Choose your location from Google to auto-fill phone, website,
+                  photo references, and detect duplicates.
                 </p>
               </div>
             </div>
@@ -180,6 +185,12 @@ export default function CheckoutInfoPage() {
                 name="businessName"
                 placeholder="Example: Rose Bistro"
                 required
+              />
+
+              <GoogleLocationAddressField
+                googleReady={googleReady}
+                onPhoneFound={setPhone}
+                onWebsiteFound={setWebsite}
               />
 
               <Field
@@ -200,17 +211,27 @@ export default function CheckoutInfoPage() {
                   required
                 />
 
-                <Field
+                <ControlledField
                   icon={Phone}
                   label="Business Phone"
                   name="phone"
                   type="tel"
-                  placeholder="(555) 555-5555"
+                  placeholder="Auto-filled from Google when available"
+                  value={phone}
+                  onChange={setPhone}
                   required
                 />
               </div>
 
-              <GoogleAddressField />
+              <ControlledField
+                icon={Globe}
+                label="Website"
+                name="website"
+                type="url"
+                placeholder="Auto-filled from Google when available"
+                value={website}
+                onChange={setWebsite}
+              />
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-zinc-300">
@@ -244,7 +265,7 @@ export default function CheckoutInfoPage() {
                 <textarea
                   name="goal"
                   rows={4}
-                  placeholder="Example: More date night bookings, more weekday traffic, more visibility for birthdays, more reservations..."
+                  placeholder="Example: More date night bookings, more weekday traffic, more visibility for birthdays..."
                   className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-rose-400/60"
                 />
               </div>
@@ -380,8 +401,6 @@ export default function CheckoutInfoPage() {
 
           <aside className="space-y-5">
             <div className="relative overflow-hidden rounded-[2rem] border border-rose-500/35 bg-gradient-to-b from-rose-950/45 to-white/[0.035] p-6 shadow-[0_0_70px_rgba(225,29,72,0.20)] backdrop-blur-xl sm:p-8">
-              <div className="absolute right-[-80px] top-[-80px] h-52 w-52 rounded-full bg-rose-500/20 blur-[80px]" />
-
               <div className="relative">
                 <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-rose-600 px-4 py-2 text-xs font-black uppercase tracking-[0.2em]">
                   <Crown className="h-4 w-4" />
@@ -421,18 +440,18 @@ export default function CheckoutInfoPage() {
               </h3>
 
               <div className="mt-6 space-y-5">
-                <Step number="01" title="Submit business details">
-                  Your business information and secure account details are
-                  submitted before checkout.
+                <Step number="01" title="Choose location address">
+                  Google can auto-fill phone, website, photo references, and
+                  place ID for cleaner data.
                 </Step>
 
-                <Step number="02" title="Complete Stripe checkout">
+                <Step number="02" title="Duplicate check">
+                  If this location already exists in your database, RoseOut can
+                  route the owner to claim or upgrade it instead.
+                </Step>
+
+                <Step number="03" title="Complete Stripe checkout">
                   Stripe securely processes your RoseOut Pro subscription.
-                </Step>
-
-                <Step number="03" title="Activate Pro tools">
-                  Your business can unlock boosted discovery, booking tools,
-                  analytics, QR tools, and listing upgrades.
                 </Step>
               </div>
             </div>
@@ -482,33 +501,103 @@ export default function CheckoutInfoPage() {
   );
 }
 
-function GoogleAddressField() {
+function GoogleLocationAddressField({
+  googleReady,
+  onPhoneFound,
+  onWebsiteFound,
+}: {
+  googleReady: boolean;
+  onPhoneFound: (value: string) => void;
+  onWebsiteFound: (value: string) => void;
+}) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+
   const [displayAddress, setDisplayAddress] = useState("");
   const [address, setAddress] = useState("");
   const [googlePlaceId, setGooglePlaceId] = useState("");
+  const [googlePlaceName, setGooglePlaceName] = useState("");
+  const [photoRefs, setPhotoRefs] = useState<string[]>([]);
+  const [duplicateStatus, setDuplicateStatus] = useState<
+    "idle" | "checking" | "found" | "clear" | "error"
+  >("idle");
+  const [duplicateMessage, setDuplicateMessage] = useState("");
 
   useEffect(() => {
-    if (!inputRef.current || !window.google?.maps?.places) return;
+    if (!googleReady) return;
+    if (!inputRef.current) return;
+    if (!window.google?.maps?.places) return;
 
     const autocomplete = new window.google.maps.places.Autocomplete(
       inputRef.current,
       {
         types: ["establishment", "geocode"],
         componentRestrictions: { country: "us" },
-        fields: ["formatted_address", "place_id", "name"],
+        fields: [
+          "formatted_address",
+          "place_id",
+          "name",
+          "international_phone_number",
+          "formatted_phone_number",
+          "website",
+          "photos",
+        ],
       }
     );
 
-    const listener = autocomplete.addListener("place_changed", () => {
+    const listener = autocomplete.addListener("place_changed", async () => {
       const place = autocomplete.getPlace();
 
       const formattedAddress = place.formatted_address || "";
       const placeId = place.place_id || "";
+      const placeName = place.name || "";
+      const phone =
+        place.international_phone_number || place.formatted_phone_number || "";
+      const website = place.website || "";
+
+      const refs =
+        place.photos
+          ?.slice(0, 10)
+          .map((photo: any) => photo.getUrl({ maxWidth: 1200 }))
+          .filter(Boolean) || [];
 
       setDisplayAddress(formattedAddress);
       setAddress(formattedAddress);
       setGooglePlaceId(placeId);
+      setGooglePlaceName(placeName);
+      setPhotoRefs(refs);
+
+      if (phone) onPhoneFound(phone);
+      if (website) onWebsiteFound(website);
+
+      if (placeId) {
+        setDuplicateStatus("checking");
+        setDuplicateMessage("Checking if this location already exists...");
+
+        try {
+          const response = await fetch(
+            `/api/locations/check-existing?google_place_id=${encodeURIComponent(
+              placeId
+            )}`
+          );
+
+          const data = await response.json();
+
+          if (data?.exists) {
+            setDuplicateStatus("found");
+            setDuplicateMessage(
+              "This location may already exist in RoseOut. You can continue, but this should be handled as a claim or upgrade."
+            );
+          } else {
+            setDuplicateStatus("clear");
+            setDuplicateMessage("No matching location found in your database.");
+          }
+        } catch {
+          setDuplicateStatus("error");
+          setDuplicateMessage(
+            "Could not check your database right now, but you can still continue."
+          );
+        }
+      }
     });
 
     return () => {
@@ -516,12 +605,12 @@ function GoogleAddressField() {
         window.google.maps.event.removeListener(listener);
       }
     };
-  }, []);
+  }, [googleReady, onPhoneFound, onWebsiteFound]);
 
   return (
     <div>
       <label className="mb-2 block text-sm font-semibold text-zinc-300">
-        Google Business Address
+        Location Address
       </label>
 
       <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-4 transition focus-within:border-rose-400/60">
@@ -534,20 +623,65 @@ function GoogleAddressField() {
             setDisplayAddress(event.target.value);
             setAddress(event.target.value);
             setGooglePlaceId("");
+            setGooglePlaceName("");
+            setPhotoRefs([]);
+            setDuplicateStatus("idle");
+            setDuplicateMessage("");
           }}
           required
-          placeholder="Start typing your business name or address..."
+          placeholder={
+            googleReady
+              ? "Start typing the location address..."
+              : "Loading Google address search..."
+          }
           className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
         />
       </div>
 
       <p className="mt-2 text-xs leading-5 text-zinc-500">
-        Select your business from Google to improve accuracy and prevent
-        duplicate listings.
+        Select the correct address from Google so RoseOut can auto-fill phone,
+        website, photos, and detect duplicate listings.
       </p>
+
+      {googlePlaceName && (
+        <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4">
+          <p className="text-sm font-bold text-rose-200">
+            Google match: {googlePlaceName}
+          </p>
+          <p className="mt-1 text-xs text-zinc-400">{address}</p>
+          {photoRefs.length > 0 && (
+            <p className="mt-2 text-xs text-zinc-500">
+              {photoRefs.length} Google photo reference
+              {photoRefs.length === 1 ? "" : "s"} captured.
+            </p>
+          )}
+        </div>
+      )}
+
+      {duplicateMessage && (
+        <div
+          className={`mt-3 rounded-2xl border p-4 text-sm font-semibold ${
+            duplicateStatus === "found"
+              ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-200"
+              : duplicateStatus === "clear"
+              ? "border-green-500/30 bg-green-500/10 text-green-300"
+              : duplicateStatus === "error"
+              ? "border-red-500/30 bg-red-500/10 text-red-300"
+              : "border-white/10 bg-white/[0.04] text-zinc-400"
+          }`}
+        >
+          {duplicateMessage}
+        </div>
+      )}
 
       <input type="hidden" name="address" value={address} />
       <input type="hidden" name="google_place_id" value={googlePlaceId} />
+      <input type="hidden" name="google_place_name" value={googlePlaceName} />
+      <input
+        type="hidden"
+        name="google_photo_refs"
+        value={JSON.stringify(photoRefs)}
+      />
     </div>
   );
 }
@@ -579,6 +713,47 @@ function Field({
           type={type}
           name={name}
           required={required}
+          placeholder={placeholder}
+          className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ControlledField({
+  icon: Icon,
+  label,
+  name,
+  placeholder,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+}: {
+  icon: React.ElementType;
+  label: string;
+  name: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-zinc-300">
+        {label}
+      </label>
+
+      <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-4 transition focus-within:border-rose-400/60">
+        <Icon className="h-5 w-5 shrink-0 text-rose-300" />
+        <input
+          type={type}
+          name={name}
+          required={required}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
         />
