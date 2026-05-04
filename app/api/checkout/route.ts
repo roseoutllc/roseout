@@ -22,7 +22,15 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
+
     const plan = String(formData.get("plan") || "pro");
+    const businessName = String(formData.get("businessName") || "");
+    const contactName = String(formData.get("contactName") || "");
+    const email = String(formData.get("email") || "");
+    const phone = String(formData.get("phone") || "");
+    const address = String(formData.get("address") || "");
+    const businessType = String(formData.get("businessType") || "");
+    const goal = String(formData.get("goal") || "");
 
     if (plan !== "pro") {
       return NextResponse.redirect(`${siteUrl}/locations/apply?plan=free`, {
@@ -30,13 +38,40 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (!businessName || !contactName || !email || !phone || !address || !businessType) {
+      return NextResponse.json(
+        { error: "Missing required business information." },
+        { status: 400 }
+      );
+    }
+
     const body = new URLSearchParams({
       mode: "subscription",
       success_url: `${siteUrl}/locations/dashboard?upgraded=1`,
       cancel_url: `${siteUrl}/pricing?canceled=1`,
+
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
+
+      customer_email: email,
+
       "metadata[plan]": "roseout_pro",
+      "metadata[businessName]": businessName,
+      "metadata[contactName]": contactName,
+      "metadata[email]": email,
+      "metadata[phone]": phone,
+      "metadata[address]": address,
+      "metadata[businessType]": businessType,
+      "metadata[goal]": goal,
+
+      "subscription_data[metadata][plan]": "roseout_pro",
+      "subscription_data[metadata][businessName]": businessName,
+      "subscription_data[metadata][contactName]": contactName,
+      "subscription_data[metadata][email]": email,
+      "subscription_data[metadata][phone]": phone,
+      "subscription_data[metadata][address]": address,
+      "subscription_data[metadata][businessType]": businessType,
+      "subscription_data[metadata][goal]": goal,
     });
 
     const stripeResponse = await fetch(
