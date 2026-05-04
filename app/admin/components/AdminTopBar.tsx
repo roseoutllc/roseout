@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 
-type SearchUser = {
+type SearchResult = {
+  type: "user" | "location";
+  locationType?: "restaurants" | "activities";
   id: string;
-  email: string | null;
-  full_name: string | null;
-  phone: string | null;
-  role: string | null;
-  subscription_status: string | null;
+  title: string;
+  subtitle: string;
+  meta: string;
+  phone?: string | null;
+  subscription_status?: string | null;
 };
 
 export default function AdminTopBar() {
@@ -21,7 +23,7 @@ export default function AdminTopBar() {
 
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [query, setQuery] = useState("");
-  const [users, setUsers] = useState<SearchUser[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
 
@@ -52,7 +54,7 @@ export default function AdminTopBar() {
     const cleanQuery = query.trim();
 
     if (!showUserSearch || cleanQuery.length < 2) {
-      setUsers([]);
+      setResults([]);
       return;
     }
 
@@ -61,13 +63,13 @@ export default function AdminTopBar() {
 
       try {
         const res = await fetch(
-          `/api/admin/users/search?q=${encodeURIComponent(cleanQuery)}`
+          `/api/admin/search?q=${encodeURIComponent(cleanQuery)}`
         );
 
         const data = await res.json();
-        setUsers(data.users || []);
+        setResults(data.results || []);
       } catch {
-        setUsers([]);
+        setResults([]);
       } finally {
         setSearching(false);
       }
@@ -111,13 +113,43 @@ export default function AdminTopBar() {
       body: JSON.stringify({ userId }),
     });
 
+    const data = await res.json();
+
     if (!res.ok) {
-      alert("Unable to view as this user.");
+      alert(data.error || "Unable to view as this user.");
       setImpersonatingId(null);
       return;
     }
 
-    window.location.href = "/user/dashboard";
+    window.location.href = data.redirectTo || "/user/dashboard";
+  };
+
+  const loginAsLocation = async (
+    locationId: string,
+    locationType: "restaurants" | "activities"
+  ) => {
+    setImpersonatingId(locationId);
+
+    const res = await fetch("/api/admin/impersonate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        locationId,
+        locationType,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Unable to view as this location.");
+      setImpersonatingId(null);
+      return;
+    }
+
+    window.location.href = data.redirectTo || "/locations/dashboard";
   };
 
   const handleLogout = async () => {
@@ -170,9 +202,7 @@ export default function AdminTopBar() {
           </div>
 
           <div className="text-left">
-            <p className="text-lg font-black tracking-tight">
-              RoseOut Admin
-            </p>
+            <p className="text-lg font-black tracking-tight">RoseOut Admin</p>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-rose-200/70">
               Control Room
             </p>
@@ -308,7 +338,7 @@ export default function AdminTopBar() {
                       onClick={() => setShowUserSearch((prev) => !prev)}
                       className="w-full rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-left text-sm font-black text-rose-100 transition hover:bg-rose-500/20"
                     >
-                      👁 View as User
+                      👁 View as User or Location
                     </button>
 
                     {showUserSearch && (
@@ -316,7 +346,7 @@ export default function AdminTopBar() {
                         <input
                           value={query}
                           onChange={(e) => setQuery(e.target.value)}
-                          placeholder="Search name, email, or phone..."
+                          placeholder="Search user, restaurant, activity, email, city..."
                           autoFocus
                           className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-rose-400"
                         />
@@ -330,58 +360,74 @@ export default function AdminTopBar() {
 
                           {searching && (
                             <p className="px-1 text-xs text-white/40">
-                              Searching users...
+                              Searching users and locations...
                             </p>
                           )}
 
                           {!searching &&
                             query.trim().length >= 2 &&
-                            users.length === 0 && (
+                            results.length === 0 && (
                               <p className="px-1 text-xs text-white/40">
-                                No users found.
+                                No users or locations found.
                               </p>
                             )}
 
-                          {users.map((searchUser) => (
+                          {results.map((item) => (
                             <button
-                              key={searchUser.id}
+                              key={`${item.type}-${item.id}`}
                               type="button"
-                              onClick={() => loginAsUser(searchUser.id)}
-                              disabled={impersonatingId === searchUser.id}
+                              onClick={() => {
+                                if (item.type === "user") {
+                                  loginAsUser(item.id);
+                                } else if (item.locationType) {
+                                  loginAsLocation(item.id, item.locationType);
+                                }
+                              }}
+                              disabled={impersonatingId === item.id}
                               className="w-full rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-left transition hover:border-rose-400/40 hover:bg-rose-500/10 disabled:opacity-60"
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                   <p className="truncate text-sm font-black text-white">
-                                    {searchUser.full_name || "Unnamed User"}
+                                    {item.title}
                                   </p>
 
                                   <p className="mt-0.5 truncate text-xs text-white/45">
-                                    {searchUser.email || "No email"}
+                                    {item.subtitle}
                                   </p>
 
-                                  {searchUser.phone && (
+                                  {item.phone && (
                                     <p className="mt-0.5 text-xs text-white/35">
-                                      {searchUser.phone}
+                                      {item.phone}
                                     </p>
                                   )}
                                 </div>
 
                                 <span className="rounded-full bg-rose-500 px-3 py-1 text-[10px] font-black uppercase text-white">
-                                  {impersonatingId === searchUser.id
+                                  {impersonatingId === item.id
                                     ? "Opening"
                                     : "View"}
                                 </span>
                               </div>
 
-                              <div className="mt-3 flex gap-2">
+                              <div className="mt-3 flex flex-wrap gap-2">
                                 <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold capitalize text-white/60">
-                                  {searchUser.role || "user"}
+                                  {item.type === "user" ? "User" : "Location"}
                                 </span>
 
                                 <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold capitalize text-white/60">
-                                  {searchUser.subscription_status || "free"}
+                                  {item.locationType
+                                    ? item.locationType === "restaurants"
+                                      ? "Restaurant"
+                                      : "Activity"
+                                    : item.meta}
                                 </span>
+
+                                {item.subscription_status && (
+                                  <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold capitalize text-white/60">
+                                    {item.subscription_status}
+                                  </span>
+                                )}
                               </div>
                             </button>
                           ))}
@@ -398,10 +444,10 @@ export default function AdminTopBar() {
                 )}
 
                 {canViewAnalytics && (
-  <MenuButton onClick={() => goTo("/admin/live-sessions")}>
-    Live Sessions
-  </MenuButton>
-)}
+                  <MenuButton onClick={() => goTo("/admin/live-sessions")}>
+                    Live Sessions
+                  </MenuButton>
+                )}
 
                 {canViewAnalytics && (
                   <MenuButton onClick={() => goTo("/admin/analytics")}>
