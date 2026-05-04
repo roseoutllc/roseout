@@ -59,7 +59,7 @@ export default function ImportHistoryPage() {
       console.log("Import result:", data);
 
       alert(
-        `✅ Imported: ${data.imported}\n⏭ Skipped: ${data.skipped}\n❌ Failed: ${data.failed}`
+         Imported: ${data.imported}\n⏭ Skipped: ${data.skipped}\n❌ Failed: ${data.failed}`
       );
 
       fetchLogs(); // refresh logs after run
