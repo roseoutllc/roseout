@@ -1,4 +1,3 @@
-```tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -16,31 +15,33 @@ export default function ImportHistoryPage() {
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
 
-  // 🔥 FETCH IMPORT LOGS
   const fetchLogs = async () => {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/admin/import-logs");
+      const res = await fetch("/api/admin/import-logs", {
+        cache: "no-store",
+      });
+
       const data = await res.json();
 
       setLogs(data.logs || []);
     } catch (err) {
-      console.error("Failed to fetch logs:", err);
+      console.error("Failed to fetch import logs:", err);
+      setLogs([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   useEffect(() => {
     fetchLogs();
   }, []);
 
-  // 🚀 RUN IMPORT
   const handleRunImport = async () => {
-    setRunning(true);
-
     try {
+      setRunning(true);
+
       const res = await fetch("/api/admin/run-google-import", {
         method: "POST",
         headers: {
@@ -56,91 +57,181 @@ export default function ImportHistoryPage() {
 
       const data = await res.json();
 
-      console.log("Import result:", data);
+      if (!res.ok) {
+        alert(data.error || "Google import failed");
+        return;
+      }
 
       alert(
-         Imported: ${data.imported}\n⏭ Skipped: ${data.skipped}\n❌ Failed: ${data.failed}`
+        `Imported: ${data.imported || 0}\nSkipped: ${
+          data.skipped || 0
+        }\nFailed: ${data.failed || 0}`
       );
 
-      fetchLogs(); // refresh logs after run
+      await fetchLogs();
     } catch (err) {
-      console.error(err);
-      alert("Import failed");
+      console.error("Run import failed:", err);
+      alert("Google import failed");
+    } finally {
+      setRunning(false);
     }
-
-    setRunning(false);
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      {/* HEADER */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold">Google Import Dashboard</h1>
-
-        <button
-          onClick={handleRunImport}
-          disabled={running}
-          className={`px-6 py-3 rounded-xl font-semibold transition ${
-            running
-              ? "bg-gray-600 cursor-not-allowed"
-              : "bg-rose-600 hover:bg-rose-700"
-          }`}
-        >
-          {running ? "Running..." : "Run Google Import"}
-        </button>
-      </div>
-
-      {/* LOADING */}
-      {loading && (
-        <div className="text-center text-gray-400">Loading logs...</div>
-      )}
-
-      {/* EMPTY STATE */}
-      {!loading && logs.length === 0 && (
-        <div className="text-center text-gray-500">
-          No import history yet.
-        </div>
-      )}
-
-      {/* LOG TABLE */}
-      <div className="grid gap-4">
-        {logs.map((log) => (
-          <div
-            key={log.id}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl p-4"
-          >
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-400">
-                {log.job_name} — {log.run_date}
-              </div>
-
-              {log.error ? (
-                <span className="text-red-400 text-xs">Error</span>
-              ) : (
-                <span className="text-green-400 text-xs">Success</span>
-              )}
-            </div>
-
-            {/* META */}
-            {log.meta && (
-              <div className="text-sm text-gray-300 grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div>Imported: {log.meta.imported ?? 0}</div>
-                <div>Skipped: {log.meta.skipped ?? 0}</div>
-                <div>Failed: {log.meta.failed ?? 0}</div>
-                <div>Found: {log.meta.total_found_from_google ?? 0}</div>
-              </div>
-            )}
-
-            {/* ERROR */}
-            {log.error && (
-              <div className="mt-2 text-xs text-red-400">
-                {log.error}
-              </div>
-            )}
+    <main className="min-h-screen bg-[#090506] px-4 py-8 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-rose-300">
+              RoseOut Admin
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Google Import History
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+              Run a balanced Google import for restaurants and activities, then
+              review recent import logs.
+            </p>
           </div>
-        ))}
+
+          <button
+            type="button"
+            onClick={handleRunImport}
+            disabled={running}
+            className="rounded-full bg-rose-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-rose-950/40 transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-300"
+          >
+            {running ? "Running Import..." : "Run Google Import"}
+          </button>
+        </div>
+
+        <div className="mb-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
+              Last Run
+            </p>
+            <p className="mt-2 text-lg font-semibold">
+              {logs[0]?.run_date || "No runs yet"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
+              Last Imported
+            </p>
+            <p className="mt-2 text-lg font-semibold">
+              {logs[0]?.meta?.imported ?? 0}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
+              Status
+            </p>
+            <p
+              className={`mt-2 text-lg font-semibold ${
+                logs[0]?.error ? "text-red-300" : "text-emerald-300"
+              }`}
+            >
+              {logs.length === 0
+                ? "Waiting"
+                : logs[0]?.error
+                  ? "Error"
+                  : "Success"}
+            </p>
+          </div>
+        </div>
+
+        <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold">Recent Import Logs</h2>
+
+            <button
+              type="button"
+              onClick={fetchLogs}
+              disabled={loading}
+              className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-zinc-300 transition hover:border-rose-400 hover:text-white disabled:opacity-50"
+            >
+              {loading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+
+          {loading && logs.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-8 text-center text-sm text-zinc-400">
+              Loading import logs...
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-8 text-center text-sm text-zinc-400">
+              No import history yet.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {logs.map((log) => (
+                <div
+                  key={log.id}
+                  className="rounded-2xl border border-white/10 bg-black/30 p-5"
+                >
+                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-semibold">
+                        {log.job_name || "Google Import"}
+                      </p>
+                      <p className="text-sm text-zinc-500">{log.run_date}</p>
+                    </div>
+
+                    <span
+                      className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${
+                        log.error
+                          ? "bg-red-500/10 text-red-300"
+                          : "bg-emerald-500/10 text-emerald-300"
+                      }`}
+                    >
+                      {log.error ? "Error" : "Success"}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <div className="rounded-xl bg-white/[0.04] p-3">
+                      <p className="text-xs text-zinc-500">Imported</p>
+                      <p className="mt-1 text-lg font-bold">
+                        {log.meta?.imported ?? 0}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/[0.04] p-3">
+                      <p className="text-xs text-zinc-500">Skipped</p>
+                      <p className="mt-1 text-lg font-bold">
+                        {log.meta?.skipped ?? 0}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/[0.04] p-3">
+                      <p className="text-xs text-zinc-500">Failed</p>
+                      <p className="mt-1 text-lg font-bold">
+                        {log.meta?.failed ?? 0}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/[0.04] p-3">
+                      <p className="text-xs text-zinc-500">Found</p>
+                      <p className="mt-1 text-lg font-bold">
+                        {log.meta?.total_found_from_google ??
+                          log.meta?.restaurant?.total_found_from_google ??
+                          0}
+                      </p>
+                    </div>
+                  </div>
+
+                  {log.error && (
+                    <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">
+                      {log.error}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
-```
