@@ -457,27 +457,6 @@ export default function CreatePage() {
                   Type naturally. RoseOut understands your vibe, budget,
                   borough, mood, and outing style.
                 </p>
-                <div className="mt-8 max-w-xl rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
-
-
-  <div className="mt-5 grid gap-2">
-    {[
-      "Steak dinner and karaoke in Manhattan",
-      "Romantic dinner in Brooklyn",
-      "Birthday dinner with lounge vibes",
-      "Affordable date night in Queens",
-    ].map((search) => (
-      <button
-        key={search}
-        type="button"
-        onClick={() => sendMessage(search)}
-        className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-left text-sm font-bold text-white/60 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"
-      >
-        {search}
-      </button>
-    ))}
-  </div>
-</div>
               </div>
 
               <div className="w-full max-w-full rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur">
@@ -853,87 +832,6 @@ export default function CreatePage() {
         }
       `}</style>
     </main>
-  );
-}
-
-function SearchInspirationPanel({
-  onPick,
-}: {
-  onPick: (value: string) => void;
-}) {
-  const trendingSearches = [
-    "Steak dinner and karaoke in Manhattan",
-    "Romantic dinner in Brooklyn",
-    "Birthday dinner with lounge vibes",
-    "Affordable date night in Queens",
-    "Rooftop drinks and dinner",
-    "Fun activity after dinner",
-  ];
-
-  const quickIdeas = [
-    "Date Night",
-    "Birthday",
-    "Luxury",
-    "Affordable",
-    "Near Me",
-    "Dinner + Activity",
-  ];
-
-  return (
-    <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-      <div className="rounded-[1.75rem] border border-white/10 bg-black/45 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
-              Trending Searches
-            </p>
-            <h3 className="mt-2 text-xl font-black">
-              What people are searching right now
-            </h3>
-          </div>
-
-          <span className="hidden rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/45 sm:inline-flex">
-            Live ideas
-          </span>
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          {trendingSearches.map((search) => (
-            <button
-              key={search}
-              type="button"
-              onClick={() => onPick(search)}
-              className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-left text-xs font-black text-white/65 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"
-            >
-              {search}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5">
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
-          Quick Starts
-        </p>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {quickIdeas.map((idea) => (
-            <button
-              key={idea}
-              type="button"
-              onClick={() => onPick(idea)}
-              className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-black text-white/60 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"
-            >
-              {idea}
-            </button>
-          ))}
-        </div>
-
-        <p className="mt-4 text-xs font-semibold leading-5 text-white/35">
-          Tap one to instantly build a RoseOut search.
-        </p>
-      </div>
-    </div>
   );
 }
 
