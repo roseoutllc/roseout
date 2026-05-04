@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminApiRole } from "@/lib/admin-api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,13 @@ function adminSupabase() {
 
 export async function POST(req: Request) {
   try {
+    const { error, adminUser } = await requireAdminApiRole([
+      "superuser",
+      "admin",
+    ]);
+
+    if (error) return error;
+
     const { userId, locationId, locationType } = await req.json();
 
     if (!userId && (!locationId || !locationType)) {
@@ -30,37 +38,14 @@ export async function POST(req: Request) {
     }
 
     const cookieStore = await cookies();
-    const adminUserId = cookieStore.get("roseout_admin_user_id")?.value;
-
-    if (!adminUserId) {
-      return NextResponse.json(
-        { error: "Admin session not found" },
-        { status: 401 }
-      );
-    }
-
     const supabase = adminSupabase();
 
-    const { data: admin } = await supabase
-      .from("users")
-      .select("id,email,role")
-      .eq("id", adminUserId)
-      .single();
-
-    if (!admin || !["superuser", "admin"].includes(admin.role)) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 403 }
-      );
-    }
-
-    // USER IMPERSONATION — existing flow
     if (userId) {
       const { data: targetUser } = await supabase
         .from("users")
         .select("id,email,full_name")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
 
       if (!targetUser) {
         return NextResponse.json(
@@ -69,7 +54,7 @@ export async function POST(req: Request) {
         );
       }
 
-      if (targetUser.id === admin.id) {
+      if (targetUser.email === adminUser?.email) {
         return NextResponse.json(
           { error: "You cannot impersonate yourself." },
           { status: 400 }
@@ -88,11 +73,11 @@ export async function POST(req: Request) {
       });
 
       await supabase.from("admin_impersonation_logs").insert({
-        admin_id: admin.id,
-        admin_email: admin.email,
+        admin_id: adminUser?.id,
+        admin_email: adminUser?.email,
         target_user_id: targetUser.id,
         target_user_email: targetUser.email,
-        action: "started",
+        action: "started_user",
       });
 
       return NextResponse.json({
@@ -102,7 +87,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // LOCATION IMPERSONATION — new flow
     if (!["restaurants", "activities"].includes(locationType)) {
       return NextResponse.json(
         { error: "Invalid location type" },
@@ -118,7 +102,7 @@ export async function POST(req: Request) {
       .from(table)
       .select(`id, ${nameField}, owner_email, owner_user_id`)
       .eq("id", locationId)
-      .single();
+      .maybeSingle();
 
     if (!location) {
       return NextResponse.json(
@@ -146,8 +130,8 @@ export async function POST(req: Request) {
     });
 
     await supabase.from("admin_impersonation_logs").insert({
-      admin_id: admin.id,
-      admin_email: admin.email,
+      admin_id: adminUser?.id,
+      admin_email: adminUser?.email,
       target_user_id: location.owner_user_id || null,
       target_user_email: location.owner_email || null,
       action: `started_location_${table}`,
