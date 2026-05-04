@@ -624,3 +624,37 @@ function ResultCard({
     </article>
   );
 }
+// 👇 ADD THIS RIGHT HERE (after ResultCard)
+function getSuggestedFollowUps(message?: Message) {
+  const restaurants = message?.restaurants || [];
+  const activities = message?.activities || [];
+
+  const cuisine = restaurants.find((r) => r.cuisine)?.cuisine;
+  const restaurantTags = restaurants.flatMap((r) => r.date_style_tags || []);
+  const activityTags = activities.flatMap((a) => a.date_style_tags || []);
+  const allTags = [...restaurantTags, ...activityTags].join(" ").toLowerCase();
+
+  const suggestions: string[] = [
+    "Make it cheaper",
+    "More romantic",
+    "Add rooftop vibes",
+  ];
+
+  if (cuisine) suggestions.push(`More ${cuisine} options`);
+
+  if (allTags.includes("hookah") || allTags.includes("shisha")) {
+    suggestions.push("More hookah lounges");
+  }
+
+  if (allTags.includes("cigar")) {
+    suggestions.push("More cigar-friendly spots");
+  }
+
+  if (restaurants.length > 0) suggestions.push("Add drinks after");
+  if (activities.length > 0) suggestions.push("Make the activity more fun");
+
+  suggestions.push("Change to Brooklyn");
+  suggestions.push("Show me something more upscale");
+
+  return Array.from(new Set(suggestions)).slice(0, 8);
+}
