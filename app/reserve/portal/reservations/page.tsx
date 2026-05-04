@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -61,6 +61,20 @@ function normalizeType(value: string | null) {
 }
 
 export default function ReservePortalReservationsPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black p-10 text-white">
+          Loading reservations...
+        </main>
+      }
+    >
+      <ReservePortalReservationsContent />
+    </Suspense>
+  );
+}
+
+function ReservePortalReservationsContent() {
   const searchParams = useSearchParams();
 
   const locationId = searchParams.get("locationId") || "";
@@ -147,6 +161,7 @@ export default function ReservePortalReservationsPage() {
 
   useEffect(() => {
     loadReservations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationId, locationType]);
 
   useEffect(() => {
@@ -171,6 +186,7 @@ export default function ReservePortalReservationsPage() {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationId]);
 
   return (
