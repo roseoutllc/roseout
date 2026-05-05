@@ -1125,10 +1125,7 @@ function scoreRestaurant(
   score += budgetBoost(item, intent.budget);
   score += distanceBoost(item, intent.userLat, intent.userLng, intent.maxMiles);
   score += popularityBoost(item);
-  if (intent.locations.length > 0) {
-  const text = getSearchText(item);
-
-  if (intent.locations.length > 0) {
+    if (intent.locations.length > 0) {
     const text = itemText(item);
 
     if (intent.locations.some((loc) => text.includes(loc))) {
@@ -1137,7 +1134,6 @@ function scoreRestaurant(
       score -= 25;
     }
   }
-
   intent.activityIntents.forEach((activity) => {
     const name = String(item.activity_name || item.name || "").toLowerCase();
     const normalizedActivity = activity.replace(/_/g, " ");
@@ -1194,14 +1190,19 @@ function scoreActivity(
     const keywords = ACTIVITY_INTENTS[activity] || [normalizedActivity];
 
     if (intent.locations.length > 0) {
-  const text = getSearchText(item);
+    const text = itemText(item);
 
-  if (intent.locations.some((loc) => text.includes(loc))) {
-    score += 40; // strong boost for correct borough
-  } else {
-    score -= 25; // penalize wrong borough
+    if (intent.locations.some((loc) => text.includes(loc))) {
+      score += 40;
+    } else {
+      score -= 25;
+    }
   }
-}
+
+  intent.activityIntents.forEach((activity) => {
+    const name = String(item.activity_name || item.name || "").toLowerCase();
+    const normalizedActivity = activity.replace(/_/g, " ");
+    const keywords = ACTIVITY_INTENTS[activity] || [normalizedActivity];
 
     if (
       name.includes(normalizedActivity) ||
