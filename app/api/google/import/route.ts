@@ -1538,9 +1538,13 @@ export async function POST(req: Request) {
     }
 
     const usableLocations = locations.filter((item: any) => {
-      const status = String(item.status || "approved").toLowerCase();
-      return status === "approved" || status === "active" || status === "";
-    });
+  const status = String(item.status || "approved").toLowerCase();
+
+  const isApproved =
+    status === "approved" || status === "active" || status === "";
+
+  return isApproved && isWithinRoseOutServiceArea(item);
+});
 
     const sourceLocations =
       usableLocations.length > 0 ? usableLocations : locations;

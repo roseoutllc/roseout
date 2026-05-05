@@ -843,6 +843,21 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
   return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function isWithinRoseOutServiceArea(item: any) {
+  const lat = Number(item.latitude);
+  const lng = Number(item.longitude);
+
+  if (!lat || !lng) return true;
+
+  // NYC + Long Island + Westchester + North Jersey
+  return (
+    lat >= 40.4 &&
+    lat <= 41.2 &&
+    lng >= -74.3 &&
+    lng <= -73.5
+  );
+}
+
 function distanceBoost(
   item: any,
   userLat?: number,
@@ -1484,10 +1499,14 @@ export async function POST(req: Request) {
       }
     }
 
-    const usableLocations = locations.filter((item: any) => {
-      const status = String(item.status || "approved").toLowerCase();
-      return status === "approved" || status === "active" || status === "";
-    });
+const usableLocations = locations.filter((item: any) => {
+  const status = String(item.status || "approved").toLowerCase();
+
+  const isApproved =
+    status === "approved" || status === "active" || status === "";
+
+  return isApproved && isWithinRoseOutServiceArea(item);
+});
 
     const sourceLocations =
       usableLocations.length > 0 ? usableLocations : locations;
