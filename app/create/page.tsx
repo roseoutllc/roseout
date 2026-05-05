@@ -354,17 +354,17 @@ export default function CreatePage() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-black text-white">
+    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black text-white">
       <RoseOutHeader />
 
-      <section className="relative border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-4 pb-8 pt-28 sm:px-6 sm:pb-10 lg:pt-32">
-        <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.88fr_1.12fr] lg:items-stretch">
-          <div className="flex flex-col justify-center">
-            <div className="mb-4 inline-flex w-fit rounded-full border border-[#e1062a]/30 bg-[#e1062a]/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-red-100">
+      <section className="relative w-full max-w-full overflow-x-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-4 pb-8 pt-28 sm:px-6 sm:pb-10 lg:pt-32">
+        <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-6 overflow-hidden lg:grid-cols-[0.88fr_1.12fr] lg:items-stretch">
+          <div className="flex min-w-0 max-w-full flex-col justify-center">
+            <div className="mb-4 inline-flex w-fit max-w-full rounded-full border border-[#e1062a]/30 bg-[#e1062a]/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-red-100">
               AI Outing Planner
             </div>
 
-            <h1 className="max-w-3xl text-4xl font-black tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
+            <h1 className="max-w-full break-words text-4xl font-black tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
               Plan less. <span className="text-[#e1062a]">RoseOut</span> more.
             </h1>
 
@@ -376,16 +376,16 @@ export default function CreatePage() {
 
           <form
             onSubmit={handleSubmit}
-            className="flex h-full min-h-[390px] flex-col justify-between rounded-[1.35rem] border border-white/10 bg-[#111]/90 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-5 lg:min-h-[430px]"
+            className="flex h-full min-h-[390px] w-full min-w-0 max-w-full flex-col justify-between overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#111]/90 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-5 lg:min-h-[430px]"
           >
-            <div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">
+            <div className="min-w-0">
+              <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">
                   Create your plan
                 </p>
 
                 {locationSaved ? (
-                  <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
+                  <span className="shrink-0 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
                     Location On
                   </span>
                 ) : null}
@@ -406,16 +406,17 @@ export default function CreatePage() {
                   typedPlaceholder
                     ? `${typedPlaceholder}|`
                     : "Tell RoseOut what you want..."
-                }className="min-h-[260px] w-full resize-none rounded-3xl border border-white/10 bg-black px-5 py-5 text-lg font-black leading-8 text-white outline-none transition placeholder:text-white/28 focus:border-[#e1062a]/60 sm:text-xl lg:min-h-[300px]"
+                }
+                className="min-h-[220px] w-full min-w-0 max-w-full resize-none rounded-3xl border border-white/10 bg-black px-4 py-4 text-base font-black leading-7 text-white outline-none transition placeholder:text-white/28 focus:border-[#e1062a]/60 sm:min-h-[260px] sm:px-5 sm:py-5 sm:text-xl sm:leading-8 lg:min-h-[300px]"
               />
             </div>
 
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
+            <div className="mt-4 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
                 <button
                   type="submit"
                   disabled={loading || !input.trim()}
-                  className="rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="w-full rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                 >
                   {loading ? "Finding Matches..." : "Build My Outing"}
                 </button>
@@ -423,7 +424,7 @@ export default function CreatePage() {
                 <button
                   type="button"
                   onClick={requestUserLocation}
-                  className={`rounded-full border px-5 py-3 text-xs font-black uppercase tracking-[0.12em] transition ${
+                  className={`w-full rounded-full border px-5 py-3 text-xs font-black uppercase tracking-[0.12em] transition sm:w-auto ${
                     locationSaved
                       ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
                       : "border-white/10 bg-white/[0.04] text-white/65 hover:border-white/25 hover:text-white"
@@ -437,7 +438,7 @@ export default function CreatePage() {
                 <button
                   type="button"
                   onClick={resetSearch}
-                  className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white/55 transition hover:text-white"
+                  className="w-full rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white/55 transition hover:text-white sm:w-auto"
                 >
                   New Search
                 </button>
@@ -449,7 +450,7 @@ export default function CreatePage() {
 
       <section
         ref={resultsRef}
-        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8"
+        className="mx-auto w-full max-w-7xl overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8"
       >
         {error && (
           <div className="mb-5 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">
@@ -469,7 +470,7 @@ export default function CreatePage() {
             if (isUser) {
               return (
                 <div key={index} className="flex justify-end">
-                  <div className="max-w-3xl rounded-2xl bg-[#e1062a] px-4 py-3 text-sm font-black leading-6 text-white shadow-lg shadow-red-950/30">
+                  <div className="max-w-full rounded-2xl bg-[#e1062a] px-4 py-3 text-sm font-black leading-6 text-white shadow-lg shadow-red-950/30 sm:max-w-3xl">
                     {message.content}
                   </div>
                 </div>
@@ -490,14 +491,14 @@ export default function CreatePage() {
             return (
               <div
                 key={index}
-                className="rounded-[1.25rem] border border-white/10 bg-[#080808] p-3 shadow-2xl shadow-black/40 sm:p-4"
+                className="w-full max-w-full overflow-hidden rounded-[1.25rem] border border-white/10 bg-[#080808] p-3 shadow-2xl shadow-black/40 sm:p-4"
               >
                 <div className="mb-4 flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e1062a]">
                       Curated Results
                     </p>
-                    <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] sm:text-3xl">
+                    <h2 className="mt-1 break-words text-2xl font-black tracking-[-0.04em] sm:text-3xl">
                       Tight matches for your outing
                     </h2>
                     <p className="mt-1 text-sm font-semibold text-white/40">
@@ -646,8 +647,8 @@ export default function CreatePage() {
         </div>
       </section>
 
-      <footer className="border-t border-white/10 bg-black px-4 py-8 text-white sm:px-6">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <footer className="w-full max-w-full overflow-x-hidden border-t border-white/10 bg-black px-4 py-8 text-white sm:px-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xl font-black">
               Rose<span className="text-[#e1062a]">Out</span>
@@ -657,7 +658,7 @@ export default function CreatePage() {
             </p>
           </div>
 
-          <div className="flex gap-4 text-sm font-bold text-white/40">
+          <div className="flex flex-wrap gap-4 text-sm font-bold text-white/40">
             <Link href="/" className="hover:text-white">
               Home
             </Link>
@@ -672,6 +673,17 @@ export default function CreatePage() {
       </footer>
 
       <style jsx global>{`
+        html,
+        body {
+          width: 100%;
+          max-width: 100%;
+          overflow-x: hidden;
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
         @keyframes cardReveal {
           from {
             opacity: 0;
@@ -704,18 +716,18 @@ function StartPanel() {
   ];
 
   return (
-    <div className="rounded-[1.25rem] border border-white/10 bg-[#0b0b0b] p-5 shadow-2xl shadow-black/40">
-      <div className="grid gap-4 md:grid-cols-3">
+    <div className="w-full max-w-full overflow-hidden rounded-[1.25rem] border border-white/10 bg-[#0b0b0b] p-5 shadow-2xl shadow-black/40">
+      <div className="grid w-full min-w-0 gap-4 md:grid-cols-3">
         {items.map((item, index) => (
           <div
             key={item.title}
-            className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
+            className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.035] p-4"
           >
             <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#e1062a] text-sm font-black text-white">
               {index + 1}
             </div>
 
-            <h3 className="text-base font-black tracking-[-0.02em] text-white">
+            <h3 className="break-words text-base font-black tracking-[-0.02em] text-white">
               {item.title}
             </h3>
 
@@ -739,10 +751,10 @@ function ResultSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-5 last:mb-0">
-      <div className="mb-3 flex items-end justify-between gap-3">
-        <div>
-          <h3 className="text-xl font-black tracking-[-0.03em] text-white">
+    <section className="mb-5 w-full max-w-full overflow-hidden last:mb-0">
+      <div className="mb-3 flex min-w-0 items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="break-words text-xl font-black tracking-[-0.03em] text-white">
             {title}
           </h3>
           <p className="mt-0.5 text-xs font-semibold text-white/38">
@@ -751,7 +763,9 @@ function ResultSection({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{children}</div>
+      <div className="grid w-full min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {children}
+      </div>
     </section>
   );
 }
@@ -833,7 +847,7 @@ function ResultCard({
 
   return (
     <article
-      className={`group relative flex h-full min-h-[445px] flex-col overflow-hidden rounded-[1.1rem] border bg-[#101010] shadow-xl shadow-black/30 transition duration-300 hover:border-[#e1062a]/55 hover:bg-[#141414] hover:shadow-[0_0_36px_rgba(225,6,42,0.16)] ${
+      className={`group relative flex h-full min-h-[445px] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-[1.1rem] border bg-[#101010] shadow-xl shadow-black/30 transition duration-300 hover:border-[#e1062a]/55 hover:bg-[#141414] hover:shadow-[0_0_36px_rgba(225,6,42,0.16)] ${
         selected
           ? "border-[#e1062a] ring-2 ring-[#e1062a]/35"
           : "border-white/10"
@@ -842,7 +856,7 @@ function ResultCard({
         animation: `cardReveal 360ms ease-out ${index * 70}ms both`,
       }}
     >
-      <div className="relative h-[150px] overflow-hidden bg-neutral-950 sm:h-[165px]">
+      <div className="relative h-[150px] w-full overflow-hidden bg-neutral-950 sm:h-[165px]">
         {imageUrl ? (
           <Image
             src={imageUrl}
@@ -870,7 +884,7 @@ function ResultCard({
           </p>
         </div>
 
-        <div className="absolute right-3 top-3 flex max-w-[65%] flex-wrap justify-end gap-1.5">
+        <div className="absolute right-3 top-3 flex max-w-[62%] flex-wrap justify-end gap-1.5">
           {cleanTags.slice(0, 2).map((tag) => (
             <span
               key={`${tag.label}-${tag.tone}`}
@@ -898,27 +912,27 @@ function ResultCard({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col p-3.5">
-        <div className="min-h-[122px]">
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <p className="line-clamp-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">
+      <div className="flex min-w-0 flex-1 flex-col p-3.5">
+        <div className="min-h-[122px] min-w-0">
+          <div className="mb-1.5 flex min-w-0 items-center justify-between gap-2">
+            <p className="line-clamp-1 min-w-0 text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">
               {titleCase(eyebrow || type)}
             </p>
 
             {reviewCount ? (
-              <p className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-black uppercase text-white/40">
+              <p className="shrink-0 rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-black uppercase text-white/40">
                 {formatCount(reviewCount)} reviews
               </p>
             ) : null}
           </div>
 
           <Link href={detailsHref} onClick={onDetails}>
-            <h3 className="line-clamp-1 text-lg font-black leading-tight tracking-[-0.03em] text-white transition group-hover:text-red-100">
+            <h3 className="line-clamp-1 break-words text-lg font-black leading-tight tracking-[-0.03em] text-white transition group-hover:text-red-100">
               {title}
             </h3>
           </Link>
 
-          <p className="mt-1.5 line-clamp-2 min-h-[38px] text-xs font-semibold leading-5 text-white/42">
+          <p className="mt-1.5 line-clamp-2 min-h-[38px] break-words text-xs font-semibold leading-5 text-white/42">
             {address || "Location details available on the listing."}
           </p>
 
@@ -938,7 +952,7 @@ function ResultCard({
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-white/32">
             Why RoseOut picked this
           </p>
-          <p className="mt-1.5 line-clamp-2 text-xs font-semibold leading-5 text-white/62">
+          <p className="mt-1.5 line-clamp-2 break-words text-xs font-semibold leading-5 text-white/62">
             {whyPicked}
           </p>
         </div>
@@ -1014,7 +1028,7 @@ function ResultCard({
 
 function LoadingResults({ label }: { label: string }) {
   return (
-    <div className="rounded-[1.25rem] border border-white/10 bg-[#080808] p-4 shadow-2xl shadow-black/40">
+    <div className="w-full max-w-full overflow-hidden rounded-[1.25rem] border border-white/10 bg-[#080808] p-4 shadow-2xl shadow-black/40">
       <div className="mb-4">
         <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e1062a]">
           RoseOut is searching
@@ -1024,7 +1038,7 @@ function LoadingResults({ label }: { label: string }) {
         </h2>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid w-full min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {[0, 1, 2].map((item) => (
           <div
             key={item}
