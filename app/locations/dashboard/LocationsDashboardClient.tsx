@@ -19,6 +19,11 @@ import ScoreBadge from "@/components/ScoreBadge";
 
 type LocationType = "restaurant" | "activity";
 
+const locationTypePathSegment: Record<LocationType, "restaurants" | "activities"> = {
+  restaurant: "restaurants",
+  activity: "activities",
+};
+
 type LocationItem = {
   id: string;
   location_type: LocationType;
@@ -365,7 +370,7 @@ export default function LocationsDashboardClient({
 
                   <div className="mt-5 space-y-3">
                     <Link
-                      href={`/locations/edit/${selected.location_type}s/${selected.id}`}
+                      href={`/locations/${locationTypePathSegment[selected.location_type]}/${selected.id}/edit`}
                       className="flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-black hover:bg-rose-100"
                     >
                       Edit Location
@@ -373,7 +378,7 @@ export default function LocationsDashboardClient({
                     </Link>
 
                     <Link
-                      href={`/locations/${selected.location_type}s/${selected.id}`}
+                      href={`/locations/${locationTypePathSegment[selected.location_type]}/${selected.id}`}
                       className="flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white hover:bg-white/15"
                     >
                       View Public Page

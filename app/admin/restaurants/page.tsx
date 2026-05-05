@@ -329,7 +329,7 @@ export default async function AdminRestaurantsPage({
                       </Link>
 
                       <Link
-                        href={`/locations/edit/restaurants/${restaurant.id}?from=/admin/restaurants`}
+                        href={`/locations/restaurants/${restaurant.id}/edit?from=/admin/restaurants`}
                         className="flex-1 rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-4 py-2 text-center text-xs font-black text-white shadow-sm transition hover:scale-[1.03]"
                       >
                         Edit
