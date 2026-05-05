@@ -200,7 +200,7 @@ export default function CreatePage() {
     restoredStateRef.current = false;
 
     setTimeout(() => inputRef.current?.focus(), 100);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -428,14 +428,14 @@ export default function CreatePage() {
 
   return (
     <main
-      className={`min-h-screen w-full max-w-full overflow-x-hidden bg-[#050505] text-white ${
+      className={`relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#050505] text-white ${
         selectedRestaurant || selectedActivity ? "pb-32 md:pb-0" : ""
       }`}
     >
       <RoseOutHeader />
 
       <section
-        className={`relative w-full max-w-full overflow-hidden border-b border-white/10 transition-all duration-500 ${
+        className={`relative w-full max-w-[100vw] overflow-hidden border-b border-white/10 transition-all duration-500 ${
           hasSearched
             ? "pt-24 pb-5 sm:pt-28 lg:pt-32"
             : "pt-24 pb-10 sm:pt-32 lg:pt-40 lg:pb-24"
@@ -447,17 +447,17 @@ export default function CreatePage() {
         <div className="relative mx-auto w-full max-w-7xl overflow-hidden px-4 sm:px-6">
           {!hasSearched ? (
             <div className="grid w-full max-w-full gap-8 lg:grid-cols-[0.86fr_1.14fr] lg:items-center">
-              <div className="min-w-0">
-                <div className="inline-flex max-w-full rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#e1062a] sm:text-xs sm:tracking-[0.25em]">
+              <div className="w-full min-w-0 max-w-full">
+                <div className="inline-flex max-w-full rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-[#e1062a] sm:text-xs sm:tracking-[0.25em]">
                   RoseOut Concierge
                 </div>
 
-                <h1 className="mt-6 max-w-full break-words text-4xl font-black leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
+                <h1 className="mt-6 max-w-full break-words text-[2.65rem] font-black leading-[0.98] tracking-normal sm:text-6xl sm:tracking-tight lg:text-7xl">
                   Plan the outing.
                   <span className="block text-[#e1062a]">Keep the vibe.</span>
                 </h1>
 
-                <p className="mt-5 max-w-xl text-sm font-medium leading-7 text-white/55 sm:mt-6 sm:text-base sm:leading-8 md:text-lg">
+                <p className="mt-5 max-w-full text-sm font-medium leading-7 text-white/55 sm:mt-6 sm:max-w-xl sm:text-base sm:leading-8 md:text-lg">
                   Tell RoseOut what you want. We’ll match restaurants,
                   activities, celebration ideas, distance, budget, and local
                   experiences into one curated outing.
@@ -489,7 +489,7 @@ export default function CreatePage() {
                 <button
                   type="button"
                   onClick={resetSearch}
-                  className="w-full rounded-full border border-white/15 bg-white/[0.06] px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white/65 transition hover:bg-white hover:text-black sm:w-fit sm:py-2 sm:tracking-[0.18em]"
+                  className="w-full rounded-full border border-white/15 bg-white/[0.06] px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-white/65 transition hover:bg-white hover:text-black sm:w-fit sm:py-2 sm:tracking-[0.18em]"
                 >
                   New Search
                 </button>
@@ -557,7 +557,7 @@ export default function CreatePage() {
                     <div className="w-full max-w-full animate-[resultFadeIn_550ms_ease-out_both] overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#0b0b0b] p-4 shadow-2xl shadow-black/40 sm:rounded-[2rem] sm:p-6">
                       <div className="mb-6 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div className="min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e1062a] sm:text-xs sm:tracking-[0.32em]">
+                          <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#e1062a] sm:text-xs sm:tracking-[0.32em]">
                             Curated Results
                           </p>
 
@@ -714,125 +714,29 @@ export default function CreatePage() {
         )}
       </section>
 
-      {hasSearched && !loading && (
-        <section className="mx-auto w-full max-w-5xl overflow-x-hidden px-4 pb-36 sm:px-6 md:pb-32">
-          <div className="w-full max-w-full rounded-[1.5rem] border border-white/10 bg-[#0b0b0b] p-4 shadow-2xl shadow-black/40 sm:rounded-[2rem] sm:p-5">
-            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.14em] text-[#e1062a] sm:text-xs sm:tracking-[0.3em]">
-              Refine Your Outing
-            </p>
-
-            {suggestedFollowUps.length > 0 && (
-              <div className="mb-4 flex max-w-full flex-wrap gap-2">
-                {suggestedFollowUps.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => sendMessage(suggestion)}
-                    disabled={loading}
-                    className="max-w-full rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] font-black text-white/65 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white disabled:opacity-50 sm:px-4 sm:text-xs"
-                  >
-                    <span className="break-words">{suggestion}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="relative w-full max-w-full">
-              {!input && (
-                <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-semibold leading-7 text-white/35">
-                  Refine your plan, change location, budget, or vibe...
-                </div>
-              )}
-
-              <textarea
-                ref={followUpRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleInputKeyDown}
-                rows={2}
-                className="relative z-20 min-h-[84px] w-full max-w-full resize-none rounded-[1.25rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none focus:border-[#e1062a]/70 sm:rounded-[1.5rem]"
-              />
-            </div>
-
-            {error && (
-              <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">
-                {error}
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs font-bold text-white/40">
-                Press Enter to send • Shift + Enter for new line
-              </p>
-
-              <button
-                onClick={() => sendMessage()}
-                disabled={loading}
-                className="w-full rounded-full bg-[#e1062a] px-6 py-3 text-sm font-black text-white transition hover:bg-red-500 disabled:opacity-50 sm:w-auto"
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {(selectedRestaurant || selectedActivity) && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 w-full max-w-full overflow-hidden border-t border-white/10 bg-black/95 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white backdrop-blur-2xl">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e1062a] sm:text-xs sm:tracking-[0.25em]">
-                Building your plan
-              </p>
-
-              <p className="mt-1 line-clamp-2 break-words text-sm font-black text-white">
-                {selectedPlanText}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                saveCreateState();
-
-                localStorage.setItem(
-                  "roseout_plan",
-                  JSON.stringify({
-                    restaurant: selectedRestaurant,
-                    activity: selectedActivity,
-                  })
-                );
-
-                window.location.href = "/plan";
-              }}
-              className="w-full rounded-2xl bg-[#e1062a] px-7 py-3 text-sm font-black text-white shadow-lg shadow-red-500/25 transition hover:bg-red-500 md:w-auto"
-            >
-              {getPlanButtonText()}
-            </button>
-          </div>
-        </div>
-      )}
-
       <RoseOutFooter />
 
       <style jsx global>{`
         html,
         body {
+          width: 100%;
           max-width: 100%;
-          overflow-x: hidden;
+          overflow-x: hidden !important;
+          position: relative;
         }
 
         * {
-          min-width: 0;
           box-sizing: border-box;
+          min-width: 0;
         }
 
         main,
         section,
         header,
-        footer {
+        footer,
+        div,
+        article {
           max-width: 100vw;
-          overflow-x: hidden;
         }
 
         @keyframes resultFadeIn {
@@ -858,15 +762,15 @@ export default function CreatePage() {
         }
 
         @media (max-width: 767px) {
+          body {
+            touch-action: pan-y;
+          }
+
           img,
           video,
           canvas,
           svg {
             max-width: 100%;
-          }
-
-          [class*="tracking-"] {
-            letter-spacing: 0.12em;
           }
         }
       `}</style>
