@@ -1,6 +1,11 @@
 import OpenAI from "openai";
 import { supabase } from "@/lib/supabase";
 import { clampScore } from "@/lib/clampScore";
+import {
+  detectSmartMatchIntent,
+  balanceSmartMatches,
+  getSmartMatchVersion,
+} from "@/lib/roseoutSmartMatchEngine";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -343,30 +348,217 @@ function detectLocation(input: string, locations: any[]) {
   });
 
   const hardcodedLocations = [
-    "manhattan",
-    "brooklyn",
-    "queens",
-    "bronx",
-    "staten island",
-    "nyc",
-    "new york",
-    "long island",
-    "nassau",
-    "suffolk",
-    "harlem",
-    "soho",
-    "tribeca",
-    "chelsea",
-    "midtown",
-    "downtown",
-    "uptown",
-    "williamsburg",
-    "bushwick",
-    "astoria",
-    "flushing",
-    "jamaica",
-    "long island city",
-  ];
+  // NYC general
+  "nyc",
+  "new york",
+  "new york city",
+
+  // Boroughs
+  "manhattan",
+  "brooklyn",
+  "queens",
+  "bronx",
+  "staten island",
+
+  // Manhattan
+  "soho",
+  "tribeca",
+  "chelsea",
+  "midtown",
+  "midtown east",
+  "midtown west",
+  "downtown",
+  "uptown",
+  "upper east side",
+  "upper west side",
+  "harlem",
+  "east harlem",
+  "west harlem",
+  "washington heights",
+  "inwood",
+  "hells kitchen",
+  "hudson yards",
+  "times square",
+  "theater district",
+  "flatiron",
+  "gramercy",
+  "murray hill",
+  "kips bay",
+  "noho",
+  "nolita",
+  "lower east side",
+  "les",
+  "east village",
+  "west village",
+  "greenwich village",
+  "financial district",
+  "fidi",
+  "battery park",
+  "battery park city",
+  "chinatown",
+  "little italy",
+  "union square",
+
+  // Brooklyn
+  "williamsburg",
+  "bushwick",
+  "greenpoint",
+  "dumbo",
+  "downtown brooklyn",
+  "brooklyn heights",
+  "fort greene",
+  "clinton hill",
+  "bed stuy",
+  "bedford stuyvesant",
+  "crown heights",
+  "prospect heights",
+  "park slope",
+  "prospect lefferts gardens",
+  "flatbush",
+  "east flatbush",
+  "sunset park",
+  "bay ridge",
+  "red hook",
+  "gowanus",
+  "carroll gardens",
+  "cobble hill",
+  "boerum hill",
+  "bensonhurst",
+  "dyker heights",
+  "sheepshead bay",
+  "brighton beach",
+  "coney island",
+  "canarsie",
+  "brownsville",
+  "east new york",
+
+  // Queens
+  "astoria",
+  "long island city",
+  "lic",
+  "sunnyside",
+  "woodside",
+  "jackson heights",
+  "elmhurst",
+  "corona",
+  "flushing",
+  "bayside",
+  "whitestone",
+  "forest hills",
+  "rego park",
+  "kew gardens",
+  "fresh meadows",
+  "jamaica",
+  "jamaica estates",
+  "hollis",
+  "queens village",
+  "laurelton",
+  "cambria heights",
+  "st albans",
+  "springfield gardens",
+  "ozone park",
+  "south ozone park",
+  "richmond hill",
+  "woodhaven",
+  "ridgewood",
+  "middle village",
+  "maspeth",
+  "rockaway",
+  "far rockaway",
+  "belle harbor",
+  "rockaway beach",
+
+  // Bronx
+  "south bronx",
+  "mott haven",
+  "melrose",
+  "fordham",
+  "belmont",
+  "little italy bronx",
+  "kingsbridge",
+  "riverdale",
+  "pelham bay",
+  "throgs neck",
+  "morris park",
+  "wakefield",
+  "woodlawn",
+  "bronx zoo",
+  "yankee stadium",
+
+  // Staten Island
+  "st george",
+  "st. george",
+  "stapleton",
+  "tompkinsville",
+  "new dorp",
+  "great kills",
+  "tottenville",
+  "port richmond",
+
+  // Long Island / Nassau / Suffolk
+  "long island",
+  "nassau",
+  "nassau county",
+  "suffolk",
+  "suffolk county",
+  "hempstead",
+  "garden city",
+  "mineola",
+  "freeport",
+  "long beach",
+  "rockville centre",
+  "valley stream",
+  "elmont",
+  "uniondale",
+  "westbury",
+  "hicksville",
+  "massapequa",
+  "levittown",
+  "babylon",
+  "deer park",
+  "ronkonkoma",
+  "patchogue",
+  "huntington",
+  "island park",
+
+  // Westchester
+  "westchester",
+  "westchester county",
+  "yonkers",
+  "mount vernon",
+  "new rochelle",
+  "white plains",
+  "scarsdale",
+  "tarrytown",
+  "elmsford",
+  "ossining",
+  "peekskill",
+  "dobbs ferry",
+  "hartsdale",
+  "port chester",
+  "rye",
+
+  // North Jersey
+  "new jersey",
+  "north jersey",
+  "jersey city",
+  "hoboken",
+  "newark",
+  "edgewater",
+  "fort lee",
+  "union city",
+  "weehawken",
+  "secaucus",
+  "hackensack",
+  "paramus",
+  "englewood",
+
+  // Airports / common search areas
+  "jfk",
+  "laguardia",
+  "lga",
+  "newark airport",
+];
 
   hardcodedLocations.forEach((location) => {
     if (text.includes(location)) {
@@ -1078,38 +1270,6 @@ function filterActivitiesByActivityIntent(
   return [];
 }
 
-function balanceResults(
-  restaurants: any[],
-  activities: any[],
-  intent: ReturnType<typeof detectIntent>
-) {
-  if (intent.multiIntentMode) {
-    return {
-      restaurants: restaurants.slice(0, 2),
-      activities: activities.slice(0, 2),
-    };
-  }
-
-  if (intent.wantsRestaurant && !intent.wantsActivity) {
-    return {
-      restaurants: restaurants.slice(0, 5),
-      activities: [],
-    };
-  }
-
-  if (intent.wantsActivity && !intent.wantsRestaurant) {
-    return {
-      restaurants: [],
-      activities: activities.slice(0, 5),
-    };
-  }
-
-  return {
-    restaurants: restaurants.slice(0, 3),
-    activities: activities.slice(0, 2),
-  };
-}
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -1120,9 +1280,15 @@ export async function POST(req: Request) {
       return Response.json({ error: "Missing input" }, { status: 400 });
     }
 
+    const smartIntent = detectSmartMatchIntent(input);
+    console.log("SMART MATCH INTENT:", smartIntent);
+
     if (isUnsafeOrOffTopic(input) || !isRoseOutRelated(input)) {
       return Response.json({
+        success: false,
+        version: getSmartMatchVersion(),
         reply: OFF_TOPIC_REPLY,
+        smart_match: smartIntent,
         intent: {
           requestedTags: [],
           foodIntents: [],
@@ -1139,52 +1305,54 @@ export async function POST(req: Request) {
 
     await logSearchQuery(input);
 
-const { data: locationsData, error: locationsError } = await supabase
-  .from("locations")
-  .select("*");
+    const { data: locationsData, error: locationsError } = await supabase
+      .from("locations")
+      .select("*");
 
-const { data: restaurantsData, error: restaurantsError } = await supabase
-  .from("restaurants")
-  .select("*");
+    const { data: restaurantsData, error: restaurantsError } = await supabase
+      .from("restaurants")
+      .select("*");
 
-const { data: activitiesData, error: activitiesError } = await supabase
-  .from("activities")
-  .select("*");
+    const { data: activitiesData, error: activitiesError } = await supabase
+      .from("activities")
+      .select("*");
 
-if (locationsError) {
-  return Response.json({ error: locationsError.message }, { status: 500 });
-}
+    if (locationsError) {
+      return Response.json({ error: locationsError.message }, { status: 500 });
+    }
 
-if (restaurantsError) {
-  return Response.json({ error: restaurantsError.message }, { status: 500 });
-}
+    if (restaurantsError) {
+      return Response.json(
+        { error: restaurantsError.message },
+        { status: 500 }
+      );
+    }
 
-if (activitiesError) {
-  return Response.json({ error: activitiesError.message }, { status: 500 });
-}
+    if (activitiesError) {
+      return Response.json({ error: activitiesError.message }, { status: 500 });
+    }
 
-const mergedLocations = [
-  ...(locationsData || []),
-  ...(restaurantsData || []).map((restaurant: any) => ({
-    ...restaurant,
-    location_type: "restaurant",
-    name: restaurant.restaurant_name || restaurant.name,
-    restaurant_name: restaurant.restaurant_name || restaurant.name,
-  })),
-  ...(activitiesData || []).map((activity: any) => ({
-    ...activity,
-    location_type: "activity",
-    name: activity.activity_name || activity.name,
-    activity_name: activity.activity_name || activity.name,
-  })),
-];
-
+    const mergedLocations = [
+      ...(locationsData || []),
+      ...(restaurantsData || []).map((restaurant: any) => ({
+        ...restaurant,
+        location_type: "restaurant",
+        name: restaurant.restaurant_name || restaurant.name,
+        restaurant_name: restaurant.restaurant_name || restaurant.name,
+      })),
+      ...(activitiesData || []).map((activity: any) => ({
+        ...activity,
+        location_type: "activity",
+        name: activity.activity_name || activity.name,
+        activity_name: activity.activity_name || activity.name,
+      })),
+    ];
 
     const locations = mergedLocations.map(normalizeLocation);
     const intent = detectIntent(input, body, locations);
 
     const cacheKey = normalizeQuery(
-      `roseout-location-intelligence-v15-${input}-${intent.userLat || ""}-${
+      `${getSmartMatchVersion()}-${input}-${intent.userLat || ""}-${
         intent.userLng || ""
       }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
     );
@@ -1287,6 +1455,7 @@ const mergedLocations = [
       .map((restaurant: any) => ({
         ...restaurant,
         roseout_score: scoreRestaurant(restaurant, input, intent),
+        smart_match_score: scoreRestaurant(restaurant, input, intent),
         location_name_match_score: locationNameMatchScore(restaurant, input),
       }))
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
@@ -1295,22 +1464,35 @@ const mergedLocations = [
       .map((activity: any) => ({
         ...activity,
         roseout_score: scoreActivity(activity, input, intent),
+        smart_match_score: scoreActivity(activity, input, intent),
         location_name_match_score: locationNameMatchScore(activity, input),
       }))
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
-    const balanced = balanceResults(rankedRestaurants, rankedActivities, intent);
+    const smartBalanced = balanceSmartMatches(
+      rankedRestaurants,
+      rankedActivities,
+      smartIntent
+    );
 
     if (
-      intent.activityIntents.length > 0 &&
+      smartIntent.activityIntents.length > 0 &&
       rankedActivities.length > 0 &&
-      balanced.activities.length === 0
+      smartBalanced.activities.length === 0
     ) {
-      balanced.activities = rankedActivities.slice(0, 2);
+      smartBalanced.activities = rankedActivities.slice(0, 2);
     }
 
-    const topRestaurants = balanced.restaurants;
-    const topActivities = balanced.activities;
+    if (
+      smartIntent.foodIntents.length > 0 &&
+      rankedRestaurants.length > 0 &&
+      smartBalanced.restaurants.length === 0
+    ) {
+      smartBalanced.restaurants = rankedRestaurants.slice(0, 2);
+    }
+
+    const topRestaurants = smartBalanced.restaurants;
+    const topActivities = smartBalanced.activities;
 
     const slimMatchedLocations = matchedLocationResults.map((item: any) => ({
       id: String(item.id),
@@ -1363,6 +1545,21 @@ ${shortConversation}
 
 Latest user request:
 "${input}"
+
+RoseOut Smart Match Engine:
+${JSON.stringify({
+  version: getSmartMatchVersion(),
+  mode: smartBalanced.mode,
+  wantsFood: smartIntent.wantsFood,
+  wantsActivity: smartIntent.wantsActivity,
+  wantsFullOuting: smartIntent.wantsFullOuting,
+  foodIntents: smartIntent.foodIntents,
+  activityIntents: smartIntent.activityIntents,
+  vibes: smartIntent.vibes,
+  locations: smartIntent.locations,
+  strictFoodMode: smartIntent.strictFoodMode,
+  strictActivityMode: smartIntent.strictActivityMode,
+})}
 
 Detected intent:
 ${JSON.stringify({
@@ -1427,6 +1624,21 @@ STRICT RULES:
       : null;
 
     const responsePayload = {
+      success: true,
+      version: getSmartMatchVersion(),
+      smart_match: {
+        mode: smartBalanced.mode,
+        query: smartIntent.query,
+        wantsFood: smartIntent.wantsFood,
+        wantsActivity: smartIntent.wantsActivity,
+        wantsFullOuting: smartIntent.wantsFullOuting,
+        foodIntents: smartIntent.foodIntents,
+        activityIntents: smartIntent.activityIntents,
+        vibes: smartIntent.vibes,
+        locations: smartIntent.locations,
+        strictFoodMode: smartIntent.strictFoodMode,
+        strictActivityMode: smartIntent.strictActivityMode,
+      },
       reply:
         response?.output_text ||
         "Here are strong RoseOut matches based on your vibe.",
@@ -1467,6 +1679,7 @@ STRICT RULES:
         atmosphere: r.atmosphere || null,
         price_range: r.price_range || null,
         roseout_score: clampScore(r.roseout_score),
+        smart_match_score: clampScore(r.smart_match_score || r.roseout_score),
         location_name_match_score: r.location_name_match_score || 0,
         reservation_link: r.reservation_link,
         reservation_url: r.reservation_url || r.booking_url,
@@ -1493,6 +1706,7 @@ STRICT RULES:
         atmosphere: a.atmosphere,
         group_friendly: a.group_friendly,
         roseout_score: clampScore(a.roseout_score),
+        smart_match_score: clampScore(a.smart_match_score || a.roseout_score),
         location_name_match_score: a.location_name_match_score || 0,
         reservation_link: a.reservation_link,
         reservation_url: a.reservation_url || a.booking_url,
