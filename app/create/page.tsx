@@ -108,7 +108,7 @@ export default function CreatePage() {
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<RestaurantCard | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<ActivityCard | null>(
-    null,
+    null
   );
   const [locationSaved, setLocationSaved] = useState(false);
 
@@ -117,12 +117,10 @@ export default function CreatePage() {
   const viewedItems = useRef<Set<string>>(new Set());
 
   const latestAssistant = useMemo(
-    () => [...messages].reverse().find((message) => message.role === "assistant"),
-    [messages],
+    () =>
+      [...messages].reverse().find((message) => message.role === "assistant"),
+    [messages]
   );
-
-  const hasResults =
-    !!latestAssistant?.restaurants?.length || !!latestAssistant?.activities?.length;
 
   useEffect(() => {
     document.title = "Create Your Outing | RoseOut";
@@ -157,7 +155,7 @@ export default function CreatePage() {
           itemType,
           eventType: "view",
         });
-      },
+      }
     );
   }, [latestAssistant]);
 
@@ -203,7 +201,7 @@ export default function CreatePage() {
       () => {
         setLocationSaved(false);
         setError("Please allow location access or search by neighborhood.");
-      },
+      }
     );
   }
 
@@ -312,7 +310,7 @@ export default function CreatePage() {
         restaurant: selectedRestaurant,
         activity: selectedActivity,
         savedAt: Date.now(),
-      }),
+      })
     );
   }
 
@@ -328,8 +326,7 @@ export default function CreatePage() {
             </div>
 
             <h1 className="max-w-3xl text-4xl font-black tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
-              Plan less.{" "}
-              <span className="text-[#e1062a]">RoseOut</span> more.
+              Plan less. <span className="text-[#e1062a]">RoseOut</span> more.
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-white/55 sm:text-base">
@@ -338,16 +335,18 @@ export default function CreatePage() {
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {["Cuisine-aware", "Activity matching", "NYC focused"].map(
-                (label) => (
-                  <span
-                    key={label}
-                    className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-white/65"
-                  >
-                    {label}
-                  </span>
-                ),
-              )}
+              {[
+                "Cuisine-aware",
+                "Activity matching",
+                "Better date planning",
+              ].map((label) => (
+                <span
+                  key={label}
+                  className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-white/65"
+                >
+                  {label}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -381,17 +380,8 @@ export default function CreatePage() {
             </div>
 
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
-                {suggestions.slice(0, 3).map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => setInput(suggestion)}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-white/55 transition hover:border-[#e1062a]/40 hover:text-white"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+              <div className="text-xs font-semibold text-white/40">
+                Describe the food, vibe, activity, location, or budget you want.
               </div>
 
               <div className="flex gap-2">
@@ -441,7 +431,7 @@ export default function CreatePage() {
         )}
 
         {!messages.length && !loading && (
-          <EmptyState onPick={(value) => setInput(value)} />
+          <StartPanel onPick={(value) => setInput(value)} />
         )}
 
         <div className="space-y-5">
@@ -539,7 +529,10 @@ export default function CreatePage() {
                             ...(restaurant.date_style_tags || []),
                           ]}
                           distance={restaurant.distance_miles}
-                          score={restaurant.smart_match_score || restaurant.roseout_score}
+                          score={
+                            restaurant.smart_match_score ||
+                            restaurant.roseout_score
+                          }
                           selected={isSelected}
                           priority={restaurantIndex === 0}
                           selectLabel={isSelected ? "Selected" : "Select"}
@@ -547,7 +540,7 @@ export default function CreatePage() {
                             setSelectedRestaurant(
                               selectedRestaurant?.id === restaurant.id
                                 ? null
-                                : restaurant,
+                                : restaurant
                             )
                           }
                           detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
@@ -556,9 +549,7 @@ export default function CreatePage() {
                           onWebsite={() => trackRestaurantClick(restaurantId)}
                           reservationUrl={reservationUrl}
                           reservationLabel="Reserve"
-                          onReservation={() =>
-                            trackRestaurantClick(restaurantId)
-                          }
+                          onReservation={() => trackRestaurantClick(restaurantId)}
                         />
                       );
                     })}
@@ -595,7 +586,9 @@ export default function CreatePage() {
                           primaryTag={activity.primary_tag}
                           tags={activity.date_style_tags || []}
                           distance={activity.distance_miles}
-                          score={activity.smart_match_score || activity.roseout_score}
+                          score={
+                            activity.smart_match_score || activity.roseout_score
+                          }
                           selected={isSelected}
                           priority={activityIndex === 0}
                           selectLabel={isSelected ? "Selected" : "Select"}
@@ -603,7 +596,7 @@ export default function CreatePage() {
                             setSelectedActivity(
                               selectedActivity?.id === activity.id
                                 ? null
-                                : activity,
+                                : activity
                             )
                           }
                           detailsHref={`/locations/activities/${activityId}?from=/create`}
@@ -650,35 +643,75 @@ export default function CreatePage() {
           </div>
         </div>
       </footer>
+
+      <style jsx global>{`
+        @keyframes cardReveal {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
     </main>
   );
 }
 
-function EmptyState({ onPick }: { onPick: (value: string) => void }) {
+function StartPanel({ onPick }: { onPick: (value: string) => void }) {
   return (
-    <div className="rounded-[1.25rem] border border-white/10 bg-[#0b0b0b] p-4 shadow-2xl shadow-black/40 sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="rounded-[1.25rem] border border-white/10 bg-[#0b0b0b] p-5 shadow-2xl shadow-black/40">
+      <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e1062a]">
-            Try a search
+            Build Your Outing
           </p>
-          <h2 className="mt-1 text-2xl font-black tracking-[-0.04em]">
-            Start with a full sentence.
+
+          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white sm:text-3xl">
+            Tell RoseOut what kind of night you want.
           </h2>
+
+          <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-white/45">
+            Add your food preference, activity, neighborhood, budget, or vibe.
+            RoseOut will turn it into tighter restaurant and activity matches.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-white/35">
+            Example format
+          </p>
+
+          <p className="mt-2 text-lg font-black text-white">
+            “Steak dinner with bowling in Queens”
+          </p>
+
+          <p className="mt-2 text-sm font-semibold leading-6 text-white/45">
+            Try adding words like romantic, luxury, affordable, rooftop,
+            birthday, brunch, karaoke, bowling, or near me.
+          </p>
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {suggestions.map((suggestion) => (
-          <button
-            key={suggestion}
-            type="button"
-            onClick={() => onPick(suggestion)}
-            className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-left text-sm font-bold leading-6 text-white/65 transition hover:border-[#e1062a]/50 hover:bg-[#e1062a]/10 hover:text-white"
-          >
-            {suggestion}
-          </button>
-        ))}
+      <div className="mt-5 border-t border-white/10 pt-4">
+        <p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-white/35">
+          Quick start buttons
+        </p>
+
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {suggestions.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              onClick={() => onPick(suggestion)}
+              className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-left text-sm font-bold leading-6 text-white/65 transition hover:border-[#e1062a]/50 hover:bg-[#e1062a]/10 hover:text-white"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -789,7 +822,9 @@ function ResultCard({
   return (
     <article
       className={`group relative flex h-full min-h-[445px] flex-col overflow-hidden rounded-[1.1rem] border bg-[#101010] shadow-xl shadow-black/30 transition duration-300 hover:border-[#e1062a]/55 hover:bg-[#141414] hover:shadow-[0_0_36px_rgba(225,6,42,0.16)] ${
-        selected ? "border-[#e1062a] ring-2 ring-[#e1062a]/35" : "border-white/10"
+        selected
+          ? "border-[#e1062a] ring-2 ring-[#e1062a]/35"
+          : "border-white/10"
       }`}
       style={{
         animation: `cardReveal 360ms ease-out ${index * 70}ms both`,
@@ -818,7 +853,9 @@ function ResultCard({
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
             Match
           </p>
-          <p className="text-sm font-black text-white">{Math.round(safeScore)}</p>
+          <p className="text-sm font-black text-white">
+            {Math.round(safeScore)}
+          </p>
         </div>
 
         <div className="absolute right-3 top-3 flex max-w-[65%] flex-wrap justify-end gap-1.5">
@@ -826,7 +863,7 @@ function ResultCard({
             <span
               key={`${tag.label}-${tag.tone}`}
               className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] backdrop-blur-md ${tagToneClass(
-                tag.tone,
+                tag.tone
               )}`}
             >
               {tag.label}
@@ -1070,7 +1107,11 @@ function getDisplayTags({
   const results: { label: string; tone: "rose" | "gold" | "purple" }[] = [];
 
   const add = (label: string, tone: "rose" | "gold" | "purple") => {
-    if (!results.some((item) => item.label.toLowerCase() === label.toLowerCase())) {
+    if (
+      !results.some(
+        (item) => item.label.toLowerCase() === label.toLowerCase()
+      )
+    ) {
       results.push({ label, tone });
     }
   };
