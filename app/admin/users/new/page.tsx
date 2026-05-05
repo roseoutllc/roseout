@@ -17,6 +17,29 @@ export default function AddUserPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [useManual, setUseManual] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const form = new FormData(e.target);
+
+    const res = await fetch("/api/admin/create-user", {
+      method: "POST",
+      body: form,
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to create user");
+      setLoading(false);
+      return;
+    }
+
+    window.location.href = "/admin/users?created=1";
+  };
 
   return (
     <main className="min-h-screen bg-[#090706] px-4 pb-10 pt-4 text-white sm:px-6 lg:px-8">
@@ -36,13 +59,13 @@ export default function AddUserPage() {
               </h1>
 
               <p className="mt-3 text-sm text-white/60">
-                Create a new platform user with secure credentials.
+                Create a new platform user securely.
               </p>
             </div>
 
             <Link
               href="/admin/users"
-              className="rounded-full border border-white/10 bg-white/[0.07] px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+              className="rounded-full border border-white/10 bg-white/[0.07] px-5 py-3 text-sm font-black text-white/70 hover:bg-white/10 hover:text-white"
             >
               Back
             </Link>
@@ -51,11 +74,7 @@ export default function AddUserPage() {
 
         {/* FORM */}
         <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-[#f8f3ef] text-[#1b1210] shadow-2xl">
-          <form
-            method="POST"
-            action="/api/admin/create-user"
-            className="grid gap-5 p-5"
-          >
+          <form onSubmit={handleSubmit} className="grid gap-5 p-5">
             {/* EMAIL */}
             <div>
               <label className="text-sm font-black">Email</label>
@@ -68,7 +87,7 @@ export default function AddUserPage() {
               />
             </div>
 
-            {/* PASSWORD CONTROLS */}
+            {/* PASSWORD */}
             <div className="rounded-2xl border border-black/10 bg-white p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-black">Password Setup</p>
@@ -82,7 +101,6 @@ export default function AddUserPage() {
                 </button>
               </div>
 
-              {/* PASSWORD FIELD */}
               <div className="mt-3">
                 <input
                   name="password"
@@ -95,7 +113,6 @@ export default function AddUserPage() {
                 />
               </div>
 
-              {/* ACTIONS */}
               <div className="mt-3 flex flex-wrap gap-2">
                 {!useManual && (
                   <button
@@ -103,7 +120,7 @@ export default function AddUserPage() {
                     onClick={() => setPassword(generateStrongPassword())}
                     className="rounded-full bg-[#1b1210] px-4 py-2 text-xs font-black text-white"
                   >
-                    Generate Strong Password
+                    Generate
                   </button>
                 )}
 
@@ -135,9 +152,10 @@ export default function AddUserPage() {
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                className="rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-6 py-3 text-sm font-black text-white shadow-lg hover:scale-[1.03]"
+                disabled={loading}
+                className="rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-6 py-3 text-sm font-black text-white shadow-lg hover:scale-[1.03] disabled:opacity-50"
               >
-                Create User
+                {loading ? "Creating..." : "Create User"}
               </button>
 
               <Link
