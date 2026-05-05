@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 export default function RoseOutHeader() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -17,13 +18,17 @@ export default function RoseOutHeader() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
   const isActive = (href: string) =>
     pathname === href || (href !== "/" && pathname?.startsWith(href));
 
   return (
     <header
       className={`fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/95 text-white backdrop-blur-xl transition-all duration-300 ${
-        scrolled ? "shadow-lg shadow-black/40" : ""
+        scrolled || menuOpen ? "shadow-lg shadow-black/40" : ""
       }`}
     >
       <div
@@ -74,18 +79,66 @@ export default function RoseOutHeader() {
             Plan My Outing
           </Link>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setMenuOpen((prev) => !prev)}
+          aria-label={menuOpen ? "Close mobile menu" : "Open mobile menu"}
+          aria-expanded={menuOpen}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white transition hover:bg-white hover:text-black md:hidden"
+        >
+          <span className="sr-only">
+            {menuOpen ? "Close mobile menu" : "Open mobile menu"}
+          </span>
+
+          <span className="relative h-5 w-5">
+            <span
+              className={`absolute left-0 top-1 block h-[2px] w-5 rounded-full bg-current transition-all duration-300 ${
+                menuOpen ? "top-2 rotate-45" : ""
+              }`}
+            />
+            <span
+              className={`absolute left-0 top-2 block h-[2px] w-5 rounded-full bg-current transition-all duration-300 ${
+                menuOpen ? "opacity-0" : "opacity-100"
+              }`}
+            />
+            <span
+              className={`absolute left-0 top-3 block h-[2px] w-5 rounded-full bg-current transition-all duration-300 ${
+                menuOpen ? "top-2 -rotate-45" : ""
+              }`}
+            />
+          </span>
+        </button>
       </div>
 
-      <nav className="flex h-11 items-center justify-around border-t border-white/10 bg-black px-2 md:hidden">
-        <MobileLink href="/" label="Home" active={isActive("/")} />
-        <MobileLink href="/create" label="Plan" active={isActive("/create")} />
-        <MobileLink
-          href="/business"
-          label="Business"
-          active={isActive("/business")}
-        />
-        <MobileLink href="/login" label="Sign In" active={isActive("/login")} />
-      </nav>
+      {menuOpen && (
+        <div className="border-t border-white/10 bg-black/95 px-4 pb-5 pt-3 shadow-2xl shadow-black/50 backdrop-blur-xl md:hidden">
+          <div className="mx-auto max-w-7xl space-y-2">
+            <MobileMenuLink href="/" label="Home" active={isActive("/")} />
+            <MobileMenuLink
+              href="/about"
+              label="About"
+              active={isActive("/about")}
+            />
+            <MobileMenuLink
+              href="/business"
+              label="For Businesses"
+              active={isActive("/business")}
+            />
+            <MobileMenuLink
+              href="/create"
+              label="Plan My Outing"
+              active={isActive("/create")}
+              featured
+            />
+            <MobileMenuLink
+              href="/login"
+              label="Sign In"
+              active={isActive("/login")}
+            />
+          </div>
+        </div>
+      )}
     </header>
   );
 }
@@ -117,23 +170,29 @@ function NavLink({
   );
 }
 
-function MobileLink({
+function MobileMenuLink({
   href,
   label,
   active,
+  featured,
 }: {
   href: string;
   label: string;
   active: boolean;
+  featured?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className={`flex min-w-0 flex-1 items-center justify-center rounded-full px-1 py-2 text-center text-xs font-black transition ${
-        active ? "text-[#e1062a]" : "text-white/45 hover:text-white"
+      className={`block rounded-2xl px-4 py-4 text-sm font-black transition ${
+        featured
+          ? "bg-[#e1062a] text-white hover:bg-red-500"
+          : active
+          ? "bg-white text-black"
+          : "bg-white/[0.05] text-white/70 hover:bg-white hover:text-black"
       }`}
     >
-      <span className="truncate">{label}</span>
+      {label}
     </Link>
   );
 }
