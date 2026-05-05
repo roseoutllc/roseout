@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import RoseOutHeader from "@/components/RoseOutHeader";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 import { clampScore } from "@/lib/clampScore";
@@ -102,6 +103,8 @@ const loadingLines = [
 ];
 
 export default function CreatePage() {
+  const router = useRouter();
+
   const [input, setInput] = useState("");
   const [typedPlaceholder, setTypedPlaceholder] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -124,6 +127,15 @@ export default function CreatePage() {
       [...messages].reverse().find((message) => message.role === "assistant"),
     [messages]
   );
+
+  const hasSelection = Boolean(selectedRestaurant || selectedActivity);
+
+  const selectedPlanText = [
+    selectedRestaurant?.restaurant_name,
+    selectedActivity?.activity_name,
+  ]
+    .filter(Boolean)
+    .join(" + ");
 
   useEffect(() => {
     document.title = "Create Your Outing | RoseOut";
@@ -261,12 +273,6 @@ export default function CreatePage() {
 
   function handleInputChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
     setInput(event.target.value);
-
-    const element = inputRef.current;
-    if (!element) return;
-
-    element.style.height = "auto";
-    element.style.height = `${Math.min(element.scrollHeight, 150)}px`;
   }
 
   async function handleSubmit(event?: React.FormEvent) {
@@ -362,18 +368,30 @@ export default function CreatePage() {
   function savePlan() {
     if (typeof window === "undefined") return;
 
-    localStorage.setItem(
-      "roseout_plan",
-      JSON.stringify({
-        restaurant: selectedRestaurant,
-        activity: selectedActivity,
-        savedAt: Date.now(),
-      })
-    );
+    const plan = {
+      restaurant: selectedRestaurant,
+      activity: selectedActivity,
+      locations: [selectedRestaurant, selectedActivity].filter(Boolean),
+      savedAt: Date.now(),
+    };
+
+    localStorage.setItem("roseout_plan", JSON.stringify(plan));
+
+    const params = new URLSearchParams();
+
+    if (selectedRestaurant?.id) {
+      params.set("restaurantId", String(selectedRestaurant.id));
+    }
+
+    if (selectedActivity?.id) {
+      params.set("activityId", String(selectedActivity.id));
+    }
+
+    router.push(`/plan?${params.toString()}`);
   }
 
   return (
-    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black text-white">
+    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black pb-24 text-white">
       <RoseOutHeader />
 
       <section className="relative w-full max-w-full overflow-x-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-4 pb-8 pt-28 sm:px-6 sm:pb-10 lg:pt-32">
@@ -410,24 +428,30 @@ export default function CreatePage() {
                 ) : null}
               </div>
 
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={handleInputChange}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    handleSubmit();
-                  }
-                }}
-                rows={2}
-                placeholder={
-                  typedPlaceholder
-                    ? `${typedPlaceholder}|`
-                    : "Tell RoseOut what you want..."
-                }
-                className="max-h-[150px] min-h-[92px] w-full min-w-0 max-w-full resize-none overflow-y-auto rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-semibold leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#e1062a]/70 sm:min-h-[104px] sm:text-base sm:leading-7"
-              />
+              <div className="relative">
+                {!input && (
+                  <div className="pointer-events-none absolute left-4 top-4 z-10 max-w-[calc(100%-2rem)] truncate text-sm font-semibold leading-6 text-white/30 sm:text-base sm:leading-7">
+                    {typedPlaceholder
+                      ? `${typedPlaceholder}|`
+                      : "Tell RoseOut what you want..."}
+                  </div>
+                )}
+
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={handleInputChange}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      handleSubmit();
+                    }
+                  }}
+                  rows={2}
+                  placeholder=""
+                  className="h-[104px] w-full min-w-0 max-w-full resize-none overflow-y-auto rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-semibold leading-6 text-white outline-none transition focus:border-[#e1062a]/70 sm:h-[112px] sm:text-base sm:leading-7"
+                />
+              </div>
             </div>
 
             <div className="mt-4 flex w-full min-w-0 justify-center">
@@ -524,16 +548,6 @@ export default function CreatePage() {
                       Compact picks. Less scrolling. Better decision-making.
                     </p>
                   </div>
-
-                  {(selectedRestaurant || selectedActivity) && (
-                    <button
-                      type="button"
-                      onClick={savePlan}
-                      className="rounded-full border border-[#e1062a]/40 bg-[#e1062a]/10 px-4 py-2 text-xs font-black text-red-100 transition hover:bg-[#e1062a] hover:text-white"
-                    >
-                      Save Selected Plan
-                    </button>
-                  )}
                 </div>
 
                 {restaurants.length > 0 && (
@@ -690,6 +704,34 @@ export default function CreatePage() {
           </div>
         </div>
       </footer>
+
+      {hasSelection && (
+        <div className="fixed bottom-0 left-0 z-50 w-full border-t border-white/10 bg-black/85 shadow-[0_-18px_45px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            <div className="flex min-w-0 flex-col">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#e1062a]">
+                Your RoseOut Plan
+              </p>
+
+              <p className="truncate text-sm font-bold text-white">
+                {selectedPlanText || "Selected outing"}
+              </p>
+
+              <p className="hidden text-xs font-semibold text-white/40 sm:block">
+                Continue to review your picks and build the full outing.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={savePlan}
+              className="shrink-0 rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-900/40 transition hover:bg-[#ff1744]"
+            >
+              Continue Planning →
+            </button>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         html,
