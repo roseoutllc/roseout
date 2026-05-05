@@ -83,6 +83,15 @@ type UserLocation = {
 
 const LOCATION_KEY = "roseout_user_location";
 
+const suggestionChips = [
+  "Steak dinner with bowling",
+  "Romantic Italian dinner",
+  "Birthday brunch rooftop",
+  "Affordable date night",
+  "Sushi and karaoke",
+  "Hookah lounge with food",
+];
+
 const typingSearches = [
   "Steak dinner with bowling in Queens",
   "Romantic Italian dinner in Brooklyn",
@@ -250,8 +259,36 @@ export default function CreatePage() {
     setSelectedRestaurant(null);
     setSelectedActivity(null);
     setError("");
+
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
+
     inputRef.current?.focus();
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleInputChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInput(event.target.value);
+
+    const element = inputRef.current;
+    if (!element) return;
+
+    element.style.height = "auto";
+    element.style.height = `${Math.min(element.scrollHeight, 150)}px`;
+  }
+
+  function setSuggestion(value: string) {
+    setInput(value);
+
+    requestAnimationFrame(() => {
+      const element = inputRef.current;
+      if (!element) return;
+
+      element.style.height = "auto";
+      element.style.height = `${Math.min(element.scrollHeight, 150)}px`;
+      element.focus();
+    });
   }
 
   async function handleSubmit(event?: React.FormEvent) {
@@ -271,6 +308,10 @@ export default function CreatePage() {
 
     setMessages((current) => [...current, userMessage]);
     setInput("");
+
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
 
     try {
       const savedLocation = getSavedLocation();
@@ -358,7 +399,7 @@ export default function CreatePage() {
       <RoseOutHeader />
 
       <section className="relative w-full max-w-full overflow-x-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-4 pb-8 pt-28 sm:px-6 sm:pb-10 lg:pt-32">
-        <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-6 overflow-hidden lg:grid-cols-[0.88fr_1.12fr] lg:items-stretch">
+        <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-6 overflow-hidden lg:grid-cols-[0.88fr_1.12fr] lg:items-center">
           <div className="flex min-w-0 max-w-full flex-col justify-center">
             <div className="mb-4 inline-flex w-fit max-w-full rounded-full border border-[#e1062a]/30 bg-[#e1062a]/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-red-100">
               AI Outing Planner
@@ -376,7 +417,7 @@ export default function CreatePage() {
 
           <form
             onSubmit={handleSubmit}
-            className="flex h-full min-h-[390px] w-full min-w-0 max-w-full flex-col justify-between overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#111]/90 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-5 lg:min-h-[430px]"
+            className="flex w-full min-w-0 max-w-full flex-col overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#111]/90 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl transition focus-within:border-[#e1062a]/45 focus-within:shadow-[0_0_0_1px_rgba(225,6,42,0.28),0_0_34px_rgba(225,6,42,0.18)] sm:p-5"
           >
             <div className="min-w-0">
               <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
@@ -391,24 +432,49 @@ export default function CreatePage() {
                 ) : null}
               </div>
 
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    handleSubmit();
+              <div className="relative">
+                <label
+                  className={`pointer-events-none absolute left-4 z-10 transition-all duration-200 ${
+                    input
+                      ? "top-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#e1062a]"
+                      : "top-4 text-xs font-bold uppercase tracking-[0.16em] text-white/35"
+                  }`}
+                >
+                  What are we planning?
+                </label>
+
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={handleInputChange}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      handleSubmit();
+                    }
+                  }}
+                  rows={2}
+                  placeholder={
+                    typedPlaceholder
+                      ? `${typedPlaceholder}|`
+                      : "Tell RoseOut what you want..."
                   }
-                }}
-                rows={5}
-                placeholder={
-                  typedPlaceholder
-                    ? `${typedPlaceholder}|`
-                    : "Tell RoseOut what you want..."
-                }
-                className="min-h-[220px] w-full min-w-0 max-w-full resize-none rounded-3xl border border-white/10 bg-black px-4 py-4 text-base font-black leading-7 text-white outline-none transition placeholder:text-white/28 focus:border-[#e1062a]/60 sm:min-h-[260px] sm:px-5 sm:py-5 sm:text-xl sm:leading-8 lg:min-h-[300px]"
-              />
+                  className="max-h-[150px] min-h-[92px] w-full min-w-0 max-w-full resize-none overflow-y-auto rounded-2xl border border-white/10 bg-black px-4 pb-3 pt-8 text-sm font-semibold leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#e1062a]/70 sm:min-h-[104px] sm:text-base sm:leading-7"
+                />
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {suggestionChips.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => setSuggestion(suggestion)}
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-white/55 transition hover:border-[#e1062a]/45 hover:bg-[#e1062a]/10 hover:text-white"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="mt-4 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
