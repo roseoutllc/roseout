@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import RoseOutHeader from "@/components/RoseOutHeader";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 import { clampScore } from "@/lib/clampScore";
@@ -11,51 +11,55 @@ import { clampScore } from "@/lib/clampScore";
 type RestaurantCard = {
   id: string;
   restaurant_name: string;
-  address: string;  
-  city: string;
-  state: string;
-  zip_code: string;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
   cuisine?: string | null;
+  food_type?: string | null;
+  cuisine_tags?: string[] | null;
   atmosphere?: string | null;
   price_range?: string | null;
   roseout_score: number;
-  reservation_link?: string;
-  reservation_url?: string;
-  website?: string;
-  image_url?: string;
+  smart_match_score?: number | null;
+  reservation_link?: string | null;
+  reservation_url?: string | null;
+  website?: string | null;
+  image_url?: string | null;
   rating?: number | null;
   review_count?: number | null;
   review_score?: number | null;
   review_keywords?: string[] | null;
   review_snippet?: string | null;
   primary_tag?: string | null;
-  date_style_tags?: string[];
+  date_style_tags?: string[] | null;
   distance_miles?: number | null;
 };
 
 type ActivityCard = {
   id: string;
   activity_name: string;
-  activity_type?: string;
-  address: string;
-  city: string;
-  state: string;
-  zip_code: string;
-  price_range?: string;
-  atmosphere?: string;
-  group_friendly?: boolean;
+  activity_type?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+  price_range?: string | null;
+  atmosphere?: string | null;
+  group_friendly?: boolean | null;
   roseout_score: number;
-  reservation_link?: string;
-  reservation_url?: string;
-  website?: string;
-  image_url?: string;
+  smart_match_score?: number | null;
+  reservation_link?: string | null;
+  reservation_url?: string | null;
+  website?: string | null;
+  image_url?: string | null;
   rating?: number | null;
   review_count?: number | null;
   review_score?: number | null;
   review_keywords?: string[] | null;
   review_snippet?: string | null;
   primary_tag?: string | null;
-  date_style_tags?: string[];
+  date_style_tags?: string[] | null;
   distance_miles?: number | null;
 };
 
@@ -66,80 +70,98 @@ type Message = {
   activities?: ActivityCard[];
 };
 
+type ApiResponse = {
+  reply?: string;
+  restaurants?: RestaurantCard[];
+  activities?: ActivityCard[];
+};
+
 type UserLocation = {
   latitude: number;
   longitude: number;
 };
 
-const STORAGE_KEY = "roseout_create_state";
 const LOCATION_KEY = "roseout_user_location";
 
-const loadingMessages = [
-  "Finding hidden gems...",
-  "Matching your vibe...",
-  "Scanning top-rated spots...",
-  "Curating your perfect outing...",
-  "Checking the best experiences...",
-  "Building something special...",
+const suggestions = [
+  "Steak dinner with bowling in Queens",
+  "Romantic Italian dinner in Brooklyn",
+  "Birthday dinner with nightlife",
+  "Brunch with a fun activity nearby",
+  "Luxury dinner with rooftop vibes",
+  "Affordable date night near me",
 ];
 
-const aiSuggestions = [
-  "Plan a fun outing in Queens with dinner and something relaxing after...",
-  "Find a classy restaurant near me with a great vibe and easy parking...",
-  "I want a birthday outing with food, music, and a memorable experience...",
-  "Plan an affordable outing with great food and something fun nearby...",
-  "Find a romantic restaurant with an activity close by...",
-  "Give me a luxury outing idea for this weekend...",
+const loadingLines = [
+  "Matching your vibe...",
+  "Checking food and activity signals...",
+  "Building tighter RoseOut picks...",
+  "Finding the best fit...",
 ];
 
 export default function CreatePage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingTextIndex, setLoadingTextIndex] = useState(0);
-  const [suggestionIndex, setSuggestionIndex] = useState(0);
-  const [typedSuggestion, setTypedSuggestion] = useState("");
+  const [loadingIndex, setLoadingIndex] = useState(0);
   const [error, setError] = useState("");
-  const [locationSaved, setLocationSaved] = useState(false);
-
-  const viewedItems = useRef<Set<string>>(new Set());
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const followUpRef = useRef<HTMLTextAreaElement | null>(null);
-  const resultsRef = useRef<HTMLDivElement | null>(null);
-  const restoredStateRef = useRef(false);
-
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<RestaurantCard | null>(null);
-
   const [selectedActivity, setSelectedActivity] = useState<ActivityCard | null>(
     null,
   );
+  const [locationSaved, setLocationSaved] = useState(false);
 
-  const hasSearched = messages.length > 0;
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+  const viewedItems = useRef<Set<string>>(new Set());
 
-  const latestAssistant = [...messages]
-    .reverse()
-    .find((msg) => msg.role === "assistant");
+  const latestAssistant = useMemo(
+    () => [...messages].reverse().find((message) => message.role === "assistant"),
+    [messages],
+  );
 
-  const suggestedFollowUps = getSuggestedFollowUps(latestAssistant);
+  const hasResults =
+    !!latestAssistant?.restaurants?.length || !!latestAssistant?.activities?.length;
 
-  const saveCreateState = useCallback(() => {
-    if (typeof window === "undefined") return;
+  useEffect(() => {
+    document.title = "Create Your Outing | RoseOut";
+    setLocationSaved(Boolean(getSavedLocation()));
+  }, []);
 
-    sessionStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        input,
-        messages,
-        selectedRestaurant,
-        selectedActivity,
-        scrollY: window.scrollY,
-        savedAt: Date.now(),
-      }),
+  useEffect(() => {
+    if (!loading) return;
+
+    const timer = window.setInterval(() => {
+      setLoadingIndex((current) => (current + 1) % loadingLines.length);
+    }, 1400);
+
+    return () => window.clearInterval(timer);
+  }, [loading]);
+
+  useEffect(() => {
+    const latest = latestAssistant;
+    if (!latest) return;
+
+    [...(latest.restaurants || []), ...(latest.activities || [])].forEach(
+      (item: any) => {
+        const itemType = item.restaurant_name ? "restaurant" : "activity";
+        const key = `${itemType}-${item.id}`;
+
+        if (!item.id || viewedItems.current.has(key)) return;
+
+        viewedItems.current.add(key);
+
+        trackAnalytics({
+          itemId: String(item.id),
+          itemType,
+          eventType: "view",
+        });
+      },
     );
-  }, [input, messages, selectedRestaurant, selectedActivity]);
+  }, [latestAssistant]);
 
-  const getSavedUserLocation = (): UserLocation | null => {
+  function getSavedLocation(): UserLocation | null {
     if (typeof window === "undefined") return null;
 
     try {
@@ -159,9 +181,9 @@ export default function CreatePage() {
     } catch {
       return null;
     }
-  };
+  }
 
-  const requestUserLocation = () => {
+  function requestUserLocation() {
     if (!navigator.geolocation) {
       setError("Location is not supported on this device.");
       return;
@@ -180,773 +202,486 @@ export default function CreatePage() {
       },
       () => {
         setLocationSaved(false);
-        setError("Please allow location access or search by zip code.");
+        setError("Please allow location access or search by neighborhood.");
       },
     );
-  };
+  }
 
-  const resetSearch = () => {
-    sessionStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("roseout_plan");
-    localStorage.removeItem("roseout-search");
-    localStorage.removeItem("roseout-results");
-    sessionStorage.removeItem("roseout-search");
-    sessionStorage.removeItem("roseout-results");
-
+  function resetSearch() {
     setInput("");
     setMessages([]);
     setSelectedRestaurant(null);
     setSelectedActivity(null);
     setError("");
-    restoredStateRef.current = false;
+    inputRef.current?.focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
-    setTimeout(() => inputRef.current?.focus(), 100);
-    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-  };
+  async function handleSubmit(event?: React.FormEvent) {
+    event?.preventDefault();
 
-  useEffect(() => {
-    document.title = "Create Your Outing | RoseOut";
+    const cleanInput = input.trim();
 
-    setLocationSaved(!!getSavedUserLocation());
+    if (!cleanInput || loading) return;
 
-    sessionStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("roseout_plan");
-    localStorage.removeItem("roseout-search");
-    localStorage.removeItem("roseout-results");
-    sessionStorage.removeItem("roseout-search");
-    sessionStorage.removeItem("roseout-results");
-
-    setInput("");
-    setMessages([]);
-    setSelectedRestaurant(null);
-    setSelectedActivity(null);
+    setLoading(true);
     setError("");
-    restoredStateRef.current = false;
-
-    setTimeout(() => inputRef.current?.focus(), 300);
-  }, []);
-
-  useEffect(() => {
-    if (!restoredStateRef.current && messages.length === 0) return;
-    saveCreateState();
-  }, [messages, input, selectedRestaurant, selectedActivity, saveCreateState]);
-
-  useEffect(() => {
-    if (!loading) return;
-
-    const interval = setInterval(() => {
-      setLoadingTextIndex((prev) => (prev + 1) % loadingMessages.length);
-    }, 1400);
-
-    return () => clearInterval(interval);
-  }, [loading]);
-
-  useEffect(() => {
-    if (input.trim()) return;
-
-    const fullText = aiSuggestions[suggestionIndex];
-    let charIndex = 0;
-
-    setTypedSuggestion("");
-
-    const typingTimer = setInterval(() => {
-      charIndex += 1;
-      setTypedSuggestion(fullText.slice(0, charIndex));
-
-      if (charIndex >= fullText.length) {
-        clearInterval(typingTimer);
-
-        setTimeout(() => {
-          setSuggestionIndex((prev) => (prev + 1) % aiSuggestions.length);
-        }, 1800);
-      }
-    }, 35);
-
-    return () => clearInterval(typingTimer);
-  }, [suggestionIndex, input]);
-
-  useEffect(() => {
-    messages.forEach((msg) => {
-      msg.restaurants?.forEach((r) => {
-        const key = `restaurant-${r.id}`;
-
-        if (!viewedItems.current.has(key)) {
-          viewedItems.current.add(key);
-
-          trackAnalytics({
-            itemId: r.id,
-            itemType: "restaurant",
-            eventType: "view",
-          });
-        }
-      });
-
-      msg.activities?.forEach((a) => {
-        const key = `activity-${a.id}`;
-
-        if (!viewedItems.current.has(key)) {
-          viewedItems.current.add(key);
-
-          trackAnalytics({
-            itemId: a.id,
-            itemType: "activity",
-            eventType: "view",
-          });
-        }
-      });
-    });
-  }, [messages]);
-
-  useEffect(() => {
-    if (restoredStateRef.current) return;
-    if (!hasSearched) return;
-
-    const latestMessage = messages[messages.length - 1];
-
-    if (latestMessage?.role !== "user") return;
-
-    setTimeout(() => {
-      resultsRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 150);
-  }, [messages.length, hasSearched, messages]);
-
-  const trackRestaurantClick = (id: string) => {
-    trackAnalytics({
-      itemId: id,
-      itemType: "restaurant",
-      eventType: "click",
-    });
-  };
-
-  const trackActivityClick = (id: string) => {
-    trackAnalytics({
-      itemId: id,
-      itemType: "activity",
-      eventType: "click",
-    });
-  };
-
-  const sendMessage = async (overrideText?: string) => {
-    if (loading) return;
-
-    restoredStateRef.current = false;
-
-    const messageText = overrideText || input;
-
-    if (!messageText.trim()) {
-      setError("Please enter what you’re looking for.");
-      return;
-    }
 
     const userMessage: Message = {
       role: "user",
-      content: messageText,
+      content: cleanInput,
     };
 
-    const nextMessages = [...messages, userMessage];
-
-    setMessages(nextMessages);
+    setMessages((current) => [...current, userMessage]);
     setInput("");
-    setError("");
-    setLoading(true);
-    setSelectedRestaurant(null);
-    setSelectedActivity(null);
-
-    setTimeout(() => {
-      resultsRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 100);
 
     try {
-      const savedLocation = getSavedUserLocation();
+      const savedLocation = getSavedLocation();
 
-      const res = await fetch("/api/generate", {
+      const response = await fetch("/api/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          input: messageText,
-          messages: nextMessages.slice(-4),
-          userLocation: savedLocation,
-          lat: savedLocation?.latitude,
-          lng: savedLocation?.longitude,
+          input: cleanInput,
+          messages: [...messages, userMessage],
+          ...(savedLocation
+            ? {
+                latitude: savedLocation.latitude,
+                longitude: savedLocation.longitude,
+                lat: savedLocation.latitude,
+                lng: savedLocation.longitude,
+              }
+            : {}),
         }),
       });
 
-      const data = await res.json();
+      const data: ApiResponse & { error?: string } = await response.json();
 
-      if (!res.ok) {
-        setError(data.error || "Something went wrong.");
-        return;
+      if (!response.ok) {
+        throw new Error(data.error || "RoseOut could not create results.");
       }
 
-      const assistantReply = data.reply || data.message || data.answer || "";
+      const assistantMessage: Message = {
+        role: "assistant",
+        content:
+          data.reply ||
+          "Here are strong RoseOut matches based on your outing request.",
+        restaurants: data.restaurants || [],
+        activities: data.activities || [],
+      };
 
-      const updatedMessages: Message[] = [
-        ...nextMessages,
-        {
-          role: "assistant",
-          content: assistantReply,
-          restaurants: data.restaurants || [],
-          activities: data.activities || [],
-        },
-      ];
+      setMessages((current) => [...current, assistantMessage]);
 
-      setMessages(updatedMessages);
-    } catch {
-      setError("Could not create response. Please try again.");
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 150);
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
+  function trackRestaurantClick(id: string) {
+    trackAnalytics({
+      itemId: id,
+      itemType: "restaurant",
+      eventType: "click",
+    });
+  }
 
-  const getPlanButtonText = () => {
-    if (selectedRestaurant && selectedActivity) return "View Your Full Plan";
-    if (selectedRestaurant) return "View Restaurant Plan";
-    if (selectedActivity) return "View Activity Plan";
-    return "View Your Plan";
-  };
+  function trackActivityClick(id: string) {
+    trackAnalytics({
+      itemId: id,
+      itemType: "activity",
+      eventType: "click",
+    });
+  }
 
-  const selectedPlanText =
-    selectedRestaurant && selectedActivity
-      ? `${selectedRestaurant.restaurant_name} + ${selectedActivity.activity_name}`
-      : selectedRestaurant?.restaurant_name ||
-        selectedActivity?.activity_name ||
-        "";
+  function savePlan() {
+    if (typeof window === "undefined") return;
+
+    localStorage.setItem(
+      "roseout_plan",
+      JSON.stringify({
+        restaurant: selectedRestaurant,
+        activity: selectedActivity,
+        savedAt: Date.now(),
+      }),
+    );
+  }
 
   return (
-    <main
-      className={`relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#050505] text-white ${
-        selectedRestaurant || selectedActivity ? "pb-32 md:pb-0" : ""
-      }`}
-    >
+    <main className="min-h-screen overflow-x-hidden bg-black text-white">
       <RoseOutHeader />
 
-      <section
-        className={`relative w-full max-w-[100vw] overflow-hidden border-b border-white/10 transition-all duration-500 ${
-          hasSearched
-            ? "pt-24 pb-5 sm:pt-28 lg:pt-32"
-            : "pt-24 pb-10 sm:pt-32 lg:pt-40 lg:pb-24"
-        }`}
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(225,6,42,0.22),transparent_32%),radial-gradient(circle_at_86%_10%,rgba(255,255,255,0.08),transparent_26%),linear-gradient(180deg,#090909,#050505_55%,#000)]" />
-        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
-
-        <div className="relative mx-auto w-full max-w-7xl overflow-hidden px-4 sm:px-6">
-          {!hasSearched ? (
-            <div className="grid w-full max-w-full gap-8 lg:grid-cols-[0.86fr_1.14fr] lg:items-center">
-              <div className="w-full min-w-0 max-w-full">
-                <div className="inline-flex max-w-full rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-[#e1062a] sm:text-xs sm:tracking-[0.25em]">
-                  RoseOut Concierge
-                </div>
-
-                <h1 className="mt-6 max-w-full break-words text-[2.65rem] font-black leading-[0.98] tracking-normal sm:text-6xl sm:tracking-tight lg:text-7xl">
-                  Plan the outing.
-                  <span className="block text-[#e1062a]">Keep the vibe.</span>
-                </h1>
-
-                <p className="mt-5 max-w-full text-sm font-medium leading-7 text-white/55 sm:mt-6 sm:max-w-xl sm:text-base sm:leading-8 md:text-lg">
-                  Tell RoseOut what you want. We’ll match restaurants,
-                  activities, celebration ideas, distance, budget, and local
-                  experiences into one curated outing.
-                </p>
-
-                <div className="mt-6 hidden gap-3 sm:mt-8 lg:grid lg:grid-cols-3">
-                  <MiniStat value="AI" label="Vibe matching" />
-                  <MiniStat value="98%" label="Smart match rating" />
-                  <MiniStat value="Near You" label="Experience finder" />
-                </div>
-              </div>
-
-              <SearchPanel
-                input={input}
-                setInput={setInput}
-                inputRef={inputRef}
-                typedSuggestion={typedSuggestion}
-                loading={loading}
-                locationSaved={locationSaved}
-                error={error}
-                onSend={() => sendMessage()}
-                onLocation={requestUserLocation}
-                onKeyDown={handleInputKeyDown}
-              />
+      <section className="relative border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-4 pb-8 pt-28 sm:px-6 sm:pb-10 lg:pt-32">
+        <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.88fr_1.12fr] lg:items-end">
+          <div>
+            <div className="mb-4 inline-flex rounded-full border border-[#e1062a]/30 bg-[#e1062a]/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-red-100">
+              AI Outing Planner
             </div>
-          ) : (
-            <div className="w-full max-w-full rounded-[1.5rem] border border-white/10 bg-black/65 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:rounded-[2rem]">
-              <div className="flex w-full max-w-full flex-col gap-4 lg:flex-row lg:items-center">
-                <button
-                  type="button"
-                  onClick={resetSearch}
-                  className="w-full rounded-full border border-white/15 bg-white/[0.06] px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-white/65 transition hover:bg-white hover:text-black sm:w-fit sm:py-2 sm:tracking-[0.18em]"
-                >
-                  New Search
-                </button>
 
-                <div className="relative min-w-0 flex-1">
-                  {!input && (
-                    <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-bold leading-6 text-white/35 sm:top-1/2 sm:-translate-y-1/2 sm:truncate">
-                      Ask for a different vibe, budget, location, or activity...
-                    </div>
-                  )}
+            <h1 className="max-w-3xl text-4xl font-black tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
+              Plan less.{" "}
+              <span className="text-[#e1062a]">RoseOut</span> more.
+            </h1>
 
-                  <textarea
-                    ref={inputRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleInputKeyDown}
-                    rows={2}
-                    className="relative z-20 min-h-[64px] w-full max-w-full resize-none rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-bold text-white outline-none focus:border-[#e1062a] sm:rounded-full"
-                  />
-                </div>
+            <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-white/55 sm:text-base">
+              Type exactly what you want. RoseOut matches food, activities,
+              location, vibe, and budget into a tighter outing plan.
+            </p>
 
-                <button
-                  onClick={() => sendMessage()}
-                  disabled={loading}
-                  className="w-full rounded-full bg-[#e1062a] px-7 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
-                >
-                  {loading ? "Searching..." : "Update Results"}
-                </button>
-              </div>
-
-              {error && (
-                <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">
-                  {error}
-                </div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {["Cuisine-aware", "Activity matching", "NYC focused"].map(
+                (label) => (
+                  <span
+                    key={label}
+                    className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-white/65"
+                  >
+                    {label}
+                  </span>
+                ),
               )}
             </div>
-          )}
+          </div>
+
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-[1.35rem] border border-white/10 bg-[#111]/90 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-4"
+          >
+            <div className="flex items-start gap-3">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+                rows={3}
+                placeholder="Example: steak dinner with bowling in Queens"
+                className="min-h-[96px] flex-1 resize-none rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-semibold leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#e1062a]/60 sm:text-base"
+              />
+
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="hidden rounded-2xl bg-[#e1062a] px-5 py-4 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40 sm:block"
+              >
+                {loading ? "..." : "Search"}
+              </button>
+            </div>
+
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {suggestions.slice(0, 3).map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => setInput(suggestion)}
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-white/55 transition hover:border-[#e1062a]/40 hover:text-white"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={requestUserLocation}
+                  className={`rounded-full border px-3 py-2 text-xs font-black transition ${
+                    locationSaved
+                      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
+                      : "border-white/10 bg-white/[0.04] text-white/55 hover:text-white"
+                  }`}
+                >
+                  {locationSaved ? "Location On" : "Use Location"}
+                </button>
+
+                {messages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetSearch}
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-white/55 transition hover:text-white"
+                  >
+                    New Search
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !input.trim()}
+              className="mt-3 w-full rounded-2xl bg-[#e1062a] px-5 py-4 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40 sm:hidden"
+            >
+              {loading ? "Searching..." : "Plan My Outing"}
+            </button>
+          </form>
         </div>
       </section>
 
       <section
         ref={resultsRef}
-        className="mx-auto w-full max-w-7xl scroll-mt-32 overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8"
       >
-        {loading ? (
-          <LuxuryLoading loadingText={loadingMessages[loadingTextIndex]} />
-        ) : (
-          <div className="w-full max-w-full space-y-5 sm:space-y-6">
-            {messages.map((msg, index) => {
-              const hasRestaurants = !!msg.restaurants?.length;
-              const hasActivities = !!msg.activities?.length;
-
-              return (
-                <div key={index} className="w-full max-w-full min-w-0">
-                  {msg.role === "user" && (
-                    <div className="mx-auto max-w-4xl animate-[resultFadeIn_450ms_ease-out_both] rounded-[1.25rem] border border-red-500/25 bg-[#e1062a] p-4 text-white shadow-2xl shadow-red-500/10 sm:rounded-[1.5rem]">
-                      <p className="whitespace-pre-wrap break-words text-sm font-black sm:text-base">
-                        {msg.content}
-                      </p>
-                    </div>
-                  )}
-
-                  {msg.role === "assistant" &&
-                  (hasRestaurants || hasActivities) ? (
-                    <div className="w-full max-w-full animate-[resultFadeIn_550ms_ease-out_both] overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#0b0b0b] p-4 shadow-2xl shadow-black/40 sm:rounded-[2rem] sm:p-6">
-                      <div className="mb-6 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#e1062a] sm:text-xs sm:tracking-[0.32em]">
-                            Curated Results
-                          </p>
-
-                          <h2 className="mt-2 break-words text-2xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-                            RoseOut found your vibe.
-                          </h2>
-
-                          <p className="mt-2 text-sm font-semibold leading-6 text-white/45">
-                            Choose your favorites, reserve, or view full
-                            details.
-                          </p>
-                        </div>
-                      </div>
-
-                      {hasRestaurants && (
-                        <ResultSection
-                          title="Restaurant Picks"
-                          subtitle="Food spots matched to your request"
-                        >
-                          {msg.restaurants?.map((r, restaurantIndex) => {
-                            const restaurantId = String(r.id);
-                            const isSelected = selectedRestaurant?.id === r.id;
-                            const reservationUrl =
-                              r.reservation_url || r.reservation_link;
-                            const safeScore = clampScore(r.roseout_score);
-
-                            return (
-                              <ResultCard
-                                key={restaurantId || restaurantIndex}
-                                index={restaurantIndex}
-                                imageUrl={r.image_url}
-                                title={r.restaurant_name}
-                                eyebrow={r.cuisine || "Restaurant"}
-                                address={[
-                                  r.address,
-                                  r.city,
-                                  r.state,
-                                  r.zip_code,
-                                ]
-                                  .filter(Boolean)
-                                  .join(", ")}
-                                rating={r.rating}
-                                reviewCount={r.review_count}
-                                reviewScore={r.review_score}
-                                reviewKeywords={r.review_keywords}
-                                reviewSnippet={r.review_snippet}
-                                primaryTag={r.primary_tag}
-                                tags={r.date_style_tags}
-                                distance={r.distance_miles}
-                                score={safeScore}
-                                selected={isSelected}
-                                priority={restaurantIndex === 0}
-                                selectLabel={isSelected ? "Selected" : "Select"}
-                                onSelect={() =>
-                                  setSelectedRestaurant(
-                                    selectedRestaurant?.id === r.id ? null : r,
-                                  )
-                                }
-                                detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
-                                onBeforeNavigate={saveCreateState}
-                                onDetails={() =>
-                                  trackRestaurantClick(restaurantId)
-                                }
-                                websiteUrl={r.website}
-                                onWebsite={() =>
-                                  trackRestaurantClick(restaurantId)
-                                }
-                                reservationUrl={reservationUrl}
-                                reservationLabel="Reserve"
-                                onReservation={() =>
-                                  trackRestaurantClick(restaurantId)
-                                }
-                              />
-                            );
-                          })}
-                        </ResultSection>
-                      )}
-
-                      {hasActivities && (
-                        <ResultSection
-                          title="Experience Picks"
-                          subtitle="Activities and places to continue the outing"
-                        >
-                          {msg.activities?.map((a, activityIndex) => {
-                            const activityId = String(a.id);
-                            const isSelected = selectedActivity?.id === a.id;
-                            const reservationUrl =
-                              a.reservation_url || a.reservation_link;
-                            const safeScore = clampScore(a.roseout_score);
-
-                            return (
-                              <ResultCard
-                                key={activityId || activityIndex}
-                                index={activityIndex}
-                                imageUrl={a.image_url}
-                                title={a.activity_name}
-                                eyebrow={a.activity_type || "Activity"}
-                                address={[
-                                  a.address,
-                                  a.city,
-                                  a.state,
-                                  a.zip_code,
-                                ]
-                                  .filter(Boolean)
-                                  .join(", ")}
-                                rating={a.rating}
-                                reviewCount={a.review_count}
-                                reviewScore={a.review_score}
-                                reviewKeywords={a.review_keywords}
-                                reviewSnippet={a.review_snippet}
-                                primaryTag={a.primary_tag}
-                                tags={a.date_style_tags}
-                                distance={a.distance_miles}
-                                score={safeScore}
-                                selected={isSelected}
-                                priority={activityIndex === 0}
-                                selectLabel={isSelected ? "Selected" : "Select"}
-                                onSelect={() =>
-                                  setSelectedActivity(
-                                    selectedActivity?.id === a.id ? null : a,
-                                  )
-                                }
-                                detailsHref={`/locations/activities/${activityId}?from=/create`}
-                                onBeforeNavigate={saveCreateState}
-                                onDetails={() => trackActivityClick(activityId)}
-                                websiteUrl={a.website}
-                                onWebsite={() => trackActivityClick(activityId)}
-                                reservationUrl={reservationUrl}
-                                reservationLabel="Book"
-                                onReservation={() =>
-                                  trackActivityClick(activityId)
-                                }
-                              />
-                            );
-                          })}
-                        </ResultSection>
-                      )}
-                    </div>
-                  ) : null}
-
-                  {msg.role === "assistant" &&
-                    !hasRestaurants &&
-                    !hasActivities && (
-                      <div className="w-full max-w-full rounded-[1.5rem] border border-white/10 bg-[#0b0b0b] p-5 shadow-2xl shadow-black/40 sm:rounded-[2rem] sm:p-6">
-                        <p className="whitespace-pre-wrap break-words text-sm leading-7 text-white/75 sm:text-base">
-                          {msg.content}
-                        </p>
-                      </div>
-                    )}
-                </div>
-              );
-            })}
+        {error && (
+          <div className="mb-5 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">
+            {error}
           </div>
         )}
+
+        {!messages.length && !loading && (
+          <EmptyState onPick={(value) => setInput(value)} />
+        )}
+
+        <div className="space-y-5">
+          {messages.map((message, index) => {
+            const isUser = message.role === "user";
+            const restaurants = message.restaurants || [];
+            const activities = message.activities || [];
+            const hasCards = restaurants.length > 0 || activities.length > 0;
+
+            if (isUser) {
+              return (
+                <div key={index} className="flex justify-end">
+                  <div className="max-w-3xl rounded-2xl bg-[#e1062a] px-4 py-3 text-sm font-black leading-6 text-white shadow-lg shadow-red-950/30">
+                    {message.content}
+                  </div>
+                </div>
+              );
+            }
+
+            if (!hasCards) {
+              return (
+                <div
+                  key={index}
+                  className="rounded-2xl border border-white/10 bg-[#101010] p-4 text-sm font-semibold leading-7 text-white/70"
+                >
+                  {message.content}
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={index}
+                className="rounded-[1.25rem] border border-white/10 bg-[#080808] p-3 shadow-2xl shadow-black/40 sm:p-4"
+              >
+                <div className="mb-4 flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e1062a]">
+                      Curated Results
+                    </p>
+                    <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] sm:text-3xl">
+                      Tight matches for your outing
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-white/40">
+                      Compact picks. Less scrolling. Better decision-making.
+                    </p>
+                  </div>
+
+                  {(selectedRestaurant || selectedActivity) && (
+                    <button
+                      type="button"
+                      onClick={savePlan}
+                      className="rounded-full border border-[#e1062a]/40 bg-[#e1062a]/10 px-4 py-2 text-xs font-black text-red-100 transition hover:bg-[#e1062a] hover:text-white"
+                    >
+                      Save Selected Plan
+                    </button>
+                  )}
+                </div>
+
+                {restaurants.length > 0 && (
+                  <ResultSection
+                    title="Restaurant Picks"
+                    subtitle="Food spots matched to cuisine, vibe, and location"
+                  >
+                    {restaurants.map((restaurant, restaurantIndex) => {
+                      const restaurantId = String(restaurant.id);
+                      const isSelected =
+                        selectedRestaurant?.id === restaurant.id;
+                      const reservationUrl =
+                        restaurant.reservation_url ||
+                        restaurant.reservation_link ||
+                        undefined;
+
+                      return (
+                        <ResultCard
+                          key={restaurantId || restaurantIndex}
+                          index={restaurantIndex}
+                          type="restaurant"
+                          id={restaurantId}
+                          imageUrl={restaurant.image_url || undefined}
+                          title={restaurant.restaurant_name}
+                          eyebrow={
+                            restaurant.cuisine ||
+                            restaurant.food_type ||
+                            "Restaurant"
+                          }
+                          address={formatAddress(restaurant)}
+                          rating={restaurant.rating}
+                          reviewCount={restaurant.review_count}
+                          reviewKeywords={restaurant.review_keywords}
+                          reviewSnippet={restaurant.review_snippet}
+                          primaryTag={restaurant.primary_tag}
+                          tags={[
+                            ...(restaurant.cuisine_tags || []),
+                            ...(restaurant.date_style_tags || []),
+                          ]}
+                          distance={restaurant.distance_miles}
+                          score={restaurant.smart_match_score || restaurant.roseout_score}
+                          selected={isSelected}
+                          priority={restaurantIndex === 0}
+                          selectLabel={isSelected ? "Selected" : "Select"}
+                          onSelect={() =>
+                            setSelectedRestaurant(
+                              selectedRestaurant?.id === restaurant.id
+                                ? null
+                                : restaurant,
+                            )
+                          }
+                          detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
+                          onDetails={() => trackRestaurantClick(restaurantId)}
+                          websiteUrl={restaurant.website || undefined}
+                          onWebsite={() => trackRestaurantClick(restaurantId)}
+                          reservationUrl={reservationUrl}
+                          reservationLabel="Reserve"
+                          onReservation={() =>
+                            trackRestaurantClick(restaurantId)
+                          }
+                        />
+                      );
+                    })}
+                  </ResultSection>
+                )}
+
+                {activities.length > 0 && (
+                  <ResultSection
+                    title="Experience Picks"
+                    subtitle="Activities matched to your outing plan"
+                  >
+                    {activities.map((activity, activityIndex) => {
+                      const activityId = String(activity.id);
+                      const isSelected = selectedActivity?.id === activity.id;
+                      const reservationUrl =
+                        activity.reservation_url ||
+                        activity.reservation_link ||
+                        undefined;
+
+                      return (
+                        <ResultCard
+                          key={activityId || activityIndex}
+                          index={activityIndex}
+                          type="activity"
+                          id={activityId}
+                          imageUrl={activity.image_url || undefined}
+                          title={activity.activity_name}
+                          eyebrow={activity.activity_type || "Activity"}
+                          address={formatAddress(activity)}
+                          rating={activity.rating}
+                          reviewCount={activity.review_count}
+                          reviewKeywords={activity.review_keywords}
+                          reviewSnippet={activity.review_snippet}
+                          primaryTag={activity.primary_tag}
+                          tags={activity.date_style_tags || []}
+                          distance={activity.distance_miles}
+                          score={activity.smart_match_score || activity.roseout_score}
+                          selected={isSelected}
+                          priority={activityIndex === 0}
+                          selectLabel={isSelected ? "Selected" : "Select"}
+                          onSelect={() =>
+                            setSelectedActivity(
+                              selectedActivity?.id === activity.id
+                                ? null
+                                : activity,
+                            )
+                          }
+                          detailsHref={`/locations/activities/${activityId}?from=/create`}
+                          onDetails={() => trackActivityClick(activityId)}
+                          websiteUrl={activity.website || undefined}
+                          onWebsite={() => trackActivityClick(activityId)}
+                          reservationUrl={reservationUrl}
+                          reservationLabel="Book"
+                          onReservation={() => trackActivityClick(activityId)}
+                        />
+                      );
+                    })}
+                  </ResultSection>
+                )}
+              </div>
+            );
+          })}
+
+          {loading && <LoadingResults label={loadingLines[loadingIndex]} />}
+        </div>
       </section>
 
-      <RoseOutFooter />
+      <footer className="border-t border-white/10 bg-black px-4 py-8 text-white sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xl font-black">
+              Rose<span className="text-[#e1062a]">Out</span>
+            </p>
+            <p className="mt-1 text-sm font-semibold text-white/40">
+              AI outing plans for food, activities, and better nights out.
+            </p>
+          </div>
 
-      <style jsx global>{`
-        html,
-        body {
-          width: 100%;
-          max-width: 100%;
-          overflow-x: hidden !important;
-          position: relative;
-        }
-
-        * {
-          box-sizing: border-box;
-          min-width: 0;
-        }
-
-        main,
-        section,
-        header,
-        footer,
-        div,
-        article {
-          max-width: 100vw;
-        }
-
-        @keyframes resultFadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(16px) scale(0.985);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        @keyframes cardReveal {
-          from {
-            opacity: 0;
-            transform: translateY(18px) scale(0.98);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        @media (max-width: 767px) {
-          body {
-            touch-action: pan-y;
-          }
-
-          img,
-          video,
-          canvas,
-          svg {
-            max-width: 100%;
-          }
-        }
-      `}</style>
+          <div className="flex gap-4 text-sm font-bold text-white/40">
+            <Link href="/" className="hover:text-white">
+              Home
+            </Link>
+            <Link href="/business" className="hover:text-white">
+              For Businesses
+            </Link>
+            <Link href="/pricing" className="hover:text-white">
+              Pricing
+            </Link>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }
 
-function SearchPanel({
-  input,
-  setInput,
-  inputRef,
-  typedSuggestion,
-  loading,
-  locationSaved,
-  error,
-  onSend,
-  onLocation,
-  onKeyDown,
-}: {
-  input: string;
-  setInput: (value: string) => void;
-  inputRef: React.RefObject<HTMLTextAreaElement | null>;
-  typedSuggestion: string;
-  loading: boolean;
-  locationSaved: boolean;
-  error: string;
-  onSend: () => void;
-  onLocation: () => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-}) {
+function EmptyState({ onPick }: { onPick: (value: string) => void }) {
   return (
-    <div className="w-full max-w-full overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#0b0b0b]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:rounded-[2.5rem] sm:p-5">
-      <div className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/35 sm:text-xs sm:tracking-[0.25em]">
-            Start with a vibe
+    <div className="rounded-[1.25rem] border border-white/10 bg-[#0b0b0b] p-4 shadow-2xl shadow-black/40 sm:p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e1062a]">
+            Try a search
           </p>
-          <h2 className="mt-1 break-words text-xl font-black sm:text-2xl">
-            What are we planning?
+          <h2 className="mt-1 text-2xl font-black tracking-[-0.04em]">
+            Start with a full sentence.
           </h2>
         </div>
-
-        <span className="w-fit max-w-full rounded-full bg-white px-3 py-1 text-xs font-black text-black">
-          Curated picks
-        </span>
       </div>
 
-      <div className="relative w-full max-w-full">
-        {!input && (
-          <div className="pointer-events-none absolute left-4 right-4 top-4 z-10 text-sm font-semibold leading-7 text-white sm:left-5 sm:right-5">
-            <span className="bg-gradient-to-r from-white via-white/90 to-white/65 bg-clip-text text-transparent">
-              {typedSuggestion}
-            </span>
-            <span className="ml-1 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-white/80" />
-          </div>
-        )}
-
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          rows={5}
-          className="relative z-20 min-h-[160px] w-full max-w-full resize-none rounded-[1.35rem] border border-white/10 bg-black/80 px-4 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-transparent focus:border-[#e1062a]/70 sm:min-h-[175px] sm:rounded-[1.75rem] sm:px-5"
-        />
-      </div>
-
-      <div className="mt-3 flex min-w-0 flex-col gap-1 text-xs font-bold text-white/35 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <span className="text-[#e1062a]">AI Suggestions</span>
-      </div>
-
-      {error && (
-        <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-bold text-red-200">
-          {error}
-        </div>
-      )}
-
-      <div className="mt-4 grid w-full max-w-full grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-        <button
-          onClick={onSend}
-          disabled={loading}
-          className="w-full rounded-2xl bg-[#e1062a] px-7 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? "Finding Matches..." : "Plan My Outing"}
-        </button>
-
-        <button
-          type="button"
-          onClick={onLocation}
-          className={`w-full rounded-2xl px-7 py-4 text-sm font-black transition ${
-            locationSaved
-              ? "bg-emerald-500 text-black hover:bg-emerald-400"
-              : "border border-white/15 bg-white/5 text-white hover:bg-white hover:text-black"
-          }`}
-        >
-          {locationSaved ? "✓ Location Saved" : "Use My Location"}
-        </button>
-      </div>
-
-      <div className="mt-4 grid w-full max-w-full grid-cols-1 gap-3 lg:hidden">
-        <MiniStat value="AI" label="Vibe matching" />
-        <MiniStat value="98%" label="Smart match rating" />
-        <MiniStat value="Near You" label="Experience finder" />
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {suggestions.map((suggestion) => (
+          <button
+            key={suggestion}
+            type="button"
+            onClick={() => onPick(suggestion)}
+            className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-left text-sm font-bold leading-6 text-white/65 transition hover:border-[#e1062a]/50 hover:bg-[#e1062a]/10 hover:text-white"
+          >
+            {suggestion}
+          </button>
+        ))}
       </div>
     </div>
   );
-}
-
-function MiniStat({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="w-full max-w-full rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="break-words text-xl font-black text-white sm:text-2xl">
-        {value}
-      </p>
-      <p className="mt-1 break-words text-[10px] font-bold uppercase tracking-[0.12em] text-white/40 sm:text-xs sm:tracking-[0.16em]">
-        {label}
-      </p>
-    </div>
-  );
-}
-
-function getSuggestedFollowUps(message?: Message) {
-  const restaurants = message?.restaurants || [];
-  const activities = message?.activities || [];
-
-  const cuisine = restaurants.find((r) => r.cuisine)?.cuisine;
-  const restaurantTags = restaurants.flatMap((r) => r.date_style_tags || []);
-  const activityTags = activities.flatMap((a) => a.date_style_tags || []);
-  const allTags = [...restaurantTags, ...activityTags].join(" ").toLowerCase();
-
-  const hasRestaurants = restaurants.length > 0;
-  const hasActivities = activities.length > 0;
-
-  const suggestions: string[] = [];
-
-  suggestions.push("Make it cheaper");
-  suggestions.push("More romantic");
-
-  if (cuisine) suggestions.push(`More ${cuisine} options`);
-
-  suggestions.push("Add rooftop vibes");
-
-  if (
-    allTags.includes("family") ||
-    allTags.includes("kid") ||
-    activities.some((a) => a.group_friendly)
-  ) {
-    suggestions.push("Make it kid-friendly");
-  }
-
-  if (
-    allTags.includes("bar") ||
-    allTags.includes("drinks") ||
-    allTags.includes("music") ||
-    allTags.includes("nightlife")
-  ) {
-    suggestions.push("Add nightlife");
-  } else if (hasRestaurants) {
-    suggestions.push("Add drinks after");
-  }
-
-  if (allTags.includes("hookah") || allTags.includes("shisha")) {
-    suggestions.push("More hookah lounges");
-  }
-
-  if (allTags.includes("cigar")) {
-    suggestions.push("More cigar-friendly spots");
-  }
-
-  if (hasActivities) suggestions.push("Make the activity more fun");
-
-  suggestions.push("Change to Brooklyn");
-  suggestions.push("Show me something more upscale");
-
-  return Array.from(new Set(suggestions)).slice(0, 8);
 }
 
 function ResultSection({
@@ -959,184 +694,33 @@ function ResultSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-8 sm:mb-10">
-      <div className="mb-4 flex flex-col gap-1">
-        <h3 className="text-xl font-black tracking-tight text-white sm:text-2xl">
-          {title}
-        </h3>
-        <p className="text-sm font-semibold leading-6 text-white/40">
-          {subtitle}
-        </p>
+    <section className="mb-5 last:mb-0">
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-black tracking-[-0.03em] text-white">
+            {title}
+          </h3>
+          <p className="mt-0.5 text-xs font-semibold text-white/38">
+            {subtitle}
+          </p>
+        </div>
       </div>
 
-      <div className="grid w-full gap-5 md:grid-cols-2">{children}</div>
-    </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{children}</div>
+    </section>
   );
-}
-
-function titleCaseTag(value: string) {
-  return value
-    .replace(/_/g, " ")
-    .replace(/-/g, " ")
-    .trim()
-    .split(/\s+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-}
-
-function getDynamicTags({
-  eyebrow,
-  primaryTag,
-  tags,
-  reviewKeywords,
-  reviewSnippet,
-  title,
-}: {
-  eyebrow?: string;
-  primaryTag?: string | null;
-  tags?: string[];
-  reviewKeywords?: string[] | null;
-  reviewSnippet?: string | null;
-  title?: string;
-}) {
-  const sourceText = [
-    eyebrow,
-    primaryTag,
-    ...(tags || []),
-    ...(reviewKeywords || []),
-    reviewSnippet,
-    title,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const dynamicTags: { label: string; tone: string }[] = [];
-
-  const addTag = (label: string, tone: string) => {
-    if (
-      !dynamicTags.some(
-        (tag) => tag.label.toLowerCase() === label.toLowerCase(),
-      )
-    ) {
-      dynamicTags.push({ label, tone });
-    }
-  };
-
-  if (sourceText.includes("birthday") || sourceText.includes("celebration")) {
-    addTag("Birthday", "rose");
-  }
-
-  if (
-    sourceText.includes("romantic") ||
-    sourceText.includes("intimate") ||
-    sourceText.includes("date night") ||
-    sourceText.includes("anniversary") ||
-    sourceText.includes("cozy")
-  ) {
-    addTag("Romantic", "rose");
-  }
-
-  if (
-    sourceText.includes("luxury") ||
-    sourceText.includes("upscale") ||
-    sourceText.includes("fine dining") ||
-    sourceText.includes("elegant") ||
-    sourceText.includes("classy") ||
-    sourceText.includes("premium")
-  ) {
-    addTag("Luxury", "gold");
-  }
-
-  if (
-    sourceText.includes("nightlife") ||
-    sourceText.includes("lounge") ||
-    sourceText.includes("cocktail") ||
-    sourceText.includes("bar") ||
-    sourceText.includes("dj") ||
-    sourceText.includes("music") ||
-    sourceText.includes("club")
-  ) {
-    addTag("Nightlife", "purple");
-  }
-
-  if (
-    sourceText.includes("rooftop") ||
-    sourceText.includes("roof top") ||
-    sourceText.includes("skyline")
-  ) {
-    addTag("Rooftop", "gold");
-  }
-
-  if (sourceText.includes("brunch") || sourceText.includes("breakfast")) {
-    addTag("Brunch", "rose");
-  }
-
-  if (
-    sourceText.includes("restaurant") ||
-    sourceText.includes("dining") ||
-    sourceText.includes("dinner") ||
-    sourceText.includes("food") ||
-    sourceText.includes("seafood") ||
-    sourceText.includes("steak") ||
-    sourceText.includes("italian") ||
-    sourceText.includes("mexican") ||
-    sourceText.includes("sushi") ||
-    sourceText.includes("pizza") ||
-    sourceText.includes("burger")
-  ) {
-    addTag("Full Dining", "rose");
-  }
-
-  if (sourceText.includes("hookah") || sourceText.includes("shisha")) {
-    addTag("Hookah", "purple");
-  }
-
-  if (sourceText.includes("cigar")) {
-    addTag("Cigar Friendly", "gold");
-  }
-
-  if (
-    sourceText.includes("fun") ||
-    sourceText.includes("games") ||
-    sourceText.includes("bowling") ||
-    sourceText.includes("arcade") ||
-    sourceText.includes("karaoke") ||
-    sourceText.includes("comedy")
-  ) {
-    addTag("Fun", "purple");
-  }
-
-  if (dynamicTags.length === 0) {
-    if (primaryTag) addTag(titleCaseTag(primaryTag), "rose");
-    else if (eyebrow) addTag(titleCaseTag(eyebrow), "rose");
-    else addTag("RoseOut Pick", "rose");
-  }
-
-  return dynamicTags.slice(0, 3);
-}
-
-function tagToneClass(tone: string) {
-  if (tone === "gold") {
-    return "border-amber-300/40 bg-amber-300/15 text-amber-100 shadow-amber-500/20";
-  }
-
-  if (tone === "purple") {
-    return "border-fuchsia-400/35 bg-fuchsia-500/15 text-fuchsia-100 shadow-fuchsia-500/20";
-  }
-
-  return "border-[#e1062a]/40 bg-[#e1062a]/20 text-red-50 shadow-red-500/20";
 }
 
 function ResultCard({
   index,
+  type,
+  id,
   imageUrl,
   title,
   eyebrow,
   address,
   rating,
   reviewCount,
-  reviewScore,
   reviewKeywords,
   reviewSnippet,
   primaryTag,
@@ -1148,7 +732,6 @@ function ResultCard({
   selectLabel,
   onSelect,
   detailsHref,
-  onBeforeNavigate,
   onDetails,
   websiteUrl,
   onWebsite,
@@ -1157,17 +740,18 @@ function ResultCard({
   onReservation,
 }: {
   index: number;
+  type: "restaurant" | "activity";
+  id: string;
   imageUrl?: string;
   title: string;
   eyebrow: string;
   address: string;
   rating?: number | null;
   reviewCount?: number | null;
-  reviewScore?: number | null;
   reviewKeywords?: string[] | null;
   reviewSnippet?: string | null;
   primaryTag?: string | null;
-  tags?: string[];
+  tags?: string[] | null;
   distance?: number | null;
   score: number;
   selected: boolean;
@@ -1175,7 +759,6 @@ function ResultCard({
   selectLabel: string;
   onSelect: () => void;
   detailsHref: string;
-  onBeforeNavigate?: () => void;
   onDetails: () => void;
   websiteUrl?: string;
   onWebsite?: () => void;
@@ -1183,66 +766,9 @@ function ResultCard({
   reservationLabel?: string;
   onReservation?: () => void;
 }) {
-  const safeScore = clampScore(score);
-  const cleanReviewKeywords = Array.isArray(reviewKeywords)
-    ? reviewKeywords.filter(Boolean).slice(0, 4)
-    : [];
-
-  const scoreRing = `conic-gradient(#e1062a ${Math.round(
-    safeScore,
-  )}%, rgba(255,255,255,0.13) 0)`;
-
-  const combinedText = [
-    title,
-    eyebrow,
-    primaryTag,
-    reviewSnippet,
-    ...(tags || []),
-    ...cleanReviewKeywords,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const premiumBadges: string[] = [];
-
-  if (combinedText.includes("hookah") || combinedText.includes("shisha")) {
-    premiumBadges.push("Hookah");
-  }
-
-  if (combinedText.includes("cigar")) {
-    premiumBadges.push("Cigar Friendly");
-  }
-
-  if (
-    combinedText.includes("restaurant") ||
-    combinedText.includes("dining") ||
-    combinedText.includes("dinner") ||
-    combinedText.includes("food")
-  ) {
-    premiumBadges.push("Full Dining");
-  }
-
-  if (
-    combinedText.includes("lounge") ||
-    combinedText.includes("music") ||
-    combinedText.includes("dj") ||
-    combinedText.includes("nightlife")
-  ) {
-    premiumBadges.push("Lounge Vibe");
-  }
-
-  if (combinedText.includes("romantic") || combinedText.includes("intimate")) {
-    premiumBadges.push("Date Friendly");
-  }
-
-  if (combinedText.includes("upscale") || combinedText.includes("classy")) {
-    premiumBadges.push("Upscale");
-  }
-
-  const uniquePremiumBadges = Array.from(new Set(premiumBadges)).slice(0, 5);
-
-  const displayTags = getDynamicTags({
+  const safeScore = clampScore(score || 0);
+  const cleanTags = getDisplayTags({
+    type,
     eyebrow,
     primaryTag,
     tags,
@@ -1251,82 +777,55 @@ function ResultCard({
     title,
   });
 
-  const whyPicked =
-    cleanReviewKeywords.length > 0
-      ? `RoseOut matched this because guests mention ${cleanReviewKeywords
-          .slice(0, 3)
-          .join(", ")}.`
-      : primaryTag
-        ? `RoseOut matched this for its ${primaryTag.toLowerCase()} vibe.`
-        : "RoseOut matched this based on your outing request, location signals, and overall fit.";
+  const whyPicked = getWhyPicked({
+    primaryTag,
+    reviewKeywords,
+    reviewSnippet,
+    type,
+  });
 
-  const openDetails = () => {
-    onBeforeNavigate?.();
-    onDetails();
-    window.location.href = detailsHref;
-  };
+  const cleanReviewKeywords = toArray(reviewKeywords).slice(0, 2);
 
   return (
     <article
-      role="link"
-      tabIndex={0}
-      onClick={(event) => {
-        const target = event.target as HTMLElement;
-        if (target.closest("a, button")) return;
-        openDetails();
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") openDetails();
-      }}
-      className={`group relative flex h-full min-h-[620px] w-full cursor-pointer flex-col overflow-hidden rounded-[1.5rem] border bg-[#111] shadow-2xl shadow-black/40 transition duration-500 hover:-translate-y-1 hover:border-[#e1062a]/70 hover:bg-[#151515] hover:shadow-[0_0_55px_rgba(225,6,42,0.18)] sm:min-h-[640px] sm:rounded-[2rem] lg:min-h-[660px] ${
-        selected ? "border-red-500 ring-2 ring-red-500/50" : "border-white/10"
+      className={`group relative flex h-full min-h-[445px] flex-col overflow-hidden rounded-[1.1rem] border bg-[#101010] shadow-xl shadow-black/30 transition duration-300 hover:border-[#e1062a]/55 hover:bg-[#141414] hover:shadow-[0_0_36px_rgba(225,6,42,0.16)] ${
+        selected ? "border-[#e1062a] ring-2 ring-[#e1062a]/35" : "border-white/10"
       }`}
       style={{
-        animation: `cardReveal 560ms ease-out ${index * 120}ms both`,
+        animation: `cardReveal 360ms ease-out ${index * 70}ms both`,
       }}
     >
-      <div className="relative h-44 w-full overflow-hidden sm:h-52 lg:h-56">
+      <div className="relative h-[150px] overflow-hidden bg-neutral-950 sm:h-[165px]">
         {imageUrl ? (
           <Image
             src={imageUrl}
             alt={title}
-            width={900}
-            height={520}
-            className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
+            fill
+            unoptimized
             priority={priority}
+            sizes="(max-width: 768px) 100vw, 33vw"
+            className="object-cover transition duration-700 group-hover:scale-[1.06]"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-neutral-900 text-sm text-neutral-500">
+          <div className="flex h-full items-center justify-center text-xs font-bold text-white/30">
             No image available
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/65 via-55% to-black/5" />
-        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#111] via-[#111]/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/50 to-black/5" />
 
-        <div className="absolute left-3 top-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/75 px-3 py-2 text-white shadow-xl backdrop-blur-xl sm:left-4 sm:top-4 sm:gap-3 sm:px-4 sm:py-3">
-          <div
-            className="flex h-11 w-11 items-center justify-center rounded-full p-[3px] sm:h-14 sm:w-14"
-            style={{ background: scoreRing }}
-          >
-            <div className="flex h-full w-full items-center justify-center rounded-full bg-black text-xs font-black text-white sm:text-sm">
-              {Math.round(safeScore)}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-white/45 sm:text-[10px] sm:tracking-[0.2em]">
-              Smart Match
-            </p>
-            <p className="text-xs font-black text-white sm:text-sm">Rating</p>
-          </div>
+        <div className="absolute left-3 top-3 rounded-full border border-white/10 bg-black/75 px-3 py-1.5 backdrop-blur-xl">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
+            Match
+          </p>
+          <p className="text-sm font-black text-white">{Math.round(safeScore)}</p>
         </div>
 
-        <div className="absolute right-3 top-3 flex max-w-[58%] flex-wrap justify-end gap-2 sm:right-4 sm:top-4 sm:max-w-[62%]">
-          {displayTags.map((tag) => (
+        <div className="absolute right-3 top-3 flex max-w-[65%] flex-wrap justify-end gap-1.5">
+          {cleanTags.slice(0, 2).map((tag) => (
             <span
               key={`${tag.label}-${tag.tone}`}
-              className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] shadow-lg backdrop-blur-md transition duration-300 group-hover:scale-105 sm:px-3 sm:text-xs ${tagToneClass(
+              className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] backdrop-blur-md ${tagToneClass(
                 tag.tone,
               )}`}
             >
@@ -1335,131 +834,93 @@ function ResultCard({
           ))}
         </div>
 
-        {distance !== null && distance !== undefined && (
-          <div className="absolute bottom-3 left-3 rounded-full bg-black/75 px-3 py-1 text-xs font-black text-white backdrop-blur sm:bottom-4 sm:left-4">
-            {distance} mi away
-          </div>
-        )}
+        <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
+          {distance !== null && distance !== undefined ? (
+            <span className="rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-black text-white backdrop-blur">
+              {distance} mi
+            </span>
+          ) : null}
 
-        {rating && (
-          <div className="absolute bottom-3 right-3 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg sm:bottom-4 sm:right-4 sm:text-sm">
-            🌹 {rating}
-          </div>
-        )}
+          {rating ? (
+            <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-black">
+              🌹 {rating}
+            </span>
+          ) : null}
+        </div>
       </div>
 
-      <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <div className="min-h-[210px] sm:min-h-[220px]">
-          <div className="flex min-h-[34px] flex-wrap items-center justify-between gap-3">
-            <p className="line-clamp-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#e1062a] sm:text-xs sm:tracking-[0.22em]">
-              {eyebrow}
+      <div className="flex flex-1 flex-col p-3.5">
+        <div className="min-h-[122px]">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="line-clamp-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">
+              {titleCase(eyebrow || type)}
             </p>
 
             {reviewCount ? (
-              <p className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white/45 sm:text-[11px]">
-                {reviewCount} review{reviewCount === 1 ? "" : "s"}
+              <p className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-black uppercase text-white/40">
+                {formatCount(reviewCount)} reviews
               </p>
             ) : null}
           </div>
 
-          <Link
-            href={detailsHref}
-            onClick={() => {
-              onBeforeNavigate?.();
-              onDetails();
-            }}
-            className="group/title block"
-          >
-            <h3 className="mt-2 line-clamp-2 min-h-[48px] break-words text-xl font-black leading-tight tracking-tight text-white transition duration-200 group-hover/title:text-[#e1062a] sm:min-h-[52px] sm:text-[1.35rem]">
+          <Link href={detailsHref} onClick={onDetails}>
+            <h3 className="line-clamp-1 text-lg font-black leading-tight tracking-[-0.03em] text-white transition group-hover:text-red-100">
               {title}
             </h3>
           </Link>
 
-          <p className="mt-2 line-clamp-2 min-h-[38px] break-words text-sm font-medium leading-5 text-white/50">
-            {address}
+          <p className="mt-1.5 line-clamp-2 min-h-[38px] text-xs font-semibold leading-5 text-white/42">
+            {address || "Location details available on the listing."}
           </p>
 
-          <div className="mt-2 min-h-[28px]">
-            {uniquePremiumBadges.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {uniquePremiumBadges.slice(0, 3).map((badge) => (
-                  <span
-                    key={badge}
-                    className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100"
-                  >
-                    {badge}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="mt-3 min-h-[70px]">
-            {cleanReviewKeywords.length > 0 ? (
-              <div className="rounded-2xl border border-red-500/15 bg-gradient-to-br from-red-500/[0.08] via-red-500/[0.035] to-white/[0.02] p-3 transition duration-500 group-hover:border-red-500/30 group-hover:bg-red-500/[0.07]">
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-red-200/70">
-                  Review Signals
-                </p>
-
-                <div className="flex flex-wrap gap-2">
-                  {cleanReviewKeywords.slice(0, 3).map((keyword) => (
-                    <span
-                      key={keyword}
-                      className="rounded-full border border-red-500/20 bg-black/35 px-3 py-1 text-xs font-black text-red-100"
-                    >
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
-
-                {reviewSnippet && (
-                  <p className="mt-2 line-clamp-1 text-xs font-semibold leading-5 text-white/65">
-                    “{reviewSnippet}”
-                  </p>
-                )}
-              </div>
-            ) : null}
+          <div className="mt-2 flex min-h-[24px] flex-wrap gap-1.5">
+            {cleanTags.slice(0, 3).map((tag) => (
+              <span
+                key={`mini-${tag.label}-${tag.tone}`}
+                className="rounded-full bg-white/[0.07] px-2.5 py-1 text-[11px] font-bold text-white/56"
+              >
+                {tag.label}
+              </span>
+            ))}
           </div>
         </div>
 
-        <div className="mt-3 min-h-[82px] rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-inner shadow-white/[0.02] backdrop-blur-md transition duration-500 group-hover:border-[#e1062a]/25 group-hover:bg-white/[0.075]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+        <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.045] p-3 backdrop-blur-md">
+          <p className="text-[9px] font-black uppercase tracking-[0.22em] text-white/32">
             Why RoseOut picked this
           </p>
-          <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-white/65">
+          <p className="mt-1.5 line-clamp-2 text-xs font-semibold leading-5 text-white/62">
             {whyPicked}
           </p>
         </div>
 
-        <div className="mt-3 min-h-[44px]">
-          {primaryTag ? (
-            <p className="line-clamp-1 break-words text-sm font-black text-white">
-              ✨ {primaryTag}
-            </p>
-          ) : null}
-
-          {tags?.length ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {tags.slice(0, 3).map((tag) => (
+        <div className="mt-2 min-h-[26px]">
+          {cleanReviewKeywords.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {cleanReviewKeywords.map((keyword) => (
                 <span
-                  key={tag}
-                  className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/55"
+                  key={keyword}
+                  className="rounded-full border border-[#e1062a]/20 bg-[#e1062a]/10 px-2.5 py-1 text-[11px] font-bold text-red-100/85"
                 >
-                  {tag}
+                  {keyword}
                 </span>
               ))}
             </div>
+          ) : primaryTag ? (
+            <p className="line-clamp-1 text-xs font-black text-white/65">
+              ✨ {titleCase(primaryTag)}
+            </p>
           ) : null}
         </div>
 
-        <div className="mt-auto grid gap-2 border-t border-white/10 pt-4 sm:grid-cols-2">
+        <div className="mt-auto grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
           <button
             type="button"
             onClick={onSelect}
-            className={`rounded-full px-5 py-3 text-sm font-black transition ${
+            className={`rounded-full px-3 py-2.5 text-xs font-black transition ${
               selected
-                ? "bg-[#e1062a] text-white shadow-lg shadow-red-950/30"
-                : "border border-white/15 text-white hover:bg-white hover:text-black"
+                ? "bg-[#e1062a] text-white"
+                : "border border-white/12 text-white/85 hover:bg-white hover:text-black"
             }`}
           >
             {selectLabel}
@@ -1467,159 +928,260 @@ function ResultCard({
 
           <Link
             href={detailsHref}
-            onClick={() => {
-              onBeforeNavigate?.();
-              onDetails();
-            }}
-            className="rounded-full bg-white px-5 py-3 text-center text-sm font-black text-black transition hover:bg-red-100"
+            onClick={onDetails}
+            className="rounded-full bg-white px-3 py-2.5 text-center text-xs font-black text-black transition hover:bg-red-100"
           >
-            View Details
+            Details
           </Link>
 
-          {websiteUrl && (
+          {websiteUrl ? (
             <a
               href={websiteUrl}
               target="_blank"
               rel="noopener noreferrer"
               onClick={onWebsite}
-              className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
+              className="rounded-full border border-white/12 px-3 py-2.5 text-center text-xs font-black text-white/80 transition hover:bg-white hover:text-black"
             >
               Website
             </a>
-          )}
+          ) : null}
 
-          {reservationUrl && (
+          {reservationUrl ? (
             <a
               href={reservationUrl}
               target="_blank"
               rel="noopener noreferrer"
               onClick={onReservation}
-              className="rounded-full border border-red-500/40 bg-red-500/10 px-5 py-3 text-center text-sm font-black text-red-100 transition hover:bg-[#e1062a] hover:text-white"
+              className="rounded-full border border-[#e1062a]/35 bg-[#e1062a]/10 px-3 py-2.5 text-center text-xs font-black text-red-100 transition hover:bg-[#e1062a] hover:text-white"
             >
               {reservationLabel || "Book"}
             </a>
-          )}
+          ) : null}
         </div>
       </div>
     </article>
   );
 }
 
-function LuxuryLoading({ loadingText }: { loadingText: string }) {
+function LoadingResults({ label }: { label: string }) {
   return (
-    <div className="mt-6 space-y-8 overflow-x-hidden sm:space-y-10">
-      <div className="text-center">
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#e1062a] sm:text-xs sm:tracking-[0.35em]">
+    <div className="rounded-[1.25rem] border border-white/10 bg-[#080808] p-4 shadow-2xl shadow-black/40">
+      <div className="mb-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e1062a]">
           RoseOut is searching
         </p>
-
-        <h2 className="mt-2 break-words text-xl font-black sm:text-2xl">
-          {loadingText}
+        <h2 className="mt-1 text-2xl font-black tracking-[-0.04em]">
+          {label}
         </h2>
-
-        <p className="mt-2 text-sm font-semibold text-white/40">
-          Building your recommendations...
-        </p>
       </div>
 
-      <div className="grid w-full gap-5 md:grid-cols-2">
-        {[0, 1, 2, 3].map((index) => (
-          <SkeletonCard key={index} index={index} />
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {[0, 1, 2].map((item) => (
+          <div
+            key={item}
+            className="h-[445px] overflow-hidden rounded-[1.1rem] border border-white/10 bg-[#101010]"
+          >
+            <div className="h-[165px] animate-pulse bg-white/[0.06]" />
+            <div className="space-y-3 p-3.5">
+              <div className="h-3 w-24 animate-pulse rounded-full bg-[#e1062a]/20" />
+              <div className="h-5 w-3/4 animate-pulse rounded-full bg-white/[0.08]" />
+              <div className="h-4 w-full animate-pulse rounded-full bg-white/[0.06]" />
+              <div className="h-4 w-4/5 animate-pulse rounded-full bg-white/[0.05]" />
+              <div className="h-20 animate-pulse rounded-xl bg-white/[0.045]" />
+              <div className="h-10 animate-pulse rounded-full bg-white/[0.06]" />
+            </div>
+          </div>
         ))}
       </div>
     </div>
   );
 }
 
-function SkeletonCard({ index }: { index: number }) {
-  const delay = `${index * 180}ms`;
-
-  return (
-    <div
-      className="overflow-hidden rounded-[1.5rem] border border-white/5 bg-[#0b0b0b] shadow-2xl shadow-black/30 sm:rounded-[2rem]"
-      style={{
-        animation: `skeletonReveal 520ms ease-out ${delay} both`,
-      }}
-    >
-      <div className="relative h-52 w-full overflow-hidden bg-[#080808] sm:h-64 lg:h-72">
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 via-black to-[#050505] blur-sm" />
-        <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/[0.045] to-transparent" />
-      </div>
-
-      <div className="space-y-3 p-4 sm:p-5">
-        <div className="h-3 w-24 animate-pulse rounded-full bg-red-500/15" />
-
-        <div
-          className={`mt-3 h-7 animate-pulse rounded-full bg-white/[0.055] ${
-            index % 2 === 0 ? "w-4/5" : "w-2/3"
-          }`}
-        />
-
-        <div className="h-4 w-full animate-pulse rounded-full bg-white/[0.05]" />
-        <div className="h-4 w-3/4 animate-pulse rounded-full bg-white/[0.045]" />
-
-        <div className="mt-5 flex flex-wrap gap-3">
-          <div className="h-10 w-20 animate-pulse rounded-full border border-white/5 bg-white/[0.035]" />
-          <div className="h-10 w-28 animate-pulse rounded-full bg-white/[0.08]" />
-          <div className="h-10 w-24 animate-pulse rounded-full border border-red-500/10 bg-red-500/[0.06]" />
-        </div>
-      </div>
-
-      <style jsx>{`
-        @keyframes shimmer {
-          100% {
-            transform: translateX(100%);
-          }
-        }
-
-        @keyframes skeletonReveal {
-          from {
-            opacity: 0;
-            transform: translateY(18px) scale(0.98);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
-    </div>
-  );
+function formatAddress(item: {
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+}) {
+  return [item.address, item.city, item.state, item.zip_code]
+    .filter(Boolean)
+    .join(", ");
 }
 
-function RoseOutFooter() {
-  return (
-    <footer className="border-t border-white/10 bg-black px-4 py-10 text-white sm:px-6">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-xl font-black tracking-tight">
-            Rose<span className="text-[#e1062a]">Out</span>
-          </p>
-          <p className="mt-2 max-w-md text-sm font-medium leading-6 text-white/45">
-            AI-powered outing planning for restaurants, activities,
-            celebrations, local experiences, and memorable plans.
-          </p>
-        </div>
+function formatCount(value: number) {
+  if (value >= 1000) return `${Math.round(value / 100) / 10}k`;
+  return String(value);
+}
 
-        <div className="flex flex-wrap gap-4 text-sm font-bold text-white/45">
-          <Link href="/" className="transition hover:text-white">
-            Home
-          </Link>
-          <Link href="/business" className="transition hover:text-white">
-            For Businesses
-          </Link>
-          <Link href="/pricing" className="transition hover:text-white">
-            Pricing
-          </Link>
-          <Link href="/create" className="transition hover:text-white">
-            Create Plan
-          </Link>
-        </div>
-      </div>
+function titleCase(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
 
-      <div className="mx-auto mt-8 max-w-7xl border-t border-white/10 pt-5 text-xs font-bold text-white/30">
-        © {new Date().getFullYear()} RoseOut. All rights reserved.
-      </div>
-    </footer>
-  );
+function toArray(value: any): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function getDisplayTags({
+  type,
+  eyebrow,
+  primaryTag,
+  tags,
+  reviewKeywords,
+  reviewSnippet,
+  title,
+}: {
+  type: "restaurant" | "activity";
+  eyebrow?: string | null;
+  primaryTag?: string | null;
+  tags?: string[] | null;
+  reviewKeywords?: string[] | null;
+  reviewSnippet?: string | null;
+  title?: string | null;
+}) {
+  const sourceText = [
+    type,
+    eyebrow,
+    primaryTag,
+    ...(tags || []),
+    ...(reviewKeywords || []),
+    reviewSnippet,
+    title,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const results: { label: string; tone: "rose" | "gold" | "purple" }[] = [];
+
+  const add = (label: string, tone: "rose" | "gold" | "purple") => {
+    if (!results.some((item) => item.label.toLowerCase() === label.toLowerCase())) {
+      results.push({ label, tone });
+    }
+  };
+
+  if (sourceText.includes("luxury") || sourceText.includes("upscale")) {
+    add("Luxury", "gold");
+  }
+
+  if (
+    sourceText.includes("fine dining") ||
+    sourceText.includes("steak") ||
+    sourceText.includes("restaurant") ||
+    sourceText.includes("dinner") ||
+    sourceText.includes("food")
+  ) {
+    add("Full Dining", "rose");
+  }
+
+  if (
+    sourceText.includes("nightlife") ||
+    sourceText.includes("lounge") ||
+    sourceText.includes("cocktail") ||
+    sourceText.includes("bar") ||
+    sourceText.includes("club")
+  ) {
+    add("Nightlife", "purple");
+  }
+
+  if (
+    sourceText.includes("romantic") ||
+    sourceText.includes("intimate") ||
+    sourceText.includes("anniversary")
+  ) {
+    add("Romantic", "rose");
+  }
+
+  if (sourceText.includes("birthday") || sourceText.includes("celebration")) {
+    add("Birthday", "rose");
+  }
+
+  if (sourceText.includes("rooftop") || sourceText.includes("skyline")) {
+    add("Rooftop", "gold");
+  }
+
+  if (sourceText.includes("brunch") || sourceText.includes("breakfast")) {
+    add("Brunch", "rose");
+  }
+
+  if (
+    sourceText.includes("bowling") ||
+    sourceText.includes("arcade") ||
+    sourceText.includes("karaoke") ||
+    sourceText.includes("comedy") ||
+    sourceText.includes("fun")
+  ) {
+    add("Fun", "purple");
+  }
+
+  if (sourceText.includes("hookah") || sourceText.includes("shisha")) {
+    add("Hookah", "purple");
+  }
+
+  if (sourceText.includes("cigar")) {
+    add("Cigar", "gold");
+  }
+
+  if (results.length === 0) {
+    add(titleCase(primaryTag || eyebrow || type), "rose");
+  }
+
+  return results.slice(0, 3);
+}
+
+function tagToneClass(tone: "rose" | "gold" | "purple") {
+  if (tone === "gold") {
+    return "border-amber-300/40 bg-amber-300/20 text-amber-100";
+  }
+
+  if (tone === "purple") {
+    return "border-fuchsia-400/35 bg-fuchsia-500/18 text-fuchsia-100";
+  }
+
+  return "border-[#e1062a]/45 bg-[#e1062a]/22 text-red-50";
+}
+
+function getWhyPicked({
+  primaryTag,
+  reviewKeywords,
+  reviewSnippet,
+  type,
+}: {
+  primaryTag?: string | null;
+  reviewKeywords?: string[] | null;
+  reviewSnippet?: string | null;
+  type: "restaurant" | "activity";
+}) {
+  const keywords = toArray(reviewKeywords).slice(0, 2);
+
+  if (keywords.length > 0) {
+    return `Matched for ${keywords.join(" and ")} signals.`;
+  }
+
+  if (reviewSnippet) {
+    return reviewSnippet;
+  }
+
+  if (primaryTag) {
+    return `Matched for its ${titleCase(primaryTag).toLowerCase()} fit.`;
+  }
+
+  return type === "restaurant"
+    ? "Matched to your food, location, and vibe."
+    : "Matched to your activity and outing vibe.";
 }
