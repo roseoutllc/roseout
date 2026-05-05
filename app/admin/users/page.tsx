@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,29 @@ const supabaseAdmin = createClient(
   }
 );
 
+function formatNumber(value: number | null | undefined) {
+  return Number(value || 0).toLocaleString();
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "—";
+
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function roleBadge(role?: string | null, isSuperadmin?: boolean | null) {
+  if (isSuperadmin) return "border-rose-200 bg-rose-50 text-rose-700";
+  if (role === "admin") return "border-rose-200 bg-rose-50 text-rose-700";
+  if (role === "owner") return "border-black/10 bg-[#f5eee8] text-black/70";
+  if (role === "user") return "border-black/10 bg-white text-black/55";
+
+  return "border-black/10 bg-neutral-100 text-black/50";
+}
+
 export default async function AdminUsersPage() {
   const { data: users, error } = await supabaseAdmin
     .from("users")
@@ -29,135 +53,208 @@ export default async function AdminUsersPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-[#0b0b0f] px-6 py-10 text-white">
-        <div className="mx-auto max-w-6xl">
-          <h1 className="text-3xl font-bold">Admin Users</h1>
-
-          <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-red-200">
-            <p className="font-semibold">Database Error</p>
-            <p className="mt-2 text-sm">{error.message}</p>
-          </div>
+      <main className="min-h-screen bg-[#090706] px-4 pb-10 pt-4 text-white sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1500px]">
+          <section className="rounded-[1.75rem] border border-rose-500/30 bg-rose-500/10 p-6 text-rose-100">
+            <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-300">
+              RoseOut Admin
+            </p>
+            <h1 className="mt-2 text-3xl font-black">Database Error</h1>
+            <p className="mt-3 text-sm font-bold">{error.message}</p>
+          </section>
         </div>
       </main>
     );
   }
 
-  const totalUsers = users?.length ?? 0;
-  const admins =
-    users?.filter((user: AppUser) => user.role === "admin" || user.is_superadmin)
-      .length ?? 0;
-  const owners = users?.filter((user: AppUser) => user.role === "owner").length ?? 0;
-  const regularUsers =
-    users?.filter((user: AppUser) => user.role === "user").length ?? 0;
+  const safeUsers = (users || []) as AppUser[];
+
+  const totalUsers = safeUsers.length;
+  const admins = safeUsers.filter(
+    (user) => user.role === "admin" || user.is_superadmin
+  ).length;
+  const owners = safeUsers.filter((user) => user.role === "owner").length;
+  const regularUsers = safeUsers.filter((user) => user.role === "user").length;
 
   return (
-    <main className="min-h-screen bg-[#0b0b0f] px-6 py-10 text-white">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-rose-300">
-              RoseOut Admin
-            </p>
-            <h1 className="mt-2 text-4xl font-bold">Users</h1>
-            <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-              Manage platform users, admin access, owner accounts, and customer
-              profiles.
-            </p>
-          </div>
+    <main className="min-h-screen bg-[#090706] px-4 pb-10 pt-4 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1500px]">
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,29,72,0.22),transparent_35%),linear-gradient(135deg,#160b0b,#090706_55%,#140f0a)] p-5 shadow-2xl sm:p-6">
+          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-rose-500/20 blur-3xl" />
 
-          <a
-            href="/admin"
-            className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"
-          >
-            Back to Dashboard
-          </a>
-        </div>
+          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.3em] text-rose-300">
+                RoseOut Admin
+              </p>
 
-        <section className="mb-8 grid gap-4 md:grid-cols-4">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-            <p className="text-sm text-zinc-400">Total Users</p>
-            <p className="mt-2 text-3xl font-bold">{totalUsers}</p>
-          </div>
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
+                Users
+              </h1>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-            <p className="text-sm text-zinc-400">Admins</p>
-            <p className="mt-2 text-3xl font-bold">{admins}</p>
-          </div>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
+                Manage platform users, admin access, owner accounts, and
+                customer profiles.
+              </p>
+            </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-            <p className="text-sm text-zinc-400">Owners</p>
-            <p className="mt-2 text-3xl font-bold">{owners}</p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-            <p className="text-sm text-zinc-400">Customers</p>
-            <p className="mt-2 text-3xl font-bold">{regularUsers}</p>
+            <Link
+              href="/admin/dashboard"
+              className="rounded-full border border-white/10 bg-white/[0.07] px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+            >
+              Back to Dashboard
+            </Link>
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]">
-          <div className="border-b border-white/10 px-6 py-5">
-            <h2 className="text-xl font-bold">User Accounts</h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              Showing all users from your public users table.
+        <section className="mt-5 grid gap-4 md:grid-cols-4">
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Total Users
+            </p>
+            <p className="mt-2 text-3xl font-black">
+              {formatNumber(totalUsers)}
             </p>
           </div>
 
-          {!users || users.length === 0 ? (
-            <div className="p-8 text-center text-zinc-400">
-              No users found.
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Admins
+            </p>
+            <p className="mt-2 text-3xl font-black text-rose-200">
+              {formatNumber(admins)}
+            </p>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Owners
+            </p>
+            <p className="mt-2 text-3xl font-black">
+              {formatNumber(owners)}
+            </p>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 shadow-xl">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Customers
+            </p>
+            <p className="mt-2 text-3xl font-black">
+              {formatNumber(regularUsers)}
+            </p>
+          </div>
+        </section>
+
+        <section className="mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#f8f3ef] text-[#1b1210] shadow-2xl">
+          <div className="flex flex-col gap-3 border-b border-black/10 bg-[#fffaf6] p-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-black">User Accounts</h2>
+              <p className="mt-1 text-xs font-medium text-black/50">
+                Showing all users from your public users table.
+              </p>
+            </div>
+
+            <div className="rounded-full bg-[#1b1210] px-4 py-2 text-[11px] font-black uppercase tracking-wide text-white">
+              {formatNumber(totalUsers)} Users
+            </div>
+          </div>
+
+          {!safeUsers.length ? (
+            <div className="p-12 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-2xl">
+                🌹
+              </div>
+              <p className="mt-4 text-lg font-black">No users found</p>
+              <p className="mt-1 text-sm text-black/50">
+                New users will appear here after signup.
+              </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px] text-left text-sm">
-                <thead className="bg-white/[0.03] text-xs uppercase tracking-wider text-zinc-400">
-                  <tr>
-                    <th className="px-6 py-4">Email</th>
-                    <th className="px-6 py-4">Role</th>
-                    <th className="px-6 py-4">Super Admin</th>
-                    <th className="px-6 py-4">Created</th>
-                    <th className="px-6 py-4">User ID</th>
-                  </tr>
-                </thead>
+            <div className="space-y-3 p-4">
+              {safeUsers.map((user) => {
+                const displayRole = user.is_superadmin
+                  ? "superadmin"
+                  : user.role || "user";
 
-                <tbody className="divide-y divide-white/10">
-                  {users.map((user: AppUser) => (
-                    <tr key={user.id} className="hover:bg-white/[0.03]">
-                      <td className="px-6 py-4 font-medium text-white">
-                        {user.email || "No email"}
-                      </td>
+                const initial =
+                  user.email?.charAt(0)?.toUpperCase() ||
+                  displayRole.charAt(0).toUpperCase();
 
-                      <td className="px-6 py-4">
-                        <span className="rounded-full border border-rose-400/30 bg-rose-400/10 px-3 py-1 text-xs font-semibold text-rose-200">
-                          {user.role || "user"}
-                        </span>
-                      </td>
+                return (
+                  <div
+                    key={user.id}
+                    className="rounded-[1.5rem] border border-black/10 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-xl"
+                  >
+                    <div className="grid gap-4 lg:grid-cols-[1fr_320px_260px] lg:items-center">
+                      <div className="flex min-w-0 items-center gap-4">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#f5eee8] text-lg font-black text-rose-700">
+                          {initial}
+                        </div>
 
-                      <td className="px-6 py-4">
-                        {user.is_superadmin ? (
-                          <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-200">
-                            Yes
-                          </span>
-                        ) : (
-                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-400">
-                            No
-                          </span>
-                        )}
-                      </td>
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-black">
+                            {user.email || "No email"}
+                          </p>
 
-                      <td className="px-6 py-4 text-zinc-400">
-                        {user.created_at
-                          ? new Date(user.created_at).toLocaleDateString()
-                          : "—"}
-                      </td>
+                          <p className="mt-1 truncate text-xs font-bold text-black/40">
+                            ID: {user.id}
+                          </p>
 
-                      <td className="px-6 py-4 font-mono text-xs text-zinc-500">
-                        {user.id}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <span
+                              className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase ${roleBadge(
+                                user.role,
+                                user.is_superadmin
+                              )}`}
+                            >
+                              {displayRole}
+                            </span>
+
+                            {user.is_superadmin ? (
+                              <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-black uppercase text-rose-700">
+                                Super Admin
+                              </span>
+                            ) : (
+                              <span className="rounded-full border border-black/10 bg-[#f5eee8] px-3 py-1 text-[11px] font-black uppercase text-black/45">
+                                Standard
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-2xl bg-[#f5eee8] p-3">
+                          <p className="text-[10px] font-black uppercase tracking-wide text-black/35">
+                            Role
+                          </p>
+                          <p className="mt-1 truncate text-sm font-black capitalize">
+                            {displayRole}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-[#f5eee8] p-3">
+                          <p className="text-[10px] font-black uppercase tracking-wide text-black/35">
+                            Created
+                          </p>
+                          <p className="mt-1 truncate text-sm font-black">
+                            {formatDate(user.created_at)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl bg-[#1b1210] p-3 text-white">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-white/40">
+                          User ID
+                        </p>
+                        <p className="mt-1 truncate font-mono text-xs text-white/80">
+                          {user.id}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
