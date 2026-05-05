@@ -1128,10 +1128,13 @@ function scoreRestaurant(
   if (intent.locations.length > 0) {
   const text = getSearchText(item);
 
+if (intent.locations.length > 0) {
+  const text = itemText(item);
+
   if (intent.locations.some((loc) => text.includes(loc))) {
-    score += 40; // strong boost for correct borough
+    score += 40;
   } else {
-    score -= 25; // penalize wrong borough
+    score -= 25;
   }
 }
 
