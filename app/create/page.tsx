@@ -113,13 +113,14 @@ export default function CreatePage() {
   const [error, setError] = useState("");
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<RestaurantCard | null>(null);
-  const [selectedActivity, setSelectedActivity] = useState<ActivityCard | null>(
-    null
-  );
+  const [selectedActivity, setSelectedActivity] =
+    useState<ActivityCard | null>(null);
   const [locationSaved, setLocationSaved] = useState(false);
+  const [showPlanSummary, setShowPlanSummary] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const activitySectionRef = useRef<HTMLDivElement | null>(null);
   const viewedItems = useRef<Set<string>>(new Set());
 
   const latestAssistant = useMemo(
@@ -261,6 +262,7 @@ export default function CreatePage() {
     setMessages([]);
     setSelectedRestaurant(null);
     setSelectedActivity(null);
+    setShowPlanSummary(false);
     setError("");
 
     if (inputRef.current) {
@@ -275,6 +277,22 @@ export default function CreatePage() {
     setInput(event.target.value);
   }
 
+  function selectRestaurantAndMaybeScroll(restaurant: RestaurantCard) {
+    const nextSelected =
+      selectedRestaurant?.id === restaurant.id ? null : restaurant;
+
+    setSelectedRestaurant(nextSelected);
+
+    if (nextSelected) {
+      setTimeout(() => {
+        activitySectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 200);
+    }
+  }
+
   async function handleSubmit(event?: React.FormEvent) {
     event?.preventDefault();
 
@@ -284,6 +302,7 @@ export default function CreatePage() {
 
     setLoading(true);
     setError("");
+    setShowPlanSummary(false);
 
     const userMessage: Message = {
       role: "user",
@@ -341,7 +360,7 @@ export default function CreatePage() {
           behavior: "smooth",
           block: "start",
         });
-      }, 150);
+      }, 250);
     } catch (err: any) {
       setError(err?.message || "Something went wrong. Please try again.");
     } finally {
@@ -391,7 +410,7 @@ export default function CreatePage() {
   }
 
   return (
-    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black pb-24 text-white">
+    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black pb-28 text-white">
       <RoseOutHeader />
 
       <section className="relative w-full max-w-full overflow-x-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-4 pb-8 pt-28 sm:px-6 sm:pb-10 lg:pt-32">
@@ -545,7 +564,7 @@ export default function CreatePage() {
                       Tight matches for your outing
                     </h2>
                     <p className="mt-1 text-sm font-semibold text-white/40">
-                      Compact picks. Less scrolling. Better decision-making.
+                      Select dinner, then choose the experience that completes the night.
                     </p>
                   </div>
                 </div>
@@ -596,11 +615,7 @@ export default function CreatePage() {
                           priority={restaurantIndex === 0}
                           selectLabel={isSelected ? "Selected" : "Select"}
                           onSelect={() =>
-                            setSelectedRestaurant(
-                              selectedRestaurant?.id === restaurant.id
-                                ? null
-                                : restaurant
-                            )
+                            selectRestaurantAndMaybeScroll(restaurant)
                           }
                           detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
                           onDetails={() => trackRestaurantClick(restaurantId)}
@@ -618,59 +633,65 @@ export default function CreatePage() {
                 )}
 
                 {activities.length > 0 && (
-                  <ResultSection
-                    title="Experience Picks"
-                    subtitle="Activities matched to your outing plan"
-                  >
-                    {activities.map((activity, activityIndex) => {
-                      const activityId = String(activity.id);
-                      const isSelected = selectedActivity?.id === activity.id;
-                      const reservationUrl =
-                        activity.reservation_url ||
-                        activity.reservation_link ||
-                        undefined;
+                  <div ref={activitySectionRef} className="scroll-mt-28">
+                    <ResultSection
+                      title="Experience Picks"
+                      subtitle="Activities matched to your outing plan"
+                    >
+                      {activities.map((activity, activityIndex) => {
+                        const activityId = String(activity.id);
+                        const isSelected =
+                          selectedActivity?.id === activity.id;
+                        const reservationUrl =
+                          activity.reservation_url ||
+                          activity.reservation_link ||
+                          undefined;
 
-                      return (
-                        <ResultCard
-                          key={activityId || activityIndex}
-                          index={activityIndex}
-                          type="activity"
-                          id={activityId}
-                          imageUrl={activity.image_url || undefined}
-                          title={activity.activity_name}
-                          eyebrow={activity.activity_type || "Activity"}
-                          address={formatAddress(activity)}
-                          rating={activity.rating}
-                          reviewCount={activity.review_count}
-                          reviewKeywords={activity.review_keywords}
-                          reviewSnippet={activity.review_snippet}
-                          primaryTag={activity.primary_tag}
-                          tags={activity.date_style_tags || []}
-                          distance={activity.distance_miles}
-                          score={
-                            activity.smart_match_score || activity.roseout_score
-                          }
-                          selected={isSelected}
-                          priority={activityIndex === 0}
-                          selectLabel={isSelected ? "Selected" : "Select"}
-                          onSelect={() =>
-                            setSelectedActivity(
-                              selectedActivity?.id === activity.id
-                                ? null
-                                : activity
-                            )
-                          }
-                          detailsHref={`/locations/activities/${activityId}?from=/create`}
-                          onDetails={() => trackActivityClick(activityId)}
-                          websiteUrl={activity.website || undefined}
-                          onWebsite={() => trackActivityClick(activityId)}
-                          reservationUrl={reservationUrl}
-                          reservationLabel="Book"
-                          onReservation={() => trackActivityClick(activityId)}
-                        />
-                      );
-                    })}
-                  </ResultSection>
+                        return (
+                          <ResultCard
+                            key={activityId || activityIndex}
+                            index={activityIndex}
+                            type="activity"
+                            id={activityId}
+                            imageUrl={activity.image_url || undefined}
+                            title={activity.activity_name}
+                            eyebrow={activity.activity_type || "Activity"}
+                            address={formatAddress(activity)}
+                            rating={activity.rating}
+                            reviewCount={activity.review_count}
+                            reviewKeywords={activity.review_keywords}
+                            reviewSnippet={activity.review_snippet}
+                            primaryTag={activity.primary_tag}
+                            tags={activity.date_style_tags || []}
+                            distance={activity.distance_miles}
+                            score={
+                              activity.smart_match_score ||
+                              activity.roseout_score
+                            }
+                            selected={isSelected}
+                            priority={activityIndex === 0}
+                            selectLabel={isSelected ? "Selected" : "Select"}
+                            onSelect={() =>
+                              setSelectedActivity(
+                                selectedActivity?.id === activity.id
+                                  ? null
+                                  : activity
+                              )
+                            }
+                            detailsHref={`/locations/activities/${activityId}?from=/create`}
+                            onDetails={() => trackActivityClick(activityId)}
+                            websiteUrl={activity.website || undefined}
+                            onWebsite={() => trackActivityClick(activityId)}
+                            reservationUrl={reservationUrl}
+                            reservationLabel="Book"
+                            onReservation={() =>
+                              trackActivityClick(activityId)
+                            }
+                          />
+                        );
+                      })}
+                    </ResultSection>
+                  </div>
                 )}
               </div>
             );
@@ -718,19 +739,28 @@ export default function CreatePage() {
               </p>
 
               <p className="hidden text-xs font-semibold text-white/40 sm:block">
-                Continue to review your picks and build the full outing.
+                Review your dinner-to-activity timeline before continuing.
               </p>
             </div>
 
             <button
               type="button"
-              onClick={savePlan}
+              onClick={() => setShowPlanSummary(true)}
               className="shrink-0 rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-900/40 transition hover:bg-[#ff1744]"
             >
-              Continue Planning →
+              Review Your RoseOut →
             </button>
           </div>
         </div>
+      )}
+
+      {showPlanSummary && (
+        <PlanSummarySheet
+          restaurant={selectedRestaurant}
+          activity={selectedActivity}
+          onClose={() => setShowPlanSummary(false)}
+          onContinue={savePlan}
+        />
       )}
 
       <style jsx global>{`
@@ -755,8 +785,244 @@ export default function CreatePage() {
             transform: translateY(0) scale(1);
           }
         }
+
+        @keyframes sheetIn {
+          from {
+            opacity: 0;
+            transform: translateY(26px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
       `}</style>
     </main>
+  );
+}
+
+function PlanSummarySheet({
+  restaurant,
+  activity,
+  onClose,
+  onContinue,
+}: {
+  restaurant: RestaurantCard | null;
+  activity: ActivityCard | null;
+  onClose: () => void;
+  onContinue: () => void;
+}) {
+  const hasBoth = Boolean(restaurant && activity);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 px-3 backdrop-blur-sm sm:px-6">
+      <button
+        type="button"
+        aria-label="Close plan summary"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default"
+      />
+
+      <div
+        className="relative mb-3 w-full max-w-2xl overflow-hidden rounded-[1.6rem] border border-white/10 bg-[#0b0b0b] shadow-2xl shadow-black sm:mb-6"
+        style={{ animation: "sheetIn 260ms ease-out both" }}
+      >
+        <div className="border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_40%),#101010] px-5 py-5">
+          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/20" />
+
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#e1062a]">
+                Plan Summary
+              </p>
+              <h3 className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">
+                Your night is almost ready
+              </h3>
+              <p className="mt-1 text-sm font-semibold leading-6 text-white/45">
+                Review your dinner-to-activity flow before moving to the full
+                plan.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-white/55 transition hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        <div className="max-h-[62vh] overflow-y-auto px-5 py-5">
+          <div className="relative">
+            <div className="absolute left-[19px] top-8 h-[calc(100%-64px)] w-px bg-gradient-to-b from-[#e1062a] via-white/15 to-fuchsia-400/40" />
+
+            <TimelineStep
+              step="1"
+              label="Dinner"
+              title={restaurant?.restaurant_name || "Choose a dinner spot"}
+              meta={[
+                restaurant?.cuisine || restaurant?.food_type || "Restaurant",
+                restaurant?.city || null,
+                restaurant?.rating ? `🌹 ${restaurant.rating}` : null,
+              ]
+                .filter(Boolean)
+                .join(" • ")}
+              description={
+                restaurant
+                  ? "Start with the food pick that best matches your outing."
+                  : "Select a restaurant to complete the first part of your RoseOut."
+              }
+              imageUrl={restaurant?.image_url || null}
+              active={Boolean(restaurant)}
+            />
+
+            <div className="ml-[52px] my-2 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+                Then
+              </p>
+              <p className="mt-1 text-sm font-bold text-white/60">
+                {hasBoth
+                  ? buildDistanceText(restaurant, activity)
+                  : "Add the activity that completes the night."}
+              </p>
+            </div>
+
+            <TimelineStep
+              step="2"
+              label="Activity"
+              title={activity?.activity_name || "Choose an activity"}
+              meta={[
+                activity?.activity_type || "Experience",
+                activity?.city || null,
+                activity?.rating ? `🌹 ${activity.rating}` : null,
+              ]
+                .filter(Boolean)
+                .join(" • ")}
+              description={
+                activity
+                  ? "This gives the outing a second stop and a clearer plan."
+                  : "Select an experience to build the full dinner-to-activity timeline."
+              }
+              imageUrl={activity?.image_url || null}
+              active={Boolean(activity)}
+            />
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-[#e1062a]/20 bg-[#e1062a]/10 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-red-100/70">
+              Next Step
+            </p>
+            <p className="mt-1 text-sm font-bold leading-6 text-white">
+              Continue to your full plan to review the selected locations,
+              details, and next actions.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-2 border-t border-white/10 bg-black/40 px-5 py-4 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white/60 transition hover:text-white"
+          >
+            Edit Picks
+          </button>
+
+          <button
+            type="button"
+            onClick={onContinue}
+            className="rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744]"
+          >
+            Continue to Full Plan →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TimelineStep({
+  step,
+  label,
+  title,
+  meta,
+  description,
+  imageUrl,
+  active,
+}: {
+  step: string;
+  label: string;
+  title: string;
+  meta: string;
+  description: string;
+  imageUrl?: string | null;
+  active: boolean;
+}) {
+  return (
+    <div className="relative flex gap-3 py-3">
+      <div
+        className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-sm font-black ${
+          active
+            ? "border-[#e1062a] bg-[#e1062a] text-white"
+            : "border-white/10 bg-[#151515] text-white/40"
+        }`}
+      >
+        {step}
+      </div>
+
+      <div
+        className={`min-w-0 flex-1 rounded-2xl border p-3 ${
+          active
+            ? "border-white/10 bg-white/[0.05]"
+            : "border-white/10 bg-white/[0.025]"
+        }`}
+      >
+        <div className="flex gap-3">
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-white/[0.06]">
+            {imageUrl ? (
+              <Image
+                src={imageUrl}
+                alt={title}
+                fill
+                unoptimized
+                sizes="64px"
+                className="object-cover"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-lg">
+                {label === "Dinner" ? "🍽️" : "✨"}
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#e1062a]">
+              {label}
+            </p>
+            <h4 className="mt-1 line-clamp-1 text-base font-black tracking-[-0.02em] text-white">
+              {title}
+            </h4>
+            <p className="mt-1 line-clamp-1 text-xs font-semibold text-white/45">
+              {meta}
+            </p>
+            <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-white/55">
+              {description}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1312,4 +1578,17 @@ function getWhyPicked({
   return type === "restaurant"
     ? "Matched to your food, location, and vibe."
     : "Matched to your activity and outing vibe.";
+}
+
+function buildDistanceText(
+  restaurant: RestaurantCard | null,
+  activity: ActivityCard | null
+) {
+  if (!restaurant || !activity) return "Dinner → Activity";
+
+  if (restaurant.city && activity.city && restaurant.city === activity.city) {
+    return `Same city flow • ${restaurant.city}`;
+  }
+
+  return "Dinner → Activity timeline";
 }
