@@ -1,816 +1,584 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import RoseOutHeader from "@/components/RoseOutHeader";
 
-type Step = "plan" | "confirm" | "book";
+type PlanLocation = {
+  id?: string;
+  restaurant_name?: string;
+  activity_name?: string;
+  name?: string;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+  cuisine?: string | null;
+  food_type?: string | null;
+  cuisine_type?: string | null;
+  cuisine_tags?: string[] | null;
+  activity_type?: string | null;
+  primary_tag?: string | null;
+  price_range?: string | null;
+  atmosphere?: string | null;
+  image_url?: string | null;
+  rating?: number | null;
+  review_count?: number | null;
+  website?: string | null;
+  reservation_url?: string | null;
+  reservation_link?: string | null;
+  booking_url?: string | null;
+  roseout_score?: number | null;
+  smart_match_score?: number | null;
+};
 
-function buildAddress(item: any) {
-  return [item?.address, item?.city, item?.state, item?.zip_code]
-    .filter(Boolean)
-    .join(", ");
-}
+type SavedPlan = {
+  restaurant?: PlanLocation | null;
+  activity?: PlanLocation | null;
+  locations?: PlanLocation[];
+  savedAt?: number;
+};
 
-function buildMapsUrl(name: string, address: string) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    `${name} ${address}`
-  )}`;
-}
-
-function flowers(rating?: number | null) {
-  const count = Math.max(1, Math.min(5, Math.round(Number(rating || 5))));
-  return "🌸".repeat(count);
-}
-
-function getRestaurantLabel(restaurant: any) {
-  const text = [
-    restaurant?.primary_tag,
-    restaurant?.cuisine,
-    restaurant?.atmosphere,
-    ...(restaurant?.date_style_tags || []),
-    ...(restaurant?.review_keywords || []),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  if (text.includes("brunch")) return "Brunch Spot";
-  if (text.includes("breakfast")) return "Breakfast Spot";
-  if (text.includes("lunch")) return "Lunch Spot";
-  if (text.includes("late night")) return "Late Night Spot";
-  if (text.includes("date") || text.includes("romantic")) return "Date Spot";
-  if (text.includes("upscale") || text.includes("classy")) {
-    return "Upscale Restaurant";
-  }
-
-  return "Restaurant";
-}
+const PLAN_KEY = "roseout_plan";
 
 export default function PlanPage() {
-  const router = useRouter();
+  return (
+    <Suspense fallback={<PlanLoading />}>
+      <PlanPageInner />
+    </Suspense>
+  );
+}
 
-  const [plan, setPlan] = useState<any>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [step, setStep] = useState<Step>("plan");
+function PlanPageInner() {
+  const searchParams = useSearchParams();
+  const [plan, setPlan] = useState<SavedPlan | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  const restaurantId = searchParams.get("restaurantId");
+  const activityId = searchParams.get("activityId");
 
   useEffect(() => {
-    const saved = localStorage.getItem("roseout_plan");
+    document.title = "Your RoseOut Plan | RoseOut";
+    setMounted(true);
 
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem(PLAN_KEY);
+      if (saved) {
         setPlan(JSON.parse(saved));
-      } catch {
-        setPlan(null);
       }
+    } catch {
+      setPlan(null);
     }
-
-    setLoaded(true);
   }, []);
 
-  const restaurant = plan?.restaurant;
-  const activity = plan?.activity;
+  const restaurant = plan?.restaurant || null;
+  const activity = plan?.activity || null;
 
-  const restaurantLabel = getRestaurantLabel(restaurant);
+  const hasPlan = Boolean(restaurant || activity);
 
-  const restaurantName = restaurant?.restaurant_name || "";
-  const activityName = activity?.activity_name || "";
+  const planTitle = useMemo(() => {
+    const names = [
+      restaurant?.restaurant_name || restaurant?.name,
+      activity?.activity_name || activity?.name,
+    ].filter(Boolean);
 
-  const restaurantAddress = buildAddress(restaurant);
-  const activityAddress = buildAddress(activity);
+    return names.length ? names.join(" + ") : "Your RoseOut Plan";
+  }, [restaurant, activity]);
 
-  const restaurantMapsUrl = useMemo(
-    () => buildMapsUrl(restaurantName, restaurantAddress),
-    [restaurantName, restaurantAddress]
-  );
-
-  const activityMapsUrl = useMemo(
-    () => buildMapsUrl(activityName, activityAddress),
-    [activityName, activityAddress]
-  );
-
-  const planTitle =
-    restaurant && activity
-      ? `${restaurantName} + ${activityName}`
-      : restaurant
-        ? restaurantName
-        : activityName || "Your RoseOut Plan";
-
-  const startNewSearch = () => {
-    localStorage.removeItem("roseout_plan");
-    sessionStorage.removeItem("roseout_create_state");
-    router.push("/create");
-  };
-
-  const backToResults = () => {
-    router.push("/create");
-  };
-
-  const goBackStep = () => {
-    if (step === "book") return setStep("confirm");
-    if (step === "confirm") return setStep("plan");
-    return backToResults();
-  };
-
-  const nextStep = () => {
-    if (step === "plan") return setStep("confirm");
-    if (step === "confirm") return setStep("book");
-  };
-
-  const nextButtonText =
-    step === "plan"
-      ? "Continue to Confirm"
-      : step === "confirm"
-        ? "Continue to Book"
-        : "Finish Booking";
-
-  if (!loaded) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-black px-5 pt-24 text-white">
-        <p className="text-center text-xs font-black uppercase tracking-[0.3em] text-red-400">
-          Loading your plan...
-        </p>
-      </main>
-    );
-  }
-
-  if (!plan) {
-    return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-5 pt-24 text-white">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(225,6,42,0.28),transparent_32%),#000]" />
-
-        <div className="relative z-10 w-full max-w-sm rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-6 text-center shadow-2xl backdrop-blur-xl">
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-red-400">
-            RoseOut Plan
-          </p>
-
-          <h1 className="mt-4 text-3xl font-black">No plan found</h1>
-
-          <p className="mt-3 text-sm leading-7 text-white/60">
-            Choose a restaurant or activity from your RoseOut results to build a
-            plan.
-          </p>
-
-          <button
-            onClick={startNewSearch}
-            className="mt-6 w-full rounded-full bg-red-600 px-7 py-3 text-sm font-black text-white transition hover:bg-red-500"
-          >
-            Create a Plan
-          </button>
-        </div>
-      </main>
-    );
-  }
+  if (!mounted) return <PlanLoading />;
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-black pb-28 pt-20 text-white lg:pb-0">
-      <section className="relative border-b border-white/10 px-4 pb-7 pt-6 sm:px-5 sm:py-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_5%,rgba(225,6,42,0.3),transparent_32%),linear-gradient(180deg,#050505,#000)]" />
+    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black text-white">
+      <RoseOutHeader />
 
-        <div className="relative mx-auto max-w-6xl">
-          <div className="mb-5 flex items-center justify-between gap-2">
-            <button
-              onClick={goBackStep}
-              className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-black text-white transition hover:bg-white hover:text-black"
-            >
-              ← Back
-            </button>
+      <section className="relative border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-3 pb-6 pt-24 sm:px-6 sm:pb-10 sm:pt-28 lg:pt-32">
+        <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[0.88fr_1.12fr] lg:items-center">
+          <div>
+            <div className="mb-3 inline-flex rounded-full border border-[#e1062a]/30 bg-[#e1062a]/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-red-100 sm:px-4 sm:py-2 sm:text-[11px]">
+              RoseOut Plan
+            </div>
 
-            <button
-              onClick={startNewSearch}
-              className="rounded-full bg-red-600 px-4 py-2 text-xs font-black text-white transition hover:bg-red-500"
-            >
-              New Search
-            </button>
+            <h1 className="text-[2.35rem] font-black leading-[0.95] tracking-[-0.055em] sm:text-6xl lg:text-7xl">
+              Your outing is <span className="text-[#e1062a]">ready.</span>
+            </h1>
+
+            <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/55 sm:text-base">
+              Review your dinner-to-activity flow, then continue with
+              reservation links, websites, or listing details.
+            </p>
           </div>
 
-          <Breadcrumb step={step} setStep={setStep} />
-
-          <p className="mt-7 text-[10px] font-black uppercase tracking-[0.28em] text-red-400 sm:text-xs">
-            RoseOut Plan Flow
-          </p>
-
-          <h1 className="mt-4 text-4xl font-black leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
-            {step === "plan" && (
-              <>
-                Your night is
-                <br />
-                <span className="text-red-500">ready.</span>
-              </>
-            )}
-
-            {step === "confirm" && (
-              <>
-                Confirm your
-                <br />
-                <span className="text-red-500">outing.</span>
-              </>
-            )}
-
-            {step === "book" && (
-              <>
-                Time to
-                <br />
-                <span className="text-red-500">book.</span>
-              </>
-            )}
-          </h1>
-
-          <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.05] p-4 shadow-2xl backdrop-blur-xl sm:rounded-[2rem] sm:p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
-              Selected Plan
+          <div className="rounded-[1.2rem] border border-white/10 bg-[#111]/90 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:rounded-[1.35rem] sm:p-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">
+              Selected Flow
             </p>
 
-            <h2 className="mt-2 break-words text-xl font-black leading-tight sm:text-3xl">
+            <h2 className="mt-2 break-words text-2xl font-black tracking-[-0.04em] sm:text-3xl">
               {planTitle}
             </h2>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <Link
+                href="/create"
+                className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-white/70 transition hover:text-white"
+              >
+                Edit Picks
+              </Link>
+
+              <a
+                href="#plan-timeline"
+                className="rounded-full bg-[#e1062a] px-5 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744]"
+              >
+                View Timeline
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="relative px-4 py-7 sm:px-5 sm:py-12">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(225,6,42,0.16),transparent_30%)]" />
+      <section
+        id="plan-timeline"
+        className="mx-auto max-w-7xl px-3 py-5 sm:px-6 sm:py-8"
+      >
+        {!hasPlan ? (
+          <EmptyPlan />
+        ) : (
+          <div className="grid gap-5 lg:grid-cols-[0.82fr_1.18fr]">
+            <aside className="h-fit rounded-[1.2rem] border border-white/10 bg-[#080808] p-4 shadow-2xl shadow-black/40 sm:p-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#e1062a]">
+                Plan Summary
+              </p>
 
-        <div className="relative mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_360px]">
-          <div className="space-y-5">
-            {step === "plan" && (
-              <>
-                {restaurant && (
-                  <PlanCard
-                    eyebrow={restaurantLabel}
-                    title={restaurant.restaurant_name}
-                    imageUrl={restaurant.image_url}
-                    address={restaurantAddress}
-                    rating={restaurant.rating}
-                    reviewCount={restaurant.review_count}
-                    primaryTag={restaurant.primary_tag}
-                    tags={restaurant.date_style_tags}
-                    reservationUrl={
-                      restaurant.reservation_url || restaurant.reservation_link
-                    }
-                    reservationLabel="Reserve"
-                    websiteUrl={restaurant.website}
-                    mapsUrl={restaurantMapsUrl}
-                  />
-                )}
+              <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">
+                Dinner → Activity
+              </h2>
 
-                {activity && (
-                  <PlanCard
-                    eyebrow={activity.activity_type || "Activity"}
-                    title={activity.activity_name}
-                    imageUrl={activity.image_url}
-                    address={activityAddress}
-                    rating={activity.rating}
-                    reviewCount={activity.review_count}
-                    primaryTag={activity.primary_tag}
-                    tags={activity.date_style_tags}
-                    reservationUrl={
-                      activity.reservation_url || activity.reservation_link
-                    }
-                    reservationLabel="Book"
-                    websiteUrl={activity.website}
-                    mapsUrl={activityMapsUrl}
-                  />
-                )}
-              </>
-            )}
+              <p className="mt-2 text-sm font-semibold leading-6 text-white/45">
+                This page now follows the same flow as Create: dinner first,
+                activity second, then action buttons.
+              </p>
 
-            {step === "confirm" && (
-              <ConfirmStep
-                restaurant={restaurant}
-                activity={activity}
-                restaurantLabel={restaurantLabel}
+              <div className="mt-5 rounded-2xl border border-[#e1062a]/20 bg-[#e1062a]/10 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-red-100/70">
+                  Next Step
+                </p>
+                <p className="mt-1 text-sm font-bold leading-6 text-white">
+                  Use the reservation, website, or details buttons to move from
+                  planning into action.
+                </p>
+              </div>
+            </aside>
+
+            <div className="rounded-[1.2rem] border border-white/10 bg-[#080808] p-3 shadow-2xl shadow-black/40 sm:p-4">
+              <div className="mb-4 border-b border-white/10 pb-4">
+                <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#e1062a] sm:text-[10px]">
+                  Timeline
+                </p>
+                <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] sm:text-3xl">
+                  Your RoseOut flow
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-white/40">
+                  Start with dinner, then continue into the experience.
+                </p>
+              </div>
+
+              <div className="relative">
+                <div className="absolute left-[17px] top-8 h-[calc(100%-64px)] w-px bg-gradient-to-b from-[#e1062a] via-white/15 to-fuchsia-400/40 sm:left-[19px]" />
+
+                <TimelineLocation
+                  step="1"
+                  label="Dinner"
+                  location={restaurant}
+                  fallbackTitle="Choose a dinner spot"
+                  fallbackMeta="Restaurant"
+                  type="restaurant"
+                />
+
+                <div className="my-2 ml-[46px] rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-3 sm:ml-[52px] sm:px-4">
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/30 sm:text-[10px]">
+                    Then
+                  </p>
+                  <p className="mt-1 text-xs font-bold leading-5 text-white/60 sm:text-sm">
+                    {restaurant && activity
+                      ? buildFlowText(restaurant, activity)
+                      : "Add the second stop to complete the night."}
+                  </p>
+                </div>
+
+                <TimelineLocation
+                  step="2"
+                  label="Activity"
+                  location={activity}
+                  fallbackTitle="Choose an activity"
+                  fallbackMeta="Experience"
+                  type="activity"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {hasPlan && (
+        <section className="mx-auto max-w-7xl px-3 pb-10 sm:px-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            {restaurant && (
+              <PlanActionCard
+                label="Dinner Pick"
+                type="restaurant"
+                location={restaurant}
               />
             )}
 
-            {step === "book" && (
-              <BookStep
-                restaurant={restaurant}
-                activity={activity}
-                restaurantLabel={restaurantLabel}
-                restaurantMapsUrl={restaurantMapsUrl}
-                activityMapsUrl={activityMapsUrl}
+            {activity && (
+              <PlanActionCard
+                label="Activity Pick"
+                type="activity"
+                location={activity}
               />
             )}
           </div>
+        </section>
+      )}
 
-          <aside className="hidden space-y-6 lg:block lg:sticky lg:top-28 lg:self-start">
-            <NextStepCard
-              step={step}
-              restaurant={restaurant}
-              activity={activity}
-              restaurantLabel={restaurantLabel}
-              backToResults={backToResults}
-              setStep={setStep}
-            />
+      <footer className="border-t border-white/10 bg-black px-3 py-7 text-white sm:px-6 sm:py-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xl font-black">
+              Rose<span className="text-[#e1062a]">Out</span>
+            </p>
+            <p className="mt-1 text-sm font-semibold text-white/40">
+              AI outing plans for food, activities, and better nights out.
+            </p>
+          </div>
 
-            <FlowCard step={step} />
-          </aside>
+          <div className="flex flex-wrap gap-4 text-sm font-bold text-white/40">
+            <Link href="/create" className="hover:text-white">
+              Create
+            </Link>
+            <Link href="/business" className="hover:text-white">
+              For Businesses
+            </Link>
+            <Link href="/pricing" className="hover:text-white">
+              Pricing
+            </Link>
+          </div>
         </div>
-      </section>
+      </footer>
 
-      <MobileActionBar
-        step={step}
-        nextButtonText={nextButtonText}
-        nextStep={nextStep}
-        backToResults={backToResults}
-        restaurant={restaurant}
-        activity={activity}
-        restaurantLabel={restaurantLabel}
-      />
+      <style jsx global>{`
+        html,
+        body {
+          width: 100%;
+          max-width: 100%;
+          overflow-x: hidden;
+          background: #000;
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        @keyframes cardReveal {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
     </main>
   );
 }
 
-function Breadcrumb({
+function TimelineLocation({
   step,
-  setStep,
+  label,
+  location,
+  fallbackTitle,
+  fallbackMeta,
+  type,
 }: {
-  step: Step;
-  setStep: (step: Step) => void;
+  step: string;
+  label: string;
+  location: PlanLocation | null;
+  fallbackTitle: string;
+  fallbackMeta: string;
+  type: "restaurant" | "activity";
 }) {
-  const steps: Step[] = ["plan", "confirm", "book"];
+  const active = Boolean(location);
+  const title =
+    type === "restaurant"
+      ? location?.restaurant_name || location?.name || fallbackTitle
+      : location?.activity_name || location?.name || fallbackTitle;
+
+  const meta = [
+    type === "restaurant"
+      ? location?.cuisine || location?.food_type || location?.cuisine_type
+      : location?.activity_type,
+    location?.city,
+    location?.rating ? `🌹 ${location.rating}` : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
 
   return (
-    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-      <button
-        onClick={() => (window.location.href = "/create")}
-        className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/50 transition hover:bg-white hover:text-black sm:px-4 sm:text-xs"
+    <div className="relative flex min-w-0 gap-2 py-3 sm:gap-3">
+      <div
+        className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-black sm:h-10 sm:w-10 sm:text-sm ${
+          active
+            ? "border-[#e1062a] bg-[#e1062a] text-white"
+            : "border-white/10 bg-[#151515] text-white/40"
+        }`}
       >
-        Results
-      </button>
+        {step}
+      </div>
 
-      {steps.map((item, index) => {
-        const active = step === item;
+      <div
+        className={`min-w-0 flex-1 rounded-2xl border p-2.5 sm:p-3 ${
+          active
+            ? "border-white/10 bg-white/[0.05]"
+            : "border-white/10 bg-white/[0.025]"
+        }`}
+      >
+        <div className="flex min-w-0 gap-2.5 sm:gap-3">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/[0.06] sm:h-16 sm:w-16">
+            {location?.image_url ? (
+              <Image
+                src={location.image_url}
+                alt={title}
+                fill
+                unoptimized
+                sizes="64px"
+                className="object-cover"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-lg">
+                {type === "restaurant" ? "🍽️" : "✨"}
+              </div>
+            )}
+          </div>
 
-        return (
-          <button
-            key={item}
-            onClick={() => setStep(item)}
-            className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] transition sm:px-4 sm:text-xs ${
-              active
-                ? "bg-red-600 text-white"
-                : "border border-white/10 bg-white/[0.05] text-white/50 hover:bg-white hover:text-black"
-            }`}
-          >
-            {index + 1}. {item}
-          </button>
-        );
-      })}
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#e1062a] sm:text-[10px]">
+              {label}
+            </p>
+
+            <h3 className="mt-1 line-clamp-1 text-sm font-black tracking-[-0.02em] text-white sm:text-base">
+              {title}
+            </h3>
+
+            <p className="mt-1 line-clamp-1 text-[11px] font-semibold text-white/45 sm:text-xs">
+              {meta || fallbackMeta}
+            </p>
+
+            <p className="mt-1.5 line-clamp-2 text-[11px] font-semibold leading-4 text-white/55 sm:mt-2 sm:text-xs sm:leading-5">
+              {active
+                ? type === "restaurant"
+                  ? "Start with the food pick that matches your outing."
+                  : "Continue into the experience that completes the night."
+                : type === "restaurant"
+                  ? "Go back to Create and select a dinner spot."
+                  : "Go back to Create and select an activity."}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function PlanCard({
-  eyebrow,
-  title,
-  imageUrl,
-  address,
-  rating,
-  reviewCount,
-  primaryTag,
-  tags,
-  reservationUrl,
-  reservationLabel,
-  websiteUrl,
-  mapsUrl,
-}: any) {
+function PlanActionCard({
+  label,
+  type,
+  location,
+}: {
+  label: string;
+  type: "restaurant" | "activity";
+  location: PlanLocation;
+}) {
+  const title =
+    type === "restaurant"
+      ? location.restaurant_name || location.name || "Restaurant"
+      : location.activity_name || location.name || "Activity";
+
+  const detailHref =
+    type === "restaurant"
+      ? `/locations/restaurants/${location.id}?from=/plan`
+      : `/locations/activities/${location.id}?from=/plan`;
+
+  const reservationUrl =
+    location.reservation_url || location.reservation_link || location.booking_url;
+
   return (
-    <article className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#0d0d0d] shadow-2xl shadow-black/40 sm:rounded-[2.25rem]">
-      <div className="relative h-52 overflow-hidden sm:h-72">
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
+    <article className="overflow-hidden rounded-[1.1rem] border border-white/10 bg-[#101010] shadow-xl shadow-black/30">
+      <div className="relative h-[170px] bg-neutral-950">
+        {location.image_url ? (
+          <Image
+            src={location.image_url}
+            alt={title}
+            fill
+            unoptimized
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
+          />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-neutral-900 text-neutral-500">
-            No image available
+          <div className="flex h-full items-center justify-center text-white/30">
+            {type === "restaurant" ? "🍽️" : "✨"}
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/40 to-black/5" />
 
-        <div className="absolute left-3 top-3 max-w-[70%] rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-black sm:left-4 sm:top-4 sm:px-4 sm:py-2 sm:text-xs">
-          {eyebrow}
+        <div className="absolute left-3 top-3 rounded-full border border-white/10 bg-black/75 px-3 py-1.5 backdrop-blur-xl">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
+            {label}
+          </p>
         </div>
 
-        {rating && (
-          <div className="absolute bottom-3 right-3 rounded-full bg-red-600 px-3 py-1.5 text-[10px] font-black text-white sm:bottom-4 sm:right-4 sm:px-4 sm:py-2 sm:text-xs">
-            {flowers(rating)} {rating}
+        {location.rating ? (
+          <div className="absolute bottom-3 right-3 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-black">
+            🌹 {location.rating}
           </div>
-        )}
+        ) : null}
       </div>
 
-      <div className="p-4 sm:p-6">
-        <h2 className="break-words text-2xl font-black leading-tight sm:text-3xl">
+      <div className="p-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">
+          {titleCase(
+            type === "restaurant"
+              ? location.cuisine ||
+                  location.food_type ||
+                  location.cuisine_type ||
+                  "Restaurant"
+              : location.activity_type || "Activity"
+          )}
+        </p>
+
+        <h3 className="mt-1 line-clamp-1 text-xl font-black tracking-[-0.03em] text-white">
           {title}
-        </h2>
+        </h3>
 
-        {address && (
-          <p className="mt-3 text-sm leading-6 text-white/55">{address}</p>
-        )}
+        <p className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-white/45">
+          {formatAddress(location) || "Location details available on listing."}
+        </p>
 
-        {reviewCount ? (
-          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 sm:text-xs">
-            {reviewCount} review{reviewCount === 1 ? "" : "s"}
-          </p>
-        ) : null}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Link
+            href={detailHref}
+            className="rounded-full bg-white px-4 py-3 text-center text-xs font-black uppercase tracking-[0.1em] text-black transition hover:bg-red-100"
+          >
+            Details
+          </Link>
 
-        {primaryTag && (
-          <p className="mt-4 text-sm font-black text-red-100">
-            ✨ {primaryTag}
-          </p>
-        )}
-
-        {tags?.length ? (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {tags.slice(0, 4).map((tag: string) => (
-              <span
-                key={tag}
-                className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-bold text-white/60"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {reservationUrl && (
+          {reservationUrl ? (
             <a
               href={reservationUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-full bg-red-600 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-red-500"
+              className="rounded-full bg-[#e1062a] px-4 py-3 text-center text-xs font-black uppercase tracking-[0.1em] text-white transition hover:bg-[#ff1744]"
             >
-              {reservationLabel}
+              {type === "restaurant" ? "Reserve" : "Book"}
             </a>
-          )}
-
-          {websiteUrl && (
+          ) : location.website ? (
             <a
-              href={websiteUrl}
+              href={location.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
+              className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-xs font-black uppercase tracking-[0.1em] text-white/75 transition hover:text-white"
             >
               Website
             </a>
+          ) : (
+            <Link
+              href="/create"
+              className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-xs font-black uppercase tracking-[0.1em] text-white/75 transition hover:text-white"
+            >
+              Edit
+            </Link>
           )}
-
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
-          >
-            Directions
-          </a>
         </div>
       </div>
     </article>
   );
 }
 
-function ConfirmStep({
-  restaurant,
-  activity,
-  restaurantLabel,
-}: {
-  restaurant: any;
-  activity: any;
-  restaurantLabel: string;
-}) {
+function EmptyPlan() {
   return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl sm:rounded-[2rem] sm:p-6">
-      <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
-        Confirm
+    <div className="rounded-[1.2rem] border border-white/10 bg-[#080808] p-5 text-center shadow-2xl shadow-black/40">
+      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#e1062a]">
+        No Plan Selected
       </p>
 
-      <h2 className="mt-3 text-2xl font-black leading-tight sm:text-3xl">
-        Confirm your selected outing.
+      <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+        Build your RoseOut first
       </h2>
 
-      <div className="mt-6 grid gap-4">
-        {restaurant && (
-          <ConfirmRow label={restaurantLabel} value={restaurant.restaurant_name} />
-        )}
-
-        {activity && <ConfirmRow label="Activity" value={activity.activity_name} />}
-      </div>
-    </section>
-  );
-}
-
-function ConfirmRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-white/35">
-        {label}
-      </p>
-      <p className="mt-2 break-words text-lg font-black sm:text-xl">{value}</p>
-    </div>
-  );
-}
-
-function BookStep({
-  restaurant,
-  activity,
-  restaurantLabel,
-  restaurantMapsUrl,
-  activityMapsUrl,
-}: {
-  restaurant: any;
-  activity: any;
-  restaurantLabel: string;
-  restaurantMapsUrl: string;
-  activityMapsUrl: string;
-}) {
-  return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl sm:rounded-[2rem] sm:p-6">
-      <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
-        Book
+      <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-6 text-white/45">
+        Select a restaurant, activity, or both from the Create page, then your
+        dinner-to-activity timeline will appear here.
       </p>
 
-      <h2 className="mt-3 text-2xl font-black leading-tight sm:text-3xl">
-        Finish booking your outing.
-      </h2>
-
-      <div className="mt-6 grid gap-4">
-        {restaurant && (
-          <BookBox
-            title={restaurant.restaurant_name}
-            reservationUrl={
-              restaurant.reservation_url || restaurant.reservation_link
-            }
-            websiteUrl={restaurant.website}
-            mapsUrl={restaurantMapsUrl}
-            reserveLabel={`Reserve ${restaurantLabel}`}
-          />
-        )}
-
-        {activity && (
-          <BookBox
-            title={activity.activity_name}
-            reservationUrl={activity.reservation_url || activity.reservation_link}
-            websiteUrl={activity.website}
-            mapsUrl={activityMapsUrl}
-            reserveLabel="Book Activity"
-          />
-        )}
-      </div>
-    </section>
-  );
-}
-
-function BookBox({
-  title,
-  reservationUrl,
-  websiteUrl,
-  mapsUrl,
-  reserveLabel,
-}: any) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-      <h3 className="break-words text-lg font-black sm:text-xl">{title}</h3>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {reservationUrl && (
-          <a
-            href={reservationUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full bg-red-600 px-4 py-3 text-center text-sm font-black text-white"
-          >
-            {reserveLabel}
-          </a>
-        )}
-
-        {websiteUrl && (
-          <a
-            href={websiteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full border border-white/15 px-4 py-3 text-center text-sm font-black text-white"
-          >
-            Website
-          </a>
-        )}
-
-        <a
-          href={mapsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-full border border-white/15 px-4 py-3 text-center text-sm font-black text-white"
-        >
-          Directions
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function NextStepCard({
-  step,
-  restaurant,
-  activity,
-  restaurantLabel,
-  backToResults,
-  setStep,
-}: {
-  step: Step;
-  restaurant: any;
-  activity: any;
-  restaurantLabel: string;
-  backToResults: () => void;
-  setStep: (step: Step) => void;
-}) {
-  return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
-      <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
-        Next Step
-      </p>
-
-      <h2 className="mt-3 text-3xl font-black">
-        {step === "plan" && "Review your plan"}
-        {step === "confirm" && "Confirm details"}
-        {step === "book" && "Book your outing"}
-      </h2>
-
-      <p className="mt-3 text-sm leading-7 text-white/60">
-        {step === "plan" &&
-          "Review your selected restaurant and activity before confirming."}
-        {step === "confirm" &&
-          "Make sure this is the outing you want before booking."}
-        {step === "book" &&
-          "Use the booking, website, and directions links to finish your plan."}
-      </p>
-
-      <div className="mt-6 grid gap-3">
-        {step === "plan" && (
-          <button
-            onClick={() => setStep("confirm")}
-            className="rounded-full bg-red-600 px-5 py-3 text-sm font-black text-white transition hover:bg-red-500"
-          >
-            Continue to Confirm
-          </button>
-        )}
-
-        {step === "confirm" && (
-          <button
-            onClick={() => setStep("book")}
-            className="rounded-full bg-red-600 px-5 py-3 text-sm font-black text-white transition hover:bg-red-500"
-          >
-            Continue to Book
-          </button>
-        )}
-
-        {step === "book" && (
-          <>
-            {restaurant?.reservation_url || restaurant?.reservation_link ? (
-              <a
-                href={restaurant.reservation_url || restaurant.reservation_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full bg-red-600 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-red-500"
-              >
-                Reserve {restaurantLabel}
-              </a>
-            ) : null}
-
-            {activity?.reservation_url || activity?.reservation_link ? (
-              <a
-                href={activity.reservation_url || activity.reservation_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-red-500/40 bg-red-500/10 px-5 py-3 text-center text-sm font-black text-red-100 transition hover:bg-red-600 hover:text-white"
-              >
-                Book Activity
-              </a>
-            ) : null}
-          </>
-        )}
-
-        <button
-          onClick={backToResults}
-          className="rounded-full border border-white/15 px-5 py-3 text-sm font-black text-white transition hover:bg-white hover:text-black"
-        >
-          Back to Results
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function FlowCard({ step }: { step: Step }) {
-  return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
-      <p className="text-xs font-black uppercase tracking-[0.3em] text-red-400">
-        Flow
-      </p>
-
-      <div className="mt-5 space-y-4">
-        <TimelineItem active={step === "plan"} number="1" title="Plan" />
-        <TimelineItem active={step === "confirm"} number="2" title="Confirm" />
-        <TimelineItem active={step === "book"} number="3" title="Book" />
-      </div>
-    </section>
-  );
-}
-
-function TimelineItem({
-  number,
-  title,
-  active,
-}: {
-  number: string;
-  title: string;
-  active: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-4">
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black ${
-          active ? "bg-red-600 text-white" : "bg-white/10 text-white/45"
-        }`}
+      <Link
+        href="/create"
+        className="mt-5 inline-flex rounded-full bg-[#e1062a] px-6 py-3 text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744]"
       >
-        {number}
-      </div>
-
-      <div>
-        <p
-          className={`text-sm font-black ${
-            active ? "text-white" : "text-white/45"
-          }`}
-        >
-          {title}
-        </p>
-        <p className="text-xs font-bold text-white/35">
-          RoseOut planning step
-        </p>
-      </div>
+        Create My Outing
+      </Link>
     </div>
   );
 }
 
-function MobileActionBar({
-  step,
-  nextButtonText,
-  nextStep,
-  backToResults,
-  restaurant,
-  activity,
-  restaurantLabel,
-}: {
-  step: Step;
-  nextButtonText: string;
-  nextStep: () => void;
-  backToResults: () => void;
-  restaurant: any;
-  activity: any;
-  restaurantLabel: string;
-}) {
+function PlanLoading() {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-black/95 p-3 backdrop-blur-2xl lg:hidden">
-      <div className="grid gap-2">
-        {step !== "book" ? (
-          <button
-            onClick={nextStep}
-            className="rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white"
-          >
-            {nextButtonText}
-          </button>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {restaurant?.reservation_url || restaurant?.reservation_link ? (
-              <a
-                href={restaurant.reservation_url || restaurant.reservation_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-2xl bg-red-600 px-4 py-3 text-center text-xs font-black text-white"
-              >
-                Reserve {restaurantLabel}
-              </a>
-            ) : null}
-
-            {activity?.reservation_url || activity?.reservation_link ? (
-              <a
-                href={activity.reservation_url || activity.reservation_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center text-xs font-black text-red-100"
-              >
-                Book Activity
-              </a>
-            ) : null}
-          </div>
-        )}
-
-        <button
-          onClick={backToResults}
-          className="rounded-2xl border border-white/15 px-5 py-3 text-xs font-black text-white"
-        >
-          Back to Results
-        </button>
+    <main className="min-h-screen bg-black px-4 pt-28 text-white">
+      <div className="mx-auto max-w-7xl rounded-[1.2rem] border border-white/10 bg-[#080808] p-5">
+        <div className="h-4 w-32 animate-pulse rounded-full bg-[#e1062a]/20" />
+        <div className="mt-4 h-8 w-2/3 animate-pulse rounded-full bg-white/10" />
+        <div className="mt-3 h-4 w-full animate-pulse rounded-full bg-white/5" />
       </div>
-    </div>
+    </main>
   );
+}
+
+function formatAddress(item: {
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+}) {
+  return [item.address, item.city, item.state, item.zip_code]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function titleCase(value?: string | null) {
+  if (!value) return "";
+
+  return value
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function buildFlowText(
+  restaurant: PlanLocation | null,
+  activity: PlanLocation | null
+) {
+  if (!restaurant || !activity) return "Dinner → Activity";
+
+  if (restaurant.city && activity.city && restaurant.city === activity.city) {
+    return `Same city flow • ${restaurant.city}`;
+  }
+
+  return "Dinner → Activity timeline";
 }
