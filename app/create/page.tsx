@@ -265,10 +265,6 @@ export default function CreatePage() {
     setShowPlanSummary(false);
     setError("");
 
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-    }
-
     inputRef.current?.focus();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -282,6 +278,7 @@ export default function CreatePage() {
       selectedRestaurant?.id === restaurant.id ? null : restaurant;
 
     setSelectedRestaurant(nextSelected);
+    setShowPlanSummary(false);
 
     if (nextSelected) {
       setTimeout(() => {
@@ -291,6 +288,11 @@ export default function CreatePage() {
         });
       }, 200);
     }
+  }
+
+  function selectActivity(activity: ActivityCard) {
+    setSelectedActivity(selectedActivity?.id === activity.id ? null : activity);
+    setShowPlanSummary(false);
   }
 
   async function handleSubmit(event?: React.FormEvent) {
@@ -303,6 +305,8 @@ export default function CreatePage() {
     setLoading(true);
     setError("");
     setShowPlanSummary(false);
+    setSelectedRestaurant(null);
+    setSelectedActivity(null);
 
     const userMessage: Message = {
       role: "user",
@@ -311,10 +315,6 @@ export default function CreatePage() {
 
     setMessages((current) => [...current, userMessage]);
     setInput("");
-
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-    }
 
     try {
       const savedLocation = getSavedLocation();
@@ -671,13 +671,7 @@ export default function CreatePage() {
                             selected={isSelected}
                             priority={activityIndex === 0}
                             selectLabel={isSelected ? "Selected" : "Select"}
-                            onSelect={() =>
-                              setSelectedActivity(
-                                selectedActivity?.id === activity.id
-                                  ? null
-                                  : activity
-                              )
-                            }
+                            onSelect={() => selectActivity(activity)}
                             detailsHref={`/locations/activities/${activityId}?from=/create`}
                             onDetails={() => trackActivityClick(activityId)}
                             websiteUrl={activity.website || undefined}
@@ -789,20 +783,11 @@ export default function CreatePage() {
         @keyframes sheetIn {
           from {
             opacity: 0;
-            transform: translateY(26px);
+            transform: translateY(28px);
           }
           to {
             opacity: 1;
             transform: translateY(0);
-          }
-        }
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
           }
         }
       `}</style>
@@ -821,10 +806,8 @@ function PlanSummarySheet({
   onClose: () => void;
   onContinue: () => void;
 }) {
-  const hasBoth = Boolean(restaurant && activity);
-
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 px-3 backdrop-blur-sm sm:px-6">
+    <div className="fixed inset-0 z-[999] flex items-end justify-center bg-black/70 px-3 backdrop-blur-sm sm:px-6">
       <button
         type="button"
         aria-label="Close plan summary"
@@ -887,12 +870,12 @@ function PlanSummarySheet({
               active={Boolean(restaurant)}
             />
 
-            <div className="ml-[52px] my-2 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
+            <div className="my-2 ml-[52px] rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
                 Then
               </p>
               <p className="mt-1 text-sm font-bold text-white/60">
-                {hasBoth
+                {restaurant && activity
                   ? buildDistanceText(restaurant, activity)
                   : "Add the activity that completes the night."}
               </p>
