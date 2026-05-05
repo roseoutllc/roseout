@@ -87,7 +87,7 @@ const aiSuggestions = [
   "Plan a fun outing in Queens with dinner and something relaxing after...",
   "Find a classy restaurant near me with a great vibe and easy parking...",
   "I want a birthday outing with food, music, and a memorable experience...",
-  "Plan an affordable night out with great food and something fun nearby...",
+  "Plan an affordable outing with great food and something fun nearby...",
   "Find a romantic restaurant with an activity close by...",
   "Give me a luxury outing idea for this weekend...",
 ];
@@ -227,7 +227,6 @@ export default function CreatePage() {
 
   useEffect(() => {
     if (!restoredStateRef.current && messages.length === 0) return;
-
     saveCreateState();
   }, [messages, input, selectedRestaurant, selectedActivity, saveCreateState]);
 
@@ -448,20 +447,20 @@ export default function CreatePage() {
                 </div>
 
                 <h1 className="mt-6 max-w-3xl text-5xl font-black leading-[0.92] tracking-tight sm:text-6xl md:text-7xl">
-                  Plan the night.
+                  Plan the outing.
                   <span className="block text-[#e1062a]">Keep the vibe.</span>
                 </h1>
 
                 <p className="mt-6 max-w-xl text-base font-medium leading-8 text-white/55 md:text-lg">
                   Tell RoseOut what you want. We’ll match restaurants,
-                  activities, date-night energy, distance, and budget into a
-                  curated outing.
+                  activities, celebration ideas, distance, budget, and local
+                  experiences into one curated outing.
                 </p>
 
                 <div className="mt-8 grid gap-3 sm:grid-cols-3">
                   <MiniStat value="AI" label="Vibe matching" />
-                  <MiniStat value="🌹" label="RoseOut scores" />
-                  <MiniStat value="NYC" label="Local discovery" />
+                  <MiniStat value="98%" label="Smart match rating" />
+                  <MiniStat value="Near You" label="Local experience finder" />
                 </div>
               </div>
 
@@ -569,8 +568,8 @@ export default function CreatePage() {
 
                       {hasRestaurants && (
                         <ResultSection
-                          title="Dinner Picks"
-                          subtitle="Restaurants matched to your request"
+                          title="Restaurant Picks"
+                          subtitle="Food spots matched to your request"
                         >
                           {msg.restaurants?.map((r, restaurantIndex) => {
                             const restaurantId = String(r.id);
@@ -808,6 +807,8 @@ export default function CreatePage() {
         </div>
       )}
 
+      <RoseOutFooter />
+
       <style jsx global>{`
         @keyframes resultFadeIn {
           from {
@@ -869,7 +870,7 @@ function SearchPanel({
         </div>
 
         <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-black">
-          Resy-style picks
+          Curated picks
         </span>
       </div>
 
@@ -894,7 +895,7 @@ function SearchPanel({
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-white/35">
-        <span>Try: dinner, activity, budget, borough, vibe.</span>
+        <span>Try: restaurant, activity, budget, borough, vibe.</span>
         <span className="text-[#e1062a]">AI Suggestions</span>
       </div>
 
@@ -1124,7 +1125,7 @@ function ResultCard({
   }
 
   if (combinedText.includes("romantic") || combinedText.includes("intimate")) {
-    premiumBadges.push("Date Night");
+    premiumBadges.push("Date Friendly");
   }
 
   if (combinedText.includes("upscale") || combinedText.includes("classy")) {
@@ -1205,9 +1206,9 @@ function ResultCard({
 
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">
-              RoseOut
+              Smart Match
             </p>
-            <p className="text-sm font-black text-white">Match</p>
+            <p className="text-sm font-black text-white">Rating</p>
           </div>
         </div>
 
@@ -1470,5 +1471,42 @@ function SkeletonCard({ index }: { index: number }) {
         }
       `}</style>
     </div>
+  );
+}
+
+function RoseOutFooter() {
+  return (
+    <footer className="border-t border-white/10 bg-black px-4 py-10 text-white sm:px-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xl font-black tracking-tight">
+            Rose<span className="text-[#e1062a]">Out</span>
+          </p>
+          <p className="mt-2 max-w-md text-sm font-medium leading-6 text-white/45">
+            AI-powered outing planning for restaurants, activities,
+            celebrations, local experiences, and memorable plans.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-4 text-sm font-bold text-white/45">
+          <Link href="/" className="transition hover:text-white">
+            Home
+          </Link>
+          <Link href="/business" className="transition hover:text-white">
+            For Businesses
+          </Link>
+          <Link href="/pricing" className="transition hover:text-white">
+            Pricing
+          </Link>
+          <Link href="/create" className="transition hover:text-white">
+            Create Plan
+          </Link>
+        </div>
+      </div>
+
+      <div className="mx-auto mt-8 max-w-7xl border-t border-white/10 pt-5 text-xs font-bold text-white/30">
+        © {new Date().getFullYear()} RoseOut. All rights reserved.
+      </div>
+    </footer>
   );
 }
