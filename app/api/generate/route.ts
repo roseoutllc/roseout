@@ -1360,31 +1360,31 @@ function pairSmartMatches(restaurants: any[], activities: any[]) {
     .sort((a, b) => b.pair_score - a.pair_score);
 
   const usedRestaurantIds = new Set<string>();
-const usedActivityIds = new Set<string>();
+  const usedActivityIds = new Set<string>();
 
-const bestPairs = pairs
-  .filter((pair) => {
-    const restaurantId = String(
-      pair.restaurant.id || pair.restaurant.restaurant_name || ""
-    );
+  const bestPairs = pairs
+    .filter((pair) => {
+      const restaurantId = String(
+        pair.restaurant.id || pair.restaurant.restaurant_name || ""
+      );
 
-    const activityId = String(
-      pair.activity.id || pair.activity.activity_name || ""
-    );
+      const activityId = String(
+        pair.activity.id || pair.activity.activity_name || ""
+      );
 
-    if (
-      usedRestaurantIds.has(restaurantId) ||
-      usedActivityIds.has(activityId)
-    ) {
-      return false;
-    }
+      if (
+        usedRestaurantIds.has(restaurantId) ||
+        usedActivityIds.has(activityId)
+      ) {
+        return false;
+      }
 
-    usedRestaurantIds.add(restaurantId);
-    usedActivityIds.add(activityId);
+      usedRestaurantIds.add(restaurantId);
+      usedActivityIds.add(activityId);
 
-    return true;
-  })
-  .slice(0, 3);
+      return true;
+    })
+    .slice(0, 3);
 
   return {
     restaurants: bestPairs.map((pair) => ({
