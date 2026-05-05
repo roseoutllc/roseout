@@ -1403,7 +1403,7 @@ function pairSmartMatches(restaurants: any[], activities: any[]) {
     })),
     pairs: bestPairs,
   };
-}
+  
 export async function POST(req: Request) {
   try {
     const body = await req.json();
