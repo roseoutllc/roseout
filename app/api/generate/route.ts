@@ -1556,12 +1556,11 @@ const cacheKey = normalizeQuery(
       }))
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
-    const smartBalanced = balanceSmartMatches({
-  restaurants: rankedRestaurants,
-  activities: rankedActivities,
-  intent,
-  smartIntent,
-});
+   const smartBalanced = balanceSmartMatches(
+  rankedRestaurants,
+  rankedActivities,
+  smartIntent
+);
 
 if (
   intent.activityIntents.length > 0 &&
