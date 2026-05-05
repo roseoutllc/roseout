@@ -1278,7 +1278,7 @@ function ResultCard({
       onKeyDown={(event) => {
         if (event.key === "Enter") openDetails();
       }}
-      className={`group relative flex h-full min-h-[620px] w-full cursor-pointer flex-col overflow-hidden rounded-[1.5rem] border bg-[#111] shadow-2xl shadow-black/40 transition duration-500 hover:-translate-y-1 hover:border-[#e1062a]/70 hover:bg-[#151515] hover:shadow-[0_0_55px_rgba(225,6,42,0.20)] sm:rounded-[2rem] ${
+      className={`group relative flex h-full min-h-[760px] w-full cursor-pointer flex-col overflow-hidden rounded-[1.5rem] border bg-[#111] shadow-2xl shadow-black/40 transition duration-500 hover:-translate-y-2 hover:scale-[1.012] hover:border-[#e1062a]/70 hover:bg-[#151515] hover:shadow-[0_0_70px_rgba(225,6,42,0.24)] sm:min-h-[790px] sm:rounded-[2rem] lg:min-h-[810px] ${
         selected ? "border-red-500 ring-2 ring-red-500/50" : "border-white/10"
       }`}
       style={{
@@ -1292,7 +1292,7 @@ function ResultCard({
             alt={title}
             width={900}
             height={520}
-            className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
+            className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-110"
             priority={priority}
           />
         ) : (
@@ -1301,7 +1301,8 @@ function ResultCard({
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 via-55% to-black/10" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#111] to-transparent" />
 
         <div className="absolute left-3 top-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/75 px-3 py-2 text-white shadow-xl backdrop-blur-xl sm:left-4 sm:top-4 sm:gap-3 sm:px-4 sm:py-3">
           <div
@@ -1348,100 +1349,108 @@ function ResultCard({
       </div>
 
       <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#e1062a] sm:text-xs sm:tracking-[0.22em]">
-            {eyebrow}
+        <div className="min-h-[286px] sm:min-h-[304px]">
+          <div className="flex min-h-[34px] flex-wrap items-center justify-between gap-3">
+            <p className="line-clamp-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#e1062a] sm:text-xs sm:tracking-[0.22em]">
+              {eyebrow}
+            </p>
+
+            {reviewCount ? (
+              <p className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white/45 sm:text-[11px]">
+                {reviewCount} review{reviewCount === 1 ? "" : "s"}
+              </p>
+            ) : null}
+          </div>
+
+          <Link
+            href={detailsHref}
+            onClick={() => {
+              onBeforeNavigate?.();
+              onDetails();
+            }}
+            className="group/title block"
+          >
+            <h3 className="mt-2 line-clamp-2 min-h-[64px] break-words text-xl font-black tracking-tight text-white transition duration-200 group-hover/title:text-[#e1062a] sm:text-2xl">
+              {title}
+            </h3>
+          </Link>
+
+          <p className="mt-3 line-clamp-2 min-h-[48px] break-words text-sm leading-6 text-white/50">
+            {address}
           </p>
 
-          {reviewCount ? (
-            <p className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white/45 sm:text-[11px]">
-              {reviewCount} review{reviewCount === 1 ? "" : "s"}
-            </p>
-          ) : null}
+          <div className="mt-4 min-h-[34px]">
+            {uniquePremiumBadges.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {uniquePremiumBadges.slice(0, 3).map((badge) => (
+                  <span
+                    key={badge}
+                    className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100"
+                  >
+                    {badge}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-4 min-h-[96px]">
+            {cleanReviewKeywords.length > 0 ? (
+              <div className="rounded-[1.25rem] border border-red-500/15 bg-gradient-to-br from-red-500/[0.1] via-red-500/[0.045] to-white/[0.025] p-4 transition duration-500 group-hover:border-red-500/30 group-hover:bg-red-500/[0.08] sm:rounded-[1.35rem]">
+                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-red-200/70">
+                  Review Signals
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {cleanReviewKeywords.slice(0, 3).map((keyword) => (
+                    <span
+                      key={keyword}
+                      className="rounded-full border border-red-500/20 bg-black/35 px-3 py-1 text-xs font-black text-red-100"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+
+                {reviewSnippet && (
+                  <p className="mt-3 line-clamp-2 text-xs font-semibold leading-5 text-white/65">
+                    “{reviewSnippet}”
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
 
-        <Link
-          href={detailsHref}
-          onClick={() => {
-            onBeforeNavigate?.();
-            onDetails();
-          }}
-          className="group/title block"
-        >
-          <h3 className="mt-2 min-h-[64px] break-words text-xl font-black tracking-tight text-white transition duration-200 group-hover/title:text-[#e1062a] sm:text-2xl">
-            {title}
-          </h3>
-        </Link>
-
-        <p className="mt-3 min-h-[48px] break-words text-sm leading-6 text-white/50">
-          {address}
-        </p>
-
-        {uniquePremiumBadges.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {uniquePremiumBadges.map((badge) => (
-              <span
-                key={badge}
-                className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100"
-              >
-                {badge}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {cleanReviewKeywords.length > 0 && (
-          <div className="mt-4 rounded-[1.25rem] border border-red-500/15 bg-gradient-to-br from-red-500/[0.1] via-red-500/[0.045] to-white/[0.025] p-4 sm:rounded-[1.35rem]">
-            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-red-200/70">
-              Review Signals
-            </p>
-
-            <div className="flex flex-wrap gap-2">
-              {cleanReviewKeywords.map((keyword) => (
-                <span
-                  key={keyword}
-                  className="rounded-full border border-red-500/20 bg-black/35 px-3 py-1 text-xs font-black text-red-100"
-                >
-                  {keyword}
-                </span>
-              ))}
-            </div>
-
-            {reviewSnippet && (
-              <p className="mt-3 line-clamp-2 text-xs font-semibold leading-5 text-white/65">
-                “{reviewSnippet}”
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="mt-4 min-h-[104px] rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[1.35rem]">
+        <div className="mt-4 min-h-[112px] rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4 transition duration-500 group-hover:border-[#e1062a]/25 group-hover:bg-white/[0.06] sm:rounded-[1.35rem]">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
             Why RoseOut picked this
           </p>
-          <p className="mt-2 text-sm font-semibold leading-6 text-white/65">
+          <p className="mt-2 line-clamp-3 text-sm font-semibold leading-6 text-white/65">
             {whyPicked}
           </p>
         </div>
 
-        {primaryTag && (
-          <p className="mt-4 break-words text-sm font-black text-white">
-            ✨ {primaryTag}
-          </p>
-        )}
+        <div className="mt-4 min-h-[74px]">
+          {primaryTag ? (
+            <p className="line-clamp-1 break-words text-sm font-black text-white">
+              ✨ {primaryTag}
+            </p>
+          ) : null}
 
-        {tags?.length ? (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {tags.slice(0, 3).map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/55"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        ) : null}
+          {tags?.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {tags.slice(0, 3).map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/55"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
         <div className="mt-auto grid gap-3 pt-5 sm:grid-cols-2">
           <button
