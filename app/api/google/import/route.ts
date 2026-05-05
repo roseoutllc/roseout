@@ -221,77 +221,126 @@ function googlePhotoUrl(place: any) {
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${ref}&key=${apiKey}`;
 }
 
+function detectCuisine(place: any) {
+  const text = placeText(place);
+
+  const cuisineMap: Record<string, string[]> = {
+    steakhouse: ["steakhouse", "steak house", "steak"],
+    seafood: ["seafood", "fish", "crab", "lobster", "oyster", "shrimp", "clam"],
+    italian: ["italian", "pizza", "pizzeria", "pasta", "trattoria", "ristorante"],
+    japanese: ["japanese", "sushi", "ramen", "omakase", "izakaya", "yakitori", "hibachi", "teriyaki"],
+    chinese: ["chinese", "dim sum", "szechuan", "sichuan", "cantonese", "hot pot", "noodle house"],
+    korean: ["korean", "kbbq", "korean bbq", "bulgogi", "kimchi"],
+    thai: ["thai", "pad thai"],
+    vietnamese: ["vietnamese", "pho", "banh mi"],
+    filipino: ["filipino", "filipina", "pinoy"],
+    indian: ["indian", "tandoori", "curry", "masala", "biryani"],
+    pakistani: ["pakistani"],
+    bangladeshi: ["bangladeshi"],
+    sri_lankan: ["sri lankan"],
+    nepalese: ["nepalese", "momo"],
+    mexican: ["mexican", "taco", "taqueria", "burrito", "quesadilla", "tortas"],
+    tex_mex: ["tex mex", "tex-mex"],
+    latin: ["latin", "latin american"],
+    spanish: ["spanish", "tapas", "paella"],
+    cuban: ["cuban"],
+    dominican: ["dominican"],
+    puerto_rican: ["puerto rican", "boricua"],
+    colombian: ["colombian", "arepa"],
+    peruvian: ["peruvian", "ceviche"],
+    brazilian: ["brazilian", "churrasco", "rodizio"],
+    argentinian: ["argentinian", "argentine"],
+    caribbean: ["caribbean", "west indian"],
+    jamaican: ["jamaican", "jerk chicken", "jerk"],
+    haitian: ["haitian"],
+    trinidadian: ["trinidadian", "trini", "roti shop"],
+    soul_food: ["soul food"],
+    southern: ["southern", "cajun", "creole"],
+    cajun_creole: ["cajun", "creole", "gumbo", "jambalaya"],
+    bbq: ["bbq", "barbecue", "smokehouse", "smoked meats"],
+    american: ["american", "burger", "burgers", "wings", "diner", "grill", "gastropub"],
+    comfort_food: ["comfort food"],
+    mediterranean: ["mediterranean"],
+    greek: ["greek", "gyro", "souvlaki"],
+    turkish: ["turkish", "kebab", "doner"],
+    lebanese: ["lebanese"],
+    middle_eastern: ["middle eastern", "falafel", "shawarma", "hummus"],
+    israeli: ["israeli"],
+    moroccan: ["moroccan"],
+    african: ["african"],
+    west_african: ["west african"],
+    nigerian: ["nigerian", "jollof", "suya"],
+    ethiopian: ["ethiopian", "injera"],
+    egyptian: ["egyptian"],
+    french: ["french", "bistro", "brasserie"],
+    german: ["german", "biergarten", "schnitzel"],
+    polish: ["polish", "pierogi"],
+    russian: ["russian"],
+    ukrainian: ["ukrainian"],
+    british: ["british", "fish and chips"],
+    irish: ["irish"],
+    scandinavian: ["scandinavian"],
+    vegan: ["vegan", "plant based", "plant-based"],
+    vegetarian: ["vegetarian"],
+    halal: ["halal"],
+    kosher: ["kosher"],
+    gluten_free: ["gluten free", "gluten-free"],
+    organic: ["organic"],
+    farm_to_table: ["farm to table", "farm-to-table"],
+    brunch: ["brunch", "breakfast"],
+    breakfast: ["breakfast", "pancake", "waffle", "bagel"],
+    bakery: ["bakery", "bake shop", "pastry", "croissant"],
+    cafe: ["cafe", "coffee", "espresso", "coffee shop"],
+    dessert: ["dessert", "ice cream", "gelato", "cupcake", "donut", "doughnut", "baklava"],
+    juice_bar: ["juice bar", "smoothie", "açaí", "acai"],
+    healthy: ["healthy", "salad", "grain bowl"],
+    fast_food: ["fast food"],
+    fried_chicken: ["fried chicken", "chicken shack"],
+    wings: ["wings", "wing spot"],
+    burger: ["burger", "burgers"],
+    pizza: ["pizza", "pizzeria"],
+    sandwiches: ["sandwich", "sandwiches", "subs", "hoagie", "deli"],
+    deli: ["deli", "delicatessen"],
+    bagels: ["bagel", "bagels"],
+    hot_dogs: ["hot dog", "hot dogs"],
+    noodles: ["noodle", "noodles"],
+    hot_pot: ["hot pot"],
+    buffet: ["buffet"],
+    fine_dining: ["fine dining"],
+    wine_bar: ["wine bar"],
+    cocktail_bar: ["cocktail bar", "mixology"],
+    sports_bar: ["sports bar"],
+    lounge: ["lounge", "hookah", "shisha"],
+    rooftop: ["rooftop"],
+  };
+
+  const matches: string[] = [];
+
+  for (const [type, keywords] of Object.entries(cuisineMap)) {
+    if (keywords.some((keyword) => text.includes(keyword))) {
+      matches.push(type);
+    }
+  }
+
+  const uniqueMatches = Array.from(new Set(matches));
+
+  return {
+    cuisine: uniqueMatches[0] || null,
+    food_type: uniqueMatches[0] || null,
+    cuisine_tags: uniqueMatches,
+  };
+}
+
 function getPrimaryTag(place: any, type: "restaurant" | "activity") {
   const text = placeText(place);
 
   if (type === "restaurant") {
-    if (text.includes("steakhouse") || text.includes("steak")) return "steak";
-    if (
-      text.includes("seafood") ||
-      text.includes("fish") ||
-      text.includes("crab") ||
-      text.includes("lobster") ||
-      text.includes("oyster")
-    ) {
-      return "seafood";
+    const cuisineInfo = detectCuisine(place);
+
+    if (cuisineInfo.cuisine && !isGenericTag(cuisineInfo.cuisine)) {
+      return cuisineInfo.cuisine;
     }
 
-    if (text.includes("sushi") || text.includes("omakase")) return "sushi";
-    if (text.includes("ramen")) return "ramen";
-    if (text.includes("japanese") || text.includes("izakaya")) return "japanese";
-    if (text.includes("korean") || text.includes("kbbq")) return "korean";
-    if (text.includes("thai")) return "thai";
-    if (text.includes("vietnamese") || text.includes("pho")) return "vietnamese";
-
-    if (
-      text.includes("chinese") ||
-      text.includes("dim sum") ||
-      text.includes("szechuan") ||
-      text.includes("sichuan")
-    ) {
-      return "chinese";
-    }
-
-    if (text.includes("indian")) return "indian";
-    if (text.includes("italian") || text.includes("pizza") || text.includes("pasta")) return "italian";
-    if (text.includes("mexican") || text.includes("taco") || text.includes("taqueria")) return "mexican";
-    if (text.includes("peruvian")) return "peruvian";
-    if (text.includes("dominican")) return "dominican";
-    if (text.includes("puerto rican")) return "puerto_rican";
-    if (text.includes("cuban")) return "cuban";
-    if (text.includes("jamaican")) return "jamaican";
-    if (text.includes("haitian")) return "haitian";
-    if (text.includes("caribbean") || text.includes("west indian")) return "caribbean";
-    if (text.includes("latin") || text.includes("spanish")) return "latin";
-    if (text.includes("soul food") || text.includes("southern")) return "soul_food";
-
-    if (
-      text.includes("bbq") ||
-      text.includes("barbecue") ||
-      text.includes("smokehouse")
-    ) {
-      return "bbq";
-    }
-
-    if (text.includes("burger")) return "burgers";
-    if (text.includes("wings")) return "wings";
-    if (text.includes("chicken")) return "chicken";
-    if (text.includes("vegan")) return "vegan";
-    if (text.includes("vegetarian")) return "vegetarian";
-    if (text.includes("halal")) return "halal";
-    if (text.includes("kosher")) return "kosher";
-    if (text.includes("brunch") || text.includes("breakfast")) return "brunch";
-    if (text.includes("bakery") || text.includes("bake shop")) return "bakery";
-
-    if (
-      text.includes("dessert") ||
-      text.includes("ice cream") ||
-      text.includes("gelato")
-    ) {
-      return "dessert";
-    }
-
-    if (text.includes("cafe") || text.includes("coffee")) return "cafe";
     if (text.includes("rooftop")) return "rooftop";
     if (text.includes("hookah") || text.includes("shisha")) return "hookah";
     if (text.includes("cigar")) return "cigar";
@@ -320,13 +369,13 @@ function getPrimaryTag(place: any, type: "restaurant" | "activity") {
 }
 
 function getCuisineFromPlace(place: any) {
-  const primaryTag = getPrimaryTag(place, "restaurant");
+  const cuisineInfo = detectCuisine(place);
 
-  if (!primaryTag || isGenericTag(primaryTag)) {
+  if (!cuisineInfo.cuisine || isGenericTag(cuisineInfo.cuisine)) {
     return null;
   }
 
-  return primaryTag;
+  return cuisineInfo.cuisine;
 }
 
 function buildSearchKeywords(place: any, type: ImportType) {
@@ -337,10 +386,15 @@ function buildSearchKeywords(place: any, type: ImportType) {
   if (primaryTag) keywords.add(primaryTag);
 
   if (type === "restaurant") {
+    const cuisineInfo = detectCuisine(place);
+
     keywords.add("restaurant");
     keywords.add("dinner");
     keywords.add("food");
     keywords.add("date night");
+
+    if (cuisineInfo.cuisine) keywords.add(cuisineInfo.cuisine);
+    cuisineInfo.cuisine_tags.forEach((tag) => keywords.add(tag));
   } else {
     keywords.add("activity");
     keywords.add("things to do");
@@ -803,7 +857,7 @@ async function importRestaurant(place: any) {
   );
 
   const primaryTag = getPrimaryTag(place, "restaurant");
-const cuisine = getCuisineFromPlace(place);
+  const cuisineInfo = detectCuisine(place);
 
   const { error } = await supabaseAdmin.from("restaurants").insert({
     restaurant_name: place.name,
@@ -811,7 +865,11 @@ const cuisine = getCuisineFromPlace(place);
     city: addressParts.city,
     state: addressParts.state,
     zip_code: addressParts.zipCode,
-    cuisine: cuisine,
+
+    cuisine: cuisineInfo.cuisine || getCuisineFromPlace(place),
+    food_type: cuisineInfo.food_type,
+    cuisine_tags: cuisineInfo.cuisine_tags,
+
     rating: place.rating || 0,
     review_count: getReviewCount(place),
     google_place_id: place.place_id,
@@ -823,7 +881,7 @@ const cuisine = getCuisineFromPlace(place);
     view_count: 0,
     click_count: 0,
     claim_count: 0,
-    primary_tag: primaryTag || "restaurant",
+    primary_tag: primaryTag || cuisineInfo.cuisine || "restaurant",
     search_keywords: buildSearchKeywords(place, "restaurant"),
     ...scores,
     ...claimQr,
@@ -877,581 +935,4 @@ async function importActivity(place: any) {
   if (error) throw new Error(error.message);
 
   return { imported: true, skipped: false };
-}
-
-const geoAreas = [
-  { name: "Manhattan", lat: 40.7831, lng: -73.9712 },
-  { name: "Brooklyn", lat: 40.6782, lng: -73.9442 },
-  { name: "Queens", lat: 40.7282, lng: -73.7949 },
-  { name: "Bronx", lat: 40.8448, lng: -73.8648 },
-  { name: "Staten Island", lat: 40.5795, lng: -74.1502 },
-  { name: "Astoria", lat: 40.7644, lng: -73.9235 },
-  { name: "Long Island City", lat: 40.7447, lng: -73.9485 },
-  { name: "Flushing", lat: 40.7675, lng: -73.8331 },
-  { name: "Bayside", lat: 40.7586, lng: -73.7654 },
-  { name: "Forest Hills", lat: 40.7181, lng: -73.8448 },
-  { name: "Rego Park", lat: 40.7256, lng: -73.8625 },
-  { name: "Jamaica", lat: 40.7027, lng: -73.789 },
-  { name: "Queens Village", lat: 40.7157, lng: -73.7419 },
-  { name: "Jackson Heights", lat: 40.7557, lng: -73.8831 },
-  { name: "Elmhurst", lat: 40.7365, lng: -73.8772 },
-  { name: "Howard Beach", lat: 40.6571, lng: -73.8436 },
-  { name: "Rockaway", lat: 40.5795, lng: -73.8372 },
-  { name: "Garden City", lat: 40.7268, lng: -73.6343 },
-  { name: "Mineola", lat: 40.7493, lng: -73.6407 },
-  { name: "Hempstead", lat: 40.7062, lng: -73.6187 },
-  { name: "Freeport", lat: 40.6576, lng: -73.5832 },
-  { name: "Rockville Centre", lat: 40.6587, lng: -73.6412 },
-  { name: "Westbury", lat: 40.7557, lng: -73.5876 },
-  { name: "Hicksville", lat: 40.7684, lng: -73.5251 },
-  { name: "Great Neck", lat: 40.8007, lng: -73.7285 },
-  { name: "Long Beach", lat: 40.5884, lng: -73.6579 },
-  { name: "Manhasset", lat: 40.7979, lng: -73.6996 },
-  { name: "Syosset", lat: 40.8262, lng: -73.5021 },
-  { name: "Oyster Bay", lat: 40.8657, lng: -73.5321 },
-  { name: "Huntington", lat: 40.8682, lng: -73.4257 },
-  { name: "Babylon", lat: 40.6957, lng: -73.3257 },
-  { name: "Patchogue", lat: 40.7657, lng: -73.0151 },
-  { name: "Bay Shore", lat: 40.7251, lng: -73.2454 },
-  { name: "Islip", lat: 40.7298, lng: -73.2104 },
-  { name: "Ronkonkoma", lat: 40.8154, lng: -73.1123 },
-  { name: "Smithtown", lat: 40.8559, lng: -73.2007 },
-  { name: "Riverhead", lat: 40.917, lng: -72.662 },
-  { name: "Port Jefferson", lat: 40.9465, lng: -73.0693 },
-  { name: "Stony Brook", lat: 40.9257, lng: -73.1409 },
-  { name: "Commack", lat: 40.8429, lng: -73.2929 },
-  { name: "Melville", lat: 40.7934, lng: -73.4151 },
-  { name: "Yonkers", lat: 40.9312, lng: -73.8988 },
-  { name: "White Plains", lat: 41.033, lng: -73.7629 },
-  { name: "New Rochelle", lat: 40.9115, lng: -73.7824 },
-  { name: "Mount Vernon", lat: 40.9126, lng: -73.8371 },
-  { name: "Hoboken", lat: 40.7433, lng: -74.0324 },
-  { name: "Jersey City", lat: 40.7178, lng: -74.0431 },
-  { name: "Edgewater", lat: 40.827, lng: -73.9757 },
-  { name: "Fort Lee", lat: 40.8509, lng: -73.9701 },
-  { name: "Newark", lat: 40.7357, lng: -74.1724 },
-];
-
-const rotatingBatches: ImportBatch[] = [
-  "core",
-  "date",
-  "birthday",
-  "brunch",
-  "luxury",
-  "nightlife",
-  "cuisine",
-  "casual",
-  "fun",
-  "culture",
-  "outdoor",
-];
-
-function getDayOfYear() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  return Math.floor(diff / 86400000);
-}
-
-function getRotatingAreaName() {
-  const day = getDayOfYear();
-  return geoAreas[day % geoAreas.length]?.name || "Queens";
-}
-
-function getRotatingBatch() {
-  const day = getDayOfYear();
-  return rotatingBatches[day % rotatingBatches.length] || "core";
-}
-
-const restaurantCategoryBatches: Record<ImportBatch, string[]> = {
-  core: ["restaurants", "best restaurants", "top rated restaurants", "new restaurants", "popular restaurants", "local restaurants", "must try restaurants", "highly rated restaurants"],
-  date: ["date night restaurants", "romantic restaurants", "intimate restaurants", "cozy restaurants", "anniversary restaurants", "first date restaurants", "casual date restaurants", "quiet restaurants", "candlelight restaurants", "restaurants for couples"],
-  birthday: ["birthday dinner restaurants", "birthday brunch restaurants", "birthday celebration restaurants", "birthday restaurants", "birthday rooftop restaurants", "birthday fine dining", "restaurants for celebrations", "group dinner restaurants", "private dining restaurants", "restaurants for large groups", "party restaurants"],
-  brunch: ["breakfast restaurants", "brunch restaurants", "best brunch", "bottomless brunch", "birthday brunch restaurants", "lunch restaurants", "coffee shops", "cafes", "bakeries", "dessert spots", "ice cream shops", "tea houses", "juice bars", "smoothie shops"],
-  luxury: ["fine dining restaurants", "luxury restaurants", "upscale restaurants", "michelin star restaurants", "tasting menu restaurants", "chef tasting restaurants", "rooftop restaurants", "restaurants with a view", "waterfront restaurants", "outdoor dining restaurants", "garden restaurants", "steakhouses", "seafood restaurants", "wine restaurants", "elegant restaurants", "high end restaurants"],
-  nightlife: ["late night restaurants", "24 hour restaurants", "lounge restaurants", "restaurants with music", "restaurants with dj", "live music restaurants", "jazz restaurants", "restaurants with dancing", "cocktail bars", "wine bars", "sports bars", "rooftop bars", "bars with food", "gastropubs", "hookah restaurants", "hookah lounges", "shisha lounges", "hookah bars", "cigar lounges", "cigar bars", "supper clubs"],
-  cuisine: ["american restaurants", "new american restaurants", "southern restaurants", "soul food restaurants", "comfort food restaurants", "bbq restaurants", "barbecue restaurants", "smokehouse restaurants", "steakhouses", "burger restaurants", "hot dog restaurants", "sandwich shops", "delis", "diners", "seafood restaurants", "lobster restaurants", "crab restaurants", "oyster bars", "fish restaurants", "italian restaurants", "pizza restaurants", "pasta restaurants", "sicilian restaurants", "french restaurants", "bistros", "spanish restaurants", "tapas restaurants", "portuguese restaurants", "greek restaurants", "mediterranean restaurants", "turkish restaurants", "lebanese restaurants", "middle eastern restaurants", "israeli restaurants", "persian restaurants", "moroccan restaurants", "halal restaurants", "kosher restaurants", "chinese restaurants", "dim sum restaurants", "cantonese restaurants", "szechuan restaurants", "shanghainese restaurants", "hot pot restaurants", "japanese restaurants", "sushi restaurants", "ramen restaurants", "izakaya restaurants", "yakitori restaurants", "korean restaurants", "korean bbq restaurants", "thai restaurants", "vietnamese restaurants", "pho restaurants", "malaysian restaurants", "singaporean restaurants", "indonesian restaurants", "filipino restaurants", "asian fusion restaurants", "indian restaurants", "pakistani restaurants", "bangladeshi restaurants", "nepalese restaurants", "tibetan restaurants", "mexican restaurants", "taco restaurants", "tex mex restaurants", "latin restaurants", "peruvian restaurants", "dominican restaurants", "puerto rican restaurants", "colombian restaurants", "cuban restaurants", "argentinian restaurants", "brazilian restaurants", "venezuelan restaurants", "ecuadorian restaurants", "salvadoran restaurants", "caribbean restaurants", "jamaican restaurants", "haitian restaurants", "trinidadian restaurants", "west indian restaurants", "african restaurants", "ethiopian restaurants", "nigerian restaurants", "ghanaian restaurants", "senegalese restaurants", "south african restaurants", "vegan restaurants", "vegetarian restaurants", "plant based restaurants", "healthy restaurants", "gluten free restaurants", "organic restaurants", "salad restaurants", "poke restaurants", "breakfast restaurants", "brunch restaurants", "dessert restaurants", "ice cream shops", "bakeries", "coffee shops", "cafes", "tea houses", "bubble tea shops"],
-  casual: ["vegan restaurants", "vegetarian restaurants", "healthy restaurants", "gluten free restaurants", "instagrammable restaurants", "trendy restaurants", "hidden gem restaurants", "unique restaurants", "themed restaurants", "dinner restaurants", "fun restaurants", "family restaurants", "casual restaurants", "comfort food restaurants", "pizza restaurants", "taco restaurants", "sandwich shops", "food halls", "food trucks"],
-  activity: [],
-  fun: [],
-  culture: [],
-  outdoor: [],
-  all: [],
-};
-
-const activityCategoryBatches: Record<ImportBatch, string[]> = {
-  activity: ["things to do", "date night activities", "romantic things to do", "birthday activities", "birthday date ideas", "fun activities", "couples activities", "double date ideas", "indoor activities", "unique things to do", "experiences", "local attractions"],
-  date: ["romantic things to do", "date night activities", "couples activities", "fun date ideas", "unique date ideas", "romantic activities", "things to do for couples", "wine tasting", "paint and sip", "cooking classes", "dance classes", "jazz clubs", "live music"],
-  birthday: ["birthday activities", "birthday party venues", "birthday date ideas", "fun birthday activities", "group activities", "private party venues", "karaoke rooms", "arcades", "bowling", "paint and sip", "escape rooms", "comedy clubs", "nightclubs", "lounges"],
-  fun: ["bowling", "arcades", "karaoke", "escape rooms", "mini golf", "miniature golf", "golf", "indoor golf", "driving range", "axe throwing", "paintball", "laser tag", "go karts", "trampoline parks", "roller skating", "ice skating", "pool halls", "billiards", "board game cafes", "virtual reality arcade", "paint and sip"],
-  nightlife: ["comedy clubs", "comedy club", "stand up comedy", "stand up comedy clubs", "comedy shows", "comedy night", "nightclubs", "night clubs", "dance clubs", "hookah lounges", "hookah bars", "shisha lounges", "cigar lounges", "cigar bars", "lounges", "rooftop bars", "cocktail lounges", "live music", "jazz clubs", "speakeasy bars", "supper clubs", "karaoke bars"],
-  culture: ["museums", "art galleries", "theaters", "movie theaters", "live shows", "broadway shows", "off broadway shows", "performing arts", "concert venues", "comedy clubs", "stand up comedy", "comedy shows", "cultural centers", "historic sites", "exhibits", "immersive exhibits"],
-  outdoor: ["parks", "waterfront spots", "scenic spots", "gardens", "botanical gardens", "outdoor activities", "walking trails", "hiking trails", "beaches", "piers", "boat rides", "kayaking", "bike rentals", "rooftop activities", "outdoor markets", "farmers markets"],
-  brunch: ["brunch activities", "day parties", "bottomless brunch", "brunch cruises", "coffee shops", "cafes", "bakeries", "dessert spots"],
-  luxury: ["luxury experiences", "upscale lounges", "private dining", "wine tasting", "cocktail lounges", "spa experiences", "rooftop lounges", "fine dining experiences", "yacht cruises", "dinner cruises", "premium experiences"],
-  core: [],
-  cuisine: [],
-  casual: [],
-  all: [],
-};
-
-function normalizeBatch(value: any): ImportBatch {
-  const batch = String(value || "core").toLowerCase();
-
-  const allowed: ImportBatch[] = [
-    "core",
-    "date",
-    "birthday",
-    "brunch",
-    "luxury",
-    "nightlife",
-    "cuisine",
-    "casual",
-    "activity",
-    "fun",
-    "culture",
-    "outdoor",
-    "all",
-  ];
-
-  return allowed.includes(batch as ImportBatch)
-    ? (batch as ImportBatch)
-    : "core";
-}
-
-function normalizeRequestType(value: any): RequestImportType {
-  const type = String(value || "restaurant").toLowerCase();
-
-  if (type === "activity") return "activity";
-  if (type === "all" || type === "both") return "both";
-
-  return "restaurant";
-}
-
-function getCategories(type: ImportType, batch: ImportBatch) {
-  const source =
-    type === "restaurant" ? restaurantCategoryBatches : activityCategoryBatches;
-
-  if (batch === "all") {
-    return Array.from(
-      new Set(
-        Object.entries(source)
-          .filter(([key]) => key !== "all")
-          .flatMap(([, values]) => values)
-      )
-    );
-  }
-
-  const selected = source[batch] || [];
-  if (selected.length > 0) return selected;
-
-  return getCategories(type, "all");
-}
-
-function parseAreas(value: any): string[] {
-  if (!value) return [];
-
-  if (Array.isArray(value)) {
-    return value.map(String).filter(Boolean);
-  }
-
-  return String(value)
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function getAreas(limitAreas?: string[]) {
-  if (!limitAreas || limitAreas.length === 0) return geoAreas;
-
-  const normalized = limitAreas.map((area) => area.toLowerCase());
-
-  return geoAreas.filter((area) =>
-    normalized.some((name) => area.name.toLowerCase().includes(name))
-  );
-}
-
-function defaultQueries(
-  type: ImportType,
-  batch: ImportBatch = "core",
-  areaNames?: string[]
-) {
-  const areas = getAreas(areaNames).map((area) => area.name);
-  const categories = getCategories(type, batch);
-
-  return areas.flatMap((area) =>
-    categories.map((category) => `${category} in ${area}`)
-  );
-}
-
-async function runImport({
-  queries,
-  type,
-  limit,
-  mode,
-  lat,
-  lng,
-  radius,
-  batch,
-}: {
-  queries: string[];
-  type: ImportType;
-  limit: number;
-  mode: ImportMode;
-  lat?: number;
-  lng?: number;
-  radius?: number;
-  batch: ImportBatch;
-}) {
-  let imported = 0;
-  let skipped = 0;
-  let failed = 0;
-  let found = 0;
-
-  const seenPlaceIds = new Set<string>();
-  const categories = getCategories(type, batch);
-
-  async function processPlace(place: any, category: string) {
-    if (
-      !place.place_id ||
-      seenPlaceIds.has(place.place_id) ||
-      !isHighQuality(place) ||
-      !categoryMatchesPlace(place, type, category)
-    ) {
-      return { imported: false, skipped: false, failed: false };
-    }
-
-    seenPlaceIds.add(place.place_id);
-
-    try {
-      const result =
-        type === "activity"
-          ? await importActivity(place)
-          : await importRestaurant(place);
-
-      return {
-        imported: Boolean(result.imported),
-        skipped: Boolean(result.skipped),
-        failed: false,
-      };
-    } catch (error) {
-      console.error("Import item failed:", error);
-      return { imported: false, skipped: false, failed: true };
-    }
-  }
-
-  async function processBatch(places: any[], category: string) {
-    const availableSlots = Math.max(limit - imported, 0);
-    if (availableSlots <= 0) return;
-
-    const candidates = places.slice(0, availableSlots * 3);
-    const results = await mapWithConcurrency(candidates, 5, (place) =>
-      processPlace(place, category)
-    );
-
-    for (const result of results) {
-      if (imported >= limit) break;
-
-      if (result.imported) imported++;
-      if (result.skipped) skipped++;
-      if (result.failed) failed++;
-    }
-  }
-
-  if (mode === "nearby" && lat && lng) {
-    for (const category of categories) {
-      if (imported >= limit) break;
-
-      const places = await fetchGoogleNearbySearch({
-        keyword: category,
-        lat,
-        lng,
-        radius: radius || 10000,
-        limit: Math.max(limit - imported, 1),
-      });
-
-      found += places.length;
-
-      await processBatch(places, category);
-    }
-  } else {
-    for (const query of queries) {
-      if (imported >= limit) break;
-
-      const places = await fetchGooglePlacesPaged(query, Math.max(limit - imported, 1));
-
-      found += places.length;
-
-      const category = getCategoryFromQuery(query, categories);
-      await processBatch(places, category);
-    }
-  }
-
-  return {
-    success: true,
-    mode,
-    type,
-    batch,
-    requested_limit: limit,
-    total_found_from_google: found,
-    imported,
-    skipped,
-    failed,
-    categories_used: categories,
-    queries_used: mode === "text" ? queries : [],
-    smart_filtering: true,
-    speed_boost: "parallel_import_enabled",
-    concurrency: 5,
-  };
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    if (!isAuthorized(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const params = request.nextUrl.searchParams;
-
-    const requestType = normalizeRequestType(params.get("type"));
-
-    const batch = params.get("batch")
-      ? normalizeBatch(params.get("batch"))
-      : getRotatingBatch();
-
-    const limit = Math.min(Number(params.get("limit") || 50), 500);
-
-    const lat = params.get("lat") ? Number(params.get("lat")) : undefined;
-    const lng = params.get("lng") ? Number(params.get("lng")) : undefined;
-    const radius = params.get("radius") ? Number(params.get("radius")) : 10000;
-
-    const mode: ImportMode = lat && lng ? "nearby" : "text";
-
-    const areaParams = params.getAll("area");
-
-    const areas = areaParams.length
-      ? areaParams
-      : params.get("areas")
-        ? parseAreas(params.get("areas"))
-        : [getRotatingAreaName()];
-
-    const queryParams = params.getAll("query");
-
-    if (requestType === "both") {
-      const restaurantLimit = Math.ceil(limit / 2);
-      const activityLimit = Math.floor(limit / 2);
-
-      const restaurantQueries = queryParams.length
-        ? queryParams
-        : defaultQueries("restaurant", batch, areas);
-
-      const activityQueries = queryParams.length
-        ? queryParams
-        : defaultQueries("activity", batch, areas);
-
-      const restaurantResult = await runImport({
-        queries: restaurantQueries,
-        type: "restaurant",
-        limit: restaurantLimit,
-        mode,
-        lat,
-        lng,
-        radius,
-        batch,
-      });
-
-      const activityResult = await runImport({
-        queries: activityQueries,
-        type: "activity",
-        limit: activityLimit,
-        mode,
-        lat,
-        lng,
-        radius,
-        batch,
-      });
-
-      const result = {
-        success: true,
-        mode,
-        type: "both",
-        batch,
-        areas,
-        requested_limit: limit,
-        balance: {
-          restaurant_limit: restaurantLimit,
-          activity_limit: activityLimit,
-        },
-        imported: restaurantResult.imported + activityResult.imported,
-        skipped: restaurantResult.skipped + activityResult.skipped,
-        failed: restaurantResult.failed + activityResult.failed,
-        restaurant: restaurantResult,
-        activity: activityResult,
-        smart_filtering: true,
-        rotation_enabled: true,
-      };
-
-      await logImportRun(result);
-
-      return NextResponse.json(result);
-    }
-
-    const queries = queryParams.length
-      ? queryParams
-      : defaultQueries(requestType, batch, areas);
-
-    const result = await runImport({
-      queries,
-      type: requestType,
-      limit,
-      mode,
-      lat,
-      lng,
-      radius,
-      batch,
-    });
-
-    const finalResult = {
-      ...result,
-      areas,
-      rotation_enabled: !params.get("areas") && !areaParams.length,
-    };
-
-    await logImportRun(finalResult);
-
-    return NextResponse.json(finalResult);
-  } catch (error: any) {
-    await logImportRun(null, error.message || "Import failed");
-
-    return NextResponse.json(
-      { error: error.message || "Import failed" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    if (!isAuthorized(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json().catch(() => ({}));
-
-    const requestType = normalizeRequestType(body.type);
-    const batch = body.batch ? normalizeBatch(body.batch) : getRotatingBatch();
-
-    const limit = Math.min(Number(body.limit || 50), 500);
-
-    const lat = body.lat ? Number(body.lat) : undefined;
-    const lng = body.lng ? Number(body.lng) : undefined;
-    const radius = body.radius ? Number(body.radius) : 10000;
-
-    const mode: ImportMode = lat && lng ? "nearby" : "text";
-
-    const areas =
-      body.areas || body.area
-        ? parseAreas(body.areas || body.area)
-        : [getRotatingAreaName()];
-
-    if (requestType === "both") {
-      const restaurantLimit = Math.ceil(limit / 2);
-      const activityLimit = Math.floor(limit / 2);
-
-      const restaurantQueries =
-        Array.isArray(body.restaurantQueries) && body.restaurantQueries.length
-          ? body.restaurantQueries
-          : body.restaurantQuery
-            ? [body.restaurantQuery]
-            : defaultQueries("restaurant", batch, areas);
-
-      const activityQueries =
-        Array.isArray(body.activityQueries) && body.activityQueries.length
-          ? body.activityQueries
-          : body.activityQuery
-            ? [body.activityQuery]
-            : defaultQueries("activity", batch, areas);
-
-      const restaurantResult = await runImport({
-        queries: restaurantQueries,
-        type: "restaurant",
-        limit: restaurantLimit,
-        mode,
-        lat,
-        lng,
-        radius,
-        batch,
-      });
-
-      const activityResult = await runImport({
-        queries: activityQueries,
-        type: "activity",
-        limit: activityLimit,
-        mode,
-        lat,
-        lng,
-        radius,
-        batch,
-      });
-
-      const result = {
-        success: true,
-        mode,
-        type: "both",
-        batch,
-        areas,
-        requested_limit: limit,
-        balance: {
-          restaurant_limit: restaurantLimit,
-          activity_limit: activityLimit,
-        },
-        imported: restaurantResult.imported + activityResult.imported,
-        skipped: restaurantResult.skipped + activityResult.skipped,
-        failed: restaurantResult.failed + activityResult.failed,
-        restaurant: restaurantResult,
-        activity: activityResult,
-        smart_filtering: true,
-        rotation_enabled: true,
-      };
-
-      await logImportRun(result);
-
-      return NextResponse.json(result);
-    }
-
-    const queries =
-      Array.isArray(body.queries) && body.queries.length
-        ? body.queries
-        : body.query
-          ? [body.query]
-          : defaultQueries(requestType, batch, areas);
-
-    const result = await runImport({
-      queries,
-      type: requestType,
-      limit,
-      mode,
-      lat,
-      lng,
-      radius,
-      batch,
-    });
-
-    const finalResult = {
-      ...result,
-      areas,
-      rotation_enabled: !(body.areas || body.area),
-    };
-
-    await logImportRun(finalResult);
-
-    return NextResponse.json(finalResult);
-  } catch (error: any) {
-    await logImportRun(null, error.message || "Import failed");
-
-    return NextResponse.json(
-      { error: error.message || "Import failed" },
-      { status: 500 }
-    );
-  }
 }
