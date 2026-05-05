@@ -340,225 +340,204 @@ function detectLocation(input: string, locations: any[]) {
       .filter(Boolean)
       .map((value) => normalizeQuery(String(value)));
 
-   fields.forEach((field) => {
-  if (field.length >= 3 && text.includes(field)) {
-    found.add(field);
-  }
-});
+    fields.forEach((field) => {
+      if (field.length >= 3 && text.includes(field)) {
+        found.add(field);
+      }
+    });
   });
 
   const hardcodedLocations = [
-  // NYC general
-  "nyc",
-  "new york",
-  "new york city",
-
-  // Boroughs
-  "manhattan",
-  "brooklyn",
-  "queens",
-  "bronx",
-  "staten island",
-
-  // Manhattan
-  "soho",
-  "tribeca",
-  "chelsea",
-  "midtown",
-  "midtown east",
-  "midtown west",
-  "downtown",
-  "uptown",
-  "upper east side",
-  "upper west side",
-  "harlem",
-  "east harlem",
-  "west harlem",
-  "washington heights",
-  "inwood",
-  "hells kitchen",
-  "hudson yards",
-  "times square",
-  "theater district",
-  "flatiron",
-  "gramercy",
-  "murray hill",
-  "kips bay",
-  "noho",
-  "nolita",
-  "lower east side",
-  "les",
-  "east village",
-  "west village",
-  "greenwich village",
-  "financial district",
-  "fidi",
-  "battery park",
-  "battery park city",
-  "chinatown",
-  "little italy",
-  "union square",
-
-  // Brooklyn
-  "williamsburg",
-  "bushwick",
-  "greenpoint",
-  "dumbo",
-  "downtown brooklyn",
-  "brooklyn heights",
-  "fort greene",
-  "clinton hill",
-  "bed stuy",
-  "bedford stuyvesant",
-  "crown heights",
-  "prospect heights",
-  "park slope",
-  "prospect lefferts gardens",
-  "flatbush",
-  "east flatbush",
-  "sunset park",
-  "bay ridge",
-  "red hook",
-  "gowanus",
-  "carroll gardens",
-  "cobble hill",
-  "boerum hill",
-  "bensonhurst",
-  "dyker heights",
-  "sheepshead bay",
-  "brighton beach",
-  "coney island",
-  "canarsie",
-  "brownsville",
-  "east new york",
-
-  // Queens
-  "astoria",
-  "long island city",
-  "lic",
-  "sunnyside",
-  "woodside",
-  "jackson heights",
-  "elmhurst",
-  "corona",
-  "flushing",
-  "bayside",
-  "whitestone",
-  "forest hills",
-  "rego park",
-  "kew gardens",
-  "fresh meadows",
-  "jamaica",
-  "jamaica estates",
-  "hollis",
-  "queens village",
-  "laurelton",
-  "cambria heights",
-  "st albans",
-  "springfield gardens",
-  "ozone park",
-  "south ozone park",
-  "richmond hill",
-  "woodhaven",
-  "ridgewood",
-  "middle village",
-  "maspeth",
-  "rockaway",
-  "far rockaway",
-  "belle harbor",
-  "rockaway beach",
-
-  // Bronx
-  "south bronx",
-  "mott haven",
-  "melrose",
-  "fordham",
-  "belmont",
-  "little italy bronx",
-  "kingsbridge",
-  "riverdale",
-  "pelham bay",
-  "throgs neck",
-  "morris park",
-  "wakefield",
-  "woodlawn",
-  "bronx zoo",
-  "yankee stadium",
-
-  // Staten Island
-  "st george",
-  "st. george",
-  "stapleton",
-  "tompkinsville",
-  "new dorp",
-  "great kills",
-  "tottenville",
-  "port richmond",
-
-  // Long Island / Nassau / Suffolk
-  "long island",
-  "nassau",
-  "nassau county",
-  "suffolk",
-  "suffolk county",
-  "hempstead",
-  "garden city",
-  "mineola",
-  "freeport",
-  "long beach",
-  "rockville centre",
-  "valley stream",
-  "elmont",
-  "uniondale",
-  "westbury",
-  "hicksville",
-  "massapequa",
-  "levittown",
-  "babylon",
-  "deer park",
-  "ronkonkoma",
-  "patchogue",
-  "huntington",
-  "island park",
-
-  // Westchester
-  "westchester",
-  "westchester county",
-  "yonkers",
-  "mount vernon",
-  "new rochelle",
-  "white plains",
-  "scarsdale",
-  "tarrytown",
-  "elmsford",
-  "ossining",
-  "peekskill",
-  "dobbs ferry",
-  "hartsdale",
-  "port chester",
-  "rye",
-
-  // North Jersey
-  "new jersey",
-  "north jersey",
-  "jersey city",
-  "hoboken",
-  "newark",
-  "edgewater",
-  "fort lee",
-  "union city",
-  "weehawken",
-  "secaucus",
-  "hackensack",
-  "paramus",
-  "englewood",
-
-  // Airports / common search areas
-  "jfk",
-  "laguardia",
-  "lga",
-  "newark airport",
-];
+    "nyc",
+    "new york",
+    "new york city",
+    "manhattan",
+    "brooklyn",
+    "queens",
+    "bronx",
+    "staten island",
+    "soho",
+    "tribeca",
+    "chelsea",
+    "midtown",
+    "midtown east",
+    "midtown west",
+    "downtown",
+    "uptown",
+    "upper east side",
+    "upper west side",
+    "harlem",
+    "east harlem",
+    "west harlem",
+    "washington heights",
+    "inwood",
+    "hells kitchen",
+    "hudson yards",
+    "times square",
+    "theater district",
+    "flatiron",
+    "gramercy",
+    "murray hill",
+    "kips bay",
+    "noho",
+    "nolita",
+    "lower east side",
+    "les",
+    "east village",
+    "west village",
+    "greenwich village",
+    "financial district",
+    "fidi",
+    "battery park",
+    "battery park city",
+    "chinatown",
+    "little italy",
+    "union square",
+    "williamsburg",
+    "bushwick",
+    "greenpoint",
+    "dumbo",
+    "downtown brooklyn",
+    "brooklyn heights",
+    "fort greene",
+    "clinton hill",
+    "bed stuy",
+    "bedford stuyvesant",
+    "crown heights",
+    "prospect heights",
+    "park slope",
+    "prospect lefferts gardens",
+    "flatbush",
+    "east flatbush",
+    "sunset park",
+    "bay ridge",
+    "red hook",
+    "gowanus",
+    "carroll gardens",
+    "cobble hill",
+    "boerum hill",
+    "bensonhurst",
+    "dyker heights",
+    "sheepshead bay",
+    "brighton beach",
+    "coney island",
+    "canarsie",
+    "brownsville",
+    "east new york",
+    "astoria",
+    "long island city",
+    "lic",
+    "sunnyside",
+    "woodside",
+    "jackson heights",
+    "elmhurst",
+    "corona",
+    "flushing",
+    "bayside",
+    "whitestone",
+    "forest hills",
+    "rego park",
+    "kew gardens",
+    "fresh meadows",
+    "jamaica",
+    "jamaica estates",
+    "hollis",
+    "queens village",
+    "laurelton",
+    "cambria heights",
+    "st albans",
+    "springfield gardens",
+    "ozone park",
+    "south ozone park",
+    "richmond hill",
+    "woodhaven",
+    "ridgewood",
+    "middle village",
+    "maspeth",
+    "rockaway",
+    "far rockaway",
+    "belle harbor",
+    "rockaway beach",
+    "south bronx",
+    "mott haven",
+    "melrose",
+    "fordham",
+    "belmont",
+    "little italy bronx",
+    "kingsbridge",
+    "riverdale",
+    "pelham bay",
+    "throgs neck",
+    "morris park",
+    "wakefield",
+    "woodlawn",
+    "bronx zoo",
+    "yankee stadium",
+    "st george",
+    "st. george",
+    "stapleton",
+    "tompkinsville",
+    "new dorp",
+    "great kills",
+    "tottenville",
+    "port richmond",
+    "long island",
+    "nassau",
+    "nassau county",
+    "suffolk",
+    "suffolk county",
+    "hempstead",
+    "garden city",
+    "mineola",
+    "freeport",
+    "long beach",
+    "rockville centre",
+    "valley stream",
+    "elmont",
+    "uniondale",
+    "westbury",
+    "hicksville",
+    "massapequa",
+    "levittown",
+    "babylon",
+    "deer park",
+    "ronkonkoma",
+    "patchogue",
+    "huntington",
+    "island park",
+    "westchester",
+    "westchester county",
+    "yonkers",
+    "mount vernon",
+    "new rochelle",
+    "white plains",
+    "scarsdale",
+    "tarrytown",
+    "elmsford",
+    "ossining",
+    "peekskill",
+    "dobbs ferry",
+    "hartsdale",
+    "port chester",
+    "rye",
+    "new jersey",
+    "north jersey",
+    "jersey city",
+    "hoboken",
+    "newark",
+    "edgewater",
+    "fort lee",
+    "union city",
+    "weehawken",
+    "secaucus",
+    "hackensack",
+    "paramus",
+    "englewood",
+    "jfk",
+    "laguardia",
+    "lga",
+    "newark airport",
+  ];
 
   hardcodedLocations.forEach((location) => {
     if (text.includes(location)) {
@@ -1125,7 +1104,8 @@ function scoreRestaurant(
   score += budgetBoost(item, intent.budget);
   score += distanceBoost(item, intent.userLat, intent.userLng, intent.maxMiles);
   score += popularityBoost(item);
-    if (intent.locations.length > 0) {
+
+  if (intent.locations.length > 0) {
     const text = itemText(item);
 
     if (intent.locations.some((loc) => text.includes(loc))) {
@@ -1134,18 +1114,7 @@ function scoreRestaurant(
       score -= 25;
     }
   }
-  intent.activityIntents.forEach((activity) => {
-    const name = String(item.activity_name || item.name || "").toLowerCase();
-    const normalizedActivity = activity.replace(/_/g, " ");
-    const keywords = ACTIVITY_INTENTS[activity] || [normalizedActivity];
 
-    if (
-      name.includes(normalizedActivity) ||
-      keywords.some((keyword) => name.includes(keyword))
-    ) {
-      score += 500;
-    }
-  });
   if (intent.wantsBirthdayDinner) score += PRIORITY_WEIGHTS.birthday;
   if (intent.wantsBirthdayBrunch && matchesFoodIntent(item, "brunch")) {
     score += PRIORITY_WEIGHTS.birthday;
@@ -1184,12 +1153,7 @@ function scoreActivity(
 
   score += locationNameMatchScore(item, input);
 
-  intent.activityIntents.forEach((activity) => {
-    const name = String(item.activity_name || item.name || "").toLowerCase();
-    const normalizedActivity = activity.replace(/_/g, " ");
-    const keywords = ACTIVITY_INTENTS[activity] || [normalizedActivity];
-
-    if (intent.locations.length > 0) {
+  if (intent.locations.length > 0) {
     const text = itemText(item);
 
     if (intent.locations.some((loc) => text.includes(loc))) {
@@ -1304,6 +1268,7 @@ function filterActivitiesByActivityIntent(
 
   return [];
 }
+
 function pairSmartMatches(restaurants: any[], activities: any[]) {
   if (!restaurants.length || !activities.length) {
     return {
@@ -1416,7 +1381,8 @@ function pairSmartMatches(restaurants: any[], activities: any[]) {
     })),
     pairs: bestPairs,
   };
-} 
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -1498,11 +1464,11 @@ export async function POST(req: Request) {
     const locations = mergedLocations.map(normalizeLocation);
     const intent = detectIntent(input, body, locations);
 
-const cacheKey = normalizeQuery(
-  `roseout-${getSmartMatchVersion()}-${input}-${intent.userLat || ""}-${
-    intent.userLng || ""
-  }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
-);
+    const cacheKey = normalizeQuery(
+      `roseout-${getSmartMatchVersion()}-${input}-${intent.userLat || ""}-${
+        intent.userLng || ""
+      }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
+    );
 
     const { data: cached } = await supabase
       .from("ai_response_cache")
@@ -1599,48 +1565,65 @@ const cacheKey = normalizeQuery(
     }
 
     const rankedRestaurants = restaurants
-      .map((restaurant: any) => ({
-        ...restaurant,
-        roseout_score: scoreRestaurant(restaurant, input, intent),
-        smart_match_score: scoreRestaurant(restaurant, input, intent),
-        location_name_match_score: locationNameMatchScore(restaurant, input),
-      }))
+      .map((restaurant: any) => {
+        const score = scoreRestaurant(restaurant, input, intent);
+
+        return {
+          ...restaurant,
+          roseout_score: score,
+          smart_match_score: score,
+          location_name_match_score: locationNameMatchScore(restaurant, input),
+        };
+      })
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
     const rankedActivities = activities
-      .map((activity: any) => ({
-        ...activity,
-        roseout_score: scoreActivity(activity, input, intent),
-        smart_match_score: scoreActivity(activity, input, intent),
-        location_name_match_score: locationNameMatchScore(activity, input),
-      }))
+      .map((activity: any) => {
+        const score = scoreActivity(activity, input, intent);
+
+        return {
+          ...activity,
+          roseout_score: score,
+          smart_match_score: score,
+          location_name_match_score: locationNameMatchScore(activity, input),
+        };
+      })
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
-   const smartBalanced = balanceSmartMatches(
-  rankedRestaurants,
-  rankedActivities,
-  smartIntent
-);
+    const smartBalanced = balanceSmartMatches(
+      rankedRestaurants,
+      rankedActivities,
+      smartIntent
+    );
 
-if (
-  intent.activityIntents.length > 0 &&
-  rankedActivities.length > 0 &&
-  smartBalanced.activities.length === 0
-) {
-  smartBalanced.activities = rankedActivities.slice(0, 2);
-}
+    if (
+      intent.activityIntents.length > 0 &&
+      rankedActivities.length > 0 &&
+      smartBalanced.activities.length === 0
+    ) {
+      smartBalanced.activities = rankedActivities.slice(0, 2);
+    }
 
-const pairedResults =
-  smartBalanced.restaurants.length > 0 && smartBalanced.activities.length > 0
-    ? pairSmartMatches(smartBalanced.restaurants, smartBalanced.activities)
-    : {
-        restaurants: smartBalanced.restaurants,
-        activities: smartBalanced.activities,
-        pairs: [],
-      };
+    if (
+      intent.foodIntents.length > 0 &&
+      rankedRestaurants.length > 0 &&
+      smartBalanced.restaurants.length === 0
+    ) {
+      smartBalanced.restaurants = rankedRestaurants.slice(0, 2);
+    }
 
-const topRestaurants = pairedResults.restaurants;
-const topActivities = pairedResults.activities;
+    const pairedResults =
+      smartBalanced.restaurants.length > 0 &&
+      smartBalanced.activities.length > 0
+        ? pairSmartMatches(smartBalanced.restaurants, smartBalanced.activities)
+        : {
+            restaurants: smartBalanced.restaurants,
+            activities: smartBalanced.activities,
+            pairs: [],
+          };
+
+    const topRestaurants = pairedResults.restaurants;
+    const topActivities = pairedResults.activities;
 
     const slimMatchedLocations = matchedLocationResults.map((item: any) => ({
       id: String(item.id),
@@ -1777,7 +1760,7 @@ STRICT RULES:
       smart_match: {
         mode: smartBalanced.mode,
         pairing_enabled: pairedResults.pairs.length > 0,
-pair_count: pairedResults.pairs.length,
+        pair_count: pairedResults.pairs.length,
         query: smartIntent.query,
         wantsFood: smartIntent.wantsFood,
         wantsActivity: smartIntent.wantsActivity,
@@ -1818,15 +1801,14 @@ pair_count: pairedResults.pairs.length,
         reservation_url: item.reservation_url || item.booking_url || null,
         location_name_match_score: item.location_name_match_score,
       })),
-pairs: pairedResults.pairs.map((pair: any) => ({
-  restaurant_name: pair.restaurant.restaurant_name || pair.restaurant.name,
-  activity_name: pair.activity.activity_name || pair.activity.name,
-  distance_miles: pair.distance_miles,
-  same_city: pair.same_city,
-  same_neighborhood: pair.same_neighborhood,
-  pair_score: clampScore(pair.pair_score),
-})),
-
+      pairs: pairedResults.pairs.map((pair: any) => ({
+        restaurant_name: pair.restaurant.restaurant_name || pair.restaurant.name,
+        activity_name: pair.activity.activity_name || pair.activity.name,
+        distance_miles: pair.distance_miles,
+        same_city: pair.same_city,
+        same_neighborhood: pair.same_neighborhood,
+        pair_score: clampScore(pair.pair_score),
+      })),
       restaurants: topRestaurants.map((r: any) => ({
         id: String(r.id),
         restaurant_name: r.restaurant_name || r.name,
@@ -1840,6 +1822,9 @@ pairs: pairedResults.pairs.map((pair: any) => ({
         roseout_score: clampScore(r.roseout_score),
         smart_match_score: clampScore(r.smart_match_score || r.roseout_score),
         location_name_match_score: r.location_name_match_score || 0,
+        paired_activity_name: r.paired_activity_name || null,
+        pair_distance_miles: r.pair_distance_miles || null,
+        pair_score: r.pair_score ? clampScore(r.pair_score) : null,
         reservation_link: r.reservation_link,
         reservation_url: r.reservation_url || r.booking_url,
         website: r.website,
@@ -1867,6 +1852,9 @@ pairs: pairedResults.pairs.map((pair: any) => ({
         roseout_score: clampScore(a.roseout_score),
         smart_match_score: clampScore(a.smart_match_score || a.roseout_score),
         location_name_match_score: a.location_name_match_score || 0,
+        paired_restaurant_name: a.paired_restaurant_name || null,
+        pair_distance_miles: a.pair_distance_miles || null,
+        pair_score: a.pair_score ? clampScore(a.pair_score) : null,
         reservation_link: a.reservation_link,
         reservation_url: a.reservation_url || a.booking_url,
         website: a.website,
