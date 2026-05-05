@@ -15,7 +15,7 @@ function formatNumber(value: number | null | undefined) {
 function statusBadge(status?: string | null) {
   const value = status || "unknown";
 
-  if (value === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (value === "approved") return "border-rose-200 bg-rose-50 text-rose-700";
   if (value === "pending") return "border-amber-200 bg-amber-50 text-amber-700";
   if (value === "rejected") return "border-red-200 bg-red-50 text-red-700";
   if (value === "draft") return "border-neutral-200 bg-neutral-100 text-neutral-700";
@@ -82,7 +82,7 @@ export default async function AdminActivitiesPage({
 
   return (
     <main className="min-h-screen bg-[#090706] px-4 pb-10 pt-4 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="mx-auto max-w-[1500px]">
         <section className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,29,72,0.22),transparent_35%),linear-gradient(135deg,#160b0b,#090706_55%,#140f0a)] p-5 shadow-2xl sm:p-6">
           <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-rose-500/20 blur-3xl" />
 
@@ -103,7 +103,7 @@ export default async function AdminActivitiesPage({
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-3 backdrop-blur">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/45">
                 Locations
               </p>
               <p className="mt-1 text-3xl font-black">{formatNumber(count)}</p>
@@ -112,7 +112,7 @@ export default async function AdminActivitiesPage({
         </section>
 
         {error && (
-          <div className="mt-5 rounded-3xl border border-red-500/30 bg-red-500/10 p-5 text-sm font-bold text-red-200">
+          <div className="mt-5 rounded-3xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm font-bold text-rose-100">
             {error.message}
           </div>
         )}
@@ -131,7 +131,7 @@ export default async function AdminActivitiesPage({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
               Claimed
             </p>
-            <p className="mt-2 text-3xl font-black text-emerald-300">
+            <p className="mt-2 text-3xl font-black text-rose-200">
               {formatNumber(claimedActivities)}
             </p>
           </div>
@@ -140,7 +140,7 @@ export default async function AdminActivitiesPage({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
               Unclaimed
             </p>
-            <p className="mt-2 text-3xl font-black text-rose-200">
+            <p className="mt-2 text-3xl font-black text-white">
               {formatNumber(unclaimedActivities)}
             </p>
           </div>
@@ -195,15 +195,15 @@ export default async function AdminActivitiesPage({
         </section>
 
         <section className="mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#f8f3ef] text-[#1b1210] shadow-2xl">
-          <div className="flex flex-col gap-3 border-b border-black/10 bg-white/70 p-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3 border-b border-black/10 bg-[#fffaf6] p-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-lg font-black">Activity Listings</h2>
               <p className="mt-1 text-xs font-medium text-black/50">
-                Click the activity name to view details or use Edit for quick updates.
+                Premium card rows with quick view, performance, claim, and edit access.
               </p>
             </div>
 
-            <div className="rounded-full bg-black px-4 py-2 text-[11px] font-black uppercase tracking-wide text-white">
+            <div className="rounded-full bg-[#1b1210] px-4 py-2 text-[11px] font-black uppercase tracking-wide text-white">
               Showing {count ? from + 1 : 0}-{Math.min(to + 1, count || 0)} of{" "}
               {formatNumber(count)}
             </div>
@@ -220,121 +220,124 @@ export default async function AdminActivitiesPage({
               </p>
             </div>
           ) : (
-            <div className="w-full">
-              <table className="w-full table-fixed text-left text-xs">
-                <thead className="bg-[#efe7df] text-[10px] uppercase tracking-[0.14em] text-black/45">
-                  <tr>
-                    <th className="w-[25%] px-3 py-3">Activity</th>
-                    <th className="w-[10%] px-3 py-3">City</th>
-                    <th className="w-[12%] px-3 py-3">Type</th>
-                    <th className="w-[10%] px-3 py-3">Status</th>
-                    <th className="w-[10%] px-3 py-3">Claim</th>
-                    <th className="w-[7%] px-3 py-3">Rating</th>
-                    <th className="w-[7%] px-3 py-3">Views</th>
-                    <th className="w-[7%] px-3 py-3">Clicks</th>
-                    <th className="w-[6%] px-3 py-3">Score</th>
-                    <th className="w-[6%] px-3 py-3">Edit</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {activities.map((activity) => (
-                    <tr
-                      key={activity.id}
-                      className="border-t border-black/10 transition hover:bg-rose-50/70"
+            <div className="space-y-3 p-4">
+              {activities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="group rounded-[1.5rem] border border-black/10 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-xl"
+                >
+                  <div className="grid gap-4 lg:grid-cols-[1fr_420px_130px] lg:items-center">
+                    <Link
+                      href={`/locations/activities/${activity.id}?from=/admin/activities`}
+                      className="flex min-w-0 items-center gap-4"
                     >
-                      <td className="px-3 py-3">
-                        <Link
-                          href={`/locations/activities/${activity.id}?from=/admin/activities`}
-                          className="flex min-w-0 items-center gap-2"
-                        >
-                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-neutral-200 shadow-sm">
-                            {activity.image_url ? (
-                              <img
-                                src={activity.image_url}
-                                alt={activity.activity_name || "Activity"}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-[#eadfd8] text-[10px] font-black text-black/30">
-                                RO
-                              </div>
-                            )}
+                      <div className="h-20 w-24 shrink-0 overflow-hidden rounded-[1.25rem] bg-[#eadfd8] shadow-sm">
+                        {activity.image_url ? (
+                          <img
+                            src={activity.image_url}
+                            alt={activity.activity_name || "Activity"}
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-sm font-black text-black/30">
+                            RO
                           </div>
+                        )}
+                      </div>
 
-                          <div className="min-w-0">
-                            <p className="truncate font-black">
-                              {activity.activity_name || "Untitled Activity"}
-                            </p>
-                            <p className="mt-0.5 truncate text-[10px] font-bold uppercase tracking-wide text-black/40">
-                              {activity.state || "N/A"}
-                            </p>
-                          </div>
-                        </Link>
-                      </td>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate text-lg font-black">
+                            {activity.activity_name || "Untitled Activity"}
+                          </h3>
 
-                      <td className="truncate px-3 py-3 font-bold">
-                        {activity.city || "N/A"}
-                      </td>
+                          <span
+                            className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusBadge(
+                              activity.status
+                            )}`}
+                          >
+                            {activity.status || "unknown"}
+                          </span>
+                        </div>
 
-                      <td className="px-3 py-3">
-                        <span className="block truncate rounded-full bg-black/[0.06] px-2 py-1 text-[10px] font-black uppercase text-black/60">
-                          {activity.activity_type || "N/A"}
-                        </span>
-                      </td>
+                        <p className="mt-1 text-sm font-bold text-black/50">
+                          {activity.city || "N/A"}, {activity.state || "N/A"}
+                        </p>
 
-                      <td className="px-3 py-3">
-                        <span
-                          className={`block truncate rounded-full border px-2 py-1 text-center text-[10px] font-black uppercase ${statusBadge(
-                            activity.status
-                          )}`}
-                        >
-                          {activity.status || "unknown"}
-                        </span>
-                      </td>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="rounded-full bg-[#f5eee8] px-3 py-1 text-[11px] font-black uppercase text-black/55">
+                            {activity.activity_type || "Type N/A"}
+                          </span>
 
-                      <td className="px-3 py-3">
-                        <span
-                          className={`block truncate rounded-full border px-2 py-1 text-center text-[10px] font-black uppercase ${
-                            activity.claimed
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-neutral-200 bg-neutral-100 text-neutral-600"
-                          }`}
-                        >
-                          {activity.claimed ? "Claimed" : "Open"}
-                        </span>
-                      </td>
+                          <span
+                            className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase ${
+                              activity.claimed
+                                ? "border-rose-200 bg-rose-50 text-rose-700"
+                                : "border-black/10 bg-[#f5eee8] text-black/50"
+                            }`}
+                          >
+                            {activity.claimed ? "Claimed" : "Open Claim"}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
 
-                      <td className="truncate px-3 py-3 font-black">
-                        🌹 {activity.rating || 0}
-                      </td>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="rounded-2xl bg-[#f5eee8] p-3 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-black/35">
+                          Rating
+                        </p>
+                        <p className="mt-1 text-sm font-black">
+                          🌹 {activity.rating || 0}
+                        </p>
+                      </div>
 
-                      <td className="truncate px-3 py-3 font-bold">
-                        {formatNumber(activity.view_count)}
-                      </td>
+                      <div className="rounded-2xl bg-[#f5eee8] p-3 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-black/35">
+                          Views
+                        </p>
+                        <p className="mt-1 text-sm font-black">
+                          {formatNumber(activity.view_count)}
+                        </p>
+                      </div>
 
-                      <td className="truncate px-3 py-3 font-bold">
-                        {formatNumber(activity.click_count)}
-                      </td>
+                      <div className="rounded-2xl bg-[#f5eee8] p-3 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-black/35">
+                          Clicks
+                        </p>
+                        <p className="mt-1 text-sm font-black">
+                          {formatNumber(activity.click_count)}
+                        </p>
+                      </div>
 
-                      <td className="px-3 py-3">
-                        <span className="block rounded-full bg-[#1b1210] px-2 py-1 text-center text-[10px] font-black text-white">
+                      <div className="rounded-2xl bg-[#1b1210] p-3 text-center text-white">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-white/40">
+                          Score
+                        </p>
+                        <p className="mt-1 text-sm font-black">
                           {activity.roseout_score || 0}
-                        </span>
-                      </td>
+                        </p>
+                      </div>
+                    </div>
 
-                      <td className="px-3 py-3">
-                        <Link
-                          href={`/locations/activities/${activity.id}/edit?from=/admin/activities`}
-                          className="block rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-3 py-2 text-center text-[10px] font-black text-white shadow-sm transition hover:scale-[1.03]"
-                        >
-                          Edit
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                    <div className="flex gap-2 lg:flex-col">
+                      <Link
+                        href={`/locations/activities/${activity.id}?from=/admin/activities`}
+                        className="flex-1 rounded-full border border-black/10 bg-[#f5eee8] px-4 py-2 text-center text-xs font-black text-[#1b1210] transition hover:bg-[#1b1210] hover:text-white"
+                      >
+                        View
+                      </Link>
+
+                      <Link
+                        href={`/locations/activities/${activity.id}/edit?from=/admin/activities`}
+                        className="flex-1 rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-4 py-2 text-center text-xs font-black text-white shadow-sm transition hover:scale-[1.03]"
+                      >
+                        Edit
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </section>
