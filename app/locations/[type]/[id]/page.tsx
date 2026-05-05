@@ -48,19 +48,55 @@ export default function LocationDetailPage() {
     async function loadLocation() {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("locations")
-        .select("*")
-        .eq("id", id)
-        .single();
+      let { data, error } = await supabase
+  .from("locations")
+  .select("*")
+  .eq("id", id)
+  .maybeSingle();
 
-      if (error) {
-        console.error("Location fetch error:", error.message);
-        setLocation(null);
-        setReviews([]);
-        setLoading(false);
-        return;
+if (!data && (type === "restaurants" || type === "restaurant")) {
+  const fallback = await supabase
+    .from("restaurants")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  data = fallback.data
+    ? {
+        ...fallback.data,
+        location_type: "restaurant",
+        name: fallback.data.restaurant_name,
       }
+    : null;
+
+  error = fallback.error;
+}
+
+if (!data && (type === "activities" || type === "activity")) {
+  const fallback = await supabase
+    .from("activities")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  data = fallback.data
+    ? {
+        ...fallback.data,
+        location_type: "activity",
+        name: fallback.data.activity_name,
+      }
+    : null;
+
+  error = fallback.error;
+}
+
+if (error || !data) {
+  console.error("Location fetch error:", error?.message || "No location found");
+  setLocation(null);
+  setReviews([]);
+  setLoading(false);
+  return;
+}
 
       const { data: reviewData } = await supabase
         .from("location_reviews")

@@ -6,6 +6,5 @@ type PageProps = {
 
 export default async function ActivityRedirectPage({ params }: PageProps) {
   const { id } = await params;
-
   redirect(`/locations/activities/${id}`);
 }

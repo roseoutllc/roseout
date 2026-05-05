@@ -6,6 +6,5 @@ type PageProps = {
 
 export default async function RestaurantRedirectPage({ params }: PageProps) {
   const { id } = await params;
-
   redirect(`/locations/restaurants/${id}`);
 }
