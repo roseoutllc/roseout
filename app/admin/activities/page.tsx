@@ -325,7 +325,7 @@ export default async function AdminActivitiesPage({
 
                       <td className="px-3 py-3">
                         <Link
-                          href={`/locations/edit/activities/${activity.id}?from=/admin/activities`}
+                          href={`/locations/activities/${activity.id}/edit?from=/admin/activities`}
                           className="block rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-3 py-2 text-center text-[10px] font-black text-white shadow-sm transition hover:scale-[1.03]"
                         >
                           Edit
