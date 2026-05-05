@@ -1269,7 +1269,94 @@ function filterActivitiesByActivityIntent(
 
   return [];
 }
+function pairSmartMatches(restaurants: any[], activities: any[]) {
+  if (!restaurants.length || !activities.length) {
+    return {
+      restaurants,
+      activities,
+      pairs: [],
+    };
+  }
 
+  const pairs = restaurants
+    .flatMap((restaurant) =>
+      activities.map((activity) => {
+        let distance = null;
+
+        if (
+          restaurant.latitude &&
+          restaurant.longitude &&
+          activity.latitude &&
+          activity.longitude
+        ) {
+          distance = haversineMiles(
+            Number(restaurant.latitude),
+            Number(restaurant.longitude),
+            Number(activity.latitude),
+            Number(activity.longitude)
+          );
+        }
+
+        const sameCity =
+          restaurant.city &&
+          activity.city &&
+          String(restaurant.city).toLowerCase() ===
+            String(activity.city).toLowerCase();
+
+        const sameNeighborhood =
+          restaurant.neighborhood &&
+          activity.neighborhood &&
+          String(restaurant.neighborhood).toLowerCase() ===
+            String(activity.neighborhood).toLowerCase();
+
+        let pairScore =
+          Number(restaurant.roseout_score || 0) +
+          Number(activity.roseout_score || 0);
+
+        if (sameNeighborhood) pairScore += 80;
+        if (sameCity) pairScore += 50;
+
+        if (distance !== null) {
+          if (distance <= 1) pairScore += 120;
+          else if (distance <= 3) pairScore += 90;
+          else if (distance <= 5) pairScore += 50;
+          else if (distance <= 10) pairScore += 15;
+          else pairScore -= 80;
+        }
+
+        return {
+          restaurant,
+          activity,
+          distance_miles:
+            distance !== null ? Number(distance.toFixed(1)) : null,
+          same_city: Boolean(sameCity),
+          same_neighborhood: Boolean(sameNeighborhood),
+          pair_score: pairScore,
+        };
+      })
+    )
+    .sort((a, b) => b.pair_score - a.pair_score);
+
+  const bestPairs = pairs.slice(0, 3);
+
+  return {
+    restaurants: bestPairs.map((pair) => ({
+      ...pair.restaurant,
+      paired_activity_name:
+        pair.activity.activity_name || pair.activity.name || null,
+      pair_distance_miles: pair.distance_miles,
+      pair_score: pair.pair_score,
+    })),
+    activities: bestPairs.map((pair) => ({
+      ...pair.activity,
+      paired_restaurant_name:
+        pair.restaurant.restaurant_name || pair.restaurant.name || null,
+      pair_distance_miles: pair.distance_miles,
+      pair_score: pair.pair_score,
+    })),
+    pairs: bestPairs,
+  };
+}
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -1351,11 +1438,11 @@ export async function POST(req: Request) {
     const locations = mergedLocations.map(normalizeLocation);
     const intent = detectIntent(input, body, locations);
 
-    const cacheKey = normalizeQuery(
-      `${getSmartMatchVersion()}-${input}-${intent.userLat || ""}-${
-        intent.userLng || ""
-      }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
-    );
+const cacheKey = normalizeQuery(
+  `roseout-${getSmartMatchVersion()}-${input}-${intent.userLat || ""}-${
+    intent.userLng || ""
+  }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
+);
 
     const { data: cached } = await supabase
       .from("ai_response_cache")
@@ -1469,30 +1556,32 @@ export async function POST(req: Request) {
       }))
       .sort((a: any, b: any) => b.roseout_score - a.roseout_score);
 
-    const smartBalanced = balanceSmartMatches(
-      rankedRestaurants,
-      rankedActivities,
-      smartIntent
-    );
+    const smartBalanced = balanceSmartMatches({
+  restaurants: rankedRestaurants,
+  activities: rankedActivities,
+  intent,
+  smartIntent,
+});
 
-    if (
-      smartIntent.activityIntents.length > 0 &&
-      rankedActivities.length > 0 &&
-      smartBalanced.activities.length === 0
-    ) {
-      smartBalanced.activities = rankedActivities.slice(0, 2);
-    }
+if (
+  intent.activityIntents.length > 0 &&
+  rankedActivities.length > 0 &&
+  smartBalanced.activities.length === 0
+) {
+  smartBalanced.activities = rankedActivities.slice(0, 2);
+}
 
-    if (
-      smartIntent.foodIntents.length > 0 &&
-      rankedRestaurants.length > 0 &&
-      smartBalanced.restaurants.length === 0
-    ) {
-      smartBalanced.restaurants = rankedRestaurants.slice(0, 2);
-    }
+const pairedResults =
+  smartBalanced.restaurants.length > 0 && smartBalanced.activities.length > 0
+    ? pairSmartMatches(smartBalanced.restaurants, smartBalanced.activities)
+    : {
+        restaurants: smartBalanced.restaurants,
+        activities: smartBalanced.activities,
+        pairs: [],
+      };
 
-    const topRestaurants = smartBalanced.restaurants;
-    const topActivities = smartBalanced.activities;
+const topRestaurants = pairedResults.restaurants;
+const topActivities = pairedResults.activities;
 
     const slimMatchedLocations = matchedLocationResults.map((item: any) => ({
       id: String(item.id),
@@ -1628,6 +1717,8 @@ STRICT RULES:
       version: getSmartMatchVersion(),
       smart_match: {
         mode: smartBalanced.mode,
+        pairing_enabled: pairedResults.pairs.length > 0,
+pair_count: pairedResults.pairs.length,
         query: smartIntent.query,
         wantsFood: smartIntent.wantsFood,
         wantsActivity: smartIntent.wantsActivity,
@@ -1668,6 +1759,15 @@ STRICT RULES:
         reservation_url: item.reservation_url || item.booking_url || null,
         location_name_match_score: item.location_name_match_score,
       })),
+pairs: pairedResults.pairs.map((pair: any) => ({
+  restaurant_name: pair.restaurant.restaurant_name || pair.restaurant.name,
+  activity_name: pair.activity.activity_name || pair.activity.name,
+  distance_miles: pair.distance_miles,
+  same_city: pair.same_city,
+  same_neighborhood: pair.same_neighborhood,
+  pair_score: clampScore(pair.pair_score),
+})),
+
       restaurants: topRestaurants.map((r: any) => ({
         id: String(r.id),
         restaurant_name: r.restaurant_name || r.name,
