@@ -83,15 +83,6 @@ type UserLocation = {
 
 const LOCATION_KEY = "roseout_user_location";
 
-const suggestionChips = [
-  "Steak dinner with bowling",
-  "Romantic Italian dinner",
-  "Birthday brunch rooftop",
-  "Affordable date night",
-  "Sushi and karaoke",
-  "Hookah lounge with food",
-];
-
 const typingSearches = [
   "Steak dinner with bowling in Queens",
   "Romantic Italian dinner in Brooklyn",
@@ -278,19 +269,6 @@ export default function CreatePage() {
     element.style.height = `${Math.min(element.scrollHeight, 150)}px`;
   }
 
-  function setSuggestion(value: string) {
-    setInput(value);
-
-    requestAnimationFrame(() => {
-      const element = inputRef.current;
-      if (!element) return;
-
-      element.style.height = "auto";
-      element.style.height = `${Math.min(element.scrollHeight, 150)}px`;
-      element.focus();
-    });
-  }
-
   async function handleSubmit(event?: React.FormEvent) {
     event?.preventDefault();
 
@@ -432,57 +410,32 @@ export default function CreatePage() {
                 ) : null}
               </div>
 
-              <div className="relative">
-                <label
-                  className={`pointer-events-none absolute left-4 z-10 transition-all duration-200 ${
-                    input
-                      ? "top-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#e1062a]"
-                      : "top-4 text-xs font-bold uppercase tracking-[0.16em] text-white/35"
-                  }`}
-                >
-                  What are we planning?
-                </label>
-
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={handleInputChange}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      handleSubmit();
-                    }
-                  }}
-                  rows={2}
-                  placeholder={
-                    typedPlaceholder
-                      ? `${typedPlaceholder}|`
-                      : "Tell RoseOut what you want..."
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    handleSubmit();
                   }
-                  className="max-h-[150px] min-h-[92px] w-full min-w-0 max-w-full resize-none overflow-y-auto rounded-2xl border border-white/10 bg-black px-4 pb-3 pt-8 text-sm font-semibold leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#e1062a]/70 sm:min-h-[104px] sm:text-base sm:leading-7"
-                />
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {suggestionChips.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => setSuggestion(suggestion)}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-white/55 transition hover:border-[#e1062a]/45 hover:bg-[#e1062a]/10 hover:text-white"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
+                }}
+                rows={2}
+                placeholder={
+                  typedPlaceholder
+                    ? `${typedPlaceholder}|`
+                    : "Tell RoseOut what you want..."
+                }
+                className="max-h-[150px] min-h-[92px] w-full min-w-0 max-w-full resize-none overflow-y-auto rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-semibold leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#e1062a]/70 sm:min-h-[104px] sm:text-base sm:leading-7"
+              />
             </div>
 
-            <div className="mt-4 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+            <div className="mt-4 flex w-full min-w-0 justify-center">
+              <div className="flex w-full min-w-0 flex-col justify-center gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
                 <button
                   type="submit"
                   disabled={loading || !input.trim()}
-                  className="w-full rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                  className="w-full rounded-full bg-[#e1062a] px-6 py-3 text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                 >
                   {loading ? "Finding Matches..." : "Build My Outing"}
                 </button>
@@ -490,7 +443,7 @@ export default function CreatePage() {
                 <button
                   type="button"
                   onClick={requestUserLocation}
-                  className={`w-full rounded-full border px-5 py-3 text-xs font-black uppercase tracking-[0.12em] transition sm:w-auto ${
+                  className={`w-full rounded-full border px-6 py-3 text-xs font-black uppercase tracking-[0.12em] transition sm:w-auto ${
                     locationSaved
                       ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
                       : "border-white/10 bg-white/[0.04] text-white/65 hover:border-white/25 hover:text-white"
@@ -498,17 +451,17 @@ export default function CreatePage() {
                 >
                   {locationSaved ? "Location On" : "Use My Location"}
                 </button>
-              </div>
 
-              {messages.length > 0 && (
-                <button
-                  type="button"
-                  onClick={resetSearch}
-                  className="w-full rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white/55 transition hover:text-white sm:w-auto"
-                >
-                  New Search
-                </button>
-              )}
+                {messages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetSearch}
+                    className="w-full rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 text-xs font-black uppercase tracking-[0.12em] text-white/55 transition hover:text-white sm:w-auto"
+                  >
+                    New Search
+                  </button>
+                )}
+              </div>
             </div>
           </form>
         </div>
