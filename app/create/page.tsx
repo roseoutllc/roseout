@@ -402,72 +402,58 @@ export default function CreatePage() {
             onSubmit={handleSubmit}
             className="rounded-[1.35rem] border border-white/10 bg-[#111]/90 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-4"
           >
-            <div className="flex items-start gap-3">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    handleSubmit();
-                  }
-                }}
-                rows={3}
-                placeholder={
-                  typedPlaceholder
-                    ? `${typedPlaceholder}|`
-                    : "Tell RoseOut what you want..."
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  handleSubmit();
                 }
-                className="min-h-[96px] flex-1 resize-none rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-semibold leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#e1062a]/60 sm:text-base"
-              />
+              }}
+              rows={3}
+              placeholder={
+                typedPlaceholder
+                  ? `${typedPlaceholder}|`
+                  : "Tell RoseOut what you want..."
+              }
+              className="min-h-[96px] w-full resize-none rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-semibold leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#e1062a]/60 sm:text-base"
+            />
 
-              <button
-                type="submit"
-                disabled={loading || !input.trim()}
-                className="hidden rounded-2xl bg-[#e1062a] px-5 py-4 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40 sm:block"
-              >
-                {loading ? "..." : "Search"}
-              </button>
-            </div>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={loading || !input.trim()}
+                  className="rounded-full bg-[#e1062a] px-4 py-2 text-xs font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {loading ? "Finding Matches..." : "Find My Outing"}
+                </button>
 
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs font-semibold text-white/40">
-                Describe the food, vibe, activity, location, or budget you want.
-              </div>
-
-              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={requestUserLocation}
-                  className={`rounded-full border px-3 py-2 text-xs font-black transition ${
+                  className={`rounded-full border px-4 py-2 text-xs font-black transition ${
                     locationSaved
                       ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
-                      : "border-white/10 bg-white/[0.04] text-white/55 hover:text-white"
+                      : "border-white/10 bg-white/[0.04] text-white/65 hover:border-white/25 hover:text-white"
                   }`}
                 >
-                  {locationSaved ? "Location On" : "Use Location"}
+                  {locationSaved ? "Location On" : "Use My Location"}
                 </button>
-
-                {messages.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={resetSearch}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-white/55 transition hover:text-white"
-                  >
-                    New Search
-                  </button>
-                )}
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="mt-3 w-full rounded-2xl bg-[#e1062a] px-5 py-4 text-sm font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40 sm:hidden"
-            >
-              {loading ? "Searching..." : "Plan My Outing"}
-            </button>
+              {messages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={resetSearch}
+                  className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black text-white/55 transition hover:text-white"
+                >
+                  New Search
+                </button>
+              )}
+            </div>
           </form>
         </div>
       </section>
