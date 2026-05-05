@@ -92,6 +92,17 @@ const suggestions = [
   "Affordable date night near me",
 ];
 
+const typingSearches = [
+  "Steak dinner with bowling in Queens",
+  "Romantic Italian dinner in Brooklyn",
+  "Birthday brunch with rooftop vibes",
+  "Affordable date night near me",
+  "Sushi with karaoke after dinner",
+  "Luxury seafood dinner in Manhattan",
+  "Hookah lounge with food nearby",
+  "Fun date night with arcade games",
+];
+
 const loadingLines = [
   "Matching your vibe...",
   "Checking food and activity signals...",
@@ -101,6 +112,7 @@ const loadingLines = [
 
 export default function CreatePage() {
   const [input, setInput] = useState("");
+  const [typedPlaceholder, setTypedPlaceholder] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingIndex, setLoadingIndex] = useState(0);
@@ -125,6 +137,42 @@ export default function CreatePage() {
   useEffect(() => {
     document.title = "Create Your Outing | RoseOut";
     setLocationSaved(Boolean(getSavedLocation()));
+  }, []);
+
+  useEffect(() => {
+    let searchIndex = 0;
+    let charIndex = 0;
+    let deleting = false;
+    let timeout: ReturnType<typeof setTimeout>;
+
+    function typeLoop() {
+      const currentSearch = typingSearches[searchIndex];
+
+      if (!deleting) {
+        setTypedPlaceholder(currentSearch.slice(0, charIndex + 1));
+        charIndex++;
+
+        if (charIndex === currentSearch.length) {
+          deleting = true;
+          timeout = setTimeout(typeLoop, 1300);
+          return;
+        }
+      } else {
+        setTypedPlaceholder(currentSearch.slice(0, charIndex - 1));
+        charIndex--;
+
+        if (charIndex === 0) {
+          deleting = false;
+          searchIndex = (searchIndex + 1) % typingSearches.length;
+        }
+      }
+
+      timeout = setTimeout(typeLoop, deleting ? 35 : 55);
+    }
+
+    typeLoop();
+
+    return () => clearTimeout(timeout);
   }, []);
 
   useEffect(() => {
@@ -366,7 +414,11 @@ export default function CreatePage() {
                   }
                 }}
                 rows={3}
-                placeholder="Example: steak dinner with bowling in Queens"
+                placeholder={
+                  typedPlaceholder
+                    ? `${typedPlaceholder}|`
+                    : "Tell RoseOut what you want..."
+                }
                 className="min-h-[96px] flex-1 resize-none rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-semibold leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#e1062a]/60 sm:text-base"
               />
 
@@ -549,7 +601,9 @@ export default function CreatePage() {
                           onWebsite={() => trackRestaurantClick(restaurantId)}
                           reservationUrl={reservationUrl}
                           reservationLabel="Reserve"
-                          onReservation={() => trackRestaurantClick(restaurantId)}
+                          onReservation={() =>
+                            trackRestaurantClick(restaurantId)
+                          }
                         />
                       );
                     })}
