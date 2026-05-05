@@ -12,11 +12,9 @@ export default function AppShell({
 
   const hideGlobalHeader =
     pathname?.startsWith("/admin") ||
-    pathname?.startsWith("/dashboard") ||
-    pathname?.startsWith("/restaurants/dashboard") ||
-    pathname?.startsWith("/locations/dashboard") ||
     pathname?.startsWith("/reserve/dashboard") ||
-    pathname?.startsWith("/reserve/portal");
+    pathname?.startsWith("/restaurants/dashboard") ||
+    pathname?.startsWith("/locations/dashboard");
 
   return (
     <>

@@ -1,4 +1,4 @@
-import AdminTopBar from "@/app/admin/components/AdminTopBar";
+import AdminTopBar from "@/components/AdminTopBar";
 
 export default function AdminLayout({
   children,
@@ -6,14 +6,9 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Your existing top bar */}
+    <div className="min-h-screen bg-[#090706] text-white">
       <AdminTopBar />
-
-      {/* Page content */}
-      <main className="mx-auto max-w-7xl px-6 py-10">
-        {children}
-      </main>
+      {children}
     </div>
   );
 }
