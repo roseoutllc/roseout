@@ -463,7 +463,7 @@ export default function CreatePage() {
                   experiences into one curated outing.
                 </p>
 
-                <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-3">
+                <div className="mt-6 hidden gap-3 sm:mt-8 lg:grid lg:grid-cols-3">
                   <MiniStat value="AI" label="Vibe matching" />
                   <MiniStat value="98%" label="Smart match rating" />
                   <MiniStat value="Near You" label="Experience finder" />
@@ -933,6 +933,12 @@ function SearchPanel({
         >
           {locationSaved ? "✓ Location Saved" : "Use My Location"}
         </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:hidden">
+        <MiniStat value="AI" label="Vibe matching" />
+        <MiniStat value="98%" label="Smart match rating" />
+        <MiniStat value="Near You" label="Experience finder" />
       </div>
     </div>
   );
