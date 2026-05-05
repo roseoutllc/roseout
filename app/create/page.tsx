@@ -414,7 +414,7 @@ export default function CreatePage() {
 
   const getPlanButtonText = () => {
     if (selectedRestaurant && selectedActivity) return "View Your Full Plan";
-    if (selectedRestaurant) return "View Dinner Plan";
+    if (selectedRestaurant) return "View Restaurant Plan";
     if (selectedActivity) return "View Activity Plan";
     return "View Your Plan";
   };
@@ -427,12 +427,18 @@ export default function CreatePage() {
         "";
 
   return (
-    <main className="min-h-screen w-full overflow-x-hidden bg-[#050505] text-white">
+    <main
+      className={`min-h-screen w-full overflow-x-hidden bg-[#050505] text-white ${
+        selectedRestaurant || selectedActivity ? "pb-32 md:pb-0" : ""
+      }`}
+    >
       <RoseOutHeader />
 
       <section
         className={`relative overflow-hidden border-b border-white/10 transition-all duration-500 ${
-          hasSearched ? "pt-28 pb-6" : "pt-32 pb-14 sm:pt-36 sm:pb-20"
+          hasSearched
+            ? "pt-24 pb-5 sm:pt-28 lg:pt-32"
+            : "pt-24 pb-10 sm:pt-32 lg:pt-40 lg:pb-24"
         }`}
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(225,6,42,0.22),transparent_32%),radial-gradient(circle_at_86%_10%,rgba(255,255,255,0.08),transparent_26%),linear-gradient(180deg,#090909,#050505_55%,#000)]" />
@@ -440,27 +446,27 @@ export default function CreatePage() {
 
         <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6">
           {!hasSearched ? (
-            <div className="grid gap-10 lg:grid-cols-[0.86fr_1.14fr] lg:items-center">
+            <div className="grid gap-8 lg:grid-cols-[0.86fr_1.14fr] lg:items-center">
               <div>
-                <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
+                <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a] sm:text-xs sm:tracking-[0.25em]">
                   RoseOut Concierge
                 </div>
 
-                <h1 className="mt-6 max-w-3xl text-5xl font-black leading-[0.92] tracking-tight sm:text-6xl md:text-7xl">
+                <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
                   Plan the outing.
                   <span className="block text-[#e1062a]">Keep the vibe.</span>
                 </h1>
 
-                <p className="mt-6 max-w-xl text-base font-medium leading-8 text-white/55 md:text-lg">
+                <p className="mt-5 max-w-xl text-sm font-medium leading-7 text-white/55 sm:mt-6 sm:text-base sm:leading-8 md:text-lg">
                   Tell RoseOut what you want. We’ll match restaurants,
                   activities, celebration ideas, distance, budget, and local
                   experiences into one curated outing.
                 </p>
 
-                <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-3">
                   <MiniStat value="AI" label="Vibe matching" />
                   <MiniStat value="98%" label="Smart match rating" />
-                  <MiniStat value="Near You" label="Local experience finder" />
+                  <MiniStat value="Near You" label="Experience finder" />
                 </div>
               </div>
 
@@ -478,19 +484,19 @@ export default function CreatePage() {
               />
             </div>
           ) : (
-            <div className="rounded-[2rem] border border-white/10 bg-black/65 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl">
+            <div className="rounded-[1.5rem] border border-white/10 bg-black/65 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:rounded-[2rem]">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
                 <button
                   type="button"
                   onClick={resetSearch}
-                  className="w-fit rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white/65 transition hover:bg-white hover:text-black"
+                  className="w-full rounded-full border border-white/15 bg-white/[0.06] px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-white/65 transition hover:bg-white hover:text-black sm:w-fit sm:py-2"
                 >
                   New Search
                 </button>
 
                 <div className="relative flex-1">
                   {!input && (
-                    <div className="pointer-events-none absolute left-5 right-5 top-1/2 z-10 -translate-y-1/2 truncate text-sm font-bold text-white/35">
+                    <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-bold leading-6 text-white/35 sm:top-1/2 sm:-translate-y-1/2 sm:truncate">
                       Ask for a different vibe, budget, borough, or activity...
                     </div>
                   )}
@@ -500,15 +506,15 @@ export default function CreatePage() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleInputKeyDown}
-                    rows={1}
-                    className="relative z-20 min-h-[54px] w-full resize-none rounded-full border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-bold text-white outline-none focus:border-[#e1062a]"
+                    rows={2}
+                    className="relative z-20 min-h-[64px] w-full resize-none rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-bold text-white outline-none focus:border-[#e1062a] sm:rounded-full"
                   />
                 </div>
 
                 <button
                   onClick={() => sendMessage()}
                   disabled={loading}
-                  className="rounded-full bg-[#e1062a] px-7 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-full bg-[#e1062a] px-7 py-4 text-sm font-black text-white shadow-2xl shadow-red-500/25 transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
                 >
                   {loading ? "Searching..." : "Update Results"}
                 </button>
@@ -526,12 +532,12 @@ export default function CreatePage() {
 
       <section
         ref={resultsRef}
-        className="mx-auto w-full max-w-7xl scroll-mt-36 overflow-x-hidden px-4 py-8 sm:px-6"
+        className="mx-auto w-full max-w-7xl scroll-mt-32 overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8"
       >
         {loading ? (
           <LuxuryLoading loadingText={loadingMessages[loadingTextIndex]} />
         ) : (
-          <div className="w-full space-y-6">
+          <div className="w-full space-y-5 sm:space-y-6">
             {messages.map((msg, index) => {
               const hasRestaurants = !!msg.restaurants?.length;
               const hasActivities = !!msg.activities?.length;
@@ -539,8 +545,8 @@ export default function CreatePage() {
               return (
                 <div key={index}>
                   {msg.role === "user" && (
-                    <div className="mx-auto max-w-4xl animate-[resultFadeIn_450ms_ease-out_both] rounded-[1.5rem] border border-red-500/25 bg-[#e1062a] p-4 text-white shadow-2xl shadow-red-500/10">
-                      <p className="whitespace-pre-wrap break-words font-black">
+                    <div className="mx-auto max-w-4xl animate-[resultFadeIn_450ms_ease-out_both] rounded-[1.25rem] border border-red-500/25 bg-[#e1062a] p-4 text-white shadow-2xl shadow-red-500/10 sm:rounded-[1.5rem]">
+                      <p className="whitespace-pre-wrap break-words text-sm font-black sm:text-base">
                         {msg.content}
                       </p>
                     </div>
@@ -548,18 +554,18 @@ export default function CreatePage() {
 
                   {msg.role === "assistant" &&
                   (hasRestaurants || hasActivities) ? (
-                    <div className="animate-[resultFadeIn_550ms_ease-out_both] rounded-[2rem] border border-white/10 bg-[#0b0b0b] p-4 shadow-2xl shadow-black/40 sm:p-6">
+                    <div className="animate-[resultFadeIn_550ms_ease-out_both] rounded-[1.5rem] border border-white/10 bg-[#0b0b0b] p-4 shadow-2xl shadow-black/40 sm:rounded-[2rem] sm:p-6">
                       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
-                          <p className="text-xs font-black uppercase tracking-[0.32em] text-[#e1062a]">
+                          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e1062a] sm:text-xs sm:tracking-[0.32em]">
                             Curated Results
                           </p>
 
-                          <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">
+                          <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-4xl lg:text-5xl">
                             RoseOut found your vibe.
                           </h2>
 
-                          <p className="mt-2 text-sm font-semibold text-white/45">
+                          <p className="mt-2 text-sm font-semibold leading-6 text-white/45">
                             Choose your favorites, reserve, or view full
                             details.
                           </p>
@@ -695,8 +701,8 @@ export default function CreatePage() {
                   {msg.role === "assistant" &&
                     !hasRestaurants &&
                     !hasActivities && (
-                      <div className="rounded-[2rem] border border-white/10 bg-[#0b0b0b] p-6 shadow-2xl shadow-black/40">
-                        <p className="whitespace-pre-wrap break-words text-white/75">
+                      <div className="rounded-[1.5rem] border border-white/10 bg-[#0b0b0b] p-5 shadow-2xl shadow-black/40 sm:rounded-[2rem] sm:p-6">
+                        <p className="whitespace-pre-wrap break-words text-sm leading-7 text-white/75 sm:text-base">
                           {msg.content}
                         </p>
                       </div>
@@ -709,9 +715,9 @@ export default function CreatePage() {
       </section>
 
       {hasSearched && !loading && (
-        <section className="mx-auto w-full max-w-5xl overflow-x-hidden px-4 pb-32 sm:px-6">
-          <div className="rounded-[2rem] border border-white/10 bg-[#0b0b0b] p-5 shadow-2xl shadow-black/40">
-            <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#e1062a]">
+        <section className="mx-auto w-full max-w-5xl overflow-x-hidden px-4 pb-36 sm:px-6 md:pb-32">
+          <div className="rounded-[1.5rem] border border-white/10 bg-[#0b0b0b] p-4 shadow-2xl shadow-black/40 sm:rounded-[2rem] sm:p-5">
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.25em] text-[#e1062a] sm:text-xs sm:tracking-[0.3em]">
               Refine Your Outing
             </p>
 
@@ -723,7 +729,7 @@ export default function CreatePage() {
                     type="button"
                     onClick={() => sendMessage(suggestion)}
                     disabled={loading}
-                    className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-black text-white/65 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white disabled:opacity-50"
+                    className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] font-black text-white/65 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white disabled:opacity-50 sm:px-4 sm:text-xs"
                   >
                     {suggestion}
                   </button>
@@ -744,7 +750,7 @@ export default function CreatePage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleInputKeyDown}
                 rows={2}
-                className="relative z-20 min-h-[76px] w-full resize-none rounded-[1.5rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none focus:border-[#e1062a]/70"
+                className="relative z-20 min-h-[84px] w-full resize-none rounded-[1.25rem] border border-white/10 bg-black/70 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none focus:border-[#e1062a]/70 sm:rounded-[1.5rem]"
               />
             </div>
 
@@ -762,7 +768,7 @@ export default function CreatePage() {
               <button
                 onClick={() => sendMessage()}
                 disabled={loading}
-                className="rounded-full bg-[#e1062a] px-6 py-3 text-sm font-black text-white transition hover:bg-red-500 disabled:opacity-50"
+                className="w-full rounded-full bg-[#e1062a] px-6 py-3 text-sm font-black text-white transition hover:bg-red-500 disabled:opacity-50 sm:w-auto"
               >
                 Send
               </button>
@@ -772,14 +778,14 @@ export default function CreatePage() {
       )}
 
       {(selectedRestaurant || selectedActivity) && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/95 p-4 text-white backdrop-blur-2xl">
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/95 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white backdrop-blur-2xl">
           <div className="mx-auto flex max-w-7xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-[#e1062a]">
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e1062a] sm:text-xs">
                 Building your plan
               </p>
 
-              <p className="mt-1 break-words text-sm font-black text-white">
+              <p className="mt-1 line-clamp-2 break-words text-sm font-black text-white">
                 {selectedPlanText}
               </p>
             </div>
@@ -799,7 +805,7 @@ export default function CreatePage() {
 
                 window.location.href = "/plan";
               }}
-              className="rounded-2xl bg-[#e1062a] px-7 py-3 text-sm font-black text-white shadow-lg shadow-red-500/25 transition hover:bg-red-500"
+              className="w-full rounded-2xl bg-[#e1062a] px-7 py-3 text-sm font-black text-white shadow-lg shadow-red-500/25 transition hover:bg-red-500 md:w-auto"
             >
               {getPlanButtonText()}
             </button>
@@ -860,23 +866,25 @@ function SearchPanel({
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }) {
   return (
-    <div className="rounded-[2.5rem] border border-white/10 bg-[#0b0b0b]/95 p-5 shadow-2xl shadow-black/50 backdrop-blur-xl">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="rounded-[1.75rem] border border-white/10 bg-[#0b0b0b]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:rounded-[2.5rem] sm:p-5">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-white/35">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35 sm:text-xs sm:tracking-[0.25em]">
             Start with a vibe
           </p>
-          <h2 className="mt-1 text-2xl font-black">What are we planning?</h2>
+          <h2 className="mt-1 text-xl font-black sm:text-2xl">
+            What are we planning?
+          </h2>
         </div>
 
-        <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-black">
+        <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-black text-black">
           Curated picks
         </span>
       </div>
 
       <div className="relative">
         {!input && (
-          <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-semibold leading-7 text-white">
+          <div className="pointer-events-none absolute left-4 right-4 top-4 z-10 text-sm font-semibold leading-7 text-white sm:left-5 sm:right-5">
             <span className="bg-gradient-to-r from-white via-white/90 to-white/65 bg-clip-text text-transparent">
               {typedSuggestion}
             </span>
@@ -890,11 +898,11 @@ function SearchPanel({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
           rows={5}
-          className="relative z-20 min-h-[175px] w-full resize-none rounded-[1.75rem] border border-white/10 bg-black/80 px-5 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-transparent focus:border-[#e1062a]/70"
+          className="relative z-20 min-h-[160px] w-full resize-none rounded-[1.35rem] border border-white/10 bg-black/80 px-4 py-4 text-sm font-semibold leading-7 text-white outline-none placeholder:text-transparent focus:border-[#e1062a]/70 sm:min-h-[175px] sm:rounded-[1.75rem] sm:px-5"
         />
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-white/35">
+      <div className="mt-3 flex flex-col gap-1 text-xs font-bold text-white/35 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <span>Try: restaurant, activity, budget, borough, vibe.</span>
         <span className="text-[#e1062a]">AI Suggestions</span>
       </div>
@@ -933,8 +941,8 @@ function SearchPanel({
 function MiniStat({ value, label }: { value: string; label: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-2xl font-black text-white">{value}</p>
-      <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-white/40">
+      <p className="text-xl font-black text-white sm:text-2xl">{value}</p>
+      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/40 sm:text-xs sm:tracking-[0.16em]">
         {label}
       </p>
     </div>
@@ -1007,15 +1015,17 @@ function ResultSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-10">
+    <div className="mb-8 sm:mb-10">
       <div className="mb-4 flex flex-col gap-1">
-        <h3 className="text-2xl font-black tracking-tight text-white">
+        <h3 className="text-xl font-black tracking-tight text-white sm:text-2xl">
           {title}
         </h3>
-        <p className="text-sm font-semibold text-white/40">{subtitle}</p>
+        <p className="text-sm font-semibold leading-6 text-white/40">
+          {subtitle}
+        </p>
       </div>
 
-      <div className="grid w-full gap-5 lg:grid-cols-2">{children}</div>
+      <div className="grid w-full gap-5 md:grid-cols-2">{children}</div>
     </div>
   );
 }
@@ -1167,7 +1177,7 @@ function ResultCard({
       onKeyDown={(event) => {
         if (event.key === "Enter") openDetails();
       }}
-      className={`group relative w-full cursor-pointer overflow-hidden rounded-[2rem] border bg-[#111] shadow-2xl shadow-black/40 transition duration-500 hover:-translate-y-1 hover:border-[#e1062a]/70 hover:bg-[#151515] hover:shadow-red-500/10 ${
+      className={`group relative w-full cursor-pointer overflow-hidden rounded-[1.5rem] border bg-[#111] shadow-2xl shadow-black/40 transition duration-500 hover:-translate-y-1 hover:border-[#e1062a]/70 hover:bg-[#151515] hover:shadow-red-500/10 sm:rounded-[2rem] ${
         selected
           ? "border-red-500 ring-2 ring-red-500/50"
           : "border-white/10"
@@ -1176,7 +1186,7 @@ function ResultCard({
         animation: `cardReveal 560ms ease-out ${index * 120}ms both`,
       }}
     >
-      <div className="relative h-64 w-full overflow-hidden">
+      <div className="relative h-52 w-full overflow-hidden sm:h-64 lg:h-72">
         {imageUrl ? (
           <Image
             src={imageUrl}
@@ -1187,72 +1197,72 @@ function ResultCard({
             priority={priority}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-neutral-900 text-neutral-500">
+          <div className="flex h-full w-full items-center justify-center bg-neutral-900 text-sm text-neutral-500">
             No image available
           </div>
         )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/10" />
 
-        <div className="absolute left-4 top-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/75 px-4 py-3 text-white shadow-xl backdrop-blur-xl">
+        <div className="absolute left-3 top-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/75 px-3 py-2 text-white shadow-xl backdrop-blur-xl sm:left-4 sm:top-4 sm:gap-3 sm:px-4 sm:py-3">
           <div
-            className="flex h-14 w-14 items-center justify-center rounded-full p-[3px]"
+            className="flex h-11 w-11 items-center justify-center rounded-full p-[3px] sm:h-14 sm:w-14"
             style={{ background: scoreRing }}
           >
-            <div className="flex h-full w-full items-center justify-center rounded-full bg-black text-sm font-black text-white">
+            <div className="flex h-full w-full items-center justify-center rounded-full bg-black text-xs font-black text-white sm:text-sm">
               {Math.round(safeScore)}
             </div>
           </div>
 
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-white/45 sm:text-[10px] sm:tracking-[0.2em]">
               Smart Match
             </p>
-            <p className="text-sm font-black text-white">Rating</p>
+            <p className="text-xs font-black text-white sm:text-sm">Rating</p>
           </div>
         </div>
 
-        <div className="absolute right-4 top-4 flex max-w-[58%] flex-col items-end gap-2">
+        <div className="absolute right-3 top-3 flex max-w-[52%] flex-col items-end gap-2 sm:right-4 sm:top-4 sm:max-w-[58%]">
           {isTopPick && (
-            <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg">
+            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-black shadow-lg sm:px-3 sm:text-xs">
               Top Pick
             </span>
           )}
 
           {isLovedByGuests && (
-            <span className="rounded-full bg-[#e1062a] px-3 py-1 text-xs font-black text-white shadow-lg">
+            <span className="rounded-full bg-[#e1062a] px-2.5 py-1 text-[10px] font-black text-white shadow-lg sm:px-3 sm:text-xs">
               Loved by Guests
             </span>
           )}
 
           {isStrongMatch && (
-            <span className="rounded-full border border-white/20 bg-black/70 px-3 py-1 text-xs font-black text-white backdrop-blur">
+            <span className="rounded-full border border-white/20 bg-black/70 px-2.5 py-1 text-[10px] font-black text-white backdrop-blur sm:px-3 sm:text-xs">
               Strong Match
             </span>
           )}
         </div>
 
         {distance !== null && distance !== undefined && (
-          <div className="absolute bottom-4 left-4 rounded-full bg-black/75 px-3 py-1 text-xs font-black text-white backdrop-blur">
+          <div className="absolute bottom-3 left-3 rounded-full bg-black/75 px-3 py-1 text-xs font-black text-white backdrop-blur sm:bottom-4 sm:left-4">
             {distance} mi away
           </div>
         )}
 
         {rating && (
-          <div className="absolute bottom-4 right-4 rounded-full bg-white px-3 py-1 text-sm font-black text-black shadow-lg">
+          <div className="absolute bottom-3 right-3 rounded-full bg-white px-3 py-1 text-xs font-black text-black shadow-lg sm:bottom-4 sm:right-4 sm:text-sm">
             🌹 {rating}
           </div>
         )}
       </div>
 
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#e1062a]">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#e1062a] sm:text-xs sm:tracking-[0.22em]">
             {eyebrow}
           </p>
 
           {reviewCount ? (
-            <p className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white/45">
+            <p className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white/45 sm:text-[11px]">
               {reviewCount} review{reviewCount === 1 ? "" : "s"}
             </p>
           ) : null}
@@ -1266,7 +1276,7 @@ function ResultCard({
           }}
           className="group/title block"
         >
-          <h3 className="mt-2 break-words text-2xl font-black tracking-tight text-white transition duration-200 group-hover/title:text-[#e1062a]">
+          <h3 className="mt-2 break-words text-xl font-black tracking-tight text-white transition duration-200 group-hover/title:text-[#e1062a] sm:text-2xl">
             {title}
           </h3>
         </Link>
@@ -1289,7 +1299,7 @@ function ResultCard({
         )}
 
         {cleanReviewKeywords.length > 0 && (
-          <div className="mt-4 rounded-[1.35rem] border border-red-500/15 bg-gradient-to-br from-red-500/[0.1] via-red-500/[0.045] to-white/[0.025] p-4">
+          <div className="mt-4 rounded-[1.25rem] border border-red-500/15 bg-gradient-to-br from-red-500/[0.1] via-red-500/[0.045] to-white/[0.025] p-4 sm:rounded-[1.35rem]">
             <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-red-200/70">
               Review Signals
             </p>
@@ -1313,7 +1323,7 @@ function ResultCard({
           </div>
         )}
 
-        <div className="mt-4 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
+        <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[1.35rem]">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
             Why RoseOut picked this
           </p>
@@ -1396,20 +1406,22 @@ function ResultCard({
 
 function LuxuryLoading({ loadingText }: { loadingText: string }) {
   return (
-    <div className="mt-6 space-y-10 overflow-x-hidden">
+    <div className="mt-6 space-y-8 overflow-x-hidden sm:space-y-10">
       <div className="text-center">
-        <p className="text-xs font-black uppercase tracking-[0.35em] text-[#e1062a]">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#e1062a] sm:text-xs sm:tracking-[0.35em]">
           RoseOut is searching
         </p>
 
-        <h2 className="mt-2 break-words text-2xl font-black">{loadingText}</h2>
+        <h2 className="mt-2 break-words text-xl font-black sm:text-2xl">
+          {loadingText}
+        </h2>
 
         <p className="mt-2 text-sm font-semibold text-white/40">
           Building your recommendations...
         </p>
       </div>
 
-      <div className="grid w-full gap-5 lg:grid-cols-2">
+      <div className="grid w-full gap-5 md:grid-cols-2">
         {[0, 1, 2, 3].map((index) => (
           <SkeletonCard key={index} index={index} />
         ))}
@@ -1423,17 +1435,17 @@ function SkeletonCard({ index }: { index: number }) {
 
   return (
     <div
-      className="overflow-hidden rounded-[2rem] border border-white/5 bg-[#0b0b0b] shadow-2xl shadow-black/30"
+      className="overflow-hidden rounded-[1.5rem] border border-white/5 bg-[#0b0b0b] shadow-2xl shadow-black/30 sm:rounded-[2rem]"
       style={{
         animation: `skeletonReveal 520ms ease-out ${delay} both`,
       }}
     >
-      <div className="relative h-64 w-full overflow-hidden bg-[#080808]">
+      <div className="relative h-52 w-full overflow-hidden bg-[#080808] sm:h-64 lg:h-72">
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 via-black to-[#050505] blur-sm" />
         <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/[0.045] to-transparent" />
       </div>
 
-      <div className="space-y-3 p-5">
+      <div className="space-y-3 p-4 sm:p-5">
         <div className="h-3 w-24 animate-pulse rounded-full bg-red-500/15" />
 
         <div
