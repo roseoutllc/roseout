@@ -83,15 +83,6 @@ type UserLocation = {
 
 const LOCATION_KEY = "roseout_user_location";
 
-const suggestions = [
-  "Steak dinner with bowling in Queens",
-  "Romantic Italian dinner in Brooklyn",
-  "Birthday dinner with nightlife",
-  "Brunch with a fun activity nearby",
-  "Luxury dinner with rooftop vibes",
-  "Affordable date night near me",
-];
-
 const typingSearches = [
   "Steak dinner with bowling in Queens",
   "Romantic Italian dinner in Brooklyn",
@@ -367,9 +358,9 @@ export default function CreatePage() {
       <RoseOutHeader />
 
       <section className="relative border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-4 pb-8 pt-28 sm:px-6 sm:pb-10 lg:pt-32">
-        <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.88fr_1.12fr] lg:items-end">
-          <div>
-            <div className="mb-4 inline-flex rounded-full border border-[#e1062a]/30 bg-[#e1062a]/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-red-100">
+        <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.88fr_1.12fr] lg:items-stretch">
+          <div className="flex flex-col justify-center">
+            <div className="mb-4 inline-flex w-fit rounded-full border border-[#e1062a]/30 bg-[#e1062a]/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-red-100">
               AI Outing Planner
             </div>
 
@@ -381,60 +372,59 @@ export default function CreatePage() {
               Type exactly what you want. RoseOut matches food, activities,
               location, vibe, and budget into a tighter outing plan.
             </p>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {[
-                "Cuisine-aware",
-                "Activity matching",
-                "Better date planning",
-              ].map((label) => (
-                <span
-                  key={label}
-                  className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-white/65"
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
           </div>
 
           <form
             onSubmit={handleSubmit}
-            className="rounded-[1.35rem] border border-white/10 bg-[#111]/90 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-4"
+            className="flex h-full min-h-[310px] flex-col justify-between rounded-[1.35rem] border border-white/10 bg-[#111]/90 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-5"
           >
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  handleSubmit();
-                }
-              }}
-              rows={3}
-              placeholder={
-                typedPlaceholder
-                  ? `${typedPlaceholder}|`
-                  : "Tell RoseOut what you want..."
-              }
-              className="min-h-[96px] w-full resize-none rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm font-semibold leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#e1062a]/60 sm:text-base"
-            />
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">
+                  Create your plan
+                </p>
 
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                {locationSaved ? (
+                  <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
+                    Location On
+                  </span>
+                ) : null}
+              </div>
+
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+                rows={5}
+                placeholder={
+                  typedPlaceholder
+                    ? `${typedPlaceholder}|`
+                    : "Tell RoseOut what you want..."
+                }
+                className="min-h-[185px] w-full resize-none rounded-3xl border border-white/10 bg-black px-5 py-5 text-lg font-black leading-8 text-white outline-none transition placeholder:text-white/28 focus:border-[#e1062a]/60 sm:text-xl"
+              />
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-2">
                 <button
                   type="submit"
                   disabled={loading || !input.trim()}
-                  className="rounded-full bg-[#e1062a] px-4 py-2 text-xs font-black text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {loading ? "Finding Matches..." : "Find My Outing"}
+                  {loading ? "Finding Matches..." : "Build My Night"}
                 </button>
 
                 <button
                   type="button"
                   onClick={requestUserLocation}
-                  className={`rounded-full border px-4 py-2 text-xs font-black transition ${
+                  className={`rounded-full border px-5 py-3 text-xs font-black uppercase tracking-[0.12em] transition ${
                     locationSaved
                       ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
                       : "border-white/10 bg-white/[0.04] text-white/65 hover:border-white/25 hover:text-white"
@@ -448,7 +438,7 @@ export default function CreatePage() {
                 <button
                   type="button"
                   onClick={resetSearch}
-                  className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black text-white/55 transition hover:text-white"
+                  className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white/55 transition hover:text-white"
                 >
                   New Search
                 </button>
@@ -468,9 +458,7 @@ export default function CreatePage() {
           </div>
         )}
 
-        {!messages.length && !loading && (
-          <StartPanel onPick={(value) => setInput(value)} />
-        )}
+        {!messages.length && !loading && <StartPanel />}
 
         <div className="space-y-5">
           {messages.map((message, index) => {
@@ -700,58 +688,43 @@ export default function CreatePage() {
   );
 }
 
-function StartPanel({ onPick }: { onPick: (value: string) => void }) {
+function StartPanel() {
+  const items = [
+    {
+      title: "Tell RoseOut the full idea",
+      body: "Use a natural sentence with food, activity, location, budget, or vibe.",
+    },
+    {
+      title: "RoseOut separates the intent",
+      body: "A steak request is treated differently from bowling, karaoke, lounges, or brunch.",
+    },
+    {
+      title: "Get tighter matched cards",
+      body: "Results are ranked for fit, quality, distance, and outing flow.",
+    },
+  ];
+
   return (
     <div className="rounded-[1.25rem] border border-white/10 bg-[#0b0b0b] p-5 shadow-2xl shadow-black/40">
-      <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e1062a]">
-            Build Your Outing
-          </p>
+      <div className="grid gap-4 md:grid-cols-3">
+        {items.map((item, index) => (
+          <div
+            key={item.title}
+            className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
+          >
+            <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#e1062a] text-sm font-black text-white">
+              {index + 1}
+            </div>
 
-          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white sm:text-3xl">
-            Tell RoseOut what kind of night you want.
-          </h2>
+            <h3 className="text-base font-black tracking-[-0.02em] text-white">
+              {item.title}
+            </h3>
 
-          <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-white/45">
-            Add your food preference, activity, neighborhood, budget, or vibe.
-            RoseOut will turn it into tighter restaurant and activity matches.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-white/35">
-            Example format
-          </p>
-
-          <p className="mt-2 text-lg font-black text-white">
-            “Steak dinner with bowling in Queens”
-          </p>
-
-          <p className="mt-2 text-sm font-semibold leading-6 text-white/45">
-            Try adding words like romantic, luxury, affordable, rooftop,
-            birthday, brunch, karaoke, bowling, or near me.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-5 border-t border-white/10 pt-4">
-        <p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-white/35">
-          Quick start buttons
-        </p>
-
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion}
-              type="button"
-              onClick={() => onPick(suggestion)}
-              className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-left text-sm font-bold leading-6 text-white/65 transition hover:border-[#e1062a]/50 hover:bg-[#e1062a]/10 hover:text-white"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
+            <p className="mt-2 text-sm font-semibold leading-6 text-white/45">
+              {item.body}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   );
