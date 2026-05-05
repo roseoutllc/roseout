@@ -1128,16 +1128,28 @@ function scoreRestaurant(
   if (intent.locations.length > 0) {
   const text = getSearchText(item);
 
-if (intent.locations.length > 0) {
-  const text = itemText(item);
+  if (intent.locations.length > 0) {
+    const text = itemText(item);
 
-  if (intent.locations.some((loc) => text.includes(loc))) {
-    score += 40;
-  } else {
-    score -= 25;
+    if (intent.locations.some((loc) => text.includes(loc))) {
+      score += 40;
+    } else {
+      score -= 25;
+    }
   }
-}
 
+  intent.activityIntents.forEach((activity) => {
+    const name = String(item.activity_name || item.name || "").toLowerCase();
+    const normalizedActivity = activity.replace(/_/g, " ");
+    const keywords = ACTIVITY_INTENTS[activity] || [normalizedActivity];
+
+    if (
+      name.includes(normalizedActivity) ||
+      keywords.some((keyword) => name.includes(keyword))
+    ) {
+      score += 500;
+    }
+  });
   if (intent.wantsBirthdayDinner) score += PRIORITY_WEIGHTS.birthday;
   if (intent.wantsBirthdayBrunch && matchesFoodIntent(item, "brunch")) {
     score += PRIORITY_WEIGHTS.birthday;
