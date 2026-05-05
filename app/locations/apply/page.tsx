@@ -1,8 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import Script from "next/script";
+import { useEffect, useRef, useState } from "react";
 import RoseOutHeader from "@/components/RoseOutHeader";
+
+declare global {
+  interface Window {
+    turnstile?: any;
+    onRoseOutTurnstileSuccess?: (token: string) => void;
+    onRoseOutTurnstileExpired?: () => void;
+  }
+}
 
 type FormState = {
   location_name: string;
@@ -35,17 +44,43 @@ export default function LocationApplyPage() {
   const scannerActiveRef = useRef(false);
 
   const [form, setForm] = useState<FormState>(initialForm);
+  const [captchaToken, setCaptchaToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanError, setScanError] = useState("");
 
+  useEffect(() => {
+    document.title = "Claim or Add Your Location | RoseOut";
+
+    window.onRoseOutTurnstileSuccess = (token: string) => {
+      setCaptchaToken(token);
+    };
+
+    window.onRoseOutTurnstileExpired = () => {
+      setCaptchaToken("");
+    };
+
+    return () => {
+      delete window.onRoseOutTurnstileSuccess;
+      delete window.onRoseOutTurnstileExpired;
+    };
+  }, []);
+
   const updateField = (field: keyof FormState, value: string) => {
     setForm((prev) => ({
       ...prev,
       [field]: value,
     }));
+  };
+
+  const resetCaptcha = () => {
+    setCaptchaToken("");
+
+    if (window.turnstile) {
+      window.turnstile.reset();
+    }
   };
 
   const closeQrScanner = () => {
@@ -154,6 +189,11 @@ export default function LocationApplyPage() {
       return;
     }
 
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA before submitting.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -162,13 +202,17 @@ export default function LocationApplyPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          captchaToken,
+        }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
         setError(data.error || "Something went wrong.");
+        resetCaptcha();
         return;
       }
 
@@ -177,8 +221,10 @@ export default function LocationApplyPage() {
       );
 
       setForm(initialForm);
+      resetCaptcha();
     } catch {
       setError("Could not submit request. Please try again.");
+      resetCaptcha();
     } finally {
       setLoading(false);
     }
@@ -186,6 +232,12 @@ export default function LocationApplyPage() {
 
   return (
     <main className="min-h-screen bg-black text-white">
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+        async
+        defer
+      />
+
       <RoseOutHeader />
 
       <section className="relative overflow-hidden px-6 pt-32 pb-20">
@@ -393,6 +445,20 @@ export default function LocationApplyPage() {
                 />
               </label>
 
+              <div className="rounded-2xl border border-white/10 bg-black p-4">
+                <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                  Security Check <span className="text-[#e1062a]">*</span>
+                </p>
+
+                <div
+                  className="cf-turnstile"
+                  data-sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                  data-callback="onRoseOutTurnstileSuccess"
+                  data-expired-callback="onRoseOutTurnstileExpired"
+                  data-theme="dark"
+                />
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
@@ -409,8 +475,6 @@ export default function LocationApplyPage() {
           </div>
         </div>
       </section>
-
-     
     </main>
   );
 }
