@@ -190,21 +190,23 @@ export default function AdminTopBar() {
   const canViewUsers = ["superuser", "admin"].includes(role || "");
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#080407]/90 text-white shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <header className="sticky top-0 z-[100] border-b border-white/10 bg-[#090706]/95 text-white shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
+      <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <button
           type="button"
           onClick={() => goTo("/admin/dashboard")}
           className="group flex items-center gap-3"
         >
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-fuchsia-600 text-lg font-black shadow-lg shadow-rose-500/25">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-rose-300/30 bg-[#f8f3ef] text-lg font-black text-[#8b0f2f] shadow-lg shadow-rose-950/30 transition group-hover:scale-105">
             R
           </div>
 
           <div className="text-left">
-            <p className="text-lg font-black tracking-tight">RoseOut Admin</p>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-rose-200/70">
-              Control Room
+            <p className="text-lg font-black tracking-tight text-white">
+              RoseOut
+            </p>
+            <p className="text-[11px] font-black uppercase tracking-[0.28em] text-rose-200/70">
+              Admin
             </p>
           </div>
         </button>
@@ -267,7 +269,7 @@ export default function AdminTopBar() {
             onClick={() => setOpen((prev) => !prev)}
             className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 shadow-inner shadow-white/5 transition hover:bg-white/[0.1]"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-fuchsia-600 text-sm font-black text-white shadow-lg shadow-rose-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f8f3ef] text-sm font-black text-[#8b0f2f] shadow-lg shadow-rose-950/20">
               {initial}
             </div>
 
@@ -289,7 +291,7 @@ export default function AdminTopBar() {
                 <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-rose-500/20 blur-3xl" />
 
                 <div className="relative flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-xl font-black text-black">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f8f3ef] text-xl font-black text-[#8b0f2f]">
                     {initial}
                   </div>
 
