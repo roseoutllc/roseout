@@ -111,8 +111,9 @@ export default function CreatePage() {
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<RestaurantCard | null>(null);
 
-  const [selectedActivity, setSelectedActivity] =
-    useState<ActivityCard | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityCard | null>(
+    null,
+  );
 
   const hasSearched = messages.length > 0;
 
@@ -134,7 +135,7 @@ export default function CreatePage() {
         selectedActivity,
         scrollY: window.scrollY,
         savedAt: Date.now(),
-      })
+      }),
     );
   }, [input, messages, selectedRestaurant, selectedActivity]);
 
@@ -180,7 +181,7 @@ export default function CreatePage() {
       () => {
         setLocationSaved(false);
         setError("Please allow location access or search by zip code.");
-      }
+      },
     );
   };
 
@@ -613,7 +614,7 @@ export default function CreatePage() {
                                 selectLabel={isSelected ? "Selected" : "Select"}
                                 onSelect={() =>
                                   setSelectedRestaurant(
-                                    selectedRestaurant?.id === r.id ? null : r
+                                    selectedRestaurant?.id === r.id ? null : r,
                                   )
                                 }
                                 detailsHref={`/locations/restaurants/${restaurantId}?from=/create`}
@@ -677,7 +678,7 @@ export default function CreatePage() {
                                 selectLabel={isSelected ? "Selected" : "Select"}
                                 onSelect={() =>
                                   setSelectedActivity(
-                                    selectedActivity?.id === a.id ? null : a
+                                    selectedActivity?.id === a.id ? null : a,
                                   )
                                 }
                                 detailsHref={`/locations/activities/${activityId}?from=/create`}
@@ -838,7 +839,7 @@ function SearchPanel({
         />
       </div>
 
-      <div className="mt-3 flex min-w-0 flex-col gap-1 text-xs font-bold text-white/35 sm:flex-row sm:items-center sm:justify-between sm:gap-3">xl  
+      <div className="mt-3 flex min-w-0 flex-col gap-1 text-xs font-bold text-white/35 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <span className="text-[#e1062a]">AI Suggestions</span>
       </div>
 
@@ -973,6 +974,160 @@ function ResultSection({
   );
 }
 
+function titleCaseTag(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function getDynamicTags({
+  eyebrow,
+  primaryTag,
+  tags,
+  reviewKeywords,
+  reviewSnippet,
+  title,
+}: {
+  eyebrow?: string;
+  primaryTag?: string | null;
+  tags?: string[];
+  reviewKeywords?: string[] | null;
+  reviewSnippet?: string | null;
+  title?: string;
+}) {
+  const sourceText = [
+    eyebrow,
+    primaryTag,
+    ...(tags || []),
+    ...(reviewKeywords || []),
+    reviewSnippet,
+    title,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const dynamicTags: { label: string; tone: string }[] = [];
+
+  const addTag = (label: string, tone: string) => {
+    if (
+      !dynamicTags.some(
+        (tag) => tag.label.toLowerCase() === label.toLowerCase(),
+      )
+    ) {
+      dynamicTags.push({ label, tone });
+    }
+  };
+
+  if (sourceText.includes("birthday") || sourceText.includes("celebration")) {
+    addTag("Birthday", "rose");
+  }
+
+  if (
+    sourceText.includes("romantic") ||
+    sourceText.includes("intimate") ||
+    sourceText.includes("date night") ||
+    sourceText.includes("anniversary") ||
+    sourceText.includes("cozy")
+  ) {
+    addTag("Romantic", "rose");
+  }
+
+  if (
+    sourceText.includes("luxury") ||
+    sourceText.includes("upscale") ||
+    sourceText.includes("fine dining") ||
+    sourceText.includes("elegant") ||
+    sourceText.includes("classy") ||
+    sourceText.includes("premium")
+  ) {
+    addTag("Luxury", "gold");
+  }
+
+  if (
+    sourceText.includes("nightlife") ||
+    sourceText.includes("lounge") ||
+    sourceText.includes("cocktail") ||
+    sourceText.includes("bar") ||
+    sourceText.includes("dj") ||
+    sourceText.includes("music") ||
+    sourceText.includes("club")
+  ) {
+    addTag("Nightlife", "purple");
+  }
+
+  if (
+    sourceText.includes("rooftop") ||
+    sourceText.includes("roof top") ||
+    sourceText.includes("skyline")
+  ) {
+    addTag("Rooftop", "gold");
+  }
+
+  if (sourceText.includes("brunch") || sourceText.includes("breakfast")) {
+    addTag("Brunch", "rose");
+  }
+
+  if (
+    sourceText.includes("restaurant") ||
+    sourceText.includes("dining") ||
+    sourceText.includes("dinner") ||
+    sourceText.includes("food") ||
+    sourceText.includes("seafood") ||
+    sourceText.includes("steak") ||
+    sourceText.includes("italian") ||
+    sourceText.includes("mexican") ||
+    sourceText.includes("sushi") ||
+    sourceText.includes("pizza") ||
+    sourceText.includes("burger")
+  ) {
+    addTag("Full Dining", "rose");
+  }
+
+  if (sourceText.includes("hookah") || sourceText.includes("shisha")) {
+    addTag("Hookah", "purple");
+  }
+
+  if (sourceText.includes("cigar")) {
+    addTag("Cigar Friendly", "gold");
+  }
+
+  if (
+    sourceText.includes("fun") ||
+    sourceText.includes("games") ||
+    sourceText.includes("bowling") ||
+    sourceText.includes("arcade") ||
+    sourceText.includes("karaoke") ||
+    sourceText.includes("comedy")
+  ) {
+    addTag("Fun", "purple");
+  }
+
+  if (dynamicTags.length === 0) {
+    if (primaryTag) addTag(titleCaseTag(primaryTag), "rose");
+    else if (eyebrow) addTag(titleCaseTag(eyebrow), "rose");
+    else addTag("RoseOut Pick", "rose");
+  }
+
+  return dynamicTags.slice(0, 3);
+}
+
+function tagToneClass(tone: string) {
+  if (tone === "gold") {
+    return "border-amber-300/40 bg-amber-300/15 text-amber-100 shadow-amber-500/20";
+  }
+
+  if (tone === "purple") {
+    return "border-fuchsia-400/35 bg-fuchsia-500/15 text-fuchsia-100 shadow-fuchsia-500/20";
+  }
+
+  return "border-[#e1062a]/40 bg-[#e1062a]/20 text-red-50 shadow-red-500/20";
+}
+
 function ResultCard({
   index,
   imageUrl,
@@ -1034,7 +1189,7 @@ function ResultCard({
     : [];
 
   const scoreRing = `conic-gradient(#e1062a ${Math.round(
-    safeScore
+    safeScore,
   )}%, rgba(255,255,255,0.13) 0)`;
 
   const combinedText = [
@@ -1087,11 +1242,14 @@ function ResultCard({
 
   const uniquePremiumBadges = Array.from(new Set(premiumBadges)).slice(0, 5);
 
-  const isLovedByGuests =
-    typeof reviewScore === "number" && reviewScore >= 85 && Boolean(reviewCount);
-
-  const isStrongMatch = safeScore >= 80;
-  const isTopPick = index === 0 && safeScore >= 70;
+  const displayTags = getDynamicTags({
+    eyebrow,
+    primaryTag,
+    tags,
+    reviewKeywords,
+    reviewSnippet,
+    title,
+  });
 
   const whyPicked =
     cleanReviewKeywords.length > 0
@@ -1099,8 +1257,8 @@ function ResultCard({
           .slice(0, 3)
           .join(", ")}.`
       : primaryTag
-      ? `RoseOut matched this for its ${primaryTag.toLowerCase()} vibe.`
-      : "RoseOut matched this based on your outing request, location signals, and overall fit.";
+        ? `RoseOut matched this for its ${primaryTag.toLowerCase()} vibe.`
+        : "RoseOut matched this based on your outing request, location signals, and overall fit.";
 
   const openDetails = () => {
     onBeforeNavigate?.();
@@ -1120,10 +1278,8 @@ function ResultCard({
       onKeyDown={(event) => {
         if (event.key === "Enter") openDetails();
       }}
-      className={`group relative w-full cursor-pointer overflow-hidden rounded-[1.5rem] border bg-[#111] shadow-2xl shadow-black/40 transition duration-500 hover:-translate-y-1 hover:border-[#e1062a]/70 hover:bg-[#151515] hover:shadow-red-500/10 sm:rounded-[2rem] ${
-        selected
-          ? "border-red-500 ring-2 ring-red-500/50"
-          : "border-white/10"
+      className={`group relative flex h-full min-h-[620px] w-full cursor-pointer flex-col overflow-hidden rounded-[1.5rem] border bg-[#111] shadow-2xl shadow-black/40 transition duration-500 hover:-translate-y-1 hover:border-[#e1062a]/70 hover:bg-[#151515] hover:shadow-[0_0_55px_rgba(225,6,42,0.20)] sm:rounded-[2rem] ${
+        selected ? "border-red-500 ring-2 ring-red-500/50" : "border-white/10"
       }`}
       style={{
         animation: `cardReveal 560ms ease-out ${index * 120}ms both`,
@@ -1165,24 +1321,17 @@ function ResultCard({
           </div>
         </div>
 
-        <div className="absolute right-3 top-3 flex max-w-[52%] flex-col items-end gap-2 sm:right-4 sm:top-4 sm:max-w-[58%]">
-          {isTopPick && (
-            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-black shadow-lg sm:px-3 sm:text-xs">
-              Top Pick
+        <div className="absolute right-3 top-3 flex max-w-[58%] flex-wrap justify-end gap-2 sm:right-4 sm:top-4 sm:max-w-[62%]">
+          {displayTags.map((tag) => (
+            <span
+              key={`${tag.label}-${tag.tone}`}
+              className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] shadow-lg backdrop-blur-md transition duration-300 group-hover:scale-105 sm:px-3 sm:text-xs ${tagToneClass(
+                tag.tone,
+              )}`}
+            >
+              {tag.label}
             </span>
-          )}
-
-          {isLovedByGuests && (
-            <span className="rounded-full bg-[#e1062a] px-2.5 py-1 text-[10px] font-black text-white shadow-lg sm:px-3 sm:text-xs">
-              Loved by Guests
-            </span>
-          )}
-
-          {isStrongMatch && (
-            <span className="rounded-full border border-white/20 bg-black/70 px-2.5 py-1 text-[10px] font-black text-white backdrop-blur sm:px-3 sm:text-xs">
-              Strong Match
-            </span>
-          )}
+          ))}
         </div>
 
         {distance !== null && distance !== undefined && (
@@ -1198,7 +1347,7 @@ function ResultCard({
         )}
       </div>
 
-      <div className="p-4 sm:p-5">
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#e1062a] sm:text-xs sm:tracking-[0.22em]">
             {eyebrow}
@@ -1219,12 +1368,12 @@ function ResultCard({
           }}
           className="group/title block"
         >
-          <h3 className="mt-2 break-words text-xl font-black tracking-tight text-white transition duration-200 group-hover/title:text-[#e1062a] sm:text-2xl">
+          <h3 className="mt-2 min-h-[64px] break-words text-xl font-black tracking-tight text-white transition duration-200 group-hover/title:text-[#e1062a] sm:text-2xl">
             {title}
           </h3>
         </Link>
 
-        <p className="mt-3 break-words text-sm leading-6 text-white/50">
+        <p className="mt-3 min-h-[48px] break-words text-sm leading-6 text-white/50">
           {address}
         </p>
 
@@ -1266,7 +1415,7 @@ function ResultCard({
           </div>
         )}
 
-        <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[1.35rem]">
+        <div className="mt-4 min-h-[104px] rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[1.35rem]">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
             Why RoseOut picked this
           </p>
@@ -1294,7 +1443,7 @@ function ResultCard({
           </div>
         ) : null}
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-auto grid gap-3 pt-5 sm:grid-cols-2">
           <button
             type="button"
             onClick={onSelect}
