@@ -98,12 +98,21 @@ export default async function AdminUsersPage() {
               </p>
             </div>
 
-            <Link
-              href="/admin/dashboard"
-              className="rounded-full border border-white/10 bg-white/[0.07] px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
-            >
-              Back to Dashboard
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/admin/users/new"
+                className="rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-rose-950/30 transition hover:scale-[1.03]"
+              >
+                + Add User
+              </Link>
+
+              <Link
+                href="/admin/dashboard"
+                className="rounded-full border border-white/10 bg-white/[0.07] px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                Back to Dashboard
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -154,9 +163,12 @@ export default async function AdminUsersPage() {
               </p>
             </div>
 
-            <div className="rounded-full bg-[#1b1210] px-4 py-2 text-[11px] font-black uppercase tracking-wide text-white">
-              {formatNumber(totalUsers)} Users
-            </div>
+            <Link
+              href="/admin/users/new"
+              className="rounded-full bg-[#1b1210] px-4 py-2 text-[11px] font-black uppercase tracking-wide text-white transition hover:bg-rose-600"
+            >
+              + Add User
+            </Link>
           </div>
 
           {!safeUsers.length ? (
@@ -168,6 +180,13 @@ export default async function AdminUsersPage() {
               <p className="mt-1 text-sm text-black/50">
                 New users will appear here after signup.
               </p>
+
+              <Link
+                href="/admin/users/new"
+                className="mt-5 inline-flex rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:scale-[1.03]"
+              >
+                + Add First User
+              </Link>
             </div>
           ) : (
             <div className="space-y-3 p-4">
