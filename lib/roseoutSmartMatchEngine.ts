@@ -64,7 +64,6 @@ export const FOOD_INTENTS: Record<string, string[]> = {
   brunch: ["brunch", "bottomless brunch"],
   breakfast: ["breakfast", "eggs", "pancakes", "waffles"],
   lunch: ["lunch"],
-  dinner: ["dinner"],
   late_night_food: ["late night food", "open late", "24 hours"],
   drinks: ["drinks", "cocktail", "cocktails", "bar", "lounge"],
   wine_bar: ["wine bar", "wine tasting"],
@@ -83,7 +82,6 @@ export const FOOD_INTENTS: Record<string, string[]> = {
   dessert: ["dessert", "sweets", "cake", "bakery"],
   ice_cream: ["ice cream", "gelato"],
   coffee: ["coffee", "cafe", "espresso", "latte"],
-  tea: ["tea", "tea house"],
   hibachi: ["hibachi", "teppanyaki"],
   buffet: ["buffet", "all you can eat", "all-you-can-eat"],
   hot_pot: ["hot pot"],
@@ -103,7 +101,17 @@ export const ACTIVITY_INTENTS: Record<string, string[]> = {
   pool: ["pool", "billiards", "pool hall"],
   hookah: ["hookah", "hookah lounge", "shisha", "hookah bar"],
   cigar: ["cigar", "cigar lounge", "cigar bar", "smoke lounge"],
-  park: ["park", "outdoor", "picnic", "walk", "nature", "garden", "waterfront", "riverwalk", "scenic"],
+  park: [
+    "park",
+    "outdoor",
+    "picnic",
+    "walk",
+    "nature",
+    "garden",
+    "waterfront",
+    "riverwalk",
+    "scenic",
+  ],
   rooftop: ["rooftop", "rooftop bar", "rooftop lounge"],
   boat: ["boat", "yacht", "cruise", "ferry"],
   movie: ["movie", "cinema", "theater"],
@@ -116,13 +124,30 @@ export const ACTIVITY_INTENTS: Record<string, string[]> = {
 };
 
 export const VIBE_INTENTS: Record<string, string[]> = {
-  romantic: ["romantic", "date night", "anniversary", "intimate", "candlelight", "love", "couples"],
+  romantic: [
+    "romantic",
+    "date night",
+    "anniversary",
+    "intimate",
+    "candlelight",
+    "love",
+    "couples",
+  ],
   first_date: ["first date", "casual date", "get to know"],
   double_date: ["double date", "with another couple"],
   birthday: ["birthday", "celebrate", "celebration", "party", "turning"],
   anniversary: ["anniversary", "special occasion"],
   group_fun: ["group", "friends", "with friends", "crew"],
-  luxury: ["luxury", "upscale", "fine dining", "elegant", "classy", "high end", "premium", "vip"],
+  luxury: [
+    "luxury",
+    "upscale",
+    "fine dining",
+    "elegant",
+    "classy",
+    "high end",
+    "premium",
+    "vip",
+  ],
   boujee: ["boujee", "fancy", "instagram", "aesthetic", "vibes", "trendy"],
   fun: ["fun", "exciting", "games", "interactive", "energetic"],
   chill: ["chill", "relaxed", "quiet", "low key", "low-key", "laid back"],
@@ -138,38 +163,139 @@ export const VIBE_INTENTS: Record<string, string[]> = {
   long_dinner: ["long dinner", "sit down", "slow dinner", "full experience"],
   business: ["business", "meeting", "client", "professional"],
   solo: ["solo", "alone", "by myself"],
-  adventurous: ["adventurous", "something different", "unique", "new experience"],
+  adventurous: [
+    "adventurous",
+    "something different",
+    "unique",
+    "new experience",
+  ],
   cheap: ["cheap", "budget", "affordable", "low cost"],
 };
 
 export const LOCATION_INTENTS: string[] = [
-  "nyc", "new york", "new york city",
-  "manhattan", "brooklyn", "queens", "bronx", "staten island",
-  "soho", "tribeca", "chelsea", "midtown", "midtown east", "midtown west",
-  "upper east side", "upper west side", "harlem", "east harlem", "west village",
-  "greenwich village", "financial district", "fidi", "lower east side", "les",
-  "nolita", "flatiron", "gramercy", "kips bay", "murray hill",
-  "hells kitchen", "hudson yards", "washington heights", "inwood", "alphabet city",
-  "williamsburg", "bushwick", "dumbo", "downtown brooklyn", "brooklyn heights",
-  "park slope", "prospect heights", "bed stuy", "bedford stuyvesant",
-  "crown heights", "greenpoint", "fort greene", "clinton hill", "red hook",
-  "sunset park", "bay ridge", "flatbush", "east flatbush", "canarsie",
-  "sheepshead bay", "brighton beach", "coney island",
-  "astoria", "long island city", "lic", "flushing", "jamaica", "forest hills",
-  "rego park", "jackson heights", "elmhurst", "woodside", "ridgewood",
-  "ozone park", "richmond hill", "south ozone park", "far rockaway",
-  "rockaway", "bayside", "whitestone",
-  "south bronx", "fordham", "riverdale", "kingsbridge", "bronx zoo", "pelham bay",
-  "st george", "tottenville", "great kills",
-  "yonkers", "mount vernon", "new rochelle", "white plains", "scarsdale",
-  "tarrytown", "elmsford", "ossining", "peekskill",
-  "long island", "nassau county", "suffolk county", "hempstead", "garden city",
-  "mineola", "freeport", "long beach", "hicksville", "westbury", "massapequa",
-  "babylon", "deer park", "ronkonkoma", "patchogue", "island park",
-  "jersey city", "hoboken", "newark", "edgewater", "fort lee", "union city",
-  "weehawken", "secaucus", "hackensack", "paramus",
-  "laguardia", "jfk",
+  "nyc",
+  "new york",
+  "new york city",
+  "manhattan",
+  "brooklyn",
+  "queens",
+  "bronx",
+  "staten island",
+  "soho",
+  "tribeca",
+  "chelsea",
+  "midtown",
+  "midtown east",
+  "midtown west",
+  "upper east side",
+  "upper west side",
+  "harlem",
+  "east harlem",
+  "west village",
+  "greenwich village",
+  "financial district",
+  "fidi",
+  "lower east side",
+  "les",
+  "nolita",
+  "flatiron",
+  "gramercy",
+  "kips bay",
+  "murray hill",
+  "hells kitchen",
+  "hudson yards",
+  "washington heights",
+  "inwood",
+  "alphabet city",
+  "williamsburg",
+  "bushwick",
+  "dumbo",
+  "downtown brooklyn",
+  "brooklyn heights",
+  "park slope",
+  "prospect heights",
+  "bed stuy",
+  "bedford stuyvesant",
+  "crown heights",
+  "greenpoint",
+  "fort greene",
+  "clinton hill",
+  "red hook",
+  "sunset park",
+  "bay ridge",
+  "flatbush",
+  "east flatbush",
+  "canarsie",
+  "sheepshead bay",
+  "brighton beach",
+  "coney island",
+  "astoria",
+  "long island city",
+  "lic",
+  "flushing",
+  "jamaica",
+  "forest hills",
+  "rego park",
+  "jackson heights",
+  "elmhurst",
+  "woodside",
+  "ridgewood",
+  "ozone park",
+  "richmond hill",
+  "south ozone park",
+  "far rockaway",
+  "rockaway",
+  "bayside",
+  "whitestone",
+  "south bronx",
+  "fordham",
+  "riverdale",
+  "kingsbridge",
+  "bronx zoo",
+  "pelham bay",
+  "st george",
+  "tottenville",
+  "great kills",
+  "yonkers",
+  "mount vernon",
+  "new rochelle",
+  "white plains",
+  "scarsdale",
+  "tarrytown",
+  "elmsford",
+  "ossining",
+  "peekskill",
+  "long island",
+  "nassau county",
+  "suffolk county",
+  "hempstead",
+  "garden city",
+  "mineola",
+  "freeport",
+  "long beach",
+  "hicksville",
+  "westbury",
+  "massapequa",
+  "babylon",
+  "deer park",
+  "ronkonkoma",
+  "patchogue",
+  "island park",
+  "jersey city",
+  "hoboken",
+  "newark",
+  "edgewater",
+  "fort lee",
+  "union city",
+  "weehawken",
+  "secaucus",
+  "hackensack",
+  "paramus",
+  "laguardia",
+  "jfk",
 ];
+
+const MEAL_WORDS = ["dinner", "lunch", "brunch", "breakfast", "food", "eat"];
 
 function normalize(input: string) {
   return input
@@ -179,14 +305,31 @@ function normalize(input: string) {
     .replace(/\s+/g, " ");
 }
 
+function phraseIncludes(text: string, phrase: string) {
+  const cleanText = normalize(text);
+  const cleanPhrase = normalize(phrase);
+
+  if (!cleanText || !cleanPhrase) return false;
+
+  if (cleanPhrase.length <= 3) {
+    return new RegExp(`\\b${cleanPhrase}\\b`).test(cleanText);
+  }
+
+  return cleanText.includes(cleanPhrase);
+}
+
 function detectFromMap(input: string, map: Record<string, string[]>) {
   const text = normalize(input);
 
-  return Object.entries(map)
-    .filter(([, keywords]) =>
-      keywords.some((word) => text.includes(word.toLowerCase()))
+  return Array.from(
+    new Set(
+      Object.entries(map)
+        .filter(([, keywords]) =>
+          keywords.some((word) => phraseIncludes(text, word))
+        )
+        .map(([key]) => key)
     )
-    .map(([key]) => key);
+  );
 }
 
 function normalizeLocation(location: string) {
@@ -203,28 +346,29 @@ export function detectSmartMatchIntent(input: string): SmartMatchIntent {
   const activityIntents = detectFromMap(text, ACTIVITY_INTENTS);
   const vibes = detectFromMap(text, VIBE_INTENTS);
 
-  const locations = LOCATION_INTENTS.filter((location) =>
-    text.includes(location)
-  ).map(normalizeLocation);
+  const locations = Array.from(
+    new Set(
+      LOCATION_INTENTS.filter((location) => phraseIncludes(text, location)).map(
+        normalizeLocation
+      )
+    )
+  );
 
   const wantsFood =
-    foodIntents.length > 0 ||
-    ["food", "eat", "restaurant", "restaurants", "dinner", "lunch", "brunch", "breakfast"].some((word) =>
-      text.includes(word)
-    );
+    foodIntents.length > 0 || MEAL_WORDS.some((word) => phraseIncludes(text, word));
 
   const wantsActivity =
     activityIntents.length > 0 ||
-    ["activity", "activities", "things to do", "date idea", "date ideas", "outing"].some((word) =>
-      text.includes(word)
+    ["activity", "activities", "things to do", "date idea", "date ideas", "outing"].some(
+      (word) => phraseIncludes(text, word)
     );
 
   const wantsFullOuting =
-    text.includes("with") ||
-    text.includes("and") ||
+    phraseIncludes(text, "with") ||
+    phraseIncludes(text, "and") ||
     text.includes("+") ||
-    text.includes("date night") ||
-    text.includes("outing") ||
+    phraseIncludes(text, "date night") ||
+    phraseIncludes(text, "outing") ||
     (wantsFood && wantsActivity);
 
   return {
@@ -276,28 +420,35 @@ function matchesIntent(
 
   return intentKeys.some((key) => {
     const keywords = intentMap[key] || [];
-    return keywords.some((word) => text.includes(word.toLowerCase()));
+    return keywords.some((word) => phraseIncludes(text, word));
   });
 }
 
-export function matchesFoodIntent(item: SmartMatchItem, intent: SmartMatchIntent) {
+export function matchesFoodIntent(
+  item: SmartMatchItem,
+  intent: SmartMatchIntent
+) {
   if (!intent.strictFoodMode) return true;
   return matchesIntent(item, intent.foodIntents, FOOD_INTENTS);
 }
 
-export function matchesActivityIntent(item: SmartMatchItem, intent: SmartMatchIntent) {
+export function matchesActivityIntent(
+  item: SmartMatchItem,
+  intent: SmartMatchIntent
+) {
   if (!intent.strictActivityMode) return true;
   return matchesIntent(item, intent.activityIntents, ACTIVITY_INTENTS);
 }
 
-export function matchesLocationIntent(item: SmartMatchItem, intent: SmartMatchIntent) {
+export function matchesLocationIntent(
+  item: SmartMatchItem,
+  intent: SmartMatchIntent
+) {
   if (!intent.locations.length) return true;
 
   const text = getSearchText(item);
 
-  return intent.locations.some((location) =>
-    text.includes(location.toLowerCase())
-  );
+  return intent.locations.some((location) => phraseIncludes(text, location));
 }
 
 export function scoreRestaurant(
@@ -312,7 +463,7 @@ export function scoreRestaurant(
 
   for (const vibe of intent.vibes) {
     const vibeWords = VIBE_INTENTS[vibe] || [];
-    if (vibeWords.some((word) => text.includes(word.toLowerCase()))) {
+    if (vibeWords.some((word) => phraseIncludes(text, word))) {
       score += 12;
     }
   }
@@ -325,10 +476,10 @@ export function scoreRestaurant(
 
   if (intent.vibes.includes("romantic")) {
     if (
-      text.includes("romantic") ||
-      text.includes("intimate") ||
-      text.includes("candle") ||
-      text.includes("date")
+      phraseIncludes(text, "romantic") ||
+      phraseIncludes(text, "intimate") ||
+      phraseIncludes(text, "candle") ||
+      phraseIncludes(text, "date")
     ) {
       score += 12;
     }
@@ -336,10 +487,10 @@ export function scoreRestaurant(
 
   if (intent.vibes.includes("birthday") || intent.vibes.includes("group_fun")) {
     if (
-      text.includes("group") ||
-      text.includes("celebration") ||
-      text.includes("birthday") ||
-      text.includes("large party")
+      phraseIncludes(text, "group") ||
+      phraseIncludes(text, "celebration") ||
+      phraseIncludes(text, "birthday") ||
+      phraseIncludes(text, "large party")
     ) {
       score += 10;
     }
@@ -365,18 +516,18 @@ export function scoreActivity(
 
   for (const vibe of intent.vibes) {
     const vibeWords = VIBE_INTENTS[vibe] || [];
-    if (vibeWords.some((word) => text.includes(word.toLowerCase()))) {
+    if (vibeWords.some((word) => phraseIncludes(text, word))) {
       score += 12;
     }
   }
 
   if (intent.vibes.includes("fun")) {
     if (
-      text.includes("games") ||
-      text.includes("bowling") ||
-      text.includes("karaoke") ||
-      text.includes("arcade") ||
-      text.includes("interactive")
+      phraseIncludes(text, "games") ||
+      phraseIncludes(text, "bowling") ||
+      phraseIncludes(text, "karaoke") ||
+      phraseIncludes(text, "arcade") ||
+      phraseIncludes(text, "interactive")
     ) {
       score += 14;
     }
@@ -384,10 +535,10 @@ export function scoreActivity(
 
   if (intent.vibes.includes("chill") || intent.vibes.includes("cozy")) {
     if (
-      text.includes("park") ||
-      text.includes("lounge") ||
-      text.includes("cafe") ||
-      text.includes("walk")
+      phraseIncludes(text, "park") ||
+      phraseIncludes(text, "lounge") ||
+      phraseIncludes(text, "cafe") ||
+      phraseIncludes(text, "walk")
     ) {
       score += 10;
     }
@@ -395,11 +546,11 @@ export function scoreActivity(
 
   if (intent.vibes.includes("nightlife")) {
     if (
-      text.includes("hookah") ||
-      text.includes("cigar") ||
-      text.includes("lounge") ||
-      text.includes("club") ||
-      text.includes("bar")
+      phraseIncludes(text, "hookah") ||
+      phraseIncludes(text, "cigar") ||
+      phraseIncludes(text, "lounge") ||
+      phraseIncludes(text, "club") ||
+      phraseIncludes(text, "bar")
     ) {
       score += 14;
     }
@@ -449,9 +600,14 @@ export function balanceSmartMatches(
   const smartRestaurants = filterSmartRestaurants(restaurants, intent);
   const smartActivities = filterSmartActivities(activities, intent);
 
+  const finalRestaurants =
+    smartRestaurants.length > 0 ? smartRestaurants : restaurants;
+
+  const finalActivities = smartActivities.length > 0 ? smartActivities : activities;
+
   if (intent.wantsFood && !intent.wantsActivity) {
     return {
-      restaurants: smartRestaurants.slice(0, 6),
+      restaurants: finalRestaurants.slice(0, 6),
       activities: [],
       mode: "food_only",
     };
@@ -460,18 +616,18 @@ export function balanceSmartMatches(
   if (!intent.wantsFood && intent.wantsActivity) {
     return {
       restaurants: [],
-      activities: smartActivities.slice(0, 6),
+      activities: finalActivities.slice(0, 6),
       mode: "activity_only",
     };
   }
 
   return {
-    restaurants: smartRestaurants.slice(0, 3),
-    activities: smartActivities.slice(0, 3),
+    restaurants: finalRestaurants.slice(0, 3),
+    activities: finalActivities.slice(0, 3),
     mode: "full_outing",
   };
 }
 
 export function getSmartMatchVersion() {
-  return "roseout-smart-match-engine-v1";
+  return "roseout-smart-match-engine-v2";
 }
