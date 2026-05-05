@@ -497,7 +497,7 @@ export default function CreatePage() {
                 <div className="relative min-w-0 flex-1">
                   {!input && (
                     <div className="pointer-events-none absolute left-5 right-5 top-4 z-10 text-sm font-bold leading-6 text-white/35 sm:top-1/2 sm:-translate-y-1/2 sm:truncate">
-                      Ask for a different vibe, budget, borough, or activity...
+                      Ask for a different vibe, budget, location, or activity...
                     </div>
                   )}
 
@@ -838,10 +838,7 @@ function SearchPanel({
         />
       </div>
 
-      <div className="mt-3 flex min-w-0 flex-col gap-1 text-xs font-bold text-white/35 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <span className="break-words">
-          Try: restaurant, activity, budget, borough, vibe.
-        </span>
+      <div className="mt-3 flex min-w-0 flex-col gap-1 text-xs font-bold text-white/35 sm:flex-row sm:items-center sm:justify-between sm:gap-3">xl  
         <span className="text-[#e1062a]">AI Suggestions</span>
       </div>
 
