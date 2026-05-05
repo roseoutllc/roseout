@@ -376,7 +376,7 @@ export default function CreatePage() {
 
           <form
             onSubmit={handleSubmit}
-            className="flex h-full min-h-[310px] flex-col justify-between rounded-[1.35rem] border border-white/10 bg-[#111]/90 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-5"
+            className="flex h-full min-h-[390px] flex-col justify-between rounded-[1.35rem] border border-white/10 bg-[#111]/90 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-5 lg:min-h-[430px]"
           >
             <div>
               <div className="mb-3 flex items-center justify-between gap-3">
@@ -406,8 +406,7 @@ export default function CreatePage() {
                   typedPlaceholder
                     ? `${typedPlaceholder}|`
                     : "Tell RoseOut what you want..."
-                }
-                className="min-h-[185px] w-full resize-none rounded-3xl border border-white/10 bg-black px-5 py-5 text-lg font-black leading-8 text-white outline-none transition placeholder:text-white/28 focus:border-[#e1062a]/60 sm:text-xl"
+                }className="min-h-[260px] w-full resize-none rounded-3xl border border-white/10 bg-black px-5 py-5 text-lg font-black leading-8 text-white outline-none transition placeholder:text-white/28 focus:border-[#e1062a]/60 sm:text-xl lg:min-h-[300px]"
               />
             </div>
 
@@ -418,7 +417,7 @@ export default function CreatePage() {
                   disabled={loading || !input.trim()}
                   className="rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-red-950/40 transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {loading ? "Finding Matches..." : "Build My Night"}
+                  {loading ? "Finding Matches..." : "Build My Outing"}
                 </button>
 
                 <button
