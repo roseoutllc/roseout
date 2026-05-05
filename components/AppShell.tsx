@@ -10,15 +10,13 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
 
-  const hideGlobalHeader =
+  const isAdmin =
     pathname?.startsWith("/admin") ||
-    pathname?.startsWith("/reserve/dashboard") ||
-    pathname?.startsWith("/restaurants/dashboard") ||
-    pathname?.startsWith("/locations/dashboard");
+    pathname?.startsWith("/reserve/dashboard");
 
   return (
     <>
-      {!hideGlobalHeader && <RoseOutHeader />}
+      {!isAdmin && <RoseOutHeader />}
       {children}
     </>
   );
