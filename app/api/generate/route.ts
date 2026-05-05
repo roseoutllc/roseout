@@ -340,11 +340,11 @@ function detectLocation(input: string, locations: any[]) {
       .filter(Boolean)
       .map((value) => normalizeQuery(String(value)));
 
-    fields.forEach((field) => {
-      if (field.length > 1 && text.includes(field)) {
-        found.add(field);
-      }
-    });
+   fields.forEach((field) => {
+  if (field.length >= 3 && text.includes(field)) {
+    found.add(field);
+  }
+});
   });
 
   const hardcodedLocations = [
@@ -1337,7 +1337,32 @@ function pairSmartMatches(restaurants: any[], activities: any[]) {
     )
     .sort((a, b) => b.pair_score - a.pair_score);
 
-  const bestPairs = pairs.slice(0, 3);
+  const usedRestaurantIds = new Set<string>();
+const usedActivityIds = new Set<string>();
+
+const bestPairs = pairs
+  .filter((pair) => {
+    const restaurantId = String(
+      pair.restaurant.id || pair.restaurant.restaurant_name || ""
+    );
+
+    const activityId = String(
+      pair.activity.id || pair.activity.activity_name || ""
+    );
+
+    if (
+      usedRestaurantIds.has(restaurantId) ||
+      usedActivityIds.has(activityId)
+    ) {
+      return false;
+    }
+
+    usedRestaurantIds.add(restaurantId);
+    usedActivityIds.add(activityId);
+
+    return true;
+  })
+  .slice(0, 3);
 
   return {
     restaurants: bestPairs.map((pair) => ({
