@@ -1,4 +1,4 @@
-import AdminTopBar from "../../components/AdminTopBar";
+import AdminTopBar from "../components/AdminTopBar";
 
 export default function AdminLayout({
   children,
