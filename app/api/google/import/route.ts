@@ -1871,6 +1871,8 @@ STRICT RULES:
         activity_type:
           item.activity_type || item.category || item.subcategory || null,
         website: item.website,
+        phone: item.phone || null,
+google_maps_url: item.google_maps_url || null,
         image_url: item.image_url || null,
         reservation_url: item.reservation_url || item.booking_url || null,
         location_name_match_score: item.location_name_match_score,

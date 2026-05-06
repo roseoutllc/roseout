@@ -1479,11 +1479,11 @@ export async function POST(req: Request) {
     const locations = mergedLocations.map(normalizeLocation);
     const intent = detectIntent(input, body, locations);
 
-    const cacheKey = normalizeQuery(
-      `roseout-${getSmartMatchVersion()}-${input}-${intent.userLat || ""}-${
-        intent.userLng || ""
-      }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
-    );
+   const cacheKey = normalizeQuery(
+  `roseout-${getSmartMatchVersion()}-contact-v1-${input}-${intent.userLat || ""}-${
+    intent.userLng || ""
+  }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
+);
 
     const { data: cached } = await supabase
       .from("ai_response_cache")
