@@ -222,7 +222,7 @@ export default function AdminTopBar() {
           {canViewLocations && (
             <button
               type="button"
-              onClick={() => goTo("/admin/locations")}
+              onClick={() => goTo("/admin/dashboard/locations")}
               className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
               Locations
@@ -232,7 +232,7 @@ export default function AdminTopBar() {
           {canViewUsers && (
             <button
               type="button"
-              onClick={() => goTo("/admin/users")}
+              onClick={() => goTo("/admin/dashboard/users")}
               className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
               Users
@@ -242,7 +242,7 @@ export default function AdminTopBar() {
           {canViewClaims && (
             <button
               type="button"
-              onClick={() => goTo("/admin/claims")}
+              onClick={() => goTo("/admin/dashboard/claims")}
               className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
               Claims
@@ -305,14 +305,14 @@ export default function AdminTopBar() {
                 )}
 
                 {canViewLocations && (
-                  <MenuButton onClick={() => goTo("/admin/locations")}>
+                  <MenuButton onClick={() => goTo("/admin/dashboard/locations")}>
                     Locations
                   </MenuButton>
                 )}
 
                 {canViewUsers && (
                   <>
-                    <MenuButton onClick={() => goTo("/admin/users")}>
+                    <MenuButton onClick={() => goTo("/admin/dashboard/users")}>
                       Users Dashboard
                     </MenuButton>
 
@@ -421,7 +421,7 @@ export default function AdminTopBar() {
                 )}
 
                 {canViewClaims && (
-                  <MenuButton onClick={() => goTo("/admin/claims")}>
+                  <MenuButton onClick={() => goTo("/admin/dashboard/claims")}>
                     Claims
                   </MenuButton>
                 )}

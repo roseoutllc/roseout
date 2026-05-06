@@ -63,7 +63,7 @@ export default function LoginPage() {
         superuser: "/admin",
         admin: "/admin",
         editor: "/admin/restaurants",
-        reviewer: "/admin/claims",
+        reviewer: "/admin/dashboard/claims",
         viewer: "/admin/import-history",
       };
 
