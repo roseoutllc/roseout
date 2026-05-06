@@ -57,6 +57,13 @@ export default async function CentralDashboardPage() {
       cta: "Test flow",
     },
     {
+      eyebrow: "Support",
+      title: "Tickets",
+      text: "Submit, reply to, and view support tickets from the admin inbox.",
+      href: "/admin/support",
+      cta: "Open support",
+    },
+    {
       eyebrow: "Claims",
       title: "Claim Review",
       text: "Review business claims and connect owners to their locations.",
@@ -107,6 +114,13 @@ export default async function CentralDashboardPage() {
                   className="rounded-full border border-white/10 bg-white/[0.07] px-6 py-3 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                 >
                   Test Customer Flow
+                </Link>
+
+                <Link
+                  href="/admin/support"
+                  className="rounded-full border border-white/10 bg-white/[0.07] px-6 py-3 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+                >
+                  Support Tickets
                 </Link>
               </div>
             </div>
@@ -292,6 +306,17 @@ export default async function CentralDashboardPage() {
                 <p className="font-black">Customer Experience</p>
                 <p className="mt-1 text-xs leading-5 text-white/45">
                   Test search results, plan cards, and the Reserve button flow.
+                </p>
+              </Link>
+
+              <Link
+                href="/admin/support"
+                className="block rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-4 transition hover:bg-white/[0.1]"
+              >
+                <p className="font-black">Support Ticket System</p>
+                <p className="mt-1 text-xs leading-5 text-white/45">
+                  Submit support requests and manage customer replies from the
+                  admin ticket inbox.
                 </p>
               </Link>
             </div>
