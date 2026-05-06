@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
@@ -186,6 +187,14 @@ export default function AdminTopBar() {
 
   const canViewUsers = ["superuser", "admin"].includes(role || "");
 
+  const canViewSupport = [
+    "superuser",
+    "admin",
+    "editor",
+    "viewer",
+    "reviewer",
+  ].includes(role || "");
+
   return (
     <header className="sticky top-0 z-[100] border-b border-white/10 bg-[#090706]/95 text-white shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
       <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
@@ -247,6 +256,15 @@ export default function AdminTopBar() {
             >
               Claims
             </button>
+          )}
+
+          {canViewSupport && (
+            <Link
+              href="/contact"
+              className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
+            >
+              Support System
+            </Link>
           )}
         </div>
 
@@ -426,6 +444,18 @@ export default function AdminTopBar() {
                   </MenuButton>
                 )}
 
+                {canViewSupport && (
+                  <MenuLink
+                    href="/contact"
+                    onClick={() => {
+                      setOpen(false);
+                      setShowUserSearch(false);
+                    }}
+                  >
+                    Support System
+                  </MenuLink>
+                )}
+
                 {canViewAnalytics && (
                   <MenuButton onClick={() => goTo("/admin/live-sessions")}>
                     Live Sessions
@@ -477,5 +507,25 @@ function MenuButton({
     >
       {children}
     </button>
+  );
+}
+
+function MenuLink({
+  children,
+  href,
+  onClick,
+}: {
+  children: React.ReactNode;
+  href: string;
+  onClick: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-bold text-white/75 transition hover:bg-white/10 hover:text-white"
+    >
+      {children}
+    </Link>
   );
 }
