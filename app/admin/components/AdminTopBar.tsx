@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 
@@ -169,11 +170,7 @@ export default function AdminTopBar() {
     role || ""
   );
 
-  const canViewRestaurants = ["superuser", "admin", "editor", "viewer"].includes(
-    role || ""
-  );
-
-  const canViewActivities = ["superuser", "admin", "editor", "viewer"].includes(
+  const canViewLocations = ["superuser", "admin", "editor", "viewer"].includes(
     role || ""
   );
 
@@ -222,23 +219,13 @@ export default function AdminTopBar() {
             </button>
           )}
 
-          {canViewRestaurants && (
+          {canViewLocations && (
             <button
               type="button"
-              onClick={() => goTo("/admin/restaurants")}
+              onClick={() => goTo("/admin/locations")}
               className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
-              Restaurants
-            </button>
-          )}
-
-          {canViewActivities && (
-            <button
-              type="button"
-              onClick={() => goTo("/admin/activities")}
-              className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
-            >
-              Activities
+              Locations
             </button>
           )}
 
@@ -286,7 +273,7 @@ export default function AdminTopBar() {
           </button>
 
           {open && (
-            <div className="absolute right-0 z-[9999] mt-4 w-96 overflow-hidden rounded-[2rem] border border-white/10 bg-[#12090d] text-white shadow-2xl shadow-black/70">
+            <div className="absolute right-0 z-[9999] mt-4 w-[calc(100vw-2rem)] max-w-96 overflow-hidden rounded-[2rem] border border-white/10 bg-[#12090d] text-white shadow-2xl shadow-black/70">
               <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-rose-500/25 via-fuchsia-500/15 to-black px-5 py-5">
                 <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-rose-500/20 blur-3xl" />
 
@@ -317,15 +304,9 @@ export default function AdminTopBar() {
                   </MenuButton>
                 )}
 
-                {canViewRestaurants && (
-                  <MenuButton onClick={() => goTo("/admin/restaurants")}>
-                    Restaurants
-                  </MenuButton>
-                )}
-
-                {canViewActivities && (
-                  <MenuButton onClick={() => goTo("/admin/activities")}>
-                    Activities
+                {canViewLocations && (
+                  <MenuButton onClick={() => goTo("/admin/locations")}>
+                    Locations
                   </MenuButton>
                 )}
 
