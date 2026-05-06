@@ -1,4 +1,11 @@
 import Link from "next/link";
+import { createPageMetadata } from "@/lib/seo";
+
+export const metadata = createPageMetadata({
+  title: "Reserve Tables & Manage Bookings",
+  description: "RoseOut Reserve helps restaurants and venues capture bookings, confirm guests, and manage reservations alongside RoseOut discovery demand.",
+  path: "/reserve",
+});
 
 export default function ReserveLandingPage() {
   return (

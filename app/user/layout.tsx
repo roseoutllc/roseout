@@ -1,5 +1,14 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
+
+export const metadata: Metadata = {
+  title: "RoseOut Account",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function UserLayout({
   children,
