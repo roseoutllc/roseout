@@ -36,23 +36,8 @@ function getGoogleKey() {
 
 function getBearerToken(request: NextRequest) {
   const auth = request.headers.get("authorization") || "";
-
   if (!auth.toLowerCase().startsWith("bearer ")) return null;
-
   return auth.slice(7).trim();
-}
-
-async function logImportRun(result: any, errorMessage?: string) {
-  try {
-    await supabaseAdmin.from("import_logs").insert({
-      job_name: "google_details_backfill",
-      run_date: new Date().toISOString().split("T")[0],
-      meta: result || {},
-      error: errorMessage || null,
-    });
-  } catch (err) {
-    console.error("Backfill logging failed:", err);
-  }
 }
 
 function isAuthorized(request: NextRequest) {
@@ -72,6 +57,19 @@ function isAuthorized(request: NextRequest) {
   return false;
 }
 
+async function logImportRun(result: any, errorMessage?: string) {
+  try {
+    await supabaseAdmin.from("import_logs").insert({
+      job_name: "google_details_backfill",
+      run_date: new Date().toISOString().split("T")[0],
+      meta: result || {},
+      error: errorMessage || null,
+    });
+  } catch (err) {
+    console.error("Backfill logging failed:", err);
+  }
+}
+
 function shouldSkipLowQualityExisting(
   item: any,
   minRating: number,
@@ -80,8 +78,6 @@ function shouldSkipLowQualityExisting(
   const rating = Number(item.rating || 0);
   const reviewCount = Number(item.review_count || 0);
 
-  // If the listing has no rating/review count yet, do not skip it.
-  // Google Details may return those values and allow us to decide after fetch.
   if (!rating || !reviewCount) return false;
 
   return rating < minRating || reviewCount < minReviews;
@@ -200,7 +196,9 @@ async function backfillTable(
       if (details.review_count !== null) {
         updatePayload.review_count = details.review_count;
       }
-      if (details.rating !== null) updatePayload.rating = details.rating;
+      if (details.rating !== null) {
+        updatePayload.rating = details.rating;
+      }
       if (details.price_level !== null) {
         updatePayload.price_level = details.price_level;
       }
@@ -237,11 +235,7 @@ async function backfillTable(
   };
 }
 
-export async function GET(request: NextRequest) {
-  return POST(request);
-}
-
-export async function POST(request: NextRequest) {
+async function runBackfill(request: NextRequest) {
   let responsePayload: any = null;
 
   try {
@@ -249,16 +243,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json().catch(() => ({}));
+    let body: any = {};
+
+    if (request.method !== "GET") {
+      body = await request.json().catch(() => ({}));
+    }
+
     const searchParams = request.nextUrl.searchParams;
 
     const limit = Math.min(
       Number(body.limit || searchParams.get("limit") || 25),
       100
     );
+
     const minRating = Number(
       body.minRating || searchParams.get("minRating") || 4.2
     );
+
     const minReviews = Number(
       body.minReviews || searchParams.get("minReviews") || 75
     );
@@ -269,6 +270,7 @@ export async function POST(request: NextRequest) {
       minRating,
       minReviews
     );
+
     const activities = await backfillTable(
       "activities",
       limit,
@@ -301,4 +303,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(responsePayload, { status: 500 });
   }
+}
+
+export async function GET(request: NextRequest) {
+  return runBackfill(request);
+}
+
+export async function POST(request: NextRequest) {
+  return runBackfill(request);
 }
