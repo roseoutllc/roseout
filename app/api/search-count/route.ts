@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getLiveOutingsPlanned } from "@/lib/outingsCount";
 
 export const dynamic = "force-dynamic";
 
@@ -12,5 +13,5 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ count: count || 0 });
+  return NextResponse.json({ count: getLiveOutingsPlanned(count) });
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import LiveSearchCount from "@/components/LiveSearchCount";
 import RoseOutHeader from "@/components/RoseOutHeader";
+import { getLiveOutingsPlanned } from "@/lib/outingsCount";
 
 export const dynamic = "force-dynamic";
 
@@ -155,7 +156,9 @@ export default async function HomePage() {
                 ))}
               </div>
 
-              <LiveSearchCount initialCount={searchCount || 0} />
+              <LiveSearchCount
+                initialCount={getLiveOutingsPlanned(searchCount)}
+              />
             </div>
           </div>
 

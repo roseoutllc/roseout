@@ -51,8 +51,8 @@ export default function LiveSearchCount({
 
   return (
     <p className="text-sm font-semibold text-white/50" aria-live="polite">
-      <span className="font-black text-white">{formattedCount}</span> outings
-      planned from live searches
+      <span className="font-black text-white">{formattedCount}+</span> outings
+      planned
     </p>
   );
 }
