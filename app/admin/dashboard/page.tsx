@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AdminMessagingCenter from "./AdminMessagingCenter";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { supabase } from "@/lib/supabase";
 
@@ -55,6 +56,13 @@ export default async function CentralDashboardPage() {
       text: "Test how customers search, discover, and select outing plans.",
       href: "/create",
       cta: "Test flow",
+    },
+    {
+      eyebrow: "Messaging",
+      title: "Email + Text",
+      text: "Search users or locations, choose saved copy, and send admin outreach.",
+      href: "#admin-messaging",
+      cta: "Open messaging",
     },
     {
       eyebrow: "Claims",
@@ -216,6 +224,8 @@ export default async function CentralDashboardPage() {
             </p>
           </Link>
         </section>
+
+        <AdminMessagingCenter />
 
         <section className="mt-5 grid gap-5 lg:grid-cols-[1fr_420px]">
           <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#f8f3ef] text-[#1b1210] shadow-2xl">
