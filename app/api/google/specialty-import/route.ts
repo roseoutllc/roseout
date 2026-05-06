@@ -464,7 +464,6 @@ async function upsertSpecialtyActivity(place: any, query: string) {
 
   const row = {
     activity_name: merged.name,
-    name: merged.name,
     address: addressParts.address,
     city: addressParts.city,
     state: addressParts.state,
