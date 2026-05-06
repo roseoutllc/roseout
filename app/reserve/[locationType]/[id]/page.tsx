@@ -5,8 +5,10 @@ import ReserveBookingForm from "@/components/ReserveBookingForm";
 
 type LocationRow = {
   id: string;
+  address: string | null;
   city: string | null;
   state: string | null;
+  zip_code: string | null;
   image_url: string | null;
   default_duration_minutes: number | null;
   restaurant_name?: string | null;
@@ -14,6 +16,15 @@ type LocationRow = {
   rating?: number | null;
   roseout_score?: number | null;
 };
+
+function formatFullAddress(location: LocationRow) {
+  const region = [location.state, location.zip_code].filter(Boolean).join(" ");
+  const fullAddress = [location.address, location.city, region]
+    .filter(Boolean)
+    .join(", ");
+
+  return fullAddress || "Address coming soon";
+}
 
 export default async function ReserveLocationPage({
   params,
@@ -26,8 +37,8 @@ export default async function ReserveLocationPage({
   const tableName = isActivity ? "activities" : "restaurants";
 
   const selectFields = isActivity
-    ? "id, activity_name, city, state, image_url, default_duration_minutes, rating, roseout_score"
-    : "id, restaurant_name, city, state, image_url, default_duration_minutes, rating, roseout_score";
+    ? "id, activity_name, address, city, state, zip_code, image_url, default_duration_minutes, rating, roseout_score"
+    : "id, restaurant_name, address, city, state, zip_code, image_url, default_duration_minutes, rating, roseout_score";
 
   const { data, error } = await supabase
     .from(tableName)
@@ -42,6 +53,8 @@ export default async function ReserveLocationPage({
   const locationName = isActivity
     ? location.activity_name || "Activity"
     : location.restaurant_name || "Restaurant";
+
+  const fullAddress = formatFullAddress(location);
 
   const backHref = `/locations/${isActivity ? "activities" : "restaurants"}/${id}`;
 
@@ -88,8 +101,8 @@ export default async function ReserveLocationPage({
                     {locationName}
                   </h1>
 
-                  <p className="mt-3 text-sm font-semibold text-white/65">
-                    {location.city || "New York"}, {location.state || "NY"}
+                  <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-white/65">
+                    {fullAddress}
                   </p>
                 </div>
 

@@ -12,6 +12,20 @@ function formatNumber(value: number | null | undefined) {
   return Number(value || 0).toLocaleString();
 }
 
+function formatFullAddress(location: {
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+}) {
+  const region = [location.state, location.zip_code].filter(Boolean).join(" ");
+  const fullAddress = [location.address, location.city, region]
+    .filter(Boolean)
+    .join(", ");
+
+  return fullAddress || "N/A";
+}
+
 function statusBadge(status?: string | null) {
   const value = status || "unknown";
 
@@ -42,7 +56,7 @@ export default async function AdminRestaurantsPage({
   let query = supabase
     .from("restaurants")
     .select(
-      "id, restaurant_name, city, state, status, claimed, cuisine_type, rating, view_count, click_count, roseout_score, image_url, created_at",
+      "id, restaurant_name, address, city, state, zip_code, status, claimed, cuisine_type, rating, view_count, click_count, roseout_score, image_url, created_at",
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
@@ -52,7 +66,7 @@ export default async function AdminRestaurantsPage({
 
   if (q) {
     query = query.or(
-      `restaurant_name.ilike.%${q}%,city.ilike.%${q}%,cuisine_type.ilike.%${q}%`
+      `restaurant_name.ilike.%${q}%,address.ilike.%${q}%,city.ilike.%${q}%,cuisine_type.ilike.%${q}%`
     );
   }
 
@@ -261,7 +275,7 @@ export default async function AdminRestaurantsPage({
                         </div>
 
                         <p className="mt-1 text-sm font-bold text-black/50">
-                          {restaurant.city || "N/A"}, {restaurant.state || "N/A"}
+                          {formatFullAddress(restaurant)}
                         </p>
 
                         <div className="mt-2 flex flex-wrap gap-2">
