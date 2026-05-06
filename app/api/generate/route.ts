@@ -13,6 +13,7 @@ const openai = new OpenAI({
 
 const AI_MODEL = "gpt-4o-mini";
 const CACHE_HOURS = 6;
+const SMOKE_INTENTS = new Set(["hookah", "cigar"]);
 
 const OFF_TOPIC_REPLY =
   "I can only help with RoseOut outing plans, restaurants, activities, nightlife, brunch, and date ideas.";
@@ -987,8 +988,16 @@ function detectIntent(input: string, body: any = {}, locations: any[] = []) {
   const text = normalizeQuery(input);
 
   const requestedTags = detectFromMap(input, TAG_KEYWORDS);
-  const foodIntents = detectFromMap(input, FOOD_INTENTS);
-  const activityIntents = detectFromMap(input, ACTIVITY_INTENTS);
+  let foodIntents = detectFromMap(input, FOOD_INTENTS);
+  let activityIntents = detectFromMap(input, ACTIVITY_INTENTS);
+  const hasSmokeIntent = [...foodIntents, ...activityIntents].some((intent) =>
+    SMOKE_INTENTS.has(intent)
+  );
+
+  if (hasSmokeIntent) {
+    foodIntents = foodIntents.filter((intent) => intent !== "lounge");
+    activityIntents = activityIntents.filter((intent) => intent !== "lounge");
+  }
   const detectedLocations = detectLocation(input, locations);
 
   const wantsFoodMap = buildWantsMap(Object.keys(FOOD_INTENTS), foodIntents);
@@ -1246,11 +1255,16 @@ function filterRestaurantsByFoodIntent(
 ) {
   if (intent.foodIntents.length === 0) return restaurants;
 
+  const hasSmokeIntent = intent.foodIntents.some((food) =>
+    SMOKE_INTENTS.has(food)
+  );
+
   const exactMatches = restaurants.filter((restaurant: any) =>
     intent.foodIntents.every((food) => matchesFoodIntent(restaurant, food))
   );
 
   if (exactMatches.length > 0) return exactMatches;
+  if (hasSmokeIntent) return [];
 
   const partialMatches = restaurants.filter((restaurant: any) =>
     intent.foodIntents.some((food) => matchesFoodIntent(restaurant, food))
@@ -1265,6 +1279,10 @@ function filterActivitiesByActivityIntent(
 ) {
   if (intent.activityIntents.length === 0) return activities;
 
+  const hasSmokeIntent = intent.activityIntents.some((activity) =>
+    SMOKE_INTENTS.has(activity)
+  );
+
   const exactMatches = activities.filter((activity: any) =>
     intent.activityIntents.every((activityIntent) =>
       matchesActivityIntent(activity, activityIntent)
@@ -1272,6 +1290,7 @@ function filterActivitiesByActivityIntent(
   );
 
   if (exactMatches.length > 0) return exactMatches;
+  if (hasSmokeIntent) return [];
 
   const partialMatches = activities.filter((activity: any) =>
     intent.activityIntents.some((activityIntent) =>
