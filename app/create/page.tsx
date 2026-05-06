@@ -119,6 +119,7 @@ export default function CreatePage() {
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const loadingResultsRef = useRef<HTMLDivElement | null>(null);
   const activitySectionRef = useRef<HTMLDivElement | null>(null);
   const viewedItems = useRef<Set<string>>(new Set());
 
@@ -314,6 +315,13 @@ export default function CreatePage() {
 
     setMessages((current) => [...current, userMessage]);
     setInput("");
+
+    setTimeout(() => {
+      loadingResultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
 
     try {
       const savedLocation = getSavedLocation();
@@ -520,6 +528,15 @@ export default function CreatePage() {
         {!messages.length && !loading && <StartPanel />}
 
         <div className="space-y-4 sm:space-y-5">
+          {loading && (
+            <div
+              ref={loadingResultsRef}
+              className="scroll-mt-24 sm:scroll-mt-28"
+            >
+              <LoadingResults label={loadingLines[loadingIndex]} />
+            </div>
+          )}
+
           {messages.map((message, index) => {
             const isUser = message.role === "user";
             const restaurants = message.restaurants || [];
@@ -631,7 +648,10 @@ export default function CreatePage() {
                 )}
 
                 {activities.length > 0 && (
-                  <div ref={activitySectionRef} className="scroll-mt-24 sm:scroll-mt-28">
+                  <div
+                    ref={activitySectionRef}
+                    className="scroll-mt-24 sm:scroll-mt-28"
+                  >
                     <ResultSection
                       title="Experience Picks"
                       subtitle="Activities matched to your outing plan"
@@ -688,8 +708,6 @@ export default function CreatePage() {
               </div>
             );
           })}
-
-          {loading && <LoadingResults label={loadingLines[loadingIndex]} />}
         </div>
       </section>
 
