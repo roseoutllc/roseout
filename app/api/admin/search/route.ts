@@ -1,7 +1,27 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { applySupabaseMultiWordSearch, sanitizeSearchTerm } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
+
+type SearchUser = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  phone: string | null;
+  role: string | null;
+  subscription_status: string | null;
+};
+
+type SearchLocation = {
+  id: string;
+  restaurant_name?: string | null;
+  activity_name?: string | null;
+  city: string | null;
+  state: string | null;
+  owner_email: string | null;
+  address: string | null;
+};
 
 function adminSupabase() {
   return createClient(
@@ -11,19 +31,15 @@ function adminSupabase() {
       auth: {
         persistSession: false,
       },
-    }
+    },
   );
-}
-
-function escapeSearch(value: string) {
-  return value.replace(/[%_,]/g, "");
 }
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const rawQuery = searchParams.get("q") || "";
-    const q = escapeSearch(rawQuery.trim());
+    const q = sanitizeSearchTerm(rawQuery);
 
     if (!q || q.length < 2) {
       return NextResponse.json({ results: [] });
@@ -31,30 +47,38 @@ export async function GET(req: Request) {
 
     const supabase = adminSupabase();
 
-    const { data: users } = await supabase
+    const usersQuery = supabase
       .from("users")
-      .select("id,email,full_name,phone,role,subscription_status")
-      .or(`email.ilike.%${q}%,full_name.ilike.%${q}%,phone.ilike.%${q}%`)
-      .limit(8);
+      .select("id,email,full_name,phone,role,subscription_status");
 
-    const { data: restaurants } = await supabase
+    const { data: users } = await applySupabaseMultiWordSearch(
+      usersQuery,
+      ["email", "full_name", "phone"],
+      q,
+    ).limit(8);
+
+    const restaurantsQuery = supabase
       .from("restaurants")
-      .select("id,restaurant_name,city,state,owner_email,address")
-      .or(
-        `restaurant_name.ilike.%${q}%,city.ilike.%${q}%,state.ilike.%${q}%,owner_email.ilike.%${q}%,address.ilike.%${q}%`
-      )
-      .limit(8);
+      .select("id,restaurant_name,city,state,owner_email,address");
 
-    const { data: activities } = await supabase
+    const { data: restaurants } = await applySupabaseMultiWordSearch(
+      restaurantsQuery,
+      ["restaurant_name", "city", "state", "owner_email", "address"],
+      q,
+    ).limit(8);
+
+    const activitiesQuery = supabase
       .from("activities")
-      .select("id,activity_name,city,state,owner_email,address")
-      .or(
-        `activity_name.ilike.%${q}%,city.ilike.%${q}%,state.ilike.%${q}%,owner_email.ilike.%${q}%,address.ilike.%${q}%`
-      )
-      .limit(8);
+      .select("id,activity_name,city,state,owner_email,address");
+
+    const { data: activities } = await applySupabaseMultiWordSearch(
+      activitiesQuery,
+      ["activity_name", "city", "state", "owner_email", "address"],
+      q,
+    ).limit(8);
 
     const results = [
-      ...(users || []).map((u: any) => ({
+      ...((users || []) as SearchUser[]).map((u) => ({
         type: "user",
         id: u.id,
         title: u.full_name || "Unnamed User",
@@ -64,7 +88,7 @@ export async function GET(req: Request) {
         subscription_status: u.subscription_status || null,
       })),
 
-      ...(restaurants || []).map((r: any) => ({
+      ...((restaurants || []) as SearchLocation[]).map((r) => ({
         type: "location",
         locationType: "restaurants",
         id: r.id,
@@ -76,7 +100,7 @@ export async function GET(req: Request) {
         meta: r.owner_email || "No owner email",
       })),
 
-      ...(activities || []).map((a: any) => ({
+      ...((activities || []) as SearchLocation[]).map((a) => ({
         type: "location",
         locationType: "activities",
         id: a.id,
@@ -98,7 +122,7 @@ export async function GET(req: Request) {
         error: "Failed to search users and locations",
         results: [],
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

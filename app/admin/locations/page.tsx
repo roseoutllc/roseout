@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { applySupabaseMultiWordSearch, sanitizeSearchTerm } from "@/lib/search";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { supabase } from "@/lib/supabase";
 
@@ -8,6 +9,42 @@ type SearchParams = {
   status?: string;
   claim?: string;
   page?: string;
+};
+
+type RestaurantRow = {
+  id: string;
+  restaurant_name: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  cuisine_type: string | null;
+  status: string | null;
+  claimed: boolean | null;
+  rating: number | null;
+  view_count: number | null;
+  click_count: number | null;
+  roseout_score: number | null;
+  image_url: string | null;
+  created_at: string | null;
+};
+
+type ActivityRow = {
+  id: string;
+  activity_name: string | null;
+  activity_type: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  status: string | null;
+  claimed: boolean | null;
+  rating: number | null;
+  view_count: number | null;
+  click_count: number | null;
+  roseout_score: number | null;
+  image_url: string | null;
+  created_at: string | null;
 };
 
 type AdminLocation = {
@@ -46,16 +83,20 @@ function formatFullAddress(item: {
 
   const cityStateZip = [city, state, zip].filter(Boolean).join(", ");
 
-  return [street, cityStateZip].filter(Boolean).join(" • ") || "Address not listed";
+  return (
+    [street, cityStateZip].filter(Boolean).join(" • ") || "Address not listed"
+  );
 }
 
 function statusBadge(status?: string | null) {
   const value = status || "unknown";
 
-  if (value === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (value === "approved")
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (value === "pending") return "border-amber-200 bg-amber-50 text-amber-700";
   if (value === "rejected") return "border-red-200 bg-red-50 text-red-700";
-  if (value === "draft") return "border-neutral-200 bg-neutral-100 text-neutral-700";
+  if (value === "draft")
+    return "border-neutral-200 bg-neutral-100 text-neutral-700";
 
   return "border-neutral-200 bg-neutral-100 text-neutral-600";
 }
@@ -101,7 +142,7 @@ export default async function AdminLocationsPage({
 
   const params = await searchParams;
 
-  const q = params.q?.trim() || "";
+  const q = sanitizeSearchTerm(params.q || "");
   const type = params.type || "all";
   const status = params.status || "all";
   const claim = params.claim || "all";
@@ -114,7 +155,7 @@ export default async function AdminLocationsPage({
   let restaurantsQuery = supabase
     .from("restaurants")
     .select(
-      "id, restaurant_name, address, city, state, zip_code, status, claimed, cuisine_type, rating, view_count, click_count, roseout_score, image_url, created_at"
+      "id, restaurant_name, address, city, state, zip_code, status, claimed, cuisine_type, rating, view_count, click_count, roseout_score, image_url, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(1000);
@@ -122,7 +163,7 @@ export default async function AdminLocationsPage({
   let activitiesQuery = supabase
     .from("activities")
     .select(
-      "id, activity_name, activity_type, address, city, state, zip_code, status, claimed, rating, view_count, click_count, roseout_score, image_url, created_at"
+      "id, activity_name, activity_type, address, city, state, zip_code, status, claimed, rating, view_count, click_count, roseout_score, image_url, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(1000);
@@ -143,66 +184,90 @@ export default async function AdminLocationsPage({
   }
 
   if (q) {
-    restaurantsQuery = restaurantsQuery.or(
-      `restaurant_name.ilike.%${q}%,address.ilike.%${q}%,city.ilike.%${q}%,state.ilike.%${q}%,zip_code.ilike.%${q}%,cuisine_type.ilike.%${q}%`
+    restaurantsQuery = applySupabaseMultiWordSearch(
+      restaurantsQuery,
+      [
+        "restaurant_name",
+        "address",
+        "city",
+        "state",
+        "zip_code",
+        "cuisine_type",
+      ],
+      q,
     );
 
-    activitiesQuery = activitiesQuery.or(
-      `activity_name.ilike.%${q}%,address.ilike.%${q}%,city.ilike.%${q}%,state.ilike.%${q}%,zip_code.ilike.%${q}%,activity_type.ilike.%${q}%`
+    activitiesQuery = applySupabaseMultiWordSearch(
+      activitiesQuery,
+      [
+        "activity_name",
+        "address",
+        "city",
+        "state",
+        "zip_code",
+        "activity_type",
+      ],
+      q,
     );
   }
 
-  const [restaurantsResult, activitiesResult, totalRestaurantsResult, totalActivitiesResult] =
-    await Promise.all([
-      shouldLoadRestaurants
-        ? restaurantsQuery
-        : Promise.resolve({ data: [], error: null }),
-      shouldLoadActivities
-        ? activitiesQuery
-        : Promise.resolve({ data: [], error: null }),
-      supabase.from("restaurants").select("id", { count: "exact", head: true }),
-      supabase.from("activities").select("id", { count: "exact", head: true }),
-    ]);
+  const [
+    restaurantsResult,
+    activitiesResult,
+    totalRestaurantsResult,
+    totalActivitiesResult,
+  ] = await Promise.all([
+    shouldLoadRestaurants
+      ? restaurantsQuery
+      : Promise.resolve({ data: [], error: null }),
+    shouldLoadActivities
+      ? activitiesQuery
+      : Promise.resolve({ data: [], error: null }),
+    supabase.from("restaurants").select("id", { count: "exact", head: true }),
+    supabase.from("activities").select("id", { count: "exact", head: true }),
+  ]);
 
-  const restaurantRows: AdminLocation[] =
-    restaurantsResult.data?.map((item: any) => ({
-      id: item.id,
-      locationType: "restaurants",
-      name: item.restaurant_name,
-      address: item.address,
-      city: item.city,
-      state: item.state,
-      zip_code: item.zip_code,
-      category: item.cuisine_type,
-      status: item.status,
-      claimed: item.claimed,
-      rating: item.rating,
-      view_count: item.view_count,
-      click_count: item.click_count,
-      roseout_score: item.roseout_score,
-      image_url: item.image_url,
-      created_at: item.created_at,
-    })) || [];
+  const restaurantRows: AdminLocation[] = (
+    (restaurantsResult.data || []) as RestaurantRow[]
+  ).map((item) => ({
+    id: item.id,
+    locationType: "restaurants",
+    name: item.restaurant_name,
+    address: item.address,
+    city: item.city,
+    state: item.state,
+    zip_code: item.zip_code,
+    category: item.cuisine_type,
+    status: item.status,
+    claimed: item.claimed,
+    rating: item.rating,
+    view_count: item.view_count,
+    click_count: item.click_count,
+    roseout_score: item.roseout_score,
+    image_url: item.image_url,
+    created_at: item.created_at,
+  }));
 
-  const activityRows: AdminLocation[] =
-    activitiesResult.data?.map((item: any) => ({
-      id: item.id,
-      locationType: "activities",
-      name: item.activity_name,
-      address: item.address,
-      city: item.city,
-      state: item.state,
-      zip_code: item.zip_code,
-      category: item.activity_type,
-      status: item.status,
-      claimed: item.claimed,
-      rating: item.rating,
-      view_count: item.view_count,
-      click_count: item.click_count,
-      roseout_score: item.roseout_score,
-      image_url: item.image_url,
-      created_at: item.created_at,
-    })) || [];
+  const activityRows: AdminLocation[] = (
+    (activitiesResult.data || []) as ActivityRow[]
+  ).map((item) => ({
+    id: item.id,
+    locationType: "activities",
+    name: item.activity_name,
+    address: item.address,
+    city: item.city,
+    state: item.state,
+    zip_code: item.zip_code,
+    category: item.activity_type,
+    status: item.status,
+    claimed: item.claimed,
+    rating: item.rating,
+    view_count: item.view_count,
+    click_count: item.click_count,
+    roseout_score: item.roseout_score,
+    image_url: item.image_url,
+    created_at: item.created_at,
+  }));
 
   const allLocations = [...restaurantRows, ...activityRows].sort((a, b) => {
     const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -243,9 +308,9 @@ export default async function AdminLocationsPage({
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
-                Manage restaurants and activities from one unified page. Filter by
-                location type, approval status, claim status, address, city, zip,
-                category, and performance.
+                Manage restaurants and activities from one unified page. Filter
+                by location type, approval status, claim status, address, city,
+                zip, category, and performance.
               </p>
             </div>
 
@@ -508,7 +573,7 @@ export default async function AdminLocationsPage({
 
                           <span
                             className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${typeBadge(
-                              location.locationType
+                              location.locationType,
                             )}`}
                           >
                             {location.locationType === "restaurants"
@@ -518,7 +583,7 @@ export default async function AdminLocationsPage({
 
                           <span
                             className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusBadge(
-                              location.status
+                              location.status,
                             )}`}
                           >
                             {location.status || "unknown"}
