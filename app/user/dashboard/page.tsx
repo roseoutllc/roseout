@@ -8,6 +8,14 @@ import RoseOutHeader from "@/components/RoseOutHeader";
 
 export const dynamic = "force-dynamic";
 
+type SavedPlan = {
+  id: string;
+  title?: string | null;
+  summary?: string | null;
+  created_at?: string | null;
+};
+
+
 function adminSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -94,6 +102,16 @@ export default async function UserDashboardPage() {
               </TrackedButton>
 
               <TrackedButton
+                href="/support"
+                eventType="button_click"
+                eventName="Support Tickets Clicked"
+                metadata={{ source: "user_dashboard_hero" }}
+                className="rounded-full border border-white/15 bg-white/[0.06] px-6 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
+              >
+                Support Tickets
+              </TrackedButton>
+
+              <TrackedButton
                 href="/user/saved"
                 eventType="button_click"
                 eventName="View Saved Plans Clicked"
@@ -157,6 +175,16 @@ export default async function UserDashboardPage() {
               </div>
 
               <TrackedButton
+                href="/support"
+                eventType="button_click"
+                eventName="Support Tickets Clicked"
+                metadata={{ source: "user_dashboard_hero" }}
+                className="rounded-full border border-white/15 bg-white/[0.06] px-6 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-black"
+              >
+                Support Tickets
+              </TrackedButton>
+
+              <TrackedButton
                 href="/user/saved"
                 eventType="button_click"
                 eventName="View All Saved Plans Clicked"
@@ -194,7 +222,7 @@ export default async function UserDashboardPage() {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                {savedPlans.map((plan: any) => (
+                {(savedPlans as SavedPlan[]).map((plan) => (
                   <div
                     key={plan.id}
                     className="group rounded-[1.5rem] border border-white/10 bg-black/25 p-5 transition hover:border-rose-400/40 hover:bg-rose-500/10"
@@ -274,6 +302,26 @@ export default async function UserDashboardPage() {
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/25">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-rose-300">
+                Support
+              </p>
+
+              <h2 className="mt-2 text-2xl font-black">Need help?</h2>
+
+              <p className="mt-3 text-sm leading-6 text-white/55">
+                Submit a ticket, view your private ticket link, or reply to an
+                open RoseOut support conversation.
+              </p>
+
+              <Link
+                href="/support"
+                className="mt-5 inline-flex w-full justify-center rounded-full border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-black text-white transition hover:bg-white hover:text-black"
+              >
+                Open Support Tickets
+              </Link>
             </div>
 
             <div className="rounded-[2rem] border border-rose-400/20 bg-gradient-to-br from-rose-500/20 via-fuchsia-500/10 to-white/[0.04] p-6 shadow-2xl shadow-black/25">
