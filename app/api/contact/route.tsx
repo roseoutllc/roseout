@@ -1,9 +1,58 @@
 import { sendNotification } from "@/lib/notifications";
+import { createSupportTicket } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
 function clean(value: unknown) {
   return String(value || "").trim();
+}
+
+function htmlEscape(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function nl2br(value: string) {
+  return htmlEscape(value).replace(/\n/g, "<br />");
+}
+
+async function sendContactFallback({
+  name,
+  email,
+  topic,
+  message,
+  errorMessage,
+}: {
+  name: string;
+  email: string;
+  topic: string;
+  message: string;
+  errorMessage: string;
+}) {
+  const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
+
+  if (!adminEmail) return;
+
+  await sendNotification({
+    toEmail: adminEmail,
+    subject: `New RoseOut contact message: ${topic || "General"}`,
+    emailHtml: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+        <h2>New RoseOut Contact Message</h2>
+        <p><strong>Support ticket fallback:</strong> The message was delivered, but the ticket could not be created automatically.</p>
+        <p><strong>Ticket error:</strong> ${htmlEscape(errorMessage)}</p>
+        <p><strong>Name:</strong> ${htmlEscape(name)}</p>
+        <p><strong>Email:</strong> ${htmlEscape(email)}</p>
+        <p><strong>Topic:</strong> ${htmlEscape(topic || "General")}</p>
+        <p><strong>Message:</strong></p>
+        <p>${nl2br(message)}</p>
+      </div>
+    `,
+  });
 }
 
 export async function POST(req: Request) {
@@ -53,32 +102,48 @@ export async function POST(req: Request) {
       );
     }
 
-    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
+    try {
+      const ticket = await createSupportTicket({
+        name,
+        email,
+        topic: topic || "Contact Form",
+        subject: `Contact form: ${topic || "General"}`,
+        message,
+        source: "contact_form",
+      });
 
-    if (adminEmail) {
-      await sendNotification({
-        toEmail: adminEmail,
-        subject: `New RoseOut contact message: ${topic || "General"}`,
-        emailHtml: `
-          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-            <h2>New RoseOut Contact Message</h2>
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Topic:</strong> ${topic || "General"}</p>
-            <p><strong>Message:</strong></p>
-            <p>${message.replace(/\n/g, "<br />")}</p>
-          </div>
-        `,
+      return Response.json({
+        success: true,
+        ticketId: ticket.id,
+        ticketUrl: `/support/tickets/${ticket.id}?key=${ticket.public_access_token}`,
+        message: "Support ticket created. We’ll get back to you shortly.",
+      });
+    } catch (supportError: unknown) {
+      const errorMessage = supportError instanceof Error
+        ? supportError.message
+        : "Unknown support ticket error";
+
+      console.error("Contact support ticket creation failed", supportError);
+
+      await sendContactFallback({
+        name,
+        email,
+        topic,
+        message,
+        errorMessage,
+      });
+
+      return Response.json({
+        success: true,
+        ticketId: null,
+        ticketUrl: null,
+        message:
+          "Message sent. We’ll get back to you shortly. Your support ticket could not be created automatically, so our team was notified directly.",
       });
     }
-
-    return Response.json({
-      success: true,
-      message: "Message sent. We’ll get back to you shortly.",
-    });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return Response.json(
-      { error: error.message || "Server error" },
+      { error: error instanceof Error ? error.message : "Server error" },
       { status: 500 }
     );
   }
