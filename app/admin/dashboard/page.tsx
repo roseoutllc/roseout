@@ -26,20 +26,21 @@ export default async function CentralDashboardPage() {
     .select("id", { count: "exact", head: true })
     .eq("claimed", true);
 
+  const { count: claimedActivities } = await supabase
+    .from("activities")
+    .select("id", { count: "exact", head: true })
+    .eq("claimed", true);
+
+  const totalLocations = Number(totalRestaurants || 0) + Number(totalActivities || 0);
+  const totalClaimed = Number(claimedRestaurants || 0) + Number(claimedActivities || 0);
+
   const navCards = [
     {
       eyebrow: "Inventory",
-      title: "Restaurants",
-      text: "Manage restaurant listings, claims, images, scores, and edits.",
-      href: "/admin/restaurants",
-      cta: "Manage restaurants",
-    },
-    {
-      eyebrow: "Inventory",
-      title: "Activities",
-      text: "Manage activities, experiences, booking durations, and status.",
-      href: "/admin/activities",
-      cta: "Manage activities",
+      title: "Locations",
+      text: "Manage restaurants and activities from one unified admin page.",
+      href: "/admin/locations",
+      cta: "Manage locations",
     },
     {
       eyebrow: "Reserve",
@@ -54,6 +55,13 @@ export default async function CentralDashboardPage() {
       text: "Test how customers search, discover, and select outing plans.",
       href: "/create",
       cta: "Test flow",
+    },
+    {
+      eyebrow: "Claims",
+      title: "Claim Review",
+      text: "Review business claims and connect owners to their locations.",
+      href: "/admin/claims",
+      cta: "Review claims",
     },
   ];
 
@@ -81,8 +89,15 @@ export default async function CentralDashboardPage() {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
-                  href="/reserve/dashboard"
+                  href="/admin/locations"
                   className="rounded-full bg-gradient-to-r from-rose-500 to-rose-700 px-6 py-3 text-sm font-black text-white shadow-lg shadow-rose-950/30 transition hover:scale-[1.03]"
+                >
+                  Manage Locations
+                </Link>
+
+                <Link
+                  href="/reserve/dashboard"
+                  className="rounded-full border border-white/10 bg-white/[0.07] px-6 py-3 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                 >
                   Open Reserve
                 </Link>
@@ -102,41 +117,51 @@ export default async function CentralDashboardPage() {
               </p>
 
               <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-black/25 p-4">
+                <Link
+                  href="/admin/locations"
+                  className="rounded-2xl bg-black/25 p-4 transition hover:bg-white/10"
+                >
                   <p className="text-[10px] font-black uppercase tracking-wide text-white/40">
-                    Restaurants
+                    Locations
                   </p>
                   <p className="mt-1 text-3xl font-black">
-                    {formatNumber(totalRestaurants)}
+                    {formatNumber(totalLocations)}
                   </p>
-                </div>
+                </Link>
 
-                <div className="rounded-2xl bg-black/25 p-4">
+                <Link
+                  href="/admin/locations?claim=claimed&page=1"
+                  className="rounded-2xl bg-black/25 p-4 transition hover:bg-white/10"
+                >
                   <p className="text-[10px] font-black uppercase tracking-wide text-white/40">
-                    Activities
+                    Claimed
                   </p>
-                  <p className="mt-1 text-3xl font-black">
-                    {formatNumber(totalActivities)}
+                  <p className="mt-1 text-3xl font-black text-emerald-300">
+                    {formatNumber(totalClaimed)}
                   </p>
-                </div>
+                </Link>
 
-                <div className="rounded-2xl bg-black/25 p-4">
+                <Link
+                  href="/reserve/dashboard"
+                  className="rounded-2xl bg-black/25 p-4 transition hover:bg-white/10"
+                >
                   <p className="text-[10px] font-black uppercase tracking-wide text-white/40">
                     Reservations
                   </p>
                   <p className="mt-1 text-3xl font-black text-rose-200">
                     {formatNumber(totalReservations)}
                   </p>
-                </div>
+                </Link>
 
-                <div className="rounded-2xl bg-black/25 p-4">
+                <Link
+                  href="/admin/claims"
+                  className="rounded-2xl bg-black/25 p-4 transition hover:bg-white/10"
+                >
                   <p className="text-[10px] font-black uppercase tracking-wide text-white/40">
-                    Claimed
+                    Claim Center
                   </p>
-                  <p className="mt-1 text-3xl font-black text-emerald-300">
-                    {formatNumber(claimedRestaurants)}
-                  </p>
-                </div>
+                  <p className="mt-1 text-3xl font-black text-white">Open</p>
+                </Link>
               </div>
             </div>
           </div>
@@ -144,50 +169,50 @@ export default async function CentralDashboardPage() {
 
         <section className="mt-5 grid gap-4 md:grid-cols-4">
           <Link
-            href="/admin/restaurants"
+            href="/admin/locations"
             className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5 shadow-xl transition hover:-translate-y-1 hover:bg-white/[0.09]"
           >
             <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
-              Restaurants
+              Locations
             </p>
             <p className="mt-2 text-3xl font-black">
+              {formatNumber(totalLocations)}
+            </p>
+          </Link>
+
+          <Link
+            href="/admin/locations?type=restaurants&page=1"
+            className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5 shadow-xl transition hover:-translate-y-1 hover:bg-white/[0.09]"
+          >
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
+              Restaurant Filter
+            </p>
+            <p className="mt-2 text-3xl font-black text-rose-200">
               {formatNumber(totalRestaurants)}
             </p>
           </Link>
 
           <Link
-            href="/admin/activities"
+            href="/admin/locations?type=activities&page=1"
             className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5 shadow-xl transition hover:-translate-y-1 hover:bg-white/[0.09]"
           >
             <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
-              Activities
+              Activity Filter
             </p>
-            <p className="mt-2 text-3xl font-black">
+            <p className="mt-2 text-3xl font-black text-purple-200">
               {formatNumber(totalActivities)}
             </p>
           </Link>
 
           <Link
-            href="/reserve/dashboard"
+            href="/admin/locations?claim=claimed&page=1"
             className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5 shadow-xl transition hover:-translate-y-1 hover:bg-white/[0.09]"
           >
             <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
-              Reservations
-            </p>
-            <p className="mt-2 text-3xl font-black text-rose-200">
-              {formatNumber(totalReservations)}
-            </p>
-          </Link>
-
-          <Link
-            href="/admin/restaurants?claimed=true"
-            className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5 shadow-xl transition hover:-translate-y-1 hover:bg-white/[0.09]"
-          >
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-white/45">
-              Claimed
+              Claimed Locations
             </p>
             <p className="mt-2 text-3xl font-black text-emerald-300">
-              {formatNumber(claimedRestaurants)}
+              {formatNumber(totalClaimed)}
             </p>
           </Link>
         </section>
@@ -250,13 +275,13 @@ export default async function CentralDashboardPage() {
               </Link>
 
               <Link
-                href="/admin/activities"
+                href="/admin/locations"
                 className="block rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-4 transition hover:bg-white/[0.1]"
               >
                 <p className="font-black">Location Inventory</p>
                 <p className="mt-1 text-xs leading-5 text-white/45">
-                  Keep restaurants and activities polished, approved, and ready
-                  to book.
+                  Keep restaurants and activities polished, approved, claimed,
+                  and ready to book from one page.
                 </p>
               </Link>
 
