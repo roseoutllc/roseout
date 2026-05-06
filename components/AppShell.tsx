@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import RoseOutHeader from "@/components/RoseOutHeader";
+import RoseOutFooter from "@/components/RoseOutFooter";
 
 export default function AppShell({
   children,
@@ -18,6 +19,7 @@ export default function AppShell({
     <>
       {!isAdmin && <RoseOutHeader />}
       {children}
+      {!isAdmin && <RoseOutFooter />}
     </>
   );
 }
