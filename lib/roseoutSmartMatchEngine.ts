@@ -11,6 +11,8 @@ export type SmartMatchIntent = {
   strictActivityMode: boolean;
 };
 
+type ScoredSmartMatchItem = SmartMatchItem & { smart_match_score: number };
+
 export type SmartMatchItem = {
   id?: string;
   name?: string;
@@ -295,7 +297,16 @@ export const LOCATION_INTENTS: string[] = [
   "jfk",
 ];
 
-const MEAL_WORDS = ["dinner", "lunch", "brunch", "breakfast", "food", "eat"];
+const MEAL_WORDS = [
+  "restaurant",
+  "restaurants",
+  "dinner",
+  "lunch",
+  "brunch",
+  "breakfast",
+  "food",
+  "eat",
+];
 
 function normalize(input: string) {
   return input
@@ -575,7 +586,10 @@ export function filterSmartRestaurants(
       ...restaurant,
       smart_match_score: scoreRestaurant(restaurant, intent),
     }))
-    .sort((a: any, b: any) => b.smart_match_score - a.smart_match_score);
+    .sort(
+      (a: ScoredSmartMatchItem, b: ScoredSmartMatchItem) =>
+        b.smart_match_score - a.smart_match_score
+    );
 }
 
 export function filterSmartActivities(
@@ -589,7 +603,10 @@ export function filterSmartActivities(
       ...activity,
       smart_match_score: scoreActivity(activity, intent),
     }))
-    .sort((a: any, b: any) => b.smart_match_score - a.smart_match_score);
+    .sort(
+      (a: ScoredSmartMatchItem, b: ScoredSmartMatchItem) =>
+        b.smart_match_score - a.smart_match_score
+    );
 }
 
 export function balanceSmartMatches(
@@ -629,5 +646,5 @@ export function balanceSmartMatches(
 }
 
 export function getSmartMatchVersion() {
-  return "roseout-smart-match-engine-v2";
+  return "roseout-smart-match-engine-v3";
 }
