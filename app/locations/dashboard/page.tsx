@@ -15,6 +15,7 @@ type LocationItem = {
   address?: string;
   city?: string;
   state?: string;
+  zip_code?: string;
   image_url?: string;
   roseout_score?: number;
   quality_score?: number;

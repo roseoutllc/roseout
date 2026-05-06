@@ -4,6 +4,22 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import RestaurantTopBar from "@/app/restaurants/components/RestaurantTopBar";
 
+function formatFullAddress(restaurant: {
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+}) {
+  const region = [restaurant.state, restaurant.zip_code]
+    .filter(Boolean)
+    .join(" ");
+  const fullAddress = [restaurant.address, restaurant.city, region]
+    .filter(Boolean)
+    .join(", ");
+
+  return fullAddress || "Address not listed";
+}
+
 export default function RestaurantDashboardPage() {
   const supabase = createClient();
 
@@ -111,8 +127,7 @@ export default function RestaurantDashboardPage() {
           </p>
 
           <p className="mt-4">
-            {restaurant.address}, {restaurant.city}, {restaurant.state}{" "}
-            {restaurant.zip_code}
+            {formatFullAddress(restaurant)}
           </p>
 
           {restaurant.description && (

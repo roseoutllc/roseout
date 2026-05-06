@@ -4,6 +4,35 @@ import RoseOutHeader from "@/components/RoseOutHeader";
 
 export const dynamic = "force-dynamic";
 
+type RankingRestaurant = {
+  id: string;
+  restaurant_name?: string | null;
+  name?: string | null;
+  cuisine?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+  image_url?: string | null;
+  photo_url?: string | null;
+  roseout_score?: number | null;
+  ranking_badge?: string | null;
+};
+
+function formatFullAddress(location: {
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+}) {
+  const region = [location.state, location.zip_code].filter(Boolean).join(" ");
+  const fullAddress = [location.address, location.city, region]
+    .filter(Boolean)
+    .join(", ");
+
+  return fullAddress || "Address coming soon";
+}
+
 function adminSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +51,7 @@ export default async function HomePage() {
   const { data: topRestaurants } = await supabase
     .from("restaurants")
     .select(
-      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
+      "id,restaurant_name,name,cuisine,address,city,state,zip_code,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
     )
     .eq("ranking_badge", "Top 10%")
     .order("roseout_score", { ascending: false })
@@ -31,7 +60,7 @@ export default async function HomePage() {
   const { data: trendingRestaurants } = await supabase
     .from("restaurants")
     .select(
-      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
+      "id,restaurant_name,name,cuisine,address,city,state,zip_code,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
     )
     .order("trend_score", { ascending: false })
     .limit(4);
@@ -39,7 +68,7 @@ export default async function HomePage() {
   const { data: highIntentPicks } = await supabase
     .from("restaurants")
     .select(
-      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
+      "id,restaurant_name,name,cuisine,address,city,state,zip_code,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
     )
     .order("conversion_score", { ascending: false })
     .limit(4);
@@ -249,7 +278,7 @@ function CompactRankingSection({
 }: {
   title: string;
   subtitle: string;
-  restaurants: any[];
+  restaurants: RankingRestaurant[];
 }) {
   return (
     <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl shadow-black/30">
@@ -301,9 +330,7 @@ function CompactRankingSection({
                   </p>
 
                   <p className="mt-1 truncate text-xs text-white/35">
-                    {[restaurant.city, restaurant.state]
-                      .filter(Boolean)
-                      .join(", ")}
+                    {formatFullAddress(restaurant)}
                   </p>
 
                   {restaurant.ranking_badge && (

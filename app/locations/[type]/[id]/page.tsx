@@ -145,12 +145,10 @@ if (error || !data) {
       0
   );
 
-  const address = [
-    location?.address,
-    location?.city,
-    location?.state,
-    location?.zip_code,
-  ]
+  const region = [location?.state, location?.zip_code]
+    .filter(Boolean)
+    .join(" ");
+  const address = [location?.address, location?.city, region]
     .filter(Boolean)
     .join(", ");
 

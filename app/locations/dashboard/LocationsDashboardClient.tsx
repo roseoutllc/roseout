@@ -24,6 +24,20 @@ const locationTypePathSegment: Record<LocationType, "restaurants" | "activities"
   activity: "activities",
 };
 
+function formatFullAddress(location: {
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+}) {
+  const region = [location.state, location.zip_code].filter(Boolean).join(" ");
+  const fullAddress = [location.address, location.city, region]
+    .filter(Boolean)
+    .join(", ");
+
+  return fullAddress || "Not listed";
+}
+
 type LocationItem = {
   id: string;
   location_type: LocationType;
@@ -33,6 +47,7 @@ type LocationItem = {
   address?: string;
   city?: string;
   state?: string;
+  zip_code?: string;
   image_url?: string;
   roseout_score?: number;
   quality_score?: number;
@@ -66,6 +81,7 @@ export default function LocationsDashboardClient({
         location.city,
         location.state,
         location.address,
+        location.zip_code,
         location.primary_tag,
         location.owner_email,
       ]
@@ -232,8 +248,7 @@ export default function LocationsDashboardClient({
                       </div>
 
                       <p className="line-clamp-1 text-xs font-semibold text-white/45">
-                        {loc.city || "City not listed"}
-                        {loc.state ? `, ${loc.state}` : ""}
+                        {formatFullAddress(loc)}
                       </p>
 
                       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -321,13 +336,7 @@ export default function LocationsDashboardClient({
                   <div className="grid gap-4 sm:grid-cols-2">
                     <InfoCard
                       title="Address"
-                      value={
-                        selected.address ||
-                        `${selected.city || ""}${
-                          selected.state ? `, ${selected.state}` : ""
-                        }` ||
-                        "Not listed"
-                      }
+                      value={formatFullAddress(selected)}
                       icon={<MapPin size={18} />}
                     />
 
