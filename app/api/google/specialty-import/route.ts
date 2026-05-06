@@ -16,6 +16,16 @@ const supabaseAdmin = createClient(
   }
 );
 
+const NYC_AREAS = ["Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island"];
+
+const EXTENDED_AREAS = [
+  ...NYC_AREAS,
+  "Long Island",
+  "Jersey City",
+  "Hoboken",
+  "Newark",
+];
+
 const SPECIALTY_QUERIES: Record<string, string[]> = {
   hookah: [
     "hookah lounge",
@@ -31,6 +41,9 @@ const SPECIALTY_QUERIES: Record<string, string[]> = {
     "jazz lounge",
     "live music lounge",
     "karaoke lounge",
+    "latin lounge",
+    "afrobeat lounge",
+    "late night lounge",
   ],
   games: [
     "bowling alley",
@@ -40,17 +53,24 @@ const SPECIALTY_QUERIES: Record<string, string[]> = {
     "paintball",
     "laser tag",
     "mini golf",
+    "indoor golf",
     "pool hall",
     "billiards lounge",
+    "go kart racing",
+    "virtual reality arcade",
   ],
   creative: [
     "paint and sip",
     "pottery class",
     "candle making",
+    "candle making class",
     "perfume making",
+    "perfume making experience",
     "cooking class",
+    "sushi making class",
     "dance class",
     "art class",
+    "diy workshop",
   ],
   wellness: [
     "couples spa",
@@ -58,6 +78,9 @@ const SPECIALTY_QUERIES: Record<string, string[]> = {
     "massage spa",
     "sauna",
     "wellness lounge",
+    "float therapy",
+    "yoga studio",
+    "bath house",
   ],
   culture: [
     "museum",
@@ -67,6 +90,9 @@ const SPECIALTY_QUERIES: Record<string, string[]> = {
     "jazz club",
     "poetry lounge",
     "indie movie theater",
+    "live theater",
+    "comedy club",
+    "live music venue",
   ],
   romantic: [
     "wine tasting",
@@ -74,6 +100,8 @@ const SPECIALTY_QUERIES: Record<string, string[]> = {
     "dinner cruise",
     "sunset cruise",
     "candlelight concert",
+    "romantic rooftop experience",
+    "couples experience",
   ],
   outdoor: [
     "kayaking",
@@ -82,6 +110,17 @@ const SPECIALTY_QUERIES: Record<string, string[]> = {
     "outdoor movie",
     "holiday market",
     "botanical garden",
+    "picnic spot",
+    "waterfront activity",
+  ],
+  birthday: [
+    "birthday activity",
+    "group outing",
+    "girls night activity",
+    "double date activity",
+    "fun date night",
+    "interactive experience",
+    "party venue",
   ],
 };
 
@@ -183,12 +222,19 @@ function inferPrimaryTag(textInput: string) {
   if (text.includes("paintball")) return "paintball";
   if (text.includes("laser tag")) return "laser_tag";
   if (text.includes("mini golf")) return "mini_golf";
+  if (text.includes("golf")) return "golf";
+  if (text.includes("go kart")) return "go_kart";
+  if (text.includes("virtual reality") || text.includes("vr ")) return "vr";
   if (text.includes("paint and sip")) return "paint_and_sip";
   if (text.includes("pottery")) return "pottery";
   if (text.includes("candle")) return "candle_making";
   if (text.includes("perfume")) return "perfume_making";
   if (text.includes("cooking")) return "cooking_class";
+  if (text.includes("sushi making")) return "sushi_making";
+  if (text.includes("dance")) return "dance_class";
   if (text.includes("spa") || text.includes("massage")) return "spa";
+  if (text.includes("sauna")) return "sauna";
+  if (text.includes("yoga")) return "yoga";
   if (text.includes("comedy")) return "comedy";
   if (text.includes("jazz")) return "jazz";
   if (text.includes("live music")) return "live_music";
@@ -196,10 +242,16 @@ function inferPrimaryTag(textInput: string) {
   if (text.includes("gallery")) return "art_gallery";
   if (text.includes("immersive")) return "immersive";
   if (text.includes("cinema") || text.includes("movie")) return "movie";
+  if (text.includes("theater")) return "theater";
+  if (text.includes("poetry")) return "poetry";
   if (text.includes("cruise")) return "cruise";
   if (text.includes("kayak")) return "kayaking";
   if (text.includes("bike")) return "bike_rental";
   if (text.includes("skating")) return "skating";
+  if (text.includes("botanical")) return "botanical_garden";
+  if (text.includes("holiday market")) return "holiday_market";
+  if (text.includes("picnic")) return "picnic";
+  if (text.includes("party venue")) return "party_venue";
   if (text.includes("lounge")) return "lounge";
 
   return "specialty";
@@ -214,7 +266,9 @@ function inferActivityType(textInput: string) {
     text.includes("cigar") ||
     text.includes("lounge") ||
     text.includes("speakeasy") ||
-    text.includes("cocktail")
+    text.includes("cocktail") ||
+    text.includes("afrobeat") ||
+    text.includes("latin")
   ) {
     return "nightlife";
   }
@@ -227,8 +281,12 @@ function inferActivityType(textInput: string) {
     text.includes("paintball") ||
     text.includes("laser tag") ||
     text.includes("mini golf") ||
+    text.includes("golf") ||
     text.includes("pool") ||
-    text.includes("billiards")
+    text.includes("billiards") ||
+    text.includes("go kart") ||
+    text.includes("virtual reality") ||
+    text.includes("vr ")
   ) {
     return "games";
   }
@@ -240,7 +298,8 @@ function inferActivityType(textInput: string) {
     text.includes("perfume") ||
     text.includes("cooking") ||
     text.includes("dance") ||
-    text.includes("art class")
+    text.includes("art class") ||
+    text.includes("diy")
   ) {
     return "creative";
   }
@@ -249,7 +308,10 @@ function inferActivityType(textInput: string) {
     text.includes("spa") ||
     text.includes("massage") ||
     text.includes("wellness") ||
-    text.includes("sauna")
+    text.includes("sauna") ||
+    text.includes("float therapy") ||
+    text.includes("yoga") ||
+    text.includes("bath house")
   ) {
     return "wellness";
   }
@@ -261,7 +323,10 @@ function inferActivityType(textInput: string) {
     text.includes("live music") ||
     text.includes("theater") ||
     text.includes("poetry") ||
-    text.includes("immersive")
+    text.includes("immersive") ||
+    text.includes("comedy") ||
+    text.includes("movie") ||
+    text.includes("cinema")
   ) {
     return "cultural";
   }
@@ -272,7 +337,9 @@ function inferActivityType(textInput: string) {
     text.includes("skating") ||
     text.includes("garden") ||
     text.includes("outdoor") ||
-    text.includes("market")
+    text.includes("market") ||
+    text.includes("picnic") ||
+    text.includes("waterfront")
   ) {
     return "outdoor";
   }
@@ -281,9 +348,19 @@ function inferActivityType(textInput: string) {
     text.includes("wine") ||
     text.includes("cruise") ||
     text.includes("candlelight") ||
-    text.includes("rooftop cinema")
+    text.includes("rooftop cinema") ||
+    text.includes("couples")
   ) {
     return "romantic";
+  }
+
+  if (
+    text.includes("birthday") ||
+    text.includes("girls night") ||
+    text.includes("group outing") ||
+    text.includes("party venue")
+  ) {
+    return "birthday";
   }
 
   return "specialty";
@@ -291,28 +368,70 @@ function inferActivityType(textInput: string) {
 
 function buildSearchKeywords(place: any, query: string) {
   const text = normalizeText(`${place.name} ${query} ${(place.types || []).join(" ")}`);
-  const keywords = ["roseout", "activity", "specialty activity", "date idea", "outing"];
+
+  const keywords = [
+    "roseout",
+    "activity",
+    "specialty activity",
+    "date idea",
+    "outing",
+    "things to do",
+  ];
 
   if (text.includes("hookah") || text.includes("shisha")) {
-    keywords.push("hookah", "hookah lounge", "shisha", "nightlife", "late night", "lounge", "birthday", "date night");
+    keywords.push(
+      "hookah",
+      "hookah lounge",
+      "shisha",
+      "nightlife",
+      "late night",
+      "lounge",
+      "birthday",
+      "date night",
+      "group outing"
+    );
   }
 
   if (text.includes("cigar")) keywords.push("cigar", "cigar lounge", "nightlife");
   if (text.includes("rooftop")) keywords.push("rooftop", "views", "skyline", "luxury");
+  if (text.includes("speakeasy")) keywords.push("speakeasy", "cocktails", "date night");
   if (text.includes("karaoke")) keywords.push("karaoke", "singing", "group outing");
+  if (text.includes("latin")) keywords.push("latin", "music", "nightlife");
+  if (text.includes("afrobeat")) keywords.push("afrobeat", "music", "nightlife");
   if (text.includes("bowling")) keywords.push("bowling", "games", "fun");
   if (text.includes("arcade")) keywords.push("arcade", "games", "interactive");
   if (text.includes("escape")) keywords.push("escape room", "interactive", "group outing");
   if (text.includes("axe")) keywords.push("axe throwing", "competitive");
   if (text.includes("paintball")) keywords.push("paintball", "competitive");
+  if (text.includes("laser tag")) keywords.push("laser tag", "games", "competitive");
+  if (text.includes("mini golf")) keywords.push("mini golf", "date night", "games");
+  if (text.includes("go kart")) keywords.push("go kart", "racing", "fun");
+  if (text.includes("virtual reality") || text.includes("vr ")) keywords.push("vr", "virtual reality", "immersive");
   if (text.includes("paint and sip")) keywords.push("paint and sip", "creative", "girls night");
   if (text.includes("pottery")) keywords.push("pottery", "creative");
+  if (text.includes("candle")) keywords.push("candle making", "creative");
+  if (text.includes("perfume")) keywords.push("perfume making", "creative");
+  if (text.includes("cooking")) keywords.push("cooking class", "food experience");
+  if (text.includes("dance")) keywords.push("dance class", "couples", "creative");
   if (text.includes("spa") || text.includes("massage")) keywords.push("spa", "wellness", "couples");
+  if (text.includes("sauna")) keywords.push("sauna", "wellness", "relaxing");
+  if (text.includes("yoga")) keywords.push("yoga", "wellness", "relaxing");
   if (text.includes("jazz")) keywords.push("jazz", "live music", "romantic");
+  if (text.includes("comedy")) keywords.push("comedy", "fun", "date night");
   if (text.includes("museum")) keywords.push("museum", "culture");
   if (text.includes("gallery")) keywords.push("art gallery", "culture");
   if (text.includes("immersive")) keywords.push("immersive", "unique");
+  if (text.includes("movie") || text.includes("cinema")) keywords.push("movie", "cinema", "date night");
+  if (text.includes("theater")) keywords.push("theater", "show", "culture");
+  if (text.includes("poetry")) keywords.push("poetry", "culture", "spoken word");
   if (text.includes("cruise")) keywords.push("cruise", "romantic", "luxury");
+  if (text.includes("kayak")) keywords.push("kayaking", "outdoor", "waterfront");
+  if (text.includes("bike")) keywords.push("bike rental", "outdoor");
+  if (text.includes("skating")) keywords.push("skating", "outdoor", "date night");
+  if (text.includes("holiday market")) keywords.push("holiday market", "seasonal");
+  if (text.includes("botanical")) keywords.push("botanical garden", "outdoor", "romantic");
+  if (text.includes("picnic")) keywords.push("picnic", "outdoor", "romantic");
+  if (text.includes("party venue")) keywords.push("party venue", "birthday", "group outing");
 
   return uniqueArray(keywords);
 }
@@ -325,25 +444,66 @@ function buildDateStyleTags(place: any, query: string) {
     tags.push("nightlife", "late-night", "social", "group-friendly", "birthday");
   }
 
-  if (text.includes("lounge") || text.includes("speakeasy")) {
+  if (text.includes("lounge") || text.includes("speakeasy") || text.includes("cocktail")) {
     tags.push("nightlife", "upscale", "social");
   }
 
   if (text.includes("rooftop")) tags.push("romantic", "scenic", "upscale");
-  if (text.includes("bowling") || text.includes("arcade") || text.includes("escape")) {
+
+  if (
+    text.includes("bowling") ||
+    text.includes("arcade") ||
+    text.includes("escape") ||
+    text.includes("axe") ||
+    text.includes("paintball") ||
+    text.includes("laser tag") ||
+    text.includes("mini golf") ||
+    text.includes("go kart") ||
+    text.includes("virtual reality")
+  ) {
     tags.push("fun", "interactive", "group-friendly");
   }
 
-  if (text.includes("paint and sip") || text.includes("pottery")) {
+  if (
+    text.includes("paint and sip") ||
+    text.includes("pottery") ||
+    text.includes("candle") ||
+    text.includes("perfume") ||
+    text.includes("cooking") ||
+    text.includes("dance")
+  ) {
     tags.push("creative", "girls-night", "interactive");
   }
 
-  if (text.includes("spa") || text.includes("massage")) {
+  if (
+    text.includes("spa") ||
+    text.includes("massage") ||
+    text.includes("sauna") ||
+    text.includes("wellness") ||
+    text.includes("yoga")
+  ) {
     tags.push("romantic", "relaxing", "wellness", "couples");
   }
 
-  if (text.includes("museum") || text.includes("gallery") || text.includes("jazz")) {
+  if (
+    text.includes("museum") ||
+    text.includes("gallery") ||
+    text.includes("jazz") ||
+    text.includes("live music") ||
+    text.includes("comedy") ||
+    text.includes("immersive") ||
+    text.includes("theater")
+  ) {
     tags.push("cultural", "romantic", "unique");
+  }
+
+  if (
+    text.includes("birthday") ||
+    text.includes("girls night") ||
+    text.includes("group outing") ||
+    text.includes("party")
+  ) {
+    tags.push("birthday", "group-friendly", "social");
   }
 
   return uniqueArray(tags);
@@ -450,10 +610,15 @@ async function upsertSpecialtyActivity(place: any, query: string) {
   }
 
   const formattedAddress =
-    merged.formatted_address || merged.vicinity || place.formatted_address || place.vicinity || "";
+    merged.formatted_address ||
+    merged.vicinity ||
+    place.formatted_address ||
+    place.vicinity ||
+    "";
 
   const addressParts = parseAddressParts(formattedAddress);
-  const photoReference = merged.photos?.[0]?.photo_reference || place.photos?.[0]?.photo_reference;
+  const photoReference =
+    merged.photos?.[0]?.photo_reference || place.photos?.[0]?.photo_reference;
   const imageUrl = getPhotoUrl(photoReference);
 
   const text = `${merged.name} ${query} ${(merged.types || []).join(" ")}`;
@@ -494,6 +659,14 @@ async function upsertSpecialtyActivity(place: any, query: string) {
         ? "Relaxed, calm, wellness"
         : activityType === "games"
         ? "Fun, interactive, group-friendly"
+        : activityType === "creative"
+        ? "Creative, hands-on, social"
+        : activityType === "romantic"
+        ? "Romantic, elevated, date-night friendly"
+        : activityType === "outdoor"
+        ? "Outdoor, scenic, active"
+        : activityType === "birthday"
+        ? "Birthday-friendly, social, group-focused"
         : "Specialty experience",
 
     phone:
@@ -534,6 +707,22 @@ function getQueries(category: string | null, query: string | null) {
   return SPECIALTY_QUERIES[category] || [];
 }
 
+function getAreas(areaParam: string | null, customQuery: string | null) {
+  if (customQuery) return [""];
+
+  const area = cleanText(areaParam || "Queens").toLowerCase();
+
+  if (area === "nyc") return NYC_AREAS;
+  if (area === "extended" || area === "all") return EXTENDED_AREAS;
+
+  return areaParam
+    ? areaParam
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : ["Queens"];
+}
+
 export async function GET(request: NextRequest) {
   try {
     if (!isAuthorized(request)) {
@@ -544,16 +733,17 @@ export async function GET(request: NextRequest) {
 
     const category = searchParams.get("category");
     const customQuery = searchParams.get("query")?.trim() || null;
-    const area = searchParams.get("area")?.trim() || "Queens";
+    const areaParam = searchParams.get("area");
     const limit = Math.min(Number(searchParams.get("limit") || 10), 25);
 
     const queries = getQueries(category, customQuery);
+    const areas = getAreas(areaParam, customQuery);
 
     if (!queries.length) {
       return NextResponse.json(
         {
           error:
-            "Invalid category. Use hookah, nightlife, games, creative, wellness, culture, romantic, outdoor, all, or pass a custom query.",
+            "Invalid category. Use hookah, nightlife, games, creative, wellness, culture, romantic, outdoor, birthday, all, or pass a custom query.",
         },
         { status: 400 }
       );
@@ -569,36 +759,38 @@ export async function GET(request: NextRequest) {
 
     const seenPlaceIds = new Set<string>();
 
-    for (const baseQuery of queries) {
-      const finalQuery = customQuery ? customQuery : `${baseQuery} in ${area}`;
+    for (const area of areas) {
+      for (const baseQuery of queries) {
+        const finalQuery = customQuery ? customQuery : `${baseQuery} in ${area}`;
 
-      try {
-        const places = await googleTextSearch(finalQuery);
+        try {
+          const places = await googleTextSearch(finalQuery);
 
-        for (const place of places.slice(0, limit)) {
-          if (seenPlaceIds.has(place.place_id)) continue;
+          for (const place of places.slice(0, limit)) {
+            if (seenPlaceIds.has(place.place_id)) continue;
 
-          seenPlaceIds.add(place.place_id);
-          stats.checked += 1;
+            seenPlaceIds.add(place.place_id);
+            stats.checked += 1;
 
-          const result = await upsertSpecialtyActivity(place, finalQuery);
+            const result = await upsertSpecialtyActivity(place, finalQuery);
 
-          if (result.status === "imported") stats.imported += 1;
-          if (result.status === "skipped") stats.skipped += 1;
+            if (result.status === "imported") stats.imported += 1;
+            if (result.status === "skipped") stats.skipped += 1;
 
-          if (result.status === "failed") {
-            stats.failed += 1;
-            if (result.error) stats.errors.push(result.error);
+            if (result.status === "failed") {
+              stats.failed += 1;
+              if (result.error) stats.errors.push(result.error);
+            }
+
+            await sleep(150);
           }
-
-          await sleep(150);
+        } catch (error: any) {
+          stats.failed += 1;
+          stats.errors.push(`${finalQuery}: ${error.message}`);
         }
-      } catch (error: any) {
-        stats.failed += 1;
-        stats.errors.push(`${finalQuery}: ${error.message}`);
-      }
 
-      await sleep(250);
+        await sleep(250);
+      }
     }
 
     await supabaseAdmin.from("import_logs").insert({
@@ -607,7 +799,8 @@ export async function GET(request: NextRequest) {
       meta: {
         category: category || "custom",
         query: customQuery,
-        area,
+        area: areaParam || "Queens",
+        areas,
         limit,
         checked: stats.checked,
         skipped: stats.skipped,
@@ -623,7 +816,8 @@ export async function GET(request: NextRequest) {
       settings: {
         category: category || "custom",
         query: customQuery,
-        area,
+        area: areaParam || "Queens",
+        areas,
         limit,
       },
       stats,
