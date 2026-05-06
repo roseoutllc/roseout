@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 import { clampScore } from "@/lib/clampScore";
@@ -101,6 +101,10 @@ const loadingLines = [
   "Finding the best fit...",
 ];
 
+function getLoadingScrollBehavior(): ScrollBehavior {
+  return window.matchMedia("(pointer: coarse)").matches ? "auto" : "smooth";
+}
+
 export default function CreatePage() {
   const router = useRouter();
 
@@ -122,6 +126,18 @@ export default function CreatePage() {
   const loadingResultsRef = useRef<HTMLDivElement | null>(null);
   const activitySectionRef = useRef<HTMLDivElement | null>(null);
   const viewedItems = useRef<Set<string>>(new Set());
+
+  const scrollToLoadingResults = useCallback(() => {
+    const target = loadingResultsRef.current;
+    if (!target) return;
+
+    const top = Math.max(target.getBoundingClientRect().top + window.scrollY, 0);
+
+    window.scrollTo({
+      top,
+      behavior: getLoadingScrollBehavior(),
+    });
+  }, []);
 
   const latestAssistant = useMemo(
     () =>
@@ -191,18 +207,22 @@ export default function CreatePage() {
       setLoadingIndex((current) => (current + 1) % loadingLines.length);
     }, 1400);
 
+    let scrollRetry: number | undefined;
+
     const frame = window.requestAnimationFrame(() => {
-      loadingResultsRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      scrollToLoadingResults();
+      scrollRetry = window.setTimeout(scrollToLoadingResults, 350);
     });
 
     return () => {
       window.clearInterval(timer);
       window.cancelAnimationFrame(frame);
+
+      if (scrollRetry) {
+        window.clearTimeout(scrollRetry);
+      }
     };
-  }, [loading]);
+  }, [loading, scrollToLoadingResults]);
 
   useEffect(() => {
     const latest = latestAssistant;
@@ -313,6 +333,18 @@ export default function CreatePage() {
     setShowPlanSummary(false);
   }
 
+  function prepareMobileLoadingScroll() {
+    if (!window.matchMedia("(pointer: coarse)").matches) return;
+
+    const activeElement = document.activeElement;
+
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur();
+    }
+
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
   async function handleSubmit(event?: React.FormEvent) {
     event?.preventDefault();
 
@@ -320,6 +352,7 @@ export default function CreatePage() {
 
     if (!cleanInput || loading) return;
 
+    prepareMobileLoadingScroll();
     setLoading(true);
     setError("");
     setShowPlanSummary(false);
