@@ -186,7 +186,17 @@ export default function CreatePage() {
       setLoadingIndex((current) => (current + 1) % loadingLines.length);
     }, 1400);
 
-    return () => window.clearInterval(timer);
+    const frame = window.requestAnimationFrame(() => {
+      loadingResultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => {
+      window.clearInterval(timer);
+      window.cancelAnimationFrame(frame);
+    };
   }, [loading]);
 
   useEffect(() => {
@@ -316,13 +326,6 @@ export default function CreatePage() {
     setMessages((current) => [...current, userMessage]);
     setInput("");
 
-    setTimeout(() => {
-      loadingResultsRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 100);
-
     try {
       const savedLocation = getSavedLocation();
 
@@ -418,6 +421,15 @@ export default function CreatePage() {
 
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black pb-36 text-white sm:pb-28">
+      {loading && (
+        <section
+          ref={loadingResultsRef}
+          className="mx-auto w-full max-w-7xl scroll-mt-0 overflow-x-hidden px-3 pb-5 pt-24 sm:px-6 sm:pb-8 sm:pt-28 lg:pt-32"
+        >
+          <LoadingResults label={loadingLines[loadingIndex]} />
+        </section>
+      )}
+
       <section className="relative w-full max-w-full overflow-x-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-3 pb-6 pt-24 sm:px-6 sm:pb-10 sm:pt-28 lg:pt-32">
         <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-5 overflow-hidden lg:grid-cols-[0.88fr_1.12fr] lg:items-center">
           <div className="flex min-w-0 max-w-full flex-col justify-center">
@@ -528,15 +540,6 @@ export default function CreatePage() {
         {!messages.length && !loading && <StartPanel />}
 
         <div className="space-y-4 sm:space-y-5">
-          {loading && (
-            <div
-              ref={loadingResultsRef}
-              className="scroll-mt-24 sm:scroll-mt-28"
-            >
-              <LoadingResults label={loadingLines[loadingIndex]} />
-            </div>
-          )}
-
           {messages.map((message, index) => {
             const isUser = message.role === "user";
             const restaurants = message.restaurants || [];
