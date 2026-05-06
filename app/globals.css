@@ -156,3 +156,12 @@ div {
     padding-inline: 2rem;
   }
 }
+
+/* ✅ Prevent iPhone Safari from zooming when tapping search/input areas */
+@media screen and (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
