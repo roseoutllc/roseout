@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import RoseOutHeader from "@/components/RoseOutHeader";
 
 type PlanLocation = {
   id?: string;
@@ -91,7 +90,6 @@ function PlanPageInner() {
 
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black text-white">
-      <RoseOutHeader />
 
       <section className="relative border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-3 pb-6 pt-24 sm:px-6 sm:pb-10 sm:pt-28 lg:pt-32">
         <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[0.88fr_1.12fr] lg:items-center">
