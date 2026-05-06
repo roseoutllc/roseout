@@ -1,4 +1,4 @@
-import { sendNotification } from "@/lib/notifications";
+import { createSupportTicket } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
@@ -53,32 +53,24 @@ export async function POST(req: Request) {
       );
     }
 
-    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
-
-    if (adminEmail) {
-      await sendNotification({
-        toEmail: adminEmail,
-        subject: `New RoseOut contact message: ${topic || "General"}`,
-        emailHtml: `
-          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-            <h2>New RoseOut Contact Message</h2>
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Topic:</strong> ${topic || "General"}</p>
-            <p><strong>Message:</strong></p>
-            <p>${message.replace(/\n/g, "<br />")}</p>
-          </div>
-        `,
-      });
-    }
+    const ticket = await createSupportTicket({
+      name,
+      email,
+      topic: topic || "Contact Form",
+      subject: `Contact form: ${topic || "General"}`,
+      message,
+      source: "contact_form",
+    });
 
     return Response.json({
       success: true,
-      message: "Message sent. We’ll get back to you shortly.",
+      ticketId: ticket.id,
+      ticketUrl: `/support/tickets/${ticket.id}?key=${ticket.public_access_token}`,
+      message: "Support ticket created. We’ll get back to you shortly.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return Response.json(
-      { error: error.message || "Server error" },
+      { error: error instanceof Error ? error.message : "Server error" },
       { status: 500 }
     );
   }
