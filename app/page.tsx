@@ -1,8 +1,54 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import LiveSearchCount from "@/components/LiveSearchCount";
 import RoseOutHeader from "@/components/RoseOutHeader";
+import { getLiveOutingsPlanned } from "@/lib/outingsCount";
 
 export const dynamic = "force-dynamic";
+
+const siteUrl = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.SITE_URL ||
+  "https://roseout.com"
+).replace(/\/$/, "");
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  title: "RoseOut | AI Outing Planner for Restaurants, Activities & Date Ideas",
+  description:
+    "Plan unforgettable outings with RoseOut's AI-powered recommendations for restaurants, activities, date nights, birthdays, nightlife, brunch, and more.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "RoseOut | Plan Your Perfect Outing",
+    description:
+      "Tell RoseOut your vibe, budget, location, and mood to get curated restaurants, activities, and date ideas in seconds.",
+    url: "/",
+    siteName: "RoseOut",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RoseOut | Plan Your Perfect Outing",
+    description:
+      "AI-powered outing plans for restaurants, activities, date nights, birthdays, nightlife, brunch, and more.",
+  },
+};
+
+type RestaurantSummary = {
+  id: string | number;
+  restaurant_name?: string | null;
+  name?: string | null;
+  cuisine?: string | null;
+  city?: string | null;
+  state?: string | null;
+  image_url?: string | null;
+  photo_url?: string | null;
+  roseout_score?: number | null;
+  ranking_badge?: string | null;
+};
 
 function adminSupabase() {
   return createClient(
@@ -12,7 +58,7 @@ function adminSupabase() {
       auth: {
         persistSession: false,
       },
-    }
+    },
   );
 }
 
@@ -22,7 +68,7 @@ export default async function HomePage() {
   const { data: topRestaurants } = await supabase
     .from("restaurants")
     .select(
-      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
+      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score",
     )
     .eq("ranking_badge", "Top 10%")
     .order("roseout_score", { ascending: false })
@@ -31,7 +77,7 @@ export default async function HomePage() {
   const { data: trendingRestaurants } = await supabase
     .from("restaurants")
     .select(
-      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
+      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score",
     )
     .order("trend_score", { ascending: false })
     .limit(4);
@@ -39,10 +85,14 @@ export default async function HomePage() {
   const { data: highIntentPicks } = await supabase
     .from("restaurants")
     .select(
-      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score"
+      "id,restaurant_name,name,cuisine,city,state,image_url,photo_url,roseout_score,ranking_badge,trend_score,conversion_score",
     )
     .order("conversion_score", { ascending: false })
     .limit(4);
+
+  const { count: searchCount } = await supabase
+    .from("search_logs")
+    .select("*", { count: "exact", head: true });
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -106,9 +156,9 @@ export default async function HomePage() {
                 ))}
               </div>
 
-              <p className="text-sm font-semibold text-white/50">
-                10,000+ outings planned
-              </p>
+              <LiveSearchCount
+                initialCount={getLiveOutingsPlanned(searchCount)}
+              />
             </div>
           </div>
 
@@ -235,12 +285,9 @@ export default async function HomePage() {
           </Link>
         </div>
       </section>
-
-    
     </main>
   );
 }
-
 
 function CompactRankingSection({
   title,
@@ -249,7 +296,7 @@ function CompactRankingSection({
 }: {
   title: string;
   subtitle: string;
-  restaurants: any[];
+  restaurants: RestaurantSummary[];
 }) {
   return (
     <div className="rounded-[2rem] border border-white/10 bg-[#0d0d0d] p-5 shadow-2xl shadow-black/30">
