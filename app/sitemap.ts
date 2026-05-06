@@ -23,6 +23,12 @@ function adminSupabase() {
   );
 }
 
+type SitemapLocation = {
+  id: string;
+  updated_at?: string | null;
+  created_at?: string | null;
+};
+
 function safeDate(value?: string | null) {
   if (!value) return new Date();
 
@@ -51,16 +57,46 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.95,
     },
     {
-      url: `${siteUrl}/signup`,
+      url: `${siteUrl}/about`,
       lastModified: new Date(),
       changeFrequency: "monthly",
-      priority: 0.5,
+      priority: 0.75,
     },
     {
-      url: `${siteUrl}/login`,
+      url: `${siteUrl}/business`,
       lastModified: new Date(),
       changeFrequency: "monthly",
-      priority: 0.4,
+      priority: 0.7,
+    },
+    {
+      url: `${siteUrl}/plan`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.85,
+    },
+    {
+      url: `${siteUrl}/pricing`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.55,
+    },
+    {
+      url: `${siteUrl}/reviews`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.65,
+    },
+    {
+      url: `${siteUrl}/reserve`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.65,
+    },
+    {
+      url: `${siteUrl}/contact`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.45,
     },
     {
       url: `${siteUrl}/privacy`,
@@ -80,16 +116,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .from("restaurants")
     .select("id, updated_at, created_at, status")
     .or("status.eq.approved,status.eq.active,status.is.null")
-    .limit(5000);
+    .limit(5000) as { data: SitemapLocation[] | null };
 
   const { data: activities } = await supabase
     .from("activities")
     .select("id, updated_at, created_at, status")
     .or("status.eq.approved,status.eq.active,status.is.null")
-    .limit(5000);
+    .limit(5000) as { data: SitemapLocation[] | null };
 
   const restaurantRoutes: MetadataRoute.Sitemap =
-    restaurants?.map((restaurant: any) => ({
+    restaurants?.map((restaurant) => ({
       url: `${siteUrl}/locations/restaurants/${restaurant.id}`,
       lastModified: safeDate(restaurant.updated_at || restaurant.created_at),
       changeFrequency: "weekly",
@@ -97,7 +133,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })) || [];
 
   const activityRoutes: MetadataRoute.Sitemap =
-    activities?.map((activity: any) => ({
+    activities?.map((activity) => ({
       url: `${siteUrl}/locations/activities/${activity.id}`,
       lastModified: safeDate(activity.updated_at || activity.created_at),
       changeFrequency: "weekly",

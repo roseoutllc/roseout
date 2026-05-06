@@ -1,8 +1,22 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import RoseOutHeader from "@/components/RoseOutHeader";
+import { createPageMetadata, safeJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = createPageMetadata({
+  title: "RoseOut | AI Outing Planner for Restaurants, Activities & Date Nights",
+  description:
+    "Tell RoseOut your vibe, budget, and location to get AI-ranked restaurants, activities, date-night ideas, and curated plans in seconds.",
+  path: "/",
+  keywords: [
+    "plan my outing",
+    "AI date night planner",
+    "restaurant and activity planner",
+    "NYC date night ideas",
+  ],
+});
 
 function adminSupabase() {
   return createClient(
@@ -17,6 +31,37 @@ function adminSupabase() {
 }
 
 export default async function HomePage() {
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "What is RoseOut?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "RoseOut is an AI-powered outing planner that recommends restaurants, activities, and date-night plans based on your vibe, budget, location, and intent.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Can RoseOut plan restaurants and activities together?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. RoseOut can combine restaurants and activities into one curated outing plan when your request includes both.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How does RoseOut rank places?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "RoseOut uses listing quality, review signals, views, clicks, saves, reservations, and other behavior-based signals to surface better-fit recommendations.",
+        },
+      },
+    ],
+  };
+
   const supabase = adminSupabase();
 
   const { data: topRestaurants } = await supabase
@@ -46,6 +91,10 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-black text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }}
+      />
       <RoseOutHeader />
 
       <section className="relative min-h-screen overflow-hidden pt-24">

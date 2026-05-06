@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import AdminTopBar from "./components/AdminTopBar";
+
+export const metadata: Metadata = {
+  title: "RoseOut Admin",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default function AdminLayout({
   children,
