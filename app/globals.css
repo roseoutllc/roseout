@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #050505;
+  --foreground: #ffffff;
+
+  --rose-red: #e1062a;
+  --rose-black: #050505;
+  --rose-panel: #0d0d0d;
+  --rose-card: #1a1a1a;
+  --rose-border: rgba(255, 255, 255, 0.1);
+  --rose-text-muted: rgba(255, 255, 255, 0.55);
 }
 
 @theme inline {
@@ -12,35 +19,61 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ✅ Mobile screen overflow protection */
+html,
 body {
-  background: var(--background);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  background: var(--rose-black);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
 
-:root {
-  --rose-red: #e1062a;
-  --rose-black: #050505;
-  --rose-panel: #0d0d0d;
-  --rose-card: #1a1a1a;
-  --rose-border: rgba(255, 255, 255, 0.1);
-  --rose-text-muted: rgba(255, 255, 255, 0.55);
+* {
+  box-sizing: border-box;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+button,
+input,
+textarea,
+select {
+  max-width: 100%;
 }
 
 body {
-  background: var(--rose-black);
-  color: white;
+  margin: 0;
 }
 
+/* ✅ Prevent long text/buttons/cards from forcing mobile width */
+a,
+p,
+span,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+button,
+div {
+  overflow-wrap: anywhere;
+}
+
+/* ✅ RoseOut global page shell */
 .rose-page {
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(225, 6, 42, 0.18), transparent 32%),
     radial-gradient(circle at top right, rgba(225, 6, 42, 0.12), transparent 28%),
@@ -49,19 +82,26 @@ body {
 }
 
 .rose-card {
+  max-width: 100%;
   border: 1px solid var(--rose-border);
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025));
-  box-shadow: 0 20px 80px rgba(0,0,0,0.45);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.025)
+  );
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(18px);
 }
 
 .rose-glass {
+  max-width: 100%;
   border: 1px solid var(--rose-border);
   background: rgba(13, 13, 13, 0.82);
   backdrop-filter: blur(20px);
 }
 
 .rose-btn {
+  max-width: 100%;
   border-radius: 9999px;
   background: var(--rose-red);
   color: white;
@@ -76,7 +116,8 @@ body {
 }
 
 .rose-btn-outline {
-  border: 1px solid rgba(255,255,255,0.16);
+  max-width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 9999px;
   color: white;
   font-weight: 800;
@@ -96,17 +137,22 @@ body {
   color: var(--rose-text-muted);
 }
 
-html,
-body {
-  max-width: 100%;
-  overflow-x: hidden;
+/* ✅ Helpful reusable mobile-safe containers */
+.rose-container {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: 1rem;
 }
 
-* {
-  box-sizing: border-box;
+@media (min-width: 640px) {
+  .rose-container {
+    padding-inline: 1.5rem;
+  }
 }
 
-img,
-video {
-  max-width: 100%;
+@media (min-width: 1024px) {
+  .rose-container {
+    padding-inline: 2rem;
+  }
 }
