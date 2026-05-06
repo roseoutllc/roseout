@@ -353,8 +353,23 @@ function normalizeLocation(location: string) {
 export function detectSmartMatchIntent(input: string): SmartMatchIntent {
   const text = normalize(input);
 
-  const foodIntents = detectFromMap(text, FOOD_INTENTS);
+  const detectedFoodIntents = detectFromMap(text, FOOD_INTENTS);
   const activityIntents = detectFromMap(text, ACTIVITY_INTENTS);
+  const hasSmokeIntent = activityIntents.some((intent) =>
+    ["hookah", "cigar"].includes(intent)
+  );
+  const hasExplicitDrinkIntent = [
+    "drinks",
+    "drink",
+    "cocktail",
+    "cocktails",
+    "wine",
+    "bar",
+  ].some((word) => phraseIncludes(text, word));
+  const foodIntents = detectedFoodIntents.filter(
+    (intent) =>
+      !(hasSmokeIntent && intent === "drinks" && !hasExplicitDrinkIntent)
+  );
   const vibes = detectFromMap(text, VIBE_INTENTS);
 
   const locations = Array.from(
@@ -646,5 +661,5 @@ export function balanceSmartMatches(
 }
 
 export function getSmartMatchVersion() {
-  return "roseout-smart-match-engine-v3";
+  return "roseout-smart-match-engine-v4";
 }
