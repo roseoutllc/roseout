@@ -57,6 +57,13 @@ export default async function CentralDashboardPage() {
       cta: "Test flow",
     },
     {
+      eyebrow: "Messaging",
+      title: "Email + Text",
+      text: "Search users or locations, choose saved copy, and send admin outreach.",
+      href: "/admin/messaging",
+      cta: "Open messaging",
+    },
+    {
       eyebrow: "Claims",
       title: "Claim Review",
       text: "Review business claims and connect owners to their locations.",

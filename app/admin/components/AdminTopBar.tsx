@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import type { User } from "@supabase/supabase-js";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 
@@ -18,7 +19,7 @@ type SearchResult = {
 export default function AdminTopBar() {
   const supabase = createClient();
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -55,7 +56,6 @@ export default function AdminTopBar() {
     const cleanQuery = query.trim();
 
     if (!showUserSearch || cleanQuery.length < 2) {
-      setResults([]);
       return;
     }
 
@@ -100,7 +100,7 @@ export default function AdminTopBar() {
   const goTo = (path: string) => {
     setOpen(false);
     setShowUserSearch(false);
-    window.location.href = path;
+    window.location.assign(path);
   };
 
   const loginAsUser = async (userId: string) => {
@@ -122,7 +122,7 @@ export default function AdminTopBar() {
       return;
     }
 
-    window.location.href = data.redirectTo || "/user/dashboard";
+    window.location.assign(data.redirectTo || "/user/dashboard");
   };
 
   const loginAsLocation = async (
@@ -150,14 +150,14 @@ export default function AdminTopBar() {
       return;
     }
 
-    window.location.href = data.redirectTo || "/locations/dashboard";
+    window.location.assign(data.redirectTo || "/locations/dashboard");
   };
 
   const handleLogout = async () => {
     setOpen(false);
     setShowUserSearch(false);
     await supabase.auth.signOut();
-    window.location.href = "/login";
+    window.location.assign("/login");
   };
 
   const name =
@@ -185,6 +185,10 @@ export default function AdminTopBar() {
   );
 
   const canViewUsers = ["superuser", "admin"].includes(role || "");
+
+  const canViewMessaging = ["superuser", "admin", "editor"].includes(
+    role || ""
+  );
 
   return (
     <header className="sticky top-0 z-[100] border-b border-white/10 bg-[#090706]/95 text-white shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
@@ -246,6 +250,16 @@ export default function AdminTopBar() {
               className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
               Claims
+            </button>
+          )}
+
+          {canViewMessaging && (
+            <button
+              type="button"
+              onClick={() => goTo("/admin/messaging")}
+              className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
+            >
+              Messaging
             </button>
           )}
         </div>
@@ -423,6 +437,12 @@ export default function AdminTopBar() {
                 {canViewClaims && (
                   <MenuButton onClick={() => goTo("/admin/claims")}>
                     Claims
+                  </MenuButton>
+                )}
+
+                {canViewMessaging && (
+                  <MenuButton onClick={() => goTo("/admin/messaging")}>
+                    Messaging
                   </MenuButton>
                 )}
 
