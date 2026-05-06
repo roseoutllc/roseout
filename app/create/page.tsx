@@ -140,7 +140,12 @@ export default function CreatePage() {
 
   useEffect(() => {
     document.title = "Create Your Outing | RoseOut";
-    setLocationSaved(Boolean(getSavedLocation()));
+
+    const frame = window.requestAnimationFrame(() => {
+      setLocationSaved(Boolean(getSavedLocation()));
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
@@ -203,22 +208,25 @@ export default function CreatePage() {
     const latest = latestAssistant;
     if (!latest) return;
 
-    [...(latest.restaurants || []), ...(latest.activities || [])].forEach(
-      (item: any) => {
-        const itemType = item.restaurant_name ? "restaurant" : "activity";
-        const key = `${itemType}-${item.id}`;
+    const latestItems: Array<RestaurantCard | ActivityCard> = [
+      ...(latest.restaurants || []),
+      ...(latest.activities || []),
+    ];
 
-        if (!item.id || viewedItems.current.has(key)) return;
+    latestItems.forEach((item) => {
+      const itemType = "restaurant_name" in item ? "restaurant" : "activity";
+      const key = `${itemType}-${item.id}`;
 
-        viewedItems.current.add(key);
+      if (!item.id || viewedItems.current.has(key)) return;
 
-        trackAnalytics({
-          itemId: String(item.id),
-          itemType,
-          eventType: "view",
-        });
-      }
-    );
+      viewedItems.current.add(key);
+
+      trackAnalytics({
+        itemId: String(item.id),
+        itemType,
+        eventType: "view",
+      });
+    });
   }, [latestAssistant]);
 
   function getSavedLocation(): UserLocation | null {
@@ -371,8 +379,8 @@ export default function CreatePage() {
           block: "start",
         });
       }, 250);
-    } catch (err: any) {
-      setError(err?.message || "Something went wrong. Please try again.");
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -606,7 +614,6 @@ export default function CreatePage() {
                           key={restaurantId || restaurantIndex}
                           index={restaurantIndex}
                           type="restaurant"
-                          id={restaurantId}
                           imageUrl={restaurant.image_url || undefined}
                           title={restaurant.restaurant_name}
                           eyebrow={
@@ -673,7 +680,6 @@ export default function CreatePage() {
                             key={activityId || activityIndex}
                             index={activityIndex}
                             type="activity"
-                            id={activityId}
                             imageUrl={activity.image_url || undefined}
                             title={activity.activity_name}
                             eyebrow={activity.activity_type || "Activity"}
@@ -1077,7 +1083,6 @@ function ResultSection({
 function ResultCard({
   index,
   type,
-  id,
   imageUrl,
   title,
   eyebrow,
@@ -1104,7 +1109,6 @@ function ResultCard({
 }: {
   index: number;
   type: "restaurant" | "activity";
-  id: string;
   imageUrl?: string;
   title: string;
   eyebrow: string;
@@ -1364,6 +1368,12 @@ function LoadingResults({ label }: { label: string }) {
   );
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Something went wrong. Please try again.";
+}
+
 function formatAddress(item: {
   address?: string | null;
   city?: string | null;
@@ -1391,7 +1401,7 @@ function titleCase(value: string) {
     .join(" ");
 }
 
-function toArray(value: any): string[] {
+function toArray(value: unknown): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (typeof value === "string") {
