@@ -57,6 +57,12 @@ function isAuthorized(request: NextRequest) {
   return false;
 }
 
+// Clear AI cache after imports
+await supabaseAdmin
+  .from("ai_response_cache")
+  .delete()
+  .gte("created_at", "2000-01-01");
+
 async function logImportRun(result: any, errorMessage?: string) {
   try {
     await supabaseAdmin.from("import_logs").insert({

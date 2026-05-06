@@ -793,6 +793,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Clear AI cache after imports
+await supabaseAdmin
+  .from("ai_response_cache")
+  .delete()
+  .gte("created_at", "2000-01-01");
+
     await supabaseAdmin.from("import_logs").insert({
       job_name: "manual_specialty_activity_import",
       imported_count: stats.imported,
