@@ -5,7 +5,6 @@ import Link from "next/link";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import RoseOutHeader from "@/components/RoseOutHeader";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 import { clampScore } from "@/lib/clampScore";
 
@@ -695,31 +694,6 @@ export default function CreatePage() {
           {loading && <LoadingResults label={loadingLines[loadingIndex]} />}
         </div>
       </section>
-
-      <footer className="w-full max-w-full overflow-x-hidden border-t border-white/10 bg-black px-3 py-7 text-white sm:px-6 sm:py-8">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xl font-black">
-              Rose<span className="text-[#e1062a]">Out</span>
-            </p>
-            <p className="mt-1 text-sm font-semibold text-white/40">
-              AI outing plans for food, activities, and better nights out.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-4 text-sm font-bold text-white/40">
-            <Link href="/" className="hover:text-white">
-              Home
-            </Link>
-            <Link href="/business" className="hover:text-white">
-              For Businesses
-            </Link>
-            <Link href="/pricing" className="hover:text-white">
-              Pricing
-            </Link>
-          </div>
-        </div>
-      </footer>
 
       {hasSelection && (
         <div className="fixed bottom-0 left-0 z-50 w-full border-t border-white/10 bg-black/90 shadow-[0_-18px_45px_rgba(0,0,0,0.45)] backdrop-blur-xl">
