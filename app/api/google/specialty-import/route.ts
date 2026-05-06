@@ -485,7 +485,6 @@ async function upsertSpecialtyActivity(place: any, query: string) {
 
     activity_type: activityType,
     primary_tag: primaryTag,
-    categories: activityType,
     google_types: merged.types || [],
     search_keywords: buildSearchKeywords(merged, query),
     date_style_tags: buildDateStyleTags(merged, query),
