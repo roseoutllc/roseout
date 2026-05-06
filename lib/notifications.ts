@@ -14,6 +14,7 @@ type NotifyInput = {
   subject: string;
   emailHtml?: string;
   smsBody?: string;
+  replyTo?: string | null;
 };
 
 export async function sendNotification({
@@ -22,6 +23,7 @@ export async function sendNotification({
   subject,
   emailHtml,
   smsBody,
+  replyTo,
 }: NotifyInput) {
   const results: {
     email?: unknown;
@@ -38,11 +40,12 @@ export async function sendNotification({
         to: toEmail,
         subject,
         html: emailHtml,
+        replyTo: replyTo || undefined,
       });
 
       results.email = email;
-    } catch (error: any) {
-      results.errors.push(error?.message || "Email failed");
+    } catch (error: unknown) {
+      results.errors.push(error instanceof Error ? error.message : "Email failed");
     }
   }
 
@@ -55,8 +58,8 @@ export async function sendNotification({
       });
 
       results.sms = sms.sid;
-    } catch (error: any) {
-      results.errors.push(error?.message || "SMS failed");
+    } catch (error: unknown) {
+      results.errors.push(error instanceof Error ? error.message : "SMS failed");
     }
   }
 
