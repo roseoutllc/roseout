@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { trackAnalytics } from "@/lib/trackAnalytics";
 import { clampScore } from "@/lib/clampScore";
@@ -101,6 +101,10 @@ const loadingLines = [
   "Finding the best fit...",
 ];
 
+function getLoadingScrollBehavior(): ScrollBehavior {
+  return window.matchMedia("(pointer: coarse)").matches ? "auto" : "smooth";
+}
+
 export default function CreatePage() {
   const router = useRouter();
 
@@ -119,8 +123,21 @@ export default function CreatePage() {
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const loadingResultsRef = useRef<HTMLDivElement | null>(null);
   const activitySectionRef = useRef<HTMLDivElement | null>(null);
   const viewedItems = useRef<Set<string>>(new Set());
+
+  const scrollToLoadingResults = useCallback(() => {
+    const target = loadingResultsRef.current;
+    if (!target) return;
+
+    const top = Math.max(target.getBoundingClientRect().top + window.scrollY, 0);
+
+    window.scrollTo({
+      top,
+      behavior: getLoadingScrollBehavior(),
+    });
+  }, []);
 
   const latestAssistant = useMemo(
     () =>
@@ -139,7 +156,12 @@ export default function CreatePage() {
 
   useEffect(() => {
     document.title = "Create Your Outing | RoseOut";
-    setLocationSaved(Boolean(getSavedLocation()));
+
+    const frame = window.requestAnimationFrame(() => {
+      setLocationSaved(Boolean(getSavedLocation()));
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
@@ -185,29 +207,46 @@ export default function CreatePage() {
       setLoadingIndex((current) => (current + 1) % loadingLines.length);
     }, 1400);
 
-    return () => window.clearInterval(timer);
-  }, [loading]);
+    let scrollRetry: number | undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      scrollToLoadingResults();
+      scrollRetry = window.setTimeout(scrollToLoadingResults, 350);
+    });
+
+    return () => {
+      window.clearInterval(timer);
+      window.cancelAnimationFrame(frame);
+
+      if (scrollRetry) {
+        window.clearTimeout(scrollRetry);
+      }
+    };
+  }, [loading, scrollToLoadingResults]);
 
   useEffect(() => {
     const latest = latestAssistant;
     if (!latest) return;
 
-    [...(latest.restaurants || []), ...(latest.activities || [])].forEach(
-      (item: any) => {
-        const itemType = item.restaurant_name ? "restaurant" : "activity";
-        const key = `${itemType}-${item.id}`;
+    const latestItems: Array<RestaurantCard | ActivityCard> = [
+      ...(latest.restaurants || []),
+      ...(latest.activities || []),
+    ];
 
-        if (!item.id || viewedItems.current.has(key)) return;
+    latestItems.forEach((item) => {
+      const itemType = "restaurant_name" in item ? "restaurant" : "activity";
+      const key = `${itemType}-${item.id}`;
 
-        viewedItems.current.add(key);
+      if (!item.id || viewedItems.current.has(key)) return;
 
-        trackAnalytics({
-          itemId: String(item.id),
-          itemType,
-          eventType: "view",
-        });
-      }
-    );
+      viewedItems.current.add(key);
+
+      trackAnalytics({
+        itemId: String(item.id),
+        itemType,
+        eventType: "view",
+      });
+    });
   }, [latestAssistant]);
 
   function getSavedLocation(): UserLocation | null {
@@ -294,6 +333,18 @@ export default function CreatePage() {
     setShowPlanSummary(false);
   }
 
+  function prepareMobileLoadingScroll() {
+    if (!window.matchMedia("(pointer: coarse)").matches) return;
+
+    const activeElement = document.activeElement;
+
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur();
+    }
+
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
   async function handleSubmit(event?: React.FormEvent) {
     event?.preventDefault();
 
@@ -301,6 +352,7 @@ export default function CreatePage() {
 
     if (!cleanInput || loading) return;
 
+    prepareMobileLoadingScroll();
     setLoading(true);
     setError("");
     setShowPlanSummary(false);
@@ -360,8 +412,8 @@ export default function CreatePage() {
           block: "start",
         });
       }, 250);
-    } catch (err: any) {
-      setError(err?.message || "Something went wrong. Please try again.");
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -410,6 +462,24 @@ export default function CreatePage() {
 
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black pb-36 text-white sm:pb-28">
+      {loading && (
+        <>
+          <section
+            className="fixed inset-0 z-[60] overflow-y-auto bg-black px-3 pb-8 pt-5 text-white sm:hidden"
+            aria-live="polite"
+          >
+            <LoadingResults label={loadingLines[loadingIndex]} />
+          </section>
+
+          <section
+            ref={loadingResultsRef}
+            className="mx-auto hidden w-full max-w-7xl scroll-mt-0 overflow-x-hidden px-3 pb-5 pt-24 sm:block sm:px-6 sm:pb-8 sm:pt-28 lg:pt-32"
+          >
+            <LoadingResults label={loadingLines[loadingIndex]} />
+          </section>
+        </>
+      )}
+
       <section className="relative w-full max-w-full overflow-x-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-3 pb-6 pt-24 sm:px-6 sm:pb-10 sm:pt-28 lg:pt-32">
         <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-5 overflow-hidden lg:grid-cols-[0.88fr_1.12fr] lg:items-center">
           <div className="flex min-w-0 max-w-full flex-col justify-center">
@@ -586,7 +656,6 @@ export default function CreatePage() {
                           key={restaurantId || restaurantIndex}
                           index={restaurantIndex}
                           type="restaurant"
-                          id={restaurantId}
                           imageUrl={restaurant.image_url || undefined}
                           title={restaurant.restaurant_name}
                           eyebrow={
@@ -631,7 +700,10 @@ export default function CreatePage() {
                 )}
 
                 {activities.length > 0 && (
-                  <div ref={activitySectionRef} className="scroll-mt-24 sm:scroll-mt-28">
+                  <div
+                    ref={activitySectionRef}
+                    className="scroll-mt-24 sm:scroll-mt-28"
+                  >
                     <ResultSection
                       title="Experience Picks"
                       subtitle="Activities matched to your outing plan"
@@ -650,7 +722,6 @@ export default function CreatePage() {
                             key={activityId || activityIndex}
                             index={activityIndex}
                             type="activity"
-                            id={activityId}
                             imageUrl={activity.image_url || undefined}
                             title={activity.activity_name}
                             eyebrow={activity.activity_type || "Activity"}
@@ -688,8 +759,6 @@ export default function CreatePage() {
               </div>
             );
           })}
-
-          {loading && <LoadingResults label={loadingLines[loadingIndex]} />}
         </div>
       </section>
 
@@ -1056,7 +1125,6 @@ function ResultSection({
 function ResultCard({
   index,
   type,
-  id,
   imageUrl,
   title,
   eyebrow,
@@ -1083,7 +1151,6 @@ function ResultCard({
 }: {
   index: number;
   type: "restaurant" | "activity";
-  id: string;
   imageUrl?: string;
   title: string;
   eyebrow: string;
@@ -1343,6 +1410,12 @@ function LoadingResults({ label }: { label: string }) {
   );
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Something went wrong. Please try again.";
+}
+
 function formatAddress(item: {
   address?: string | null;
   city?: string | null;
@@ -1370,7 +1443,7 @@ function titleCase(value: string) {
     .join(" ");
 }
 
-function toArray(value: any): string[] {
+function toArray(value: unknown): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (typeof value === "string") {
