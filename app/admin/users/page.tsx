@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { applySupabaseMultiWordSearch, sanitizeSearchTerm } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ const supabaseAdmin = createClient(
       autoRefreshToken: false,
       persistSession: false,
     },
-  }
+  },
 );
 
 function formatNumber(value: number | null | undefined) {
@@ -72,8 +73,8 @@ async function updateUserRole(formData: FormData) {
 
   redirect(
     `/admin/users?q=${encodeURIComponent(q)}&role=${encodeURIComponent(
-      currentRole
-    )}`
+      currentRole,
+    )}`,
   );
 }
 
@@ -104,8 +105,8 @@ async function disableUser(formData: FormData) {
 
   redirect(
     `/admin/users?q=${encodeURIComponent(q)}&role=${encodeURIComponent(
-      currentRole
-    )}`
+      currentRole,
+    )}`,
   );
 }
 
@@ -123,8 +124,8 @@ async function deleteUser(formData: FormData) {
 
   redirect(
     `/admin/users?q=${encodeURIComponent(q)}&role=${encodeURIComponent(
-      currentRole
-    )}`
+      currentRole,
+    )}`,
   );
 }
 
@@ -135,7 +136,7 @@ export default async function AdminUsersPage({
 }) {
   const params = await searchParams;
 
-  const q = params.q || "";
+  const q = sanitizeSearchTerm(params.q || "");
   const selectedRole = params.role || "all";
 
   let query = supabaseAdmin
@@ -144,7 +145,11 @@ export default async function AdminUsersPage({
     .order("created_at", { ascending: false });
 
   if (q) {
-    query = query.or(`email.ilike.%${q}%,role.ilike.%${q}%`);
+    query = applySupabaseMultiWordSearch(
+      query,
+      ["email", "full_name", "role"],
+      q,
+    );
   }
 
   if (selectedRole !== "all") {
@@ -173,7 +178,7 @@ export default async function AdminUsersPage({
 
   const totalUsers = fullUsers.length;
   const admins = fullUsers.filter(
-    (u) => u.role === "admin" || u.is_superadmin
+    (u) => u.role === "admin" || u.is_superadmin,
   ).length;
   const owners = fullUsers.filter((u) => u.role === "owner").length;
   const regularUsers = fullUsers.filter((u) => u.role === "user").length;
@@ -346,7 +351,7 @@ export default async function AdminUsersPage({
                           <span
                             className={`rounded-full border px-3 py-1 text-xs font-black uppercase ${roleBadge(
                               user.role,
-                              user.is_superadmin
+                              user.is_superadmin,
                             )}`}
                           >
                             {displayRole}

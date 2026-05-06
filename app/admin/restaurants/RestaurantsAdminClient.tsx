@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { textMatchesMultiWordSearch } from "@/lib/search";
 
 type Restaurant = {
   id: string;
@@ -29,9 +30,7 @@ type Props = {
   initialRestaurants: Restaurant[];
 };
 
-export default function RestaurantsAdminClient({
-  initialRestaurants,
-}: Props) {
+export default function RestaurantsAdminClient({ initialRestaurants }: Props) {
   const [restaurants, setRestaurants] =
     useState<Restaurant[]>(initialRestaurants);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -116,31 +115,32 @@ export default function RestaurantsAdminClient({
       }
 
       setRestaurants((prev): Restaurant[] =>
-        prev.map((r): Restaurant =>
-          r.id === id
-            ? {
-                ...r,
-                restaurant_name: form.restaurant_name ?? r.restaurant_name,
-                address: form.address ?? r.address,
-                city: form.city ?? r.city,
-                state: form.state ?? r.state,
-                zip_code: form.zip_code ?? r.zip_code,
-                status: form.status ?? r.status,
-                phone: form.phone ?? r.phone,
-                website: form.website ?? r.website,
-                reservation_url: form.reservation_url ?? r.reservation_url,
-                cuisine: form.cuisine ?? r.cuisine,
-                description: form.description ?? r.description,
-                image_url: form.image_url ?? r.image_url,
-                roseout_score:
-                  form.roseout_score === undefined
-                    ? r.roseout_score
-                    : Number(form.roseout_score),
-                view_count: r.view_count,
-                click_count: r.click_count,
-              }
-            : r
-        )
+        prev.map(
+          (r): Restaurant =>
+            r.id === id
+              ? {
+                  ...r,
+                  restaurant_name: form.restaurant_name ?? r.restaurant_name,
+                  address: form.address ?? r.address,
+                  city: form.city ?? r.city,
+                  state: form.state ?? r.state,
+                  zip_code: form.zip_code ?? r.zip_code,
+                  status: form.status ?? r.status,
+                  phone: form.phone ?? r.phone,
+                  website: form.website ?? r.website,
+                  reservation_url: form.reservation_url ?? r.reservation_url,
+                  cuisine: form.cuisine ?? r.cuisine,
+                  description: form.description ?? r.description,
+                  image_url: form.image_url ?? r.image_url,
+                  roseout_score:
+                    form.roseout_score === undefined
+                      ? r.roseout_score
+                      : Number(form.roseout_score),
+                  view_count: r.view_count,
+                  click_count: r.click_count,
+                }
+              : r,
+        ),
       );
 
       setEditingId(null);
@@ -156,14 +156,16 @@ export default function RestaurantsAdminClient({
 
   const filteredRestaurants = useMemo(() => {
     return restaurants.filter((restaurant) => {
-      const q = search.toLowerCase();
-
-      const matchesSearch =
-        restaurant.restaurant_name.toLowerCase().includes(q) ||
-        restaurant.address.toLowerCase().includes(q) ||
-        restaurant.city.toLowerCase().includes(q) ||
-        restaurant.state.toLowerCase().includes(q) ||
-        restaurant.cuisine?.toLowerCase().includes(q);
+      const matchesSearch = textMatchesMultiWordSearch(
+        [
+          restaurant.restaurant_name,
+          restaurant.address,
+          restaurant.city,
+          restaurant.state,
+          restaurant.cuisine,
+        ],
+        search,
+      );
 
       const matchesStatus =
         statusFilter === "all" || restaurant.status === statusFilter;
@@ -385,9 +387,7 @@ export default function RestaurantsAdminClient({
                         </label>
                         <select
                           value={form.status ?? "pending"}
-                          onChange={(e) =>
-                            updateForm("status", e.target.value)
-                          }
+                          onChange={(e) => updateForm("status", e.target.value)}
                           className="w-full rounded-2xl border border-[#ead8c7] px-4 py-3 text-sm outline-none focus:border-[#b66a3c]"
                         >
                           <option value="approved">Approved</option>
