@@ -463,12 +463,21 @@ export default function CreatePage() {
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black pb-36 text-white sm:pb-28">
       {loading && (
-        <section
-          ref={loadingResultsRef}
-          className="mx-auto w-full max-w-7xl scroll-mt-0 overflow-x-hidden px-3 pb-5 pt-24 sm:px-6 sm:pb-8 sm:pt-28 lg:pt-32"
-        >
-          <LoadingResults label={loadingLines[loadingIndex]} />
-        </section>
+        <>
+          <section
+            className="fixed inset-0 z-[60] overflow-y-auto bg-black px-3 pb-8 pt-5 text-white sm:hidden"
+            aria-live="polite"
+          >
+            <LoadingResults label={loadingLines[loadingIndex]} />
+          </section>
+
+          <section
+            ref={loadingResultsRef}
+            className="mx-auto hidden w-full max-w-7xl scroll-mt-0 overflow-x-hidden px-3 pb-5 pt-24 sm:block sm:px-6 sm:pb-8 sm:pt-28 lg:pt-32"
+          >
+            <LoadingResults label={loadingLines[loadingIndex]} />
+          </section>
+        </>
       )}
 
       <section className="relative w-full max-w-full overflow-x-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(225,6,42,0.22),transparent_34%),linear-gradient(180deg,#050505_0%,#0b0b0b_100%)] px-3 pb-6 pt-24 sm:px-6 sm:pb-10 sm:pt-28 lg:pt-32">
