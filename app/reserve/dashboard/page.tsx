@@ -210,6 +210,13 @@ export default async function ReserveDashboardPage() {
               >
                 View Reservations
               </Link>
+
+              <Link
+                href="/support"
+                className="rounded-full border border-white/10 bg-white/[0.07] px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                Support Tickets
+              </Link>
             </div>
           </div>
         </section>
@@ -393,6 +400,14 @@ export default async function ReserveDashboardPage() {
               >
                 <p className="font-black">Location Durations</p>
                 <p className="mt-1 text-xs text-white/45">Edit defaults</p>
+              </Link>
+
+              <Link
+                href="/support"
+                className="rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-4 transition hover:bg-white/[0.1]"
+              >
+                <p className="font-black">Support Tickets</p>
+                <p className="mt-1 text-xs text-white/45">Submit, reply, view</p>
               </Link>
             </div>
           </div>

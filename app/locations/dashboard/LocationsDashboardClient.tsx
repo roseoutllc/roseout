@@ -111,13 +111,22 @@ export default function LocationsDashboardClient({
 
         <div className="relative mx-auto max-w-7xl px-5 py-8 sm:px-8">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-            <Link
-              href="/admin/dashboard"
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white/80 hover:bg-white/10"
-            >
-              <ArrowLeft size={16} />
-              Back to Admin
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/admin/dashboard"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white/80 hover:bg-white/10"
+              >
+                <ArrowLeft size={16} />
+                Back to Admin
+              </Link>
+
+              <Link
+                href="/support"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white/80 hover:bg-white/10"
+              >
+                Support Tickets
+              </Link>
+            </div>
 
             {impersonationLabel && (
               <button
