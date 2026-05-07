@@ -808,5 +808,5 @@ export function balanceSmartMatches(
 }
 
 export function getSmartMatchVersion() {
-  return "roseout-smart-match-engine-v7";
+  return "roseout-smart-match-engine-v8";
 }

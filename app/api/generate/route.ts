@@ -561,6 +561,43 @@ const LONG_ISLAND_LOCATION_TERMS = [
   ...SUFFOLK_LOCATION_TERMS,
 ];
 
+const NORTHERN_NEW_JERSEY_LOCATION_TERMS = [
+  "new jersey",
+  "north jersey",
+  "northern new jersey",
+  "jersey city",
+  "hoboken",
+  "newark",
+  "edgewater",
+  "fort lee",
+  "union city",
+  "weehawken",
+  "secaucus",
+  "hackensack",
+  "paramus",
+  "englewood",
+  "bayonne",
+  "kearny",
+  "harrison",
+  "clifton",
+  "paterson",
+  "passaic",
+  "montclair",
+  "bloomfield",
+  "east orange",
+  "orange",
+  "west orange",
+  "livingston",
+  "morristown",
+  "summit",
+  "union",
+  "elizabeth",
+  "lodi",
+  "teaneck",
+  "ridgewood nj",
+  "ridgewood new jersey",
+];
+
 function detectLocation(input: string, locations: any[]) {
   const text = normalizeQuery(input);
   const found = new Set<string>();
@@ -928,6 +965,26 @@ function detectLocation(input: string, locations: any[]) {
     "hackensack",
     "paramus",
     "englewood",
+    "bayonne",
+    "kearny",
+    "harrison",
+    "clifton",
+    "paterson",
+    "passaic",
+    "montclair",
+    "bloomfield",
+    "east orange",
+    "orange",
+    "west orange",
+    "livingston",
+    "morristown",
+    "summit",
+    "union",
+    "elizabeth",
+    "lodi",
+    "teaneck",
+    "ridgewood nj",
+    "ridgewood new jersey",
     "jfk",
     "laguardia",
     "lga",
@@ -949,6 +1006,80 @@ function zipCodeForItem(item: LocationMatchItem) {
   ).match(/\b\d{5}\b/);
 
   return zip?.[0] || "";
+}
+
+function isSupportedServiceZip(zip: string) {
+  const prefix = Number(zip.slice(0, 3));
+
+  return (
+    [
+      100,
+      101,
+      102,
+      103,
+      104,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+    ].includes(prefix) ||
+    zip === "11004" ||
+    zip === "11005" ||
+    (prefix >= 70 && prefix <= 79)
+  );
+}
+
+function locationTermsFromZip(zip: string) {
+  if (!zip || !isSupportedServiceZip(zip)) return [];
+
+  const prefix = Number(zip.slice(0, 3));
+
+  if (zip === "11412") {
+    return ["saint albans", "st albans", "st. albans", "queens"];
+  }
+
+  if (zip === "11780") {
+    return ["saint james", "st james", "st. james", "long island"];
+  }
+
+  if (prefix === 103) return ["staten island", "nyc", "new york city"];
+  if (prefix === 104) return ["bronx", "nyc", "new york city"];
+  if (prefix === 112) return ["brooklyn", "nyc", "new york city"];
+  if ([100, 101, 102].includes(prefix)) {
+    return ["manhattan", "nyc", "new york city"];
+  }
+
+  if (
+    [111, 113, 114, 116].includes(prefix) ||
+    zip === "11004" ||
+    zip === "11005"
+  ) {
+    return ["queens", "nyc", "new york city", ...QUEENS_LOCATION_TERMS];
+  }
+
+  if ([110, 115, 118].includes(prefix)) {
+    return ["nassau", "nassau county", "long island", ...NASSAU_LOCATION_TERMS];
+  }
+
+  if ([117, 119].includes(prefix)) {
+    return [
+      "long island",
+      "suffolk",
+      "suffolk county",
+      ...LONG_ISLAND_LOCATION_TERMS,
+    ];
+  }
+
+  if (prefix >= 70 && prefix <= 79) {
+    return NORTHERN_NEW_JERSEY_LOCATION_TERMS;
+  }
+
+  return [];
 }
 
 function boroughFromZip(zip: string) {
@@ -989,6 +1120,9 @@ function expandedLocationTerms(location: string) {
     "nassau county": NASSAU_LOCATION_TERMS,
     suffolk: SUFFOLK_LOCATION_TERMS,
     "suffolk county": SUFFOLK_LOCATION_TERMS,
+    "new jersey": NORTHERN_NEW_JERSEY_LOCATION_TERMS,
+    "north jersey": NORTHERN_NEW_JERSEY_LOCATION_TERMS,
+    "northern new jersey": NORTHERN_NEW_JERSEY_LOCATION_TERMS,
     nyc: [
       "new york",
       "new york city",
@@ -1008,6 +1142,10 @@ function expandedLocationTerms(location: string) {
     ],
   };
 
+  if (/^\d{5}$/.test(normalized)) {
+    return Array.from(new Set([normalized, ...locationTermsFromZip(normalized)]));
+  }
+
   return Array.from(new Set([normalized, ...(aliases[normalized] || [])]));
 }
 
@@ -1025,6 +1163,7 @@ function matchesLocation(item: LocationMatchItem, detectedLocations: string[]) {
       itemZip,
       item.address,
       itemBorough,
+      ...locationTermsFromZip(itemZip),
     ]
       .filter(Boolean)
       .join(" ")
@@ -1033,8 +1172,8 @@ function matchesLocation(item: LocationMatchItem, detectedLocations: string[]) {
   return detectedLocations.some((location) => {
     const normalizedLocation = normalizeQuery(location);
 
-    if (/^\d{5}$/.test(normalizedLocation)) {
-      return itemZip === normalizedLocation;
+    if (/^\d{5}$/.test(normalizedLocation) && itemZip === normalizedLocation) {
+      return true;
     }
 
     return expandedLocationTerms(normalizedLocation).some((term) =>
@@ -1092,7 +1231,12 @@ function isRoseOutRelated(input: string) {
     "long island",
   ];
 
-  return allowedWords.some((word) => text.includes(word));
+  const searchedZips = text.match(/\b\d{5}\b/g) || [];
+
+  return (
+    allowedWords.some((word) => text.includes(word)) ||
+    searchedZips.some(isSupportedServiceZip)
+  );
 }
 
 function isUnsafeOrOffTopic(input: string) {
