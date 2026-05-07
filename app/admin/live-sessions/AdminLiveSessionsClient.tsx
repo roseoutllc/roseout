@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminTopBar from "@/app/admin/components/AdminTopBar";
 
 type EventItem = {
@@ -10,7 +10,7 @@ type EventItem = {
   event_type: string;
   event_name: string | null;
   page_path: string | null;
-  metadata: any;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -63,6 +63,12 @@ export default function AdminLiveSessionsClient() {
   const [liveNow, setLiveNow] = useState(0);
   const [conversions, setConversions] = useState(0);
   const [conversionRate, setConversionRate] = useState(0);
+  const [totalSessions, setTotalSessions] = useState(0);
+  const [totalEvents, setTotalEvents] = useState(0);
+  const [searches, setSearches] = useState(0);
+  const [clicks, setClicks] = useState(0);
+  const [views, setViews] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const [mostActiveUsers, setMostActiveUsers] = useState<ActiveUser[]>([]);
   const [likelyToConvert, setLikelyToConvert] = useState<ActiveUser[]>([]);
   const [mostClickedRestaurants, setMostClickedRestaurants] = useState<
@@ -73,7 +79,7 @@ export default function AdminLiveSessionsClient() {
     null
   );
 
-  async function loadSessions() {
+  const loadSessions = useCallback(async function loadSessions() {
     try {
       const res = await fetch("/api/admin/live-sessions", {
         cache: "no-store",
@@ -86,23 +92,31 @@ export default function AdminLiveSessionsClient() {
       setLiveNow(data.live_now || 0);
       setConversions(data.conversions || 0);
       setConversionRate(data.conversion_rate || 0);
+      setTotalSessions(data.total_sessions || data.sessions?.length || 0);
+      setTotalEvents(data.total_events || data.events?.length || 0);
+      setSearches(data.searches || 0);
+      setClicks(data.clicks || 0);
+      setViews(data.views || 0);
+      setNow(Date.now());
       setMostActiveUsers(data.most_active_users || []);
       setLikelyToConvert(data.likely_to_convert || []);
       setMostClickedRestaurants(data.most_clicked_restaurants || []);
 
-      if (selectedSession) {
+      setSelectedSession((current) => {
+        if (!current) return current;
+
         const updated = (data.sessions || []).find(
-          (s: LiveSession) =>
-            s.session_id === selectedSession.session_id ||
-            s.user_id === selectedSession.user_id
+          (session: LiveSession) =>
+            session.session_id === current.session_id ||
+            session.user_id === current.user_id
         );
 
-        if (updated) setSelectedSession(updated);
-      }
+        return updated || current;
+      });
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadSessions();
@@ -110,7 +124,7 @@ export default function AdminLiveSessionsClient() {
     const timer = setInterval(loadSessions, 5000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [loadSessions]);
 
   const activePages = useMemo(() => {
     const counts = new Map<string, number>();
@@ -161,12 +175,15 @@ export default function AdminLiveSessionsClient() {
       </section>
 
       <section className="mx-auto max-w-7xl px-6 py-8">
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-4 xl:grid-cols-8">
           <StatCard label="Live Now" value={liveNow} tone="rose" />
-          <StatCard label="Sessions 24h" value={sessions.length} />
-          <StatCard label="Events 24h" value={events.length} />
+          <StatCard label="Sessions 24h" value={totalSessions} />
+          <StatCard label="Events 24h" value={totalEvents} />
+          <StatCard label="Views" value={views} />
+          <StatCard label="Searches" value={searches} />
+          <StatCard label="Clicks" value={clicks} />
           <StatCard label="Conversions" value={conversions} tone="green" />
-          <StatCard label="Conversion Rate" value={`${conversionRate}%`} />
+          <StatCard label="Conv. Rate" value={`${conversionRate}%`} />
         </div>
 
         <div className="mt-8 grid gap-6 xl:grid-cols-4">
@@ -185,7 +202,7 @@ export default function AdminLiveSessionsClient() {
               <div className="space-y-3">
                 {sessions.slice(0, 12).map((session) => {
                   const isLive =
-                    Date.now() - new Date(session.last_seen).getTime() <=
+                    now - new Date(session.last_seen).getTime() <=
                     1000 * 60 * 5;
 
                   return (
