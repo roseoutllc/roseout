@@ -581,6 +581,20 @@ function isRoseOutRelated(input: string) {
     "plans",
     "place",
     "places",
+    "spot",
+    "spots",
+    "search",
+    "find",
+    "show",
+    "recommend",
+    "recommendation",
+    "recommendations",
+    "suggest",
+    "suggestion",
+    "suggestions",
+    "anything",
+    "something",
+    "somewhere",
     "near",
     "nearby",
     "budget",
@@ -1540,8 +1554,19 @@ const usableLocations = locations.filter((item: any) => {
       );
     });
 
+    const fallbackRestaurants = restaurants;
+    const fallbackActivities = activities;
+
     restaurants = filterRestaurantsByFoodIntent(restaurants, intent);
     activities = filterActivitiesByActivityIntent(activities, intent);
+
+    if (restaurants.length === 0 && fallbackRestaurants.length > 0) {
+      restaurants = fallbackRestaurants;
+    }
+
+    if (activities.length === 0 && fallbackActivities.length > 0) {
+      activities = fallbackActivities;
+    }
 
     if (intent.locations.length > 0) {
       const locationRestaurants = restaurants.filter((item: any) =>
