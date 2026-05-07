@@ -2,6 +2,165 @@ import { requireAdminApiRole } from "@/lib/admin-api-auth";
 
 export const dynamic = "force-dynamic";
 
+type ActivityEvent = {
+  id: string;
+  user_id: string | null;
+  session_id: string | null;
+  event_type: string;
+  event_name: string | null;
+  page_path: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
+
+type AnalyticsEvent = {
+  id: string;
+  item_id: string | null;
+  item_type: string | null;
+  event_type: string | null;
+  page_path: string | null;
+  created_at: string;
+};
+
+type SearchLog = {
+  id?: string | null;
+  query: string | null;
+  created_at: string;
+};
+
+type ConversionRow = {
+  id: string;
+  user_id?: string | null;
+  status?: string | null;
+  created_at: string;
+};
+
+type UserProfile = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  subscription_status: string | null;
+  role: string | null;
+};
+
+type RestaurantProfile = {
+  id: string;
+  restaurant_name?: string | null;
+  name?: string | null;
+};
+
+type SessionStat = {
+  session_id: string | null;
+  user_id: string | null;
+  user: UserProfile | null;
+  current_page: string | null;
+  last_event_type: string | null;
+  last_event_name: string | null;
+  last_seen: string;
+  events_count: number;
+  events: ActivityEvent[];
+};
+
+type UserStat = {
+  user_id: string;
+  user: UserProfile | null;
+  events_count: number;
+  searches: number;
+  clicks: number;
+  conversions: number;
+  saved_plan_clicks: number;
+  last_seen: string;
+  likely_to_convert_score: number;
+};
+
+type LiveSummary = {
+  searches: number;
+  clicks: number;
+  views: number;
+  saved_plans: number;
+  reservations: number;
+  sources: {
+    user_activity_events: number;
+    analytics_events: number;
+    search_logs: number;
+    saved_plans: number;
+    location_reservations: number;
+  };
+};
+
+type RestaurantStat = {
+  restaurant_id: string;
+  restaurant_name: string;
+  clicks: number;
+  conversions: number;
+  last_clicked: string;
+};
+
+function emptyQuery<T>() {
+  return { data: [] as T[], error: null };
+}
+
+function toMetadata(value: unknown) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
+}
+
+function isSearchEvent(eventType: string | null | undefined) {
+  return Boolean(eventType && eventType.toLowerCase().includes("search"));
+}
+
+function isClickEvent(eventType: string | null | undefined) {
+  if (!eventType) return false;
+
+  return (
+    eventType === "click" ||
+    eventType === "button_click" ||
+    eventType === "restaurant_click" ||
+    eventType === "activity_click" ||
+    eventType === "plan_click" ||
+    eventType.toLowerCase().includes("click")
+  );
+}
+
+function isConversionEvent(eventType: string | null | undefined) {
+  if (!eventType) return false;
+
+  return ["conversion", "reservation", "booking", "checkout"].some((signal) =>
+    eventType.toLowerCase().includes(signal)
+  );
+}
+function makeSyntheticEvent({
+  id,
+  eventType,
+  eventName,
+  pagePath,
+  metadata,
+  createdAt,
+  userId = null,
+}: {
+  id: string;
+  eventType: string;
+  eventName: string;
+  pagePath: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  userId?: string | null;
+}): ActivityEvent {
+  return {
+    id,
+    user_id: userId,
+    session_id: null,
+    event_type: eventType,
+    event_name: eventName,
+    page_path: pagePath,
+    metadata,
+    created_at: createdAt,
+  };
+}
+
 export async function GET() {
   const { error, supabase } = await requireAdminApiRole([
     "superuser",
@@ -14,21 +173,74 @@ export async function GET() {
   try {
     const since = new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString();
 
-    const { data: events, error: fetchError } = await supabase
-      .from("user_activity_events")
-      .select("*")
-      .gte("created_at", since)
-      .order("created_at", { ascending: false })
-      .limit(1000);
+    const [
+      activityResult,
+      analyticsResult,
+      searchResult,
+      savedPlansResult,
+      reservationsResult,
+    ] = await Promise.all([
+        supabase
+          .from("user_activity_events")
+          .select("*")
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(1000),
+        supabase
+          .from("analytics_events")
+          .select("id,item_id,item_type,event_type,page_path,created_at")
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(1000),
+        supabase
+          .from("search_logs")
+          .select("id,query,created_at")
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(500),
+        supabase
+          .from("saved_plans")
+          .select("id,user_id,title,created_at")
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(500),
+        supabase
+          .from("location_reservations")
+          .select("id,user_id,status,created_at")
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(500),
+      ]);
 
-    if (fetchError) {
-      return Response.json({ error: fetchError.message }, { status: 500 });
+    if (activityResult.error) {
+      return Response.json(
+        { error: activityResult.error.message },
+        { status: 500 }
+      );
     }
 
-    const safeEvents = events || [];
+    const safeEvents = (activityResult.data || []) as ActivityEvent[];
+    const analyticsEvents = analyticsResult.error
+      ? []
+      : ((analyticsResult.data || []) as AnalyticsEvent[]);
+    const searchLogs = searchResult.error
+      ? []
+      : ((searchResult.data || []) as SearchLog[]);
+    const savedPlans = savedPlansResult.error
+      ? []
+      : ((savedPlansResult.data || []) as ConversionRow[]);
+    const reservations = reservationsResult.error
+      ? []
+      : ((reservationsResult.data || []) as ConversionRow[]);
 
     const userIds = Array.from(
-      new Set(safeEvents.map((e) => e.user_id).filter(Boolean))
+      new Set(
+        [
+          ...safeEvents.map((event) => event.user_id),
+          ...savedPlans.map((plan) => plan.user_id || null),
+          ...reservations.map((reservation) => reservation.user_id || null),
+        ].filter(Boolean)
+      )
     );
 
     const { data: users } = userIds.length
@@ -36,22 +248,55 @@ export async function GET() {
           .from("users")
           .select("id,email,full_name,subscription_status,role")
           .in("id", userIds)
-      : { data: [] };
+      : emptyQuery<UserProfile>();
 
-    const userMap = new Map((users || []).map((u: any) => [u.id, u]));
+    const userMap = new Map(
+      ((users || []) as UserProfile[]).map((user) => [user.id, user])
+    );
 
-    const sessionMap = new Map<string, any>();
-    const userStats = new Map<string, any>();
-    const restaurantStats = new Map<string, any>();
+    const restaurantIds = Array.from(
+      new Set(
+        analyticsEvents
+          .filter(
+            (event) => event.item_type === "restaurant" && event.item_id
+          )
+          .map((event) => String(event.item_id))
+      )
+    );
 
-    let conversions = 0;
+    const { data: restaurants } = restaurantIds.length
+      ? await supabase
+          .from("restaurants")
+          .select("id,restaurant_name,name")
+          .in("id", restaurantIds)
+      : emptyQuery<RestaurantProfile>();
+
+    const restaurantNameMap = new Map(
+      ((restaurants || []) as RestaurantProfile[]).map((restaurant) => [
+        String(restaurant.id),
+        restaurant.restaurant_name || restaurant.name || "Unknown Restaurant",
+      ])
+    );
+
+    const sessionMap = new Map<string, SessionStat>();
+    const userStats = new Map<string, UserStat>();
+    const restaurantStats = new Map<string, RestaurantStat>();
+    const unifiedEvents: ActivityEvent[] = [...safeEvents];
+
+    let activityConversions = 0;
+    let activitySearches = 0;
+    let activityClicks = 0;
 
     for (const event of safeEvents) {
+      const eventType = event.event_type || "activity";
+      const metadata = toMetadata(event.metadata);
       const sessionKey = event.session_id || event.user_id || event.id;
       const profile = event.user_id ? userMap.get(event.user_id) : null;
 
-      if (!sessionMap.has(sessionKey)) {
-        sessionMap.set(sessionKey, {
+      let session = sessionMap.get(sessionKey);
+
+      if (!session) {
+        session = {
           session_id: event.session_id,
           user_id: event.user_id,
           user: profile || null,
@@ -61,19 +306,25 @@ export async function GET() {
           last_seen: event.created_at,
           events_count: 0,
           events: [],
-        });
+        };
+        sessionMap.set(sessionKey, session);
       }
 
-      const session = sessionMap.get(sessionKey);
       session.events_count += 1;
 
       if (session.events.length < 10) {
-        session.events.push(event);
+        session.events.push({ ...event, metadata });
       }
 
+      if (isSearchEvent(eventType)) activitySearches += 1;
+      if (isClickEvent(eventType)) activityClicks += 1;
+      if (isConversionEvent(eventType)) activityConversions += 1;
+
       if (event.user_id) {
-        if (!userStats.has(event.user_id)) {
-          userStats.set(event.user_id, {
+        let stat = userStats.get(event.user_id);
+
+        if (!stat) {
+          stat = {
             user_id: event.user_id,
             user: profile || null,
             events_count: 0,
@@ -83,25 +334,16 @@ export async function GET() {
             saved_plan_clicks: 0,
             last_seen: event.created_at,
             likely_to_convert_score: 0,
-          });
+          };
+          userStats.set(event.user_id, stat);
         }
 
-        const stat = userStats.get(event.user_id);
         stat.events_count += 1;
 
-        if (event.event_type === "search") stat.searches += 1;
-        if (
-          event.event_type === "button_click" ||
-          event.event_type === "restaurant_click" ||
-          event.event_type === "plan_click"
-        ) {
-          stat.clicks += 1;
-        }
-        if (event.event_type === "plan_click") stat.saved_plan_clicks += 1;
-        if (event.event_type === "conversion") {
-          stat.conversions += 1;
-          conversions += 1;
-        }
+        if (isSearchEvent(eventType)) stat.searches += 1;
+        if (isClickEvent(eventType)) stat.clicks += 1;
+        if (eventType === "plan_click") stat.saved_plan_clicks += 1;
+        if (isConversionEvent(eventType)) stat.conversions += 1;
 
         if (new Date(event.created_at) > new Date(stat.last_seen)) {
           stat.last_seen = event.created_at;
@@ -109,39 +351,143 @@ export async function GET() {
       }
 
       const restaurantId =
-        event.metadata?.restaurant_id ||
-        event.metadata?.restaurantId ||
-        event.metadata?.id;
+        metadata.restaurant_id ||
+        metadata.restaurantId ||
+        metadata.location_id ||
+        metadata.id;
 
-      const restaurantName =
-        event.metadata?.restaurant_name ||
-        event.metadata?.restaurantName ||
-        event.metadata?.name ||
-        "Unknown Restaurant";
+      const restaurantName = String(
+        metadata.restaurant_name ||
+          metadata.restaurantName ||
+          metadata.location_name ||
+          metadata.name ||
+          "Unknown Restaurant"
+      );
 
-      if (
-        restaurantId &&
-        ["restaurant_click", "conversion"].includes(event.event_type)
-      ) {
-        if (!restaurantStats.has(restaurantId)) {
-          restaurantStats.set(restaurantId, {
-            restaurant_id: restaurantId,
+      if (restaurantId && (isClickEvent(eventType) || isConversionEvent(eventType))) {
+        const key = String(restaurantId);
+
+        let stat = restaurantStats.get(key);
+
+        if (!stat) {
+          stat = {
+            restaurant_id: key,
             restaurant_name: restaurantName,
             clicks: 0,
             conversions: 0,
             last_clicked: event.created_at,
-          });
+          };
+          restaurantStats.set(key, stat);
         }
 
-        const stat = restaurantStats.get(restaurantId);
-
-        if (event.event_type === "restaurant_click") stat.clicks += 1;
-        if (event.event_type === "conversion") stat.conversions += 1;
+        if (isClickEvent(eventType)) stat.clicks += 1;
+        if (isConversionEvent(eventType)) stat.conversions += 1;
 
         if (new Date(event.created_at) > new Date(stat.last_clicked)) {
           stat.last_clicked = event.created_at;
         }
       }
+    }
+
+    let analyticsClicks = 0;
+    let analyticsViews = 0;
+
+    for (const event of analyticsEvents) {
+      const itemType = event.item_type || "item";
+      const itemId = event.item_id ? String(event.item_id) : "unknown";
+      const eventType = event.event_type || "analytics";
+      const eventName = `${itemType} ${eventType}`;
+
+      if (eventType === "view") analyticsViews += 1;
+      if (isClickEvent(eventType)) analyticsClicks += 1;
+
+      unifiedEvents.push(
+        makeSyntheticEvent({
+          id: `analytics-${event.id}`,
+          eventType: itemType === "restaurant" && isClickEvent(eventType)
+            ? "restaurant_click"
+            : eventType,
+          eventName,
+          pagePath: event.page_path,
+          metadata: {
+            item_id: itemId,
+            item_type: itemType,
+          },
+          createdAt: event.created_at,
+        })
+      );
+
+      if (itemType === "restaurant" && isClickEvent(eventType) && itemId) {
+        let stat = restaurantStats.get(itemId);
+
+        if (!stat) {
+          stat = {
+            restaurant_id: itemId,
+            restaurant_name:
+              restaurantNameMap.get(itemId) || "Unknown Restaurant",
+            clicks: 0,
+            conversions: 0,
+            last_clicked: event.created_at,
+          };
+          restaurantStats.set(itemId, stat);
+        }
+
+        stat.clicks += 1;
+
+        const restaurantName = restaurantNameMap.get(itemId);
+
+        if (restaurantName) {
+          stat.restaurant_name = restaurantName;
+        }
+
+        if (new Date(event.created_at) > new Date(stat.last_clicked)) {
+          stat.last_clicked = event.created_at;
+        }
+      }
+    }
+
+    for (const log of searchLogs) {
+      unifiedEvents.push(
+        makeSyntheticEvent({
+          id: `search-${log.id || log.created_at}-${log.query || "query"}`,
+          eventType: "search",
+          eventName: log.query || "Search submitted",
+          pagePath: "/create",
+          metadata: { query: log.query },
+          createdAt: log.created_at,
+        })
+      );
+    }
+
+    for (const plan of savedPlans) {
+      unifiedEvents.push(
+        makeSyntheticEvent({
+          id: `saved-plan-${plan.id}`,
+          eventType: "conversion",
+          eventName: "Saved Plan Created",
+          pagePath: "/user/saved",
+          metadata: { plan_id: plan.id },
+          createdAt: plan.created_at,
+          userId: plan.user_id || null,
+        })
+      );
+    }
+
+    for (const reservation of reservations) {
+      unifiedEvents.push(
+        makeSyntheticEvent({
+          id: `reservation-${reservation.id}`,
+          eventType: "conversion",
+          eventName: "Reservation Created",
+          pagePath: "/reserve",
+          metadata: {
+            reservation_id: reservation.id,
+            status: reservation.status || null,
+          },
+          createdAt: reservation.created_at,
+          userId: reservation.user_id || null,
+        })
+      );
     }
 
     const sessions = Array.from(sessionMap.values()).sort(
@@ -153,6 +499,27 @@ export async function GET() {
       (session) =>
         Date.now() - new Date(session.last_seen).getTime() <= 1000 * 60 * 5
     );
+
+    const conversionCount =
+      activityConversions + savedPlans.length + reservations.length;
+    const searchCount = activitySearches + searchLogs.length;
+    const clickCount = activityClicks + analyticsClicks;
+    const viewCount = analyticsViews;
+    const totalEvents = unifiedEvents.length;
+    const summary: LiveSummary = {
+      searches: searchCount,
+      clicks: clickCount,
+      views: viewCount,
+      saved_plans: savedPlans.length,
+      reservations: reservations.length,
+      sources: {
+        user_activity_events: safeEvents.length,
+        analytics_events: analyticsEvents.length,
+        search_logs: searchLogs.length,
+        saved_plans: savedPlans.length,
+        location_reservations: reservations.length,
+      },
+    };
 
     const mostActiveUsers = Array.from(userStats.values())
       .map((stat) => {
@@ -178,28 +545,36 @@ export async function GET() {
       .slice(0, 8);
 
     const mostClickedRestaurants = Array.from(restaurantStats.values())
-      .sort((a, b) => b.clicks + b.conversions * 3 - (a.clicks + a.conversions * 3))
+      .sort(
+        (a, b) => b.clicks + b.conversions * 3 - (a.clicks + a.conversions * 3)
+      )
       .slice(0, 10);
 
+    const conversionDenominator = clickCount + searchCount;
     const conversionRate =
-      safeEvents.length > 0
-        ? Math.round((conversions / safeEvents.length) * 100)
+      conversionDenominator > 0
+        ? Math.round((conversionCount / conversionDenominator) * 100)
         : 0;
 
     return Response.json({
       sessions,
       live_now: liveNow.length,
       total_sessions: sessions.length,
-      events: safeEvents,
+      total_events: totalEvents,
+      events: unifiedEvents.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ),
       most_active_users: mostActiveUsers,
       most_clicked_restaurants: mostClickedRestaurants,
       likely_to_convert: likelyToConvert,
-      conversions,
+      conversions: conversionCount,
       conversion_rate: conversionRate,
+      ...summary,
     });
-  } catch (err: any) {
+  } catch (err) {
     return Response.json(
-      { error: err.message || "Server error" },
+      { error: err instanceof Error ? err.message : "Server error" },
       { status: 500 }
     );
   }
