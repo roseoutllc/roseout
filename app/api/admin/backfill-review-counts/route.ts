@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminApiRole } from "@/lib/admin-api-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,7 +77,7 @@ function getBearerToken(request: NextRequest) {
   return auth.slice(7).trim();
 }
 
-function isAuthorized(request: NextRequest) {
+function hasSecretAuthorization(request: NextRequest) {
   if (process.env.NODE_ENV === "development") return true;
 
   const importSecret = request.headers.get("x-internal-import-secret");
@@ -327,12 +328,21 @@ async function backfillTable(
   };
 }
 
+async function requireBackfillAuthorization(request: NextRequest) {
+  if (hasSecretAuthorization(request)) return null;
+
+  const { error } = await requireAdminApiRole(["superuser", "admin", "editor"]);
+  return error;
+}
+
 async function runBackfill(request: NextRequest) {
   let responsePayload: BackfillLogPayload = null;
 
   try {
-    if (!isAuthorized(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authError = await requireBackfillAuthorization(request);
+
+    if (authError) {
+      return authError;
     }
 
     let body: BackfillBody = {};
