@@ -201,9 +201,10 @@ export default function ImportHistoryPage() {
         },
         body: JSON.stringify({
           type: "both",
-          limit: 3,
+          limit: 2,
           batch: "all",
           areas: "nyc",
+          maxQueries: 2,
         }),
       });
 

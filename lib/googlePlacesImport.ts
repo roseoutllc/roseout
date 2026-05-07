@@ -219,6 +219,7 @@ export type GooglePlacesImportOptions = {
   limit?: number;
   batch?: string | null;
   areas?: string | null;
+  maxQueries?: number;
 };
 
 function getGoogleKey() {
@@ -430,6 +431,7 @@ async function googleDetails(placeId: string) {
 
 async function upsertRestaurant(place: GooglePlace, query: string) {
   if (!place.place_id) return { status: "skipped" as const };
+  if (shouldSkipPlace(place)) return { status: "skipped" as const };
 
   const details = await googleDetails(place.place_id);
   const merged = { ...place, ...(details || {}) };
@@ -486,6 +488,7 @@ async function upsertRestaurant(place: GooglePlace, query: string) {
 
 async function upsertActivity(place: GooglePlace, query: string) {
   if (!place.place_id) return { status: "skipped" as const };
+  if (shouldSkipPlace(place)) return { status: "skipped" as const };
 
   const details = await googleDetails(place.place_id);
   const merged = { ...place, ...(details || {}) };
@@ -616,9 +619,10 @@ async function runGroup(
 export async function runGooglePlacesImport(options: GooglePlacesImportOptions = {}) {
   const type = options.type || "both";
   const limit = Math.max(1, Math.min(Number(options.limit || 10), 25));
+  const maxQueries = Math.max(1, Math.min(Number(options.maxQueries || 2), 12));
   const areas = parseAreas(options.areas);
-  const restaurantQueries = filterQueries(CUISINE_QUERIES, options.batch, 28);
-  const activityQueries = filterQueries(ACTIVITY_QUERIES, options.batch, 28);
+  const restaurantQueries = filterQueries(CUISINE_QUERIES, options.batch, maxQueries);
+  const activityQueries = filterQueries(ACTIVITY_QUERIES, options.batch, maxQueries);
   const seenPlaceIds = new Set<string>();
 
   const restaurant = type === "activities"
@@ -641,6 +645,7 @@ export async function runGooglePlacesImport(options: GooglePlacesImportOptions =
     type,
     limit,
     batch: options.batch || "all",
+    maxQueries,
     areas,
     checked,
     imported,
@@ -669,6 +674,6 @@ export async function runGooglePlacesImport(options: GooglePlacesImportOptions =
     restaurant,
     activity,
     errors: errors.slice(0, 30),
-    settings: { type, limit, batch: options.batch || "all", areas },
+    settings: { type, limit, batch: options.batch || "all", maxQueries, areas },
   };
 }

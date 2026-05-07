@@ -16,7 +16,15 @@ function getBearerToken(request: NextRequest) {
 }
 
 function isCronAuthorized(request: NextRequest) {
+  if (process.env.NODE_ENV === "development") return true;
+
+  const importSecret = request.headers.get("x-internal-import-secret");
   const bearerToken = getBearerToken(request);
+
+  if (process.env.IMPORT_SECRET && importSecret === process.env.IMPORT_SECRET) {
+    return true;
+  }
+
   return Boolean(process.env.CRON_SECRET && bearerToken === process.env.CRON_SECRET);
 }
 
@@ -28,6 +36,7 @@ function optionsFromSearchParams(request: NextRequest): GooglePlacesImportOption
     limit: Number(searchParams.get("limit") || 10),
     batch: searchParams.get("batch") || "all",
     areas: searchParams.get("areas") || searchParams.get("area") || "nyc",
+    maxQueries: Number(searchParams.get("maxQueries") || 2),
   };
 }
 
@@ -56,6 +65,7 @@ export async function POST(request: NextRequest) {
       limit: Number(body.limit || 10),
       batch: body.batch || "all",
       areas: body.areas || body.area || "nyc",
+      maxQueries: Number(body.maxQueries || 2),
     });
 
     return NextResponse.json(result);
