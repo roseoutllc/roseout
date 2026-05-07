@@ -2,58 +2,82 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+type ImportMeta = Record<string, unknown>;
+
 type ImportLog = {
   id: string;
   job_name: string;
   run_date: string;
   created_at?: string;
-  meta: any;
+  meta: ImportMeta | null;
   error: string | null;
 };
 
-function getNumber(value: any) {
+function getRecord(value: unknown): ImportMeta {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as ImportMeta)
+    : {};
+}
+
+function getStringArray(value: unknown) {
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+}
+
+function getNumber(value: unknown) {
   const num = Number(value ?? 0);
   return Number.isFinite(num) ? num : 0;
 }
 
-function getImported(meta: any) {
+function getImported(meta: ImportMeta) {
   if (meta?.imported !== undefined && meta?.imported !== null) {
     return getNumber(meta.imported);
   }
 
-  return getNumber(meta?.restaurant?.imported) + getNumber(meta?.activity?.imported);
+  const restaurant = getRecord(meta.restaurant);
+  const activity = getRecord(meta.activity);
+
+  return getNumber(restaurant.imported) + getNumber(activity.imported);
 }
 
-function getSkipped(meta: any) {
+function getSkipped(meta: ImportMeta) {
   if (meta?.skipped !== undefined && meta?.skipped !== null) {
     return getNumber(meta.skipped);
   }
 
-  return getNumber(meta?.restaurant?.skipped) + getNumber(meta?.activity?.skipped);
+  const restaurant = getRecord(meta.restaurant);
+  const activity = getRecord(meta.activity);
+
+  return getNumber(restaurant.skipped) + getNumber(activity.skipped);
 }
 
-function getFailed(meta: any) {
+function getFailed(meta: ImportMeta) {
   if (meta?.failed !== undefined && meta?.failed !== null) {
     return getNumber(meta.failed);
   }
 
-  return getNumber(meta?.restaurant?.failed) + getNumber(meta?.activity?.failed);
+  const restaurant = getRecord(meta.restaurant);
+  const activity = getRecord(meta.activity);
+
+  return getNumber(restaurant.failed) + getNumber(activity.failed);
 }
 
-function getFound(meta: any) {
+function getFound(meta: ImportMeta) {
+  const restaurant = getRecord(meta.restaurant);
+  const activity = getRecord(meta.activity);
+
   return getNumber(
-    meta?.total_found_from_google ??
-      getNumber(meta?.restaurant?.total_found_from_google) +
-        getNumber(meta?.activity?.total_found_from_google)
+    meta.total_found_from_google ??
+      getNumber(restaurant.total_found_from_google) +
+        getNumber(activity.total_found_from_google)
   );
 }
 
-function getRestaurantImported(meta: any) {
-  return getNumber(meta?.restaurant?.imported);
+function getRestaurantImported(meta: ImportMeta) {
+  return getNumber(getRecord(meta.restaurant).imported);
 }
 
-function getActivityImported(meta: any) {
-  return getNumber(meta?.activity?.imported);
+function getActivityImported(meta: ImportMeta) {
+  return getNumber(getRecord(meta.activity).imported);
 }
 
 export default function ImportHistoryPage() {
@@ -70,7 +94,8 @@ export default function ImportHistoryPage() {
         cache: "no-store",
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
 
       setLogs(data.logs || []);
     } catch (err) {
@@ -82,16 +107,17 @@ export default function ImportHistoryPage() {
   };
 
   useEffect(() => {
-    fetchLogs();
+    void Promise.resolve().then(fetchLogs);
   }, []);
 
   useEffect(() => {
-    if (!running) {
-      setProgress(0);
-      return;
-    }
+    const initialTimer = window.setTimeout(() => {
+      setProgress(running ? 12 : 0);
+    }, 0);
 
-    setProgress(12);
+    if (!running) {
+      return () => window.clearTimeout(initialTimer);
+    }
 
     const timer = window.setInterval(() => {
       setProgress((prev) => {
@@ -100,13 +126,16 @@ export default function ImportHistoryPage() {
       });
     }, 700);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(timer);
+    };
   }, [running]);
 
   const totals = useMemo(() => {
     return logs.reduce(
       (acc, log) => {
-        const meta = log.meta || {};
+        const meta = getRecord(log.meta);
 
         acc.imported += getImported(meta);
         acc.skipped += getSkipped(meta);
@@ -143,12 +172,14 @@ export default function ImportHistoryPage() {
     const map = new Map<string, number>();
 
     logs.forEach((log) => {
-      const meta = log.meta || {};
+      const meta = getRecord(log.meta);
+      const restaurant = getRecord(meta.restaurant);
+      const activity = getRecord(meta.activity);
 
       const queries = [
-        ...(meta.queries_used || []),
-        ...(meta.restaurant?.queries_used || []),
-        ...(meta.activity?.queries_used || []),
+        ...getStringArray(meta.queries_used),
+        ...getStringArray(restaurant.queries_used),
+        ...getStringArray(activity.queries_used),
       ];
 
       queries.forEach((query: string) => {
@@ -207,7 +238,8 @@ export default function ImportHistoryPage() {
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
 
       if (!res.ok) {
         alert(data.error || "Google import failed");
@@ -223,9 +255,9 @@ export default function ImportHistoryPage() {
       );
 
       await fetchLogs();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Run import failed:", err);
-      alert("Google import failed");
+      alert(err instanceof Error ? err.message : "Google import failed");
     } finally {
       window.setTimeout(() => {
         setRunning(false);
@@ -387,7 +419,13 @@ export default function ImportHistoryPage() {
           ) : (
             <div className="space-y-4">
               {logs.map((log) => {
-                const meta = log.meta || {};
+                const meta = getRecord(log.meta);
+                const restaurantMeta = getRecord(meta.restaurant);
+                const activityMeta = getRecord(meta.activity);
+                const hasBreakdown =
+                  meta.type === "both" ||
+                  Object.keys(restaurantMeta).length > 0 ||
+                  Object.keys(activityMeta).length > 0;
 
                 return (
                   <div
@@ -422,18 +460,16 @@ export default function ImportHistoryPage() {
                       <MiniStat label="Found" value={getFound(meta)} />
                     </div>
 
-                    {(meta?.type === "both" ||
-                      meta?.restaurant ||
-                      meta?.activity) && (
+                    {hasBreakdown && (
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                           <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
                             Restaurants
                           </p>
                           <p className="mt-2 text-sm text-zinc-300">
-                            Imported: {meta.restaurant?.imported ?? 0} ·
-                            Skipped: {meta.restaurant?.skipped ?? 0} · Failed:{" "}
-                            {meta.restaurant?.failed ?? 0}
+                            Imported: {getNumber(restaurantMeta.imported)} ·
+                            Skipped: {getNumber(restaurantMeta.skipped)} · Failed:{" "}
+                            {getNumber(restaurantMeta.failed)}
                           </p>
                         </div>
 
@@ -442,9 +478,9 @@ export default function ImportHistoryPage() {
                             Activities
                           </p>
                           <p className="mt-2 text-sm text-zinc-300">
-                            Imported: {meta.activity?.imported ?? 0} · Skipped:{" "}
-                            {meta.activity?.skipped ?? 0} · Failed:{" "}
-                            {meta.activity?.failed ?? 0}
+                            Imported: {getNumber(activityMeta.imported)} · Skipped:{" "}
+                            {getNumber(activityMeta.skipped)} · Failed:{" "}
+                            {getNumber(activityMeta.failed)}
                           </p>
                         </div>
                       </div>
