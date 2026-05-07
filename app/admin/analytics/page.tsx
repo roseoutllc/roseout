@@ -1,5 +1,6 @@
 import { requireAdminRole } from "@/lib/admin-auth";
 import { supabase } from "@/lib/supabase";
+import AdminLiveSessionsClient from "../live-sessions/AdminLiveSessionsClient";
 
 export default async function AdminAnalyticsPage() {
   await requireAdminRole(["superuser", "admin", "viewer"]);
@@ -80,9 +81,11 @@ export default async function AdminAnalyticsPage() {
       </h1>
 
       <p className="mt-3 text-neutral-400">
-        View discovery performance, reservation activity, arrival trends, and
-        recent analytics events.
+        View discovery performance, reservation activity, arrival trends, live
+        user behavior, and recent analytics events.
       </p>
+
+      <AdminLiveSessionsClient embedded />
 
       <section className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="rounded-[2rem] bg-white p-6 text-black">

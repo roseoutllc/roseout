@@ -60,6 +60,7 @@ export default function ImportHistoryPage() {
   const [logs, setLogs] = useState<ImportLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
+  const [backfillingPhones, setBackfillingPhones] = useState(false);
   const [progress, setProgress] = useState(0);
 
   const fetchLogs = async () => {
@@ -201,9 +202,10 @@ export default function ImportHistoryPage() {
         },
         body: JSON.stringify({
           type: "both",
-          limit: 10,
-          batch: "fun",
-          areas: "Queens",
+          limit: 2,
+          batch: "all",
+          areas: "nyc",
+          maxQueries: 2,
         }),
       });
 
@@ -216,10 +218,16 @@ export default function ImportHistoryPage() {
 
       setProgress(100);
 
+      const errors = Array.isArray(data.errors)
+        ? data.errors.slice(0, 3).join("\n")
+        : "";
+
       alert(
         `Imported: ${data.imported || 0}\nSkipped: ${
           data.skipped || 0
-        }\nFailed: ${data.failed || 0}`
+        }\nFailed: ${data.failed || 0}${
+          errors ? `\n\nFirst errors:\n${errors}` : ""
+        }`
       );
 
       await fetchLogs();
@@ -231,6 +239,52 @@ export default function ImportHistoryPage() {
         setRunning(false);
         setProgress(0);
       }, 600);
+    }
+  };
+
+
+  const handlePhoneBackfill = async () => {
+    try {
+      setBackfillingPhones(true);
+
+      const res = await fetch("/api/admin/backfill-review-counts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fields: ["phone"],
+          limit: 50,
+          minRating: 0,
+          minReviews: 0,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "Phone backfill failed");
+        return;
+      }
+
+      const restaurants = data.restaurants || {};
+      const activities = data.activities || {};
+      const enriched =
+        getNumber(restaurants.enriched) + getNumber(activities.enriched);
+      const checked =
+        getNumber(restaurants.checked) + getNumber(activities.checked);
+      const failed = getNumber(restaurants.failed) + getNumber(activities.failed);
+
+      alert(
+        `Phone backfill complete\nUpdated: ${enriched}\nChecked: ${checked}\nFailed: ${failed}`
+      );
+
+      await fetchLogs();
+    } catch (err) {
+      console.error("Phone backfill failed:", err);
+      alert("Phone backfill failed");
+    } finally {
+      setBackfillingPhones(false);
     }
   };
 
@@ -256,14 +310,27 @@ export default function ImportHistoryPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleRunImport}
-                disabled={running}
-                className="rounded-full bg-rose-600 px-7 py-4 text-sm font-black text-white shadow-xl shadow-rose-950/50 transition hover:-translate-y-0.5 hover:bg-rose-500 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-300"
-              >
-                {running ? "Import Running..." : "Run Google Import"}
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handlePhoneBackfill}
+                  disabled={running || backfillingPhones}
+                  className="rounded-full border border-rose-400/40 px-7 py-4 text-sm font-black text-rose-100 transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:text-zinc-500"
+                >
+                  {backfillingPhones
+                    ? "Backfilling Phones..."
+                    : "Backfill Missing Phones"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRunImport}
+                  disabled={running || backfillingPhones}
+                  className="rounded-full bg-rose-600 px-7 py-4 text-sm font-black text-white shadow-xl shadow-rose-950/50 transition hover:-translate-y-0.5 hover:bg-rose-500 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-300"
+                >
+                  {running ? "Import Running..." : "Run Google Import"}
+                </button>
+              </div>
             </div>
 
             {running && (
