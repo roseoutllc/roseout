@@ -19,6 +19,8 @@ const OFF_TOPIC_REPLY =
 
 const LOCATION_NAME_MATCH_WEIGHT = 500;
 
+type LocationResult = Record<string, unknown>;
+
 const FOOD_KEYWORDS = [
   "food",
   "eat",
@@ -323,6 +325,74 @@ function normalizeLocation(item: any) {
         ? item.activity_name || name
         : item.activity_name,
   };
+}
+
+function locationField(item: LocationResult, key: string) {
+  const value = item[key];
+
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+
+  return "";
+}
+
+function isRestaurantLocation(item: LocationResult) {
+  const type = locationField(item, "location_type").toLowerCase();
+
+  return (
+    type === "restaurant" ||
+    Boolean(locationField(item, "restaurant_name")) ||
+    Boolean(locationField(item, "cuisine")) ||
+    Boolean(locationField(item, "cuisine_type"))
+  );
+}
+
+function isActivityLocation(item: LocationResult) {
+  const type = locationField(item, "location_type").toLowerCase();
+
+  if (isRestaurantLocation(item)) return false;
+
+  return (
+    type === "activity" ||
+    Boolean(locationField(item, "activity_name")) ||
+    Boolean(locationField(item, "activity_type"))
+  );
+}
+
+function resultKey(
+  item: LocationResult,
+  resultType: "restaurant" | "activity"
+) {
+  const name = String(
+    resultType === "restaurant"
+      ? locationField(item, "restaurant_name") || locationField(item, "name")
+      : locationField(item, "activity_name") || locationField(item, "name")
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+  const id = locationField(item, "id");
+
+  return name || (id ? `id:${id}` : "");
+}
+
+function uniqueResults(
+  items: LocationResult[],
+  resultType: "restaurant" | "activity"
+) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key = resultKey(item, resultType);
+
+    if (!key || seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
 }
 
 function detectLocation(input: string, locations: any[]) {
@@ -1480,7 +1550,7 @@ export async function POST(req: Request) {
     const intent = detectIntent(input, body, locations);
 
    const cacheKey = normalizeQuery(
-  `roseout-${getSmartMatchVersion()}-contact-v1-${input}-${intent.userLat || ""}-${
+  `roseout-${getSmartMatchVersion()}-contact-v2-${input}-${intent.userLat || ""}-${
     intent.userLng || ""
   }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
 );
@@ -1516,29 +1586,9 @@ const usableLocations = locations.filter((item: any) => {
       input
     );
 
-    let restaurants = sourceLocations.filter((item: any) => {
-      const type = String(item.location_type || "").toLowerCase();
+    let restaurants = sourceLocations.filter((item) => isRestaurantLocation(item));
 
-      return (
-        type === "restaurant" ||
-        Boolean(item.restaurant_name) ||
-        Boolean(item.cuisine) ||
-        Boolean(item.cuisine_type)
-      );
-    });
-
-    let activities = sourceLocations.filter((item: any) => {
-      const type = String(item.location_type || "").toLowerCase();
-
-      return (
-        type === "activity" ||
-        Boolean(item.activity_name) ||
-        Boolean(item.activity_type) ||
-        intent.activityIntents.some((activityIntent) =>
-          matchesActivityIntent(item, activityIntent)
-        )
-      );
-    });
+    let activities = sourceLocations.filter((item) => isActivityLocation(item));
 
     restaurants = filterRestaurantsByFoodIntent(restaurants, intent);
     activities = filterActivitiesByActivityIntent(activities, intent);
@@ -1562,10 +1612,12 @@ const usableLocations = locations.filter((item: any) => {
     }
 
     if (intent.activityIntents.length > 0) {
-      let forcedActivityMatches = locations.filter((item: any) =>
-        intent.activityIntents.some((activityIntent) =>
-          matchesActivityIntent(item, activityIntent)
-        )
+      let forcedActivityMatches = sourceLocations.filter(
+        (item) =>
+          isActivityLocation(item) &&
+          intent.activityIntents.some((activityIntent) =>
+            matchesActivityIntent(item, activityIntent)
+          )
       );
 
       if (intent.locations.length > 0) {
@@ -1641,8 +1693,21 @@ const usableLocations = locations.filter((item: any) => {
             pairs: [],
           };
 
-    const topRestaurants = pairedResults.restaurants;
-    const topActivities = pairedResults.activities;
+    const topRestaurants = uniqueResults(
+      pairedResults.restaurants.filter((item) => isRestaurantLocation(item)),
+      "restaurant"
+    );
+    const topRestaurantKeys = new Set(
+      topRestaurants.map((item) => resultKey(item, "restaurant"))
+    );
+    const topActivities = uniqueResults(
+      pairedResults.activities.filter(
+        (item) =>
+          isActivityLocation(item) &&
+          !topRestaurantKeys.has(resultKey(item, "activity"))
+      ),
+      "activity"
+    );
 
     const slimMatchedLocations = matchedLocationResults.map((item: any) => ({
       id: String(item.id),
