@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { roseOutEmail, roseOutEmailCard } from "@/lib/emailTheme";
 import { sendNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,10 @@ function adminSupabase() {
 
 function clean(value: unknown) {
   return String(value || "").trim();
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Server error";
 }
 
 export async function POST(req: Request) {
@@ -92,38 +97,40 @@ export async function POST(req: Request) {
       await sendNotification({
         toEmail: adminEmail,
         subject: `New RoseOut location request: ${location_name}`,
-        emailHtml: `
-          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-            <h2>New RoseOut Location Request</h2>
-            <p><strong>Location:</strong> ${location_name}</p>
-            <p><strong>Type:</strong> ${location_type}</p>
-            <p><strong>Request:</strong> ${request_type}</p>
-            <p><strong>Website:</strong> ${website || "N/A"}</p>
-            <p><strong>Address:</strong> ${address || "N/A"}</p>
-            <p><strong>City:</strong> ${city || "N/A"}</p>
-            <hr />
-            <p><strong>Owner / Manager:</strong> ${owner_name}</p>
-            <p><strong>Email:</strong> ${owner_email}</p>
-            <p><strong>Phone:</strong> ${owner_phone || "N/A"}</p>
-            <p><strong>Notes:</strong><br />${notes || "N/A"}</p>
-            <p><strong>Request ID:</strong> ${data.id}</p>
-          </div>
-        `,
+        emailHtml: roseOutEmail(`
+          <h2>New RoseOut Location Request</h2>
+          ${roseOutEmailCard(`
+            <p style="margin:0 0 8px;"><strong>Location:</strong> ${location_name}</p>
+            <p style="margin:0 0 8px;"><strong>Type:</strong> ${location_type}</p>
+            <p style="margin:0 0 8px;"><strong>Request:</strong> ${request_type}</p>
+            <p style="margin:0 0 8px;"><strong>Website:</strong> ${website || "N/A"}</p>
+            <p style="margin:0 0 8px;"><strong>Address:</strong> ${address || "N/A"}</p>
+            <p style="margin:0;"><strong>City:</strong> ${city || "N/A"}</p>
+          `)}
+          ${roseOutEmailCard(`
+            <p style="margin:0 0 8px;"><strong>Owner / Manager:</strong> ${owner_name}</p>
+            <p style="margin:0 0 8px;"><strong>Email:</strong> ${owner_email}</p>
+            <p style="margin:0 0 8px;"><strong>Phone:</strong> ${owner_phone || "N/A"}</p>
+            <p style="margin:0 0 8px;"><strong>Notes:</strong><br />${notes || "N/A"}</p>
+            <p style="margin:0;"><strong>Request ID:</strong> ${data.id}</p>
+          `)}
+        `),
       });
     }
 
     await sendNotification({
       toEmail: owner_email,
       subject: "RoseOut received your location request",
-      emailHtml: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-          <h2>We received your RoseOut request</h2>
-          <p>Hi ${owner_name},</p>
-          <p>Thanks for submitting <strong>${location_name}</strong> to RoseOut.</p>
-          <p>Our team will review your request and follow up if more information is needed.</p>
-          <p style="color:#555">Request ID: ${data.id}</p>
-        </div>
-      `,
+      emailHtml: roseOutEmail(`
+        <h2>We received your RoseOut request</h2>
+        <p>Hi ${owner_name},</p>
+        <p>Thanks for submitting <strong>${location_name}</strong> to RoseOut.</p>
+        ${roseOutEmailCard(`
+          <p style="margin:0 0 8px;"><strong>Location:</strong> ${location_name}</p>
+          <p style="margin:0;"><strong>Request ID:</strong> ${data.id}</p>
+        `)}
+        <p>Our team will review your request and follow up if more information is needed.</p>
+      `),
     });
 
     return Response.json({
@@ -131,9 +138,9 @@ export async function POST(req: Request) {
       message: "Request submitted. We’ll review and follow up shortly.",
       id: data.id,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return Response.json(
-      { error: error.message || "Server error" },
+      { error: getErrorMessage(error) },
       { status: 500 }
     );
   }
