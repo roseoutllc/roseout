@@ -464,6 +464,8 @@ function detectLocation(input: string, locations: any[]) {
     "laurelton",
     "cambria heights",
     "st albans",
+    "st. albans",
+    "saint albans",
     "springfield gardens",
     "ozone park",
     "south ozone park",
@@ -600,6 +602,9 @@ function expandedLocationTerms(location: string) {
     fidi: ["financial district"],
     les: ["lower east side"],
     lic: ["long island city"],
+    "saint albans": ["st albans", "st. albans", "11412"],
+    "st albans": ["saint albans", "st. albans", "11412"],
+    "st. albans": ["saint albans", "st albans", "11412"],
     nyc: [
       "new york",
       "new york city",

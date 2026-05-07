@@ -236,6 +236,9 @@ export const LOCATION_INTENTS: string[] = [
   "lic",
   "flushing",
   "jamaica",
+  "st albans",
+  "st. albans",
+  "saint albans",
   "forest hills",
   "rego park",
   "jackson heights",
@@ -347,6 +350,9 @@ function normalizeLocation(location: string) {
   if (location === "lic") return "long island city";
   if (location === "les") return "lower east side";
   if (location === "fidi") return "financial district";
+  if (location === "st albans" || location === "st. albans") {
+    return "saint albans";
+  }
   return location;
 }
 
@@ -646,5 +652,5 @@ export function balanceSmartMatches(
 }
 
 export function getSmartMatchVersion() {
-  return "roseout-smart-match-engine-v4";
+  return "roseout-smart-match-engine-v5";
 }
