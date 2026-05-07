@@ -201,9 +201,10 @@ export default function ImportHistoryPage() {
         },
         body: JSON.stringify({
           type: "both",
-          limit: 10,
-          batch: "fun",
-          areas: "Queens",
+          limit: 2,
+          batch: "all",
+          areas: "nyc",
+          maxQueries: 2,
         }),
       });
 
@@ -216,10 +217,16 @@ export default function ImportHistoryPage() {
 
       setProgress(100);
 
+      const errors = Array.isArray(data.errors)
+        ? data.errors.slice(0, 3).join("\n")
+        : "";
+
       alert(
         `Imported: ${data.imported || 0}\nSkipped: ${
           data.skipped || 0
-        }\nFailed: ${data.failed || 0}`
+        }\nFailed: ${data.failed || 0}${
+          errors ? `\n\nFirst errors:\n${errors}` : ""
+        }`
       );
 
       await fetchLogs();
