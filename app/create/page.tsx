@@ -185,7 +185,17 @@ export default function CreatePage() {
       setLoadingIndex((current) => (current + 1) % loadingLines.length);
     }, 1400);
 
-    return () => window.clearInterval(timer);
+    const scrollTimer = window.setTimeout(() => {
+      resultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
+
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(scrollTimer);
+    };
   }, [loading]);
 
   useEffect(() => {
@@ -509,7 +519,7 @@ export default function CreatePage() {
 
       <section
         ref={resultsRef}
-        className="mx-auto w-full max-w-7xl overflow-x-hidden px-3 py-5 sm:px-6 sm:py-8"
+        className="mx-auto w-full max-w-7xl scroll-mt-20 overflow-x-hidden px-3 py-5 sm:scroll-mt-24 sm:px-6 sm:py-8"
       >
         {error && (
           <div className="mb-4 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100 sm:mb-5">
