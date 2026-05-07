@@ -209,6 +209,18 @@ type GoogleDetailsResponse = {
   result?: GooglePlace;
 };
 
+type ImportTable = "restaurants" | "activities";
+
+type ExistingLocationClaim = {
+  id: string;
+  claim_status?: string | null;
+  claim_token?: string | null;
+  claim_url?: string | null;
+  qr_code_data_url?: string | null;
+};
+
+type SaveLocationError = { message: string };
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -379,6 +391,89 @@ function buildKeywords(place: GooglePlace, query: string, extras: string[] = [])
   ].filter(Boolean).map(String));
 }
 
+async function findExistingLocation(table: ImportTable, placeId: string) {
+  const { data, error } = await supabaseAdmin
+    .from(table)
+    .select("id, claim_status, claim_token, claim_url, qr_code_data_url")
+    .eq("google_place_id", placeId)
+    .limit(1);
+
+  if (error) throw new Error(error.message);
+
+  return (data?.[0] || null) as ExistingLocationClaim | null;
+}
+
+async function addClaimFields(
+  row: Record<string, unknown>,
+  existing: ExistingLocationClaim | null,
+  type: "restaurant" | "activity"
+) {
+  if (
+    existing?.claim_status &&
+    existing?.claim_token &&
+    existing?.claim_url &&
+    existing?.qr_code_data_url
+  ) {
+    return {
+      ...row,
+      claim_status: existing.claim_status,
+      claim_token: existing.claim_token,
+      claim_url: existing.claim_url,
+      qr_code_data_url: existing.qr_code_data_url,
+    };
+  }
+
+  const qr = await createClaimQr(type);
+
+  return {
+    ...row,
+    claim_status: existing?.claim_status || qr.claim_status,
+    claim_token: existing?.claim_token || qr.claim_token,
+    claim_url: existing?.claim_url || qr.claim_url,
+    qr_code_data_url: existing?.qr_code_data_url || qr.qr_code_data_url,
+  };
+}
+
+function getMissingColumn(errorMessage: string) {
+  return (
+    errorMessage.match(/'([^']+)' column/)?.[1] ||
+    errorMessage.match(/column "([^"]+)"/)?.[1] ||
+    null
+  );
+}
+
+async function saveLocationRow(
+  table: ImportTable,
+  row: Record<string, unknown>,
+  existing: ExistingLocationClaim | null
+): Promise<{ error: SaveLocationError | null; removedColumns: string[] }> {
+  const rowForSave = { ...row };
+  const removedColumns: string[] = [];
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const { error } = existing?.id
+      ? await supabaseAdmin.from(table).update(rowForSave).eq("id", existing.id)
+      : await supabaseAdmin.from(table).insert(rowForSave);
+
+    if (!error) return { error: null, removedColumns };
+
+    const missingColumn = getMissingColumn(error.message);
+
+    if (missingColumn && missingColumn in rowForSave) {
+      delete rowForSave[missingColumn];
+      removedColumns.push(missingColumn);
+      continue;
+    }
+
+    return { error, removedColumns };
+  }
+
+  return {
+    error: { message: "Unable to save import row after removing unsupported columns" },
+    removedColumns,
+  };
+}
+
 async function googleTextSearch(query: string) {
   const key = getGoogleKey();
   if (!key) throw new Error("Missing GOOGLE_PLACES_API_KEY or GOOGLE_MAPS_API_KEY");
@@ -442,9 +537,9 @@ async function upsertRestaurant(place: GooglePlace, query: string) {
   const photoReference = merged.photos?.[0]?.photo_reference || place.photos?.[0]?.photo_reference;
   const cuisine = inferCuisine(`${merged.name} ${query} ${(merged.types || []).join(" ")}`);
   const score = getRoseOutScore(merged);
-  const qr = await createClaimQr("restaurant");
+  const existing = await findExistingLocation("restaurants", place.place_id);
 
-  const row = {
+  const row = await addClaimFields({
     restaurant_name: merged.name,
     name: merged.name,
     address: addressParts.address,
@@ -471,16 +566,9 @@ async function upsertRestaurant(place: GooglePlace, query: string) {
     google_maps_url: merged.url || null,
     image_url: getPhotoUrl(photoReference),
     status: "approved",
-    claim_status: qr.claim_status,
-    claim_token: qr.claim_token,
-    claim_url: qr.claim_url,
-    qr_code_data_url: qr.qr_code_data_url,
-  };
+  }, existing, "restaurant");
 
-  const { error } = await supabaseAdmin.from("restaurants").upsert(row, {
-    onConflict: "google_place_id",
-    ignoreDuplicates: false,
-  });
+  const { error } = await saveLocationRow("restaurants", row, existing);
 
   if (error) return { status: "failed" as const, error: error.message };
   return { status: "imported" as const };
@@ -500,9 +588,9 @@ async function upsertActivity(place: GooglePlace, query: string) {
   const text = `${merged.name} ${query} ${(merged.types || []).join(" ")}`;
   const activityType = inferActivityType(text);
   const score = getRoseOutScore(merged);
-  const qr = await createClaimQr("activity");
+  const existing = await findExistingLocation("activities", place.place_id);
 
-  const row = {
+  const row = await addClaimFields({
     activity_name: merged.name,
     name: merged.name,
     address: addressParts.address,
@@ -528,16 +616,9 @@ async function upsertActivity(place: GooglePlace, query: string) {
     google_maps_url: merged.url || null,
     image_url: getPhotoUrl(photoReference),
     status: "approved",
-    claim_status: qr.claim_status,
-    claim_token: qr.claim_token,
-    claim_url: qr.claim_url,
-    qr_code_data_url: qr.qr_code_data_url,
-  };
+  }, existing, "activity");
 
-  const { error } = await supabaseAdmin.from("activities").upsert(row, {
-    onConflict: "google_place_id",
-    ignoreDuplicates: false,
-  });
+  const { error } = await saveLocationRow("activities", row, existing);
 
   if (error) return { status: "failed" as const, error: error.message };
   return { status: "imported" as const };

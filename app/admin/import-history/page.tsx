@@ -217,10 +217,16 @@ export default function ImportHistoryPage() {
 
       setProgress(100);
 
+      const errors = Array.isArray(data.errors)
+        ? data.errors.slice(0, 3).join("\n")
+        : "";
+
       alert(
         `Imported: ${data.imported || 0}\nSkipped: ${
           data.skipped || 0
-        }\nFailed: ${data.failed || 0}`
+        }\nFailed: ${data.failed || 0}${
+          errors ? `\n\nFirst errors:\n${errors}` : ""
+        }`
       );
 
       await fetchLogs();
