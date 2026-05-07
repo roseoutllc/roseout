@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import AdminTopBar from "@/app/admin/components/AdminTopBar";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type EventItem = {
   id: string;
@@ -10,7 +9,7 @@ type EventItem = {
   event_type: string;
   event_name: string | null;
   page_path: string | null;
-  metadata: any;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -57,7 +56,11 @@ type RestaurantStat = {
   last_clicked: string;
 };
 
-export default function AdminLiveSessionsClient() {
+export default function AdminLiveSessionsClient({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const [sessions, setSessions] = useState<LiveSession[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [liveNow, setLiveNow] = useState(0);
@@ -72,8 +75,9 @@ export default function AdminLiveSessionsClient() {
   const [selectedSession, setSelectedSession] = useState<LiveSession | null>(
     null
   );
+  const [now, setNow] = useState(0);
 
-  async function loadSessions() {
+  const loadSessions = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/live-sessions", {
         cache: "no-store",
@@ -89,6 +93,7 @@ export default function AdminLiveSessionsClient() {
       setMostActiveUsers(data.most_active_users || []);
       setLikelyToConvert(data.likely_to_convert || []);
       setMostClickedRestaurants(data.most_clicked_restaurants || []);
+      setNow(Date.now());
 
       if (selectedSession) {
         const updated = (data.sessions || []).find(
@@ -102,7 +107,7 @@ export default function AdminLiveSessionsClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [selectedSession]);
 
   useEffect(() => {
     loadSessions();
@@ -110,7 +115,7 @@ export default function AdminLiveSessionsClient() {
     const timer = setInterval(loadSessions, 5000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [loadSessions]);
 
   const activePages = useMemo(() => {
     const counts = new Map<string, number>();
@@ -127,20 +132,37 @@ export default function AdminLiveSessionsClient() {
   }, [sessions]);
 
   return (
-    <main className="min-h-screen bg-[#080407] text-white">
-      <AdminTopBar />
-
-      <section className="relative overflow-hidden border-b border-white/10">
+    <section
+      id="live-command-center"
+      className={
+        embedded
+          ? "mt-8 overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#080407] p-4 text-white shadow-2xl shadow-black/30 sm:p-6"
+          : "min-h-screen bg-[#080407] text-white"
+      }
+    >
+      <section
+        className={
+          embedded
+            ? "relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.035] p-6"
+            : "relative overflow-hidden border-b border-white/10"
+        }
+      >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.25),transparent_35%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.18),transparent_30%)]" />
 
-        <div className="relative mx-auto max-w-7xl px-6 py-10">
+        <div className={embedded ? "relative" : "relative mx-auto max-w-7xl px-6 py-10"}>
           <p className="text-xs font-black uppercase tracking-[0.35em] text-rose-300">
             RoseOut Intelligence
           </p>
 
           <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 className="text-4xl font-black tracking-tight md:text-6xl">
+              <h1
+                className={
+                  embedded
+                    ? "text-3xl font-black tracking-tight md:text-4xl"
+                    : "text-4xl font-black tracking-tight md:text-6xl"
+                }
+              >
                 Live User Command Center
               </h1>
 
@@ -160,7 +182,7 @@ export default function AdminLiveSessionsClient() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-8">
+      <section className={embedded ? "pt-6" : "mx-auto max-w-7xl px-6 py-8"}>
         <div className="grid gap-4 md:grid-cols-5">
           <StatCard label="Live Now" value={liveNow} tone="rose" />
           <StatCard label="Sessions 24h" value={sessions.length} />
@@ -185,8 +207,7 @@ export default function AdminLiveSessionsClient() {
               <div className="space-y-3">
                 {sessions.slice(0, 12).map((session) => {
                   const isLive =
-                    Date.now() - new Date(session.last_seen).getTime() <=
-                    1000 * 60 * 5;
+                    now - new Date(session.last_seen).getTime() <= 1000 * 60 * 5;
 
                   return (
                     <button
@@ -469,7 +490,7 @@ export default function AdminLiveSessionsClient() {
           </section>
         )}
       </section>
-    </main>
+    </section>
   );
 }
 

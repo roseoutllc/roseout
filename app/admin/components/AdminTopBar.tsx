@@ -464,8 +464,8 @@ export default function AdminTopBar() {
                 )}
 
                 {canViewAnalytics && (
-                  <MenuButton onClick={() => goTo("/admin/live-sessions")}>
-                    Live Sessions
+                  <MenuButton onClick={() => goTo("/admin/analytics#live-command-center")}>
+                    Live Command Center
                   </MenuButton>
                 )}
 
