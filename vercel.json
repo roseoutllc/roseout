@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/google/import?type=both&limit=20",
+      "path": "/api/admin/run-google-import?type=both&limit=3&batch=all&areas=nyc",
       "schedule": "0 4 * * *"
     },
     {
