@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import type { User } from "@supabase/supabase-js";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 
@@ -18,7 +19,7 @@ type SearchResult = {
 export default function AdminTopBar() {
   const supabase = createClient();
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -55,6 +56,8 @@ export default function AdminTopBar() {
     const cleanQuery = query.trim();
 
     if (!showUserSearch || cleanQuery.length < 2) {
+      // Existing dropdown search resets immediately when hidden or too short.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       return;
     }
@@ -122,6 +125,7 @@ export default function AdminTopBar() {
       return;
     }
 
+    // eslint-disable-next-line react-hooks/immutability
     window.location.href = data.redirectTo || "/user/dashboard";
   };
 
@@ -150,6 +154,7 @@ export default function AdminTopBar() {
       return;
     }
 
+    // eslint-disable-next-line react-hooks/immutability
     window.location.href = data.redirectTo || "/locations/dashboard";
   };
 
@@ -216,6 +221,26 @@ export default function AdminTopBar() {
               className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
             >
               Dashboard
+            </button>
+          )}
+
+          {canViewDashboard && (
+            <button
+              type="button"
+              onClick={() => goTo("/admin/dashboard/support")}
+              className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
+            >
+              Tickets
+            </button>
+          )}
+
+          {canViewDashboard && (
+            <button
+              type="button"
+              onClick={() => goTo("/reserve/dashboard")}
+              className="rounded-full px-4 py-2 text-sm font-bold text-white/70 transition hover:bg-white hover:text-black"
+            >
+              Reservations
             </button>
           )}
 
@@ -301,6 +326,18 @@ export default function AdminTopBar() {
                 {canViewDashboard && (
                   <MenuButton onClick={() => goTo("/admin/dashboard")}>
                     Dashboard
+                  </MenuButton>
+                )}
+
+                {canViewDashboard && (
+                  <MenuButton onClick={() => goTo("/admin/dashboard/support")}>
+                    Ticket System
+                  </MenuButton>
+                )}
+
+                {canViewDashboard && (
+                  <MenuButton onClick={() => goTo("/reserve/dashboard")}>
+                    Reservation System
                   </MenuButton>
                 )}
 
