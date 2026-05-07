@@ -1,5 +1,10 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  roseOutEmail,
+  roseOutEmailButton,
+  roseOutEmailCard,
+} from "@/lib/emailTheme";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 function cleanString(value: unknown) {
@@ -177,76 +182,67 @@ async function notifyReservation({
       ? "confirmed"
       : "received and pending confirmation";
 
-  const customerHtml = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;background:#fff;padding:24px;">
-      <h2 style="margin:0 0 12px;color:#111;">RoseOut Reserve</h2>
-      <p>Hi ${reservation.customer_name}, your reservation at <strong>${locationName}</strong> has been <strong>${statusText}</strong>.</p>
+  const customerHtml = roseOutEmail(`
+    <h2>RoseOut Reserve</h2>
+    <p>Hi ${reservation.customer_name}, your reservation at <strong>${locationName}</strong> has been <strong>${statusText}</strong>.</p>
 
-      <div style="background:#f8f8f8;border-radius:16px;padding:16px;margin:18px 0;">
-        <p style="margin:0 0 8px;"><strong>Date:</strong> ${reservation.reservation_date}</p>
-        <p style="margin:0 0 8px;"><strong>Time:</strong> ${formatTime(
-          reservation.reservation_time.slice(0, 5)
-        )}</p>
-        <p style="margin:0 0 8px;"><strong>Party Size:</strong> ${reservation.party_size}</p>
-        ${
-          reservation.bookable_item_name
-            ? `<p style="margin:0;"><strong>Reserved:</strong> ${reservation.bookable_item_name}</p>`
-            : ""
-        }
-      </div>
+    ${roseOutEmailCard(`
+      <p style="margin:0 0 8px;"><strong>Date:</strong> ${reservation.reservation_date}</p>
+      <p style="margin:0 0 8px;"><strong>Time:</strong> ${formatTime(
+        reservation.reservation_time.slice(0, 5)
+      )}</p>
+      <p style="margin:0 0 8px;"><strong>Party Size:</strong> ${reservation.party_size}</p>
+      ${
+        reservation.bookable_item_name
+          ? `<p style="margin:0;"><strong>Reserved:</strong> ${reservation.bookable_item_name}</p>`
+          : ""
+      }
+    `)}
 
-      <p>
-        <a href="${confirmationUrl}" style="display:inline-block;background:#dc2626;color:white;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:bold;">
-          View / Manage Reservation
-        </a>
-      </p>
+    ${roseOutEmailButton("View / Manage Reservation", confirmationUrl)}
 
-      <p style="font-size:13px;color:#666;">Use this link to view your reservation or cancel if needed.</p>
-      <p>Thank you for using RoseOut.</p>
-    </div>
-  `;
+    <p style="font-size:13px;color:#666;">Use this link to view your reservation or cancel if needed.</p>
+    <p>Thank you for using RoseOut.</p>
+  `);
 
-  const ownerHtml = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;background:#fff;padding:24px;">
-      <h2 style="margin:0 0 12px;color:#111;">New RoseOut Reservation</h2>
-      <p><strong>${reservation.customer_name}</strong> submitted a reservation for <strong>${locationName}</strong>.</p>
+  const ownerHtml = roseOutEmail(`
+    <h2>New RoseOut Reservation</h2>
+    <p><strong>${reservation.customer_name}</strong> submitted a reservation for <strong>${locationName}</strong>.</p>
 
-      <div style="background:#f8f8f8;border-radius:16px;padding:16px;margin:18px 0;">
-        <p style="margin:0 0 8px;"><strong>Status:</strong> ${reservation.status}</p>
-        <p style="margin:0 0 8px;"><strong>Date:</strong> ${reservation.reservation_date}</p>
-        <p style="margin:0 0 8px;"><strong>Time:</strong> ${formatTime(
-          reservation.reservation_time.slice(0, 5)
-        )}</p>
-        <p style="margin:0 0 8px;"><strong>Party Size:</strong> ${reservation.party_size}</p>
-        ${
-          reservation.bookable_item_name
-            ? `<p style="margin:0 0 8px;"><strong>Item:</strong> ${reservation.bookable_item_name}</p>`
-            : ""
-        }
-        ${
-          reservation.customer_phone
-            ? `<p style="margin:0 0 8px;"><strong>Phone:</strong> ${reservation.customer_phone}</p>`
-            : ""
-        }
-        ${
-          reservation.customer_email
-            ? `<p style="margin:0 0 8px;"><strong>Email:</strong> ${reservation.customer_email}</p>`
-            : ""
-        }
-        ${
-          reservation.special_request
-            ? `<p style="margin:0;"><strong>Request:</strong> ${reservation.special_request}</p>`
-            : ""
-        }
-      </div>
+    ${roseOutEmailCard(`
+      <p style="margin:0 0 8px;"><strong>Status:</strong> ${reservation.status}</p>
+      <p style="margin:0 0 8px;"><strong>Date:</strong> ${reservation.reservation_date}</p>
+      <p style="margin:0 0 8px;"><strong>Time:</strong> ${formatTime(
+        reservation.reservation_time.slice(0, 5)
+      )}</p>
+      <p style="margin:0 0 8px;"><strong>Party Size:</strong> ${reservation.party_size}</p>
+      ${
+        reservation.bookable_item_name
+          ? `<p style="margin:0 0 8px;"><strong>Item:</strong> ${reservation.bookable_item_name}</p>`
+          : ""
+      }
+      ${
+        reservation.customer_phone
+          ? `<p style="margin:0 0 8px;"><strong>Phone:</strong> ${reservation.customer_phone}</p>`
+          : ""
+      }
+      ${
+        reservation.customer_email
+          ? `<p style="margin:0 0 8px;"><strong>Email:</strong> ${reservation.customer_email}</p>`
+          : ""
+      }
+      ${
+        reservation.special_request
+          ? `<p style="margin:0;"><strong>Request:</strong> ${reservation.special_request}</p>`
+          : ""
+      }
+    `)}
 
-      <p>
-        <a href="${siteUrl}/reserve/portal/reservations?locationId=${reservation.location_id}&type=${reservation.location_type}" style="display:inline-block;background:#111;color:white;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:bold;">
-          Open Reserve Portal
-        </a>
-      </p>
-    </div>
-  `;
+    ${roseOutEmailButton(
+      "Open Reserve Portal",
+      `${siteUrl}/reserve/portal/reservations?locationId=${reservation.location_id}&type=${reservation.location_type}`
+    )}
+  `);
 
   await Promise.allSettled([
     sendEmail({

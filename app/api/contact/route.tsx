@@ -1,9 +1,14 @@
+import { roseOutEmail, roseOutEmailCard } from "@/lib/emailTheme";
 import { sendNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
 function clean(value: unknown) {
   return String(value || "").trim();
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Server error";
 }
 
 export async function POST(req: Request) {
@@ -59,16 +64,16 @@ export async function POST(req: Request) {
       await sendNotification({
         toEmail: adminEmail,
         subject: `New RoseOut contact message: ${topic || "General"}`,
-        emailHtml: `
-          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-            <h2>New RoseOut Contact Message</h2>
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Topic:</strong> ${topic || "General"}</p>
-            <p><strong>Message:</strong></p>
-            <p>${message.replace(/\n/g, "<br />")}</p>
-          </div>
-        `,
+        emailHtml: roseOutEmail(`
+          <h2>New RoseOut Contact Message</h2>
+          ${roseOutEmailCard(`
+            <p style="margin:0 0 8px;"><strong>Name:</strong> ${name}</p>
+            <p style="margin:0 0 8px;"><strong>Email:</strong> ${email}</p>
+            <p style="margin:0;"><strong>Topic:</strong> ${topic || "General"}</p>
+          `)}
+          <p><strong>Message:</strong></p>
+          <p>${message.replace(/\n/g, "<br />")}</p>
+        `),
       });
     }
 
@@ -76,9 +81,9 @@ export async function POST(req: Request) {
       success: true,
       message: "Message sent. We’ll get back to you shortly.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return Response.json(
-      { error: error.message || "Server error" },
+      { error: getErrorMessage(error) },
       { status: 500 }
     );
   }
