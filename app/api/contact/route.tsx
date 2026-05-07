@@ -1,3 +1,4 @@
+import { roseOutEmail } from "@/lib/emailTheme";
 import { sendNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
@@ -59,16 +60,14 @@ export async function POST(req: Request) {
       await sendNotification({
         toEmail: adminEmail,
         subject: `New RoseOut contact message: ${topic || "General"}`,
-        emailHtml: `
-          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-            <h2>New RoseOut Contact Message</h2>
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Topic:</strong> ${topic || "General"}</p>
-            <p><strong>Message:</strong></p>
-            <p>${message.replace(/\n/g, "<br />")}</p>
-          </div>
-        `,
+        emailHtml: roseOutEmail(`
+          <h2>New RoseOut Contact Message</h2>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Topic:</strong> ${topic || "General"}</p>
+          <p><strong>Message:</strong></p>
+          <p>${message.replace(/\n/g, "<br />")}</p>
+        `),
       });
     }
 

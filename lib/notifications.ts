@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import twilio from "twilio";
+import { roseOutEmail, roseOutEmailButton } from "@/lib/emailTheme";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -78,18 +79,12 @@ export async function sendLocationClaimApproved({
     toEmail: email,
     toPhone: phone,
     subject: "Your RoseOut location claim was approved",
-    emailHtml: `
-      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-        <h2>Your RoseOut location claim was approved 🎉</h2>
-        <p>Your claim for <strong>${locationName}</strong> has been approved.</p>
-        <p>You can now create your owner account and manage your listing.</p>
-        ${
-          signupUrl
-            ? `<p><a href="${signupUrl}" style="background:#e1062a;color:#fff;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:bold;">Create Owner Account</a></p>`
-            : ""
-        }
-      </div>
-    `,
+    emailHtml: roseOutEmail(`
+      <h2>Your RoseOut location claim was approved 🎉</h2>
+      <p>Your claim for <strong>${locationName}</strong> has been approved.</p>
+      <p>You can now create your owner account and manage your listing.</p>
+      ${signupUrl ? roseOutEmailButton("Create Owner Account", signupUrl) : ""}
+    `),
     smsBody: signupUrl
       ? `RoseOut: Your claim for ${locationName} was approved. Create your owner account: ${signupUrl}`
       : `RoseOut: Your claim for ${locationName} was approved.`,
