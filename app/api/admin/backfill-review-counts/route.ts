@@ -16,6 +16,42 @@ const supabaseAdmin = createClient(
 );
 
 type BackfillTable = "restaurants" | "activities";
+type BackfillField =
+  | "phone"
+  | "website"
+  | "google_maps_url"
+  | "review_count"
+  | "rating"
+  | "price_level";
+
+const DEFAULT_BACKFILL_FIELDS: BackfillField[] = [
+  "phone",
+  "website",
+  "google_maps_url",
+  "review_count",
+  "rating",
+  "price_level",
+];
+
+type BackfillItem = {
+  id: string;
+  google_place_id: string;
+  phone?: string | null;
+  website?: string | null;
+  google_maps_url?: string | null;
+  review_count?: number | string | null;
+  rating?: number | string | null;
+  price_level?: number | string | null;
+};
+
+type BackfillBody = {
+  limit?: number | string;
+  minRating?: number | string;
+  minReviews?: number | string;
+  fields?: string[] | string;
+};
+
+type BackfillLogPayload = Record<string, unknown> | null;
 
 type GooglePlaceDetails = {
   phone: string | null;
@@ -63,7 +99,11 @@ await supabaseAdmin
   .delete()
   .gte("created_at", "2000-01-01");
 
-async function logImportRun(result: any, errorMessage?: string) {
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function logImportRun(result: BackfillLogPayload, errorMessage?: string) {
   try {
     await supabaseAdmin.from("import_logs").insert({
       job_name: "google_details_backfill",
@@ -77,7 +117,7 @@ async function logImportRun(result: any, errorMessage?: string) {
 }
 
 function shouldSkipLowQualityExisting(
-  item: any,
+  item: BackfillItem,
   minRating: number,
   minReviews: number
 ) {
@@ -87,6 +127,42 @@ function shouldSkipLowQualityExisting(
   if (!rating || !reviewCount) return false;
 
   return rating < minRating || reviewCount < minReviews;
+}
+
+function parseBackfillFields(value: unknown): BackfillField[] {
+  const raw = Array.isArray(value)
+    ? value
+    : String(value || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+  const allowed = new Set(DEFAULT_BACKFILL_FIELDS);
+  const fields = raw.filter((field): field is BackfillField =>
+    allowed.has(field as BackfillField)
+  );
+
+  return fields.length ? fields : DEFAULT_BACKFILL_FIELDS;
+}
+
+function getMissingDetailsFilter(fields: BackfillField[]) {
+  const filters: Record<BackfillField, string[]> = {
+    phone: ["phone.is.null", "phone.eq."],
+    website: ["website.is.null", "website.eq."],
+    google_maps_url: ["google_maps_url.is.null", "google_maps_url.eq."],
+    review_count: ["review_count.is.null", "review_count.eq.0"],
+    rating: ["rating.is.null", "rating.eq.0"],
+    price_level: [],
+  };
+
+  return fields.flatMap((field) => filters[field]).filter(Boolean).join(",");
+}
+
+function shouldUpdateField(item: BackfillItem, field: BackfillField, phoneOnly: boolean) {
+  if (!phoneOnly) return true;
+
+  const value = item[field];
+  return value === null || value === undefined || value === "" || value === 0;
 }
 
 async function getGooglePlaceDetails(
@@ -145,17 +221,18 @@ async function backfillTable(
   table: BackfillTable,
   limit: number,
   minRating: number,
-  minReviews: number
+  minReviews: number,
+  fields: BackfillField[]
 ) {
+  const phoneOnly = fields.length === 1 && fields[0] === "phone";
+  const missingFilter = getMissingDetailsFilter(fields);
   const { data, error } = await supabaseAdmin
     .from(table)
     .select(
       "id, google_place_id, phone, website, google_maps_url, review_count, rating"
     )
     .not("google_place_id", "is", null)
-    .or(
-      "phone.is.null,phone.eq.,website.is.null,website.eq.,google_maps_url.is.null,google_maps_url.eq.,review_count.is.null,review_count.eq.0,rating.is.null,rating.eq.0"
-    )
+    .or(missingFilter || "phone.is.null,phone.eq.")
     .limit(limit);
 
   if (error) throw new Error(error.message);
@@ -170,7 +247,7 @@ async function backfillTable(
     checked++;
 
     try {
-      if (shouldSkipLowQualityExisting(item, minRating, minReviews)) {
+      if (!phoneOnly && shouldSkipLowQualityExisting(item, minRating, minReviews)) {
         skippedLowQuality++;
         continue;
       }
@@ -187,25 +264,33 @@ async function backfillTable(
         details.review_count || item.review_count || 0
       );
 
-      if (finalRating < minRating || finalReviewCount < minReviews) {
+      if (!phoneOnly && (finalRating < minRating || finalReviewCount < minReviews)) {
         skippedLowQuality++;
         continue;
       }
 
-      const updatePayload: Record<string, any> = {};
+      const updatePayload: Partial<GooglePlaceDetails> = {};
 
-      if (details.phone) updatePayload.phone = details.phone;
-      if (details.website) updatePayload.website = details.website;
-      if (details.google_maps_url) {
+      if (fields.includes("phone") && details.phone && shouldUpdateField(item, "phone", phoneOnly)) {
+        updatePayload.phone = details.phone;
+      }
+      if (fields.includes("website") && details.website && shouldUpdateField(item, "website", phoneOnly)) {
+        updatePayload.website = details.website;
+      }
+      if (
+        fields.includes("google_maps_url") &&
+        details.google_maps_url &&
+        shouldUpdateField(item, "google_maps_url", phoneOnly)
+      ) {
         updatePayload.google_maps_url = details.google_maps_url;
       }
-      if (details.review_count !== null) {
+      if (fields.includes("review_count") && details.review_count !== null) {
         updatePayload.review_count = details.review_count;
       }
-      if (details.rating !== null) {
+      if (fields.includes("rating") && details.rating !== null) {
         updatePayload.rating = details.rating;
       }
-      if (details.price_level !== null) {
+      if (fields.includes("price_level") && details.price_level !== null) {
         updatePayload.price_level = details.price_level;
       }
 
@@ -238,18 +323,19 @@ async function backfillTable(
     skippedLowQuality,
     skippedNoDetails,
     failed,
+    fields,
   };
 }
 
 async function runBackfill(request: NextRequest) {
-  let responsePayload: any = null;
+  let responsePayload: BackfillLogPayload = null;
 
   try {
     if (!isAuthorized(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let body: any = {};
+    let body: BackfillBody = {};
 
     if (request.method !== "GET") {
       body = await request.json().catch(() => ({}));
@@ -262,26 +348,33 @@ async function runBackfill(request: NextRequest) {
       100
     );
 
+    const fields = parseBackfillFields(
+      body.fields || searchParams.get("fields") || searchParams.get("field")
+    );
+    const phoneOnly = fields.length === 1 && fields[0] === "phone";
+
     const minRating = Number(
-      body.minRating || searchParams.get("minRating") || 4.2
+      body.minRating || searchParams.get("minRating") || (phoneOnly ? 0 : 4.2)
     );
 
     const minReviews = Number(
-      body.minReviews || searchParams.get("minReviews") || 75
+      body.minReviews || searchParams.get("minReviews") || (phoneOnly ? 0 : 75)
     );
 
     const restaurants = await backfillTable(
       "restaurants",
       limit,
       minRating,
-      minReviews
+      minReviews,
+      fields
     );
 
     const activities = await backfillTable(
       "activities",
       limit,
       minRating,
-      minReviews
+      minReviews,
+      fields
     );
 
     responsePayload = {
@@ -292,6 +385,7 @@ async function runBackfill(request: NextRequest) {
         limit,
         minRating,
         minReviews,
+        fields,
       },
       restaurants,
       activities,
@@ -300,12 +394,12 @@ async function runBackfill(request: NextRequest) {
     await logImportRun(responsePayload);
 
     return NextResponse.json(responsePayload);
-  } catch (error: any) {
+  } catch (error: unknown) {
     responsePayload = {
-      error: error.message || "Backfill failed",
+      error: getErrorMessage(error) || "Backfill failed",
     };
 
-    await logImportRun(responsePayload, responsePayload.error);
+    await logImportRun(responsePayload, String(responsePayload.error));
 
     return NextResponse.json(responsePayload, { status: 500 });
   }
