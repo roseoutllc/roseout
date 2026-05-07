@@ -16,11 +16,11 @@ const initialForm: FormState = {
   message: "",
 };
 
-declare global {
-  interface Window {
-    turnstile?: any;
-  }
-}
+type TurnstileApi = {
+  render: (element: HTMLElement, options: Record<string, unknown>) => void;
+  reset: (element: HTMLElement) => void;
+};
+
 
 export default function ContactPage() {
   const turnstileRef = useRef<HTMLDivElement | null>(null);
@@ -30,6 +30,7 @@ export default function ContactPage() {
   const [loading, setLoading] = useState(false);
   const [captchaReady, setCaptchaReady] = useState(false);
   const [success, setSuccess] = useState("");
+  const [ticketUrl, setTicketUrl] = useState("");
   const [error, setError] = useState("");
 
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -49,9 +50,10 @@ export default function ContactPage() {
     );
 
     const renderTurnstile = () => {
-      if (!window.turnstile || !turnstileRef.current || captchaReady) return;
+      const turnstile = window.turnstile as TurnstileApi | undefined;
+      if (!turnstile || !turnstileRef.current || captchaReady) return;
 
-      window.turnstile.render(turnstileRef.current, {
+      turnstile.render(turnstileRef.current, {
         sitekey: siteKey,
         theme: "dark",
         callback: (token: string) => {
@@ -90,6 +92,7 @@ export default function ContactPage() {
 
     setError("");
     setSuccess("");
+    setTicketUrl("");
 
     if (!form.name.trim()) {
       setError("Please enter your name.");
@@ -132,12 +135,14 @@ export default function ContactPage() {
         return;
       }
 
-      setSuccess(data.message || "Message sent.");
+      setSuccess(data.message || "Support ticket created.");
+      setTicketUrl(data.ticketUrl || "");
       setForm(initialForm);
       setCaptchaToken("");
 
-      if (window.turnstile && turnstileRef.current) {
-        window.turnstile.reset(turnstileRef.current);
+      const turnstile = window.turnstile as TurnstileApi | undefined;
+      if (turnstile && turnstileRef.current) {
+        turnstile.reset(turnstileRef.current);
       }
     } catch {
       setError("Could not send message. Please try again.");
@@ -192,7 +197,12 @@ export default function ContactPage() {
 
             {success && (
               <div className="mt-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-200">
-                {success}
+                <p>{success}</p>
+                {ticketUrl && (
+                  <a href={ticketUrl} className="mt-2 inline-flex underline">
+                    View or reply to your ticket
+                  </a>
+                )}
               </div>
             )}
 
