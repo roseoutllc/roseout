@@ -17,7 +17,21 @@ const CACHE_HOURS = 6;
 const OFF_TOPIC_REPLY =
   "I can only help with RoseOut outing plans, restaurants, activities, nightlife, brunch, and date ideas.";
 
+type LocationMatchItem = {
+  address?: string | null;
+  borough?: string | null;
+  city?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  neighborhood?: string | null;
+  postal_code?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+  distance_miles?: number | null;
+};
+
 const LOCATION_NAME_MATCH_WEIGHT = 500;
+const DEFAULT_LOCATION_RADIUS_MILES = 15;
 
 const FOOD_KEYWORDS = [
   "food",
@@ -329,6 +343,10 @@ function detectLocation(input: string, locations: any[]) {
   const text = normalizeQuery(input);
   const found = new Set<string>();
 
+  const zipMatches = text.match(/\b\d{5}(?:-\d{4})?\b/g) || [];
+
+  zipMatches.forEach((zip) => found.add(zip.slice(0, 5)));
+
   locations.forEach((item) => {
     const fields = [
       item.city,
@@ -548,22 +566,92 @@ function detectLocation(input: string, locations: any[]) {
   return Array.from(found);
 }
 
-function matchesLocation(item: any, detectedLocations: string[]) {
+function zipCodeForItem(item: LocationMatchItem) {
+  const zip = String(
+    item.zip_code || item.postal_code || item.address || ""
+  ).match(/\b\d{5}\b/);
+
+  return zip?.[0] || "";
+}
+
+function boroughFromZip(zip: string) {
+  if (!zip) return "";
+
+  const prefix = Number(zip.slice(0, 3));
+
+  if (prefix === 103) return "staten island";
+  if (prefix === 104) return "bronx";
+  if (prefix === 112) return "brooklyn";
+  if ([100, 101, 102].includes(prefix)) return "manhattan";
+  if (
+    [111, 113, 114, 116].includes(prefix) ||
+    zip === "11004" ||
+    zip === "11005"
+  ) {
+    return "queens";
+  }
+
+  return "";
+}
+
+function expandedLocationTerms(location: string) {
+  const normalized = normalizeQuery(location);
+  const aliases: Record<string, string[]> = {
+    fidi: ["financial district"],
+    les: ["lower east side"],
+    lic: ["long island city"],
+    nyc: [
+      "new york",
+      "new york city",
+      "manhattan",
+      "brooklyn",
+      "queens",
+      "bronx",
+      "staten island",
+    ],
+    "new york city": [
+      "new york",
+      "manhattan",
+      "brooklyn",
+      "queens",
+      "bronx",
+      "staten island",
+    ],
+  };
+
+  return Array.from(new Set([normalized, ...(aliases[normalized] || [])]));
+}
+
+function matchesLocation(item: LocationMatchItem, detectedLocations: string[]) {
   if (!detectedLocations || detectedLocations.length === 0) return true;
 
-  const searchable = [
-    item.city,
-    item.neighborhood,
-    item.borough,
-    item.state,
-    item.zip_code,
-    item.address,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  const itemZip = zipCodeForItem(item);
+  const itemBorough = boroughFromZip(itemZip);
+  const searchable = normalizeQuery(
+    [
+      item.city,
+      item.neighborhood,
+      item.borough,
+      item.state,
+      itemZip,
+      item.address,
+      itemBorough,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
 
-  return detectedLocations.some((location) => searchable.includes(location));
+  return detectedLocations.some((location) => {
+    const normalizedLocation = normalizeQuery(location);
+
+    if (/^\d{5}$/.test(normalizedLocation)) {
+      return itemZip === normalizedLocation;
+    }
+
+    return expandedLocationTerms(normalizedLocation).some((term) =>
+      searchable.includes(term)
+    );
+  });
 }
 
 function isRoseOutRelated(input: string) {
@@ -872,20 +960,56 @@ function isWithinRoseOutServiceArea(item: any) {
   );
 }
 
+function distanceMilesFromUser(
+  item: LocationMatchItem,
+  userLat?: number,
+  userLng?: number
+) {
+  if (!userLat || !userLng || !item.latitude || !item.longitude) return null;
+
+  return haversineMiles(
+    Number(userLat),
+    Number(userLng),
+    Number(item.latitude),
+    Number(item.longitude)
+  );
+}
+
+function filterByUserRadius(
+  items: LocationMatchItem[],
+  userLat?: number,
+  userLng?: number,
+  maxMiles?: number | null
+) {
+  if (!userLat || !userLng) return items;
+
+  const radius = maxMiles || DEFAULT_LOCATION_RADIUS_MILES;
+  const itemsWithCoordinates = items.filter(
+    (item) => item.latitude && item.longitude
+  );
+
+  if (itemsWithCoordinates.length === 0) return items;
+
+  return items.filter((item) => {
+    const miles = distanceMilesFromUser(item, userLat, userLng);
+
+    if (miles === null) return false;
+
+    item.distance_miles = Number(miles.toFixed(1));
+
+    return miles <= radius;
+  });
+}
+
 function distanceBoost(
   item: any,
   userLat?: number,
   userLng?: number,
   maxMiles?: number | null
 ) {
-  if (!userLat || !userLng || !item.latitude || !item.longitude) return 0;
+  const miles = distanceMilesFromUser(item, userLat, userLng);
 
-  const miles = haversineMiles(
-    Number(userLat),
-    Number(userLng),
-    Number(item.latitude),
-    Number(item.longitude)
-  );
+  if (miles === null) return 0;
 
   item.distance_miles = Number(miles.toFixed(1));
 
@@ -1569,38 +1693,47 @@ const usableLocations = locations.filter((item: any) => {
     }
 
     if (intent.locations.length > 0) {
-      const locationRestaurants = restaurants.filter((item: any) =>
+      restaurants = restaurants.filter((item) =>
         matchesLocation(item, intent.locations)
       );
 
-      const locationActivities = activities.filter((item: any) =>
+      activities = activities.filter((item) =>
         matchesLocation(item, intent.locations)
       );
+    } else if (intent.userLat && intent.userLng) {
+      restaurants = filterByUserRadius(
+        restaurants,
+        intent.userLat,
+        intent.userLng,
+        intent.maxMiles
+      );
 
-      if (locationRestaurants.length > 0) {
-        restaurants = locationRestaurants;
-      }
-
-      if (locationActivities.length > 0) {
-        activities = locationActivities;
-      }
+      activities = filterByUserRadius(
+        activities,
+        intent.userLat,
+        intent.userLng,
+        intent.maxMiles
+      );
     }
 
     if (intent.activityIntents.length > 0) {
-      let forcedActivityMatches = locations.filter((item: any) =>
+      let forcedActivityMatches = sourceLocations.filter((item: any) =>
         intent.activityIntents.some((activityIntent) =>
           matchesActivityIntent(item, activityIntent)
         )
       );
 
       if (intent.locations.length > 0) {
-        const locationFiltered = forcedActivityMatches.filter((item: any) =>
+        forcedActivityMatches = forcedActivityMatches.filter((item) =>
           matchesLocation(item, intent.locations)
         );
-
-        if (locationFiltered.length > 0) {
-          forcedActivityMatches = locationFiltered;
-        }
+      } else if (intent.userLat && intent.userLng) {
+        forcedActivityMatches = filterByUserRadius(
+          forcedActivityMatches,
+          intent.userLat,
+          intent.userLng,
+          intent.maxMiles
+        );
       }
 
       if (forcedActivityMatches.length > 0) {
