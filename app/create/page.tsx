@@ -83,6 +83,10 @@ type UserLocation = {
 
 const LOCATION_KEY = "roseout_user_location";
 
+function wantsNearbySearch(input: string) {
+  return /\b(near me|nearby|close by|around me)\b/i.test(input);
+}
+
 const typingSearches = [
   "Steak dinner with bowling in Queens",
   "Romantic Italian dinner in Brooklyn",
@@ -112,20 +116,23 @@ export default function CreatePage() {
   const [error, setError] = useState("");
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<RestaurantCard | null>(null);
-  const [selectedActivity, setSelectedActivity] =
-    useState<ActivityCard | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityCard | null>(
+    null,
+  );
   const [locationSaved, setLocationSaved] = useState(false);
   const [showPlanSummary, setShowPlanSummary] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const curatedResultsRef = useRef<HTMLDivElement | null>(null);
+  const loadingCardsRef = useRef<HTMLDivElement | null>(null);
   const activitySectionRef = useRef<HTMLDivElement | null>(null);
   const viewedItems = useRef<Set<string>>(new Set());
 
   const latestAssistant = useMemo(
     () =>
       [...messages].reverse().find((message) => message.role === "assistant"),
-    [messages]
+    [messages],
   );
 
   const hasSelection = Boolean(selectedRestaurant || selectedActivity);
@@ -189,6 +196,19 @@ export default function CreatePage() {
   }, [loading]);
 
   useEffect(() => {
+    if (!loading) return;
+
+    const scrollTimer = window.setTimeout(() => {
+      loadingCardsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [loading]);
+
+  useEffect(() => {
     const latest = latestAssistant;
     if (!latest) return;
 
@@ -206,7 +226,7 @@ export default function CreatePage() {
           itemType,
           eventType: "view",
         });
-      }
+      },
     );
   }, [latestAssistant]);
 
@@ -232,28 +252,50 @@ export default function CreatePage() {
     }
   }
 
-  function requestUserLocation() {
-    if (!navigator.geolocation) {
-      setError("Location is not supported on this device.");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const userLocation: UserLocation = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-
-        localStorage.setItem(LOCATION_KEY, JSON.stringify(userLocation));
-        setLocationSaved(true);
-        setError("");
-      },
-      () => {
-        setLocationSaved(false);
-        setError("Please allow location access or search by neighborhood.");
+  function getBrowserLocation(): Promise<UserLocation> {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Location is not supported on this device."));
+        return;
       }
-    );
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        () => {
+          reject(
+            new Error(
+              "Please allow location access or search by neighborhood.",
+            ),
+          );
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 1000 * 60 * 10,
+          timeout: 10000,
+        },
+      );
+    });
+  }
+
+  async function requestUserLocation() {
+    try {
+      const userLocation = await getBrowserLocation();
+
+      localStorage.setItem(LOCATION_KEY, JSON.stringify(userLocation));
+      setLocationSaved(true);
+      setError("");
+    } catch (locationError: any) {
+      setLocationSaved(false);
+      setError(
+        locationError?.message ||
+          "Please allow location access or search by neighborhood.",
+      );
+    }
   }
 
   function resetSearch() {
@@ -317,6 +359,19 @@ export default function CreatePage() {
 
     try {
       const savedLocation = getSavedLocation();
+      let searchLocation = savedLocation;
+
+      if (!searchLocation && wantsNearbySearch(cleanInput)) {
+        try {
+          searchLocation = await getBrowserLocation();
+          localStorage.setItem(LOCATION_KEY, JSON.stringify(searchLocation));
+          setLocationSaved(true);
+        } catch {
+          setError(
+            "Turn on location or include a zip code so RoseOut can rank nearby places first.",
+          );
+        }
+      }
 
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -326,12 +381,12 @@ export default function CreatePage() {
         body: JSON.stringify({
           input: cleanInput,
           messages: [...messages, userMessage],
-          ...(savedLocation
+          ...(searchLocation
             ? {
-                latitude: savedLocation.latitude,
-                longitude: savedLocation.longitude,
-                lat: savedLocation.latitude,
-                lng: savedLocation.longitude,
+                latitude: searchLocation.latitude,
+                longitude: searchLocation.longitude,
+                lat: searchLocation.latitude,
+                lng: searchLocation.longitude,
               }
             : {}),
         }),
@@ -355,7 +410,7 @@ export default function CreatePage() {
       setMessages((current) => [...current, assistantMessage]);
 
       setTimeout(() => {
-        resultsRef.current?.scrollIntoView({
+        curatedResultsRef.current?.scrollIntoView({
           behavior: "smooth",
           block: "start",
         });
@@ -550,7 +605,10 @@ export default function CreatePage() {
             return (
               <div
                 key={index}
-                className="w-full max-w-full overflow-hidden rounded-[1.15rem] border border-white/10 bg-[#080808] p-3 shadow-2xl shadow-black/40 sm:rounded-[1.25rem] sm:p-4"
+                ref={
+                  index === messages.length - 1 ? curatedResultsRef : undefined
+                }
+                className="w-full max-w-full scroll-mt-4 overflow-hidden rounded-[1.15rem] border border-white/10 bg-[#080808] p-3 shadow-2xl shadow-black/40 sm:scroll-mt-6 sm:rounded-[1.25rem] sm:p-4"
               >
                 <div className="mb-4 flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
                   <div className="min-w-0">
@@ -631,15 +689,17 @@ export default function CreatePage() {
                 )}
 
                 {activities.length > 0 && (
-                  <div ref={activitySectionRef} className="scroll-mt-24 sm:scroll-mt-28">
+                  <div
+                    ref={activitySectionRef}
+                    className="scroll-mt-24 sm:scroll-mt-28"
+                  >
                     <ResultSection
                       title="Experience Picks"
                       subtitle="Activities matched to your outing plan"
                     >
                       {activities.map((activity, activityIndex) => {
                         const activityId = String(activity.id);
-                        const isSelected =
-                          selectedActivity?.id === activity.id;
+                        const isSelected = selectedActivity?.id === activity.id;
                         const reservationUrl =
                           activity.reservation_url ||
                           activity.reservation_link ||
@@ -676,9 +736,7 @@ export default function CreatePage() {
                             onWebsite={() => trackActivityClick(activityId)}
                             reservationUrl={reservationUrl}
                             reservationLabel="Book"
-                            onReservation={() =>
-                              trackActivityClick(activityId)
-                            }
+                            onReservation={() => trackActivityClick(activityId)}
                           />
                         );
                       })}
@@ -689,7 +747,12 @@ export default function CreatePage() {
             );
           })}
 
-          {loading && <LoadingResults label={loadingLines[loadingIndex]} />}
+          {loading && (
+            <LoadingResults
+              cardsRef={loadingCardsRef}
+              label={loadingLines[loadingIndex]}
+            />
+          )}
         </div>
       </section>
 
@@ -1172,7 +1235,7 @@ function ResultCard({
             <span
               key={`${tag.label}-${tag.tone}`}
               className={`rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.06em] backdrop-blur-md sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-[0.08em] ${tagToneClass(
-                tag.tone
+                tag.tone,
               )}`}
             >
               {tag.label}
@@ -1309,7 +1372,13 @@ function ResultCard({
   );
 }
 
-function LoadingResults({ label }: { label: string }) {
+function LoadingResults({
+  cardsRef,
+  label,
+}: {
+  cardsRef: React.RefObject<HTMLDivElement | null>;
+  label: string;
+}) {
   return (
     <div className="w-full max-w-full overflow-hidden rounded-[1.15rem] border border-white/10 bg-[#080808] p-3 shadow-2xl shadow-black/40 sm:rounded-[1.25rem] sm:p-4">
       <div className="mb-4">
@@ -1321,7 +1390,10 @@ function LoadingResults({ label }: { label: string }) {
         </h2>
       </div>
 
-      <div className="grid w-full min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div
+        ref={cardsRef}
+        className="grid w-full min-w-0 scroll-mt-4 grid-cols-1 gap-3 sm:scroll-mt-6 md:grid-cols-2 xl:grid-cols-3"
+      >
         {[0, 1, 2].map((item) => (
           <div
             key={item}
@@ -1417,9 +1489,7 @@ function getDisplayTags({
 
   const add = (label: string, tone: "rose" | "gold" | "purple") => {
     if (
-      !results.some(
-        (item) => item.label.toLowerCase() === label.toLowerCase()
-      )
+      !results.some((item) => item.label.toLowerCase() === label.toLowerCase())
     ) {
       results.push({ label, tone });
     }
@@ -1538,7 +1608,7 @@ function getWhyPicked({
 
 function buildDistanceText(
   restaurant: RestaurantCard | null,
-  activity: ActivityCard | null
+  activity: ActivityCard | null,
 ) {
   if (!restaurant || !activity) return "Dinner → Activity";
 
