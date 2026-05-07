@@ -17,7 +17,21 @@ const CACHE_HOURS = 6;
 const OFF_TOPIC_REPLY =
   "I can only help with RoseOut outing plans, restaurants, activities, nightlife, brunch, and date ideas.";
 
+type LocationMatchItem = {
+  address?: string | null;
+  borough?: string | null;
+  city?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  neighborhood?: string | null;
+  postal_code?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+  distance_miles?: number | null;
+};
+
 const LOCATION_NAME_MATCH_WEIGHT = 500;
+const DEFAULT_LOCATION_RADIUS_MILES = 15;
 
 const FOOD_KEYWORDS = [
   "food",
@@ -325,9 +339,389 @@ function normalizeLocation(item: any) {
   };
 }
 
+function zipRange(start: string, end: string) {
+  const first = Number(start);
+  const last = Number(end);
+  const width = start.length;
+
+  return Array.from({ length: last - first + 1 }, (_, index) =>
+    String(first + index).padStart(width, "0")
+  );
+}
+
+const MANHATTAN_ZIP_CODES = new Set([
+  ...zipRange("10001", "10282"),
+]);
+
+const BROOKLYN_ZIP_CODES = new Set([
+  ...zipRange("11201", "11256"),
+]);
+
+const BRONX_ZIP_CODES = new Set([
+  ...zipRange("10451", "10475"),
+]);
+
+const STATEN_ISLAND_ZIP_CODES = new Set([
+  ...zipRange("10301", "10314"),
+]);
+
+const QUEENS_LOCATION_TERMS = [
+  "astoria",
+  "arverne",
+  "auburndale",
+  "bay terrace",
+  "bayside",
+  "beechhurst",
+  "bellaire",
+  "belle harbor",
+  "bellerose",
+  "breezy point",
+  "briarwood",
+  "broad channel",
+  "cambria heights",
+  "college point",
+  "corona",
+  "ditmars steinway",
+  "ditmars-steinway",
+  "douglaston",
+  "east elmhurst",
+  "edgemere",
+  "elmhurst",
+  "far rockaway",
+  "floral park queens",
+  "flushing",
+  "forest hills",
+  "fresh meadows",
+  "glen oaks",
+  "glendale",
+  "hammels",
+  "hillcrest",
+  "hollis",
+  "hollis hills",
+  "holliswood",
+  "howard beach",
+  "hunters point",
+  "jackson heights",
+  "jamaica",
+  "jamaica estates",
+  "jamaica hills",
+  "kew gardens",
+  "kew gardens hills",
+  "laurelton",
+  "lindenwood",
+  "little neck",
+  "long island city",
+  "malba",
+  "maspeth",
+  "middle village",
+  "murray hill queens",
+  "neponsit",
+  "oakland gardens",
+  "ozone park",
+  "pomonok",
+  "queens village",
+  "rego park",
+  "richmond hill",
+  "ridgewood",
+  "rockaway",
+  "rockaway beach",
+  "rockaway park",
+  "rosedale",
+  "roxbury",
+  "saint albans",
+  "south jamaica",
+  "south ozone park",
+  "springfield gardens",
+  "st albans",
+  "st. albans",
+  "sunnyside",
+  "utopia",
+  "whitestone",
+  "woodhaven",
+  "woodside",
+];
+
+const QUEENS_ZIP_CODES = new Set([
+  "11004",
+  "11005",
+  "11101",
+  "11102",
+  "11103",
+  "11104",
+  "11105",
+  "11106",
+  "11109",
+  "11351",
+  "11354",
+  "11355",
+  "11356",
+  "11357",
+  "11358",
+  "11359",
+  "11360",
+  "11361",
+  "11362",
+  "11363",
+  "11364",
+  "11365",
+  "11366",
+  "11367",
+  "11368",
+  "11369",
+  "11370",
+  "11371",
+  "11372",
+  "11373",
+  "11374",
+  "11375",
+  "11377",
+  "11378",
+  "11379",
+  "11385",
+  "11411",
+  "11412",
+  "11413",
+  "11414",
+  "11415",
+  "11416",
+  "11417",
+  "11418",
+  "11419",
+  "11420",
+  "11421",
+  "11422",
+  "11423",
+  "11424",
+  "11425",
+  "11426",
+  "11427",
+  "11428",
+  "11429",
+  "11430",
+  "11431",
+  "11432",
+  "11433",
+  "11434",
+  "11435",
+  "11436",
+  "11437",
+  "11439",
+  "11451",
+  "11499",
+  "11691",
+  "11692",
+  "11693",
+  "11694",
+  "11697",
+]);
+
+const NASSAU_LOCATION_TERMS = [
+  "albertson",
+  "baldwin",
+  "bayville",
+  "bellmore",
+  "bethpage",
+  "carle place",
+  "cedarhurst",
+  "east meadow",
+  "east rockaway",
+  "elmont",
+  "farmingdale",
+  "five towns",
+  "floral park",
+  "franklin square",
+  "freeport",
+  "garden city",
+  "glen cove",
+  "glen head",
+  "great neck",
+  "hempstead",
+  "hewlett",
+  "hicksville",
+  "inwood",
+  "island park",
+  "jericho",
+  "lawrence",
+  "levittown",
+  "locust valley",
+  "long beach",
+  "lynbrook",
+  "malverne",
+  "manhasset",
+  "massapequa",
+  "massapequa park",
+  "merrick",
+  "mineola",
+  "new hyde park",
+  "north hempstead",
+  "oceanside",
+  "old westbury",
+  "oyster bay",
+  "plainview",
+  "port washington",
+  "rockville centre",
+  "roosevelt",
+  "roslyn",
+  "roslyn heights",
+  "sea cliff",
+  "seaford",
+  "syosset",
+  "uniondale",
+  "valley stream",
+  "wantagh",
+  "west hempstead",
+  "westbury",
+  "williston park",
+  "woodmere",
+];
+
+const SUFFOLK_LOCATION_TERMS = [
+  "amagansett",
+  "amityville",
+  "babylon",
+  "bay shore",
+  "bellport",
+  "bohemia",
+  "brentwood",
+  "bridgehampton",
+  "brookhaven",
+  "calverton",
+  "center moriches",
+  "central islip",
+  "centereach",
+  "commack",
+  "copiague",
+  "coram",
+  "cutchogue",
+  "deer park",
+  "dix hills",
+  "east hampton",
+  "east islip",
+  "east quogue",
+  "east setauket",
+  "farmingville",
+  "greenport",
+  "hampton bays",
+  "hamptons",
+  "hauppauge",
+  "holbrook",
+  "holtsville",
+  "huntington",
+  "islip",
+  "jamesport",
+  "kings park",
+  "lake ronkonkoma",
+  "lindenhurst",
+  "manorville",
+  "mastic",
+  "mastic beach",
+  "mattituck",
+  "medford",
+  "melville",
+  "middle island",
+  "miller place",
+  "montauk",
+  "moriches",
+  "mount sinai",
+  "nesconset",
+  "north babylon",
+  "northport",
+  "patchogue",
+  "port jefferson",
+  "quogue",
+  "riverhead",
+  "rocky point",
+  "ronkonkoma",
+  "sag harbor",
+  "sagaponack",
+  "sayville",
+  "selden",
+  "setauket",
+  "shelter island",
+  "shirley",
+  "shoreham",
+  "smithtown",
+  "southampton",
+  "southold",
+  "stony brook",
+  "water mill",
+  "wading river",
+  "west babylon",
+  "west islip",
+  "westhampton",
+  "westhampton beach",
+  "yaphank",
+];
+
+const LONG_ISLAND_LOCATION_TERMS = [
+  ...NASSAU_LOCATION_TERMS,
+  ...SUFFOLK_LOCATION_TERMS,
+];
+
+const NASSAU_ZIP_CODES = new Set([
+  ...zipRange("11001", "11096"),
+  ...zipRange("11501", "11599"),
+  ...zipRange("11801", "11899"),
+]);
+
+const SUFFOLK_ZIP_CODES = new Set([
+  ...zipRange("11701", "11798"),
+  ...zipRange("11901", "11980"),
+]);
+
+const LONG_ISLAND_ZIP_CODES = new Set([
+  ...NASSAU_ZIP_CODES,
+  ...SUFFOLK_ZIP_CODES,
+]);
+
+const NORTHERN_NEW_JERSEY_ZIP_CODES = new Set([
+  ...zipRange("07001", "07999"),
+]);
+
+const NORTHERN_NEW_JERSEY_LOCATION_TERMS = [
+  "new jersey",
+  "north jersey",
+  "northern new jersey",
+  "jersey city",
+  "hoboken",
+  "newark",
+  "edgewater",
+  "fort lee",
+  "union city",
+  "weehawken",
+  "secaucus",
+  "hackensack",
+  "paramus",
+  "englewood",
+  "bayonne",
+  "kearny",
+  "harrison",
+  "clifton",
+  "paterson",
+  "passaic",
+  "montclair",
+  "bloomfield",
+  "east orange",
+  "orange",
+  "west orange",
+  "livingston",
+  "morristown",
+  "summit",
+  "union",
+  "elizabeth",
+  "lodi",
+  "teaneck",
+  "ridgewood nj",
+  "ridgewood new jersey",
+];
+
 function detectLocation(input: string, locations: any[]) {
   const text = normalizeQuery(input);
   const found = new Set<string>();
+
+  const zipMatches = text.match(/\b\d{5}(?:-\d{4})?\b/g) || [];
+
+  zipMatches.forEach((zip) => found.add(zip.slice(0, 5)));
 
   locations.forEach((item) => {
     const fields = [
@@ -446,6 +840,46 @@ function detectLocation(input: string, locations: any[]) {
     "laurelton",
     "cambria heights",
     "st albans",
+    "st. albans",
+    "saint albans",
+    "arverne",
+    "auburndale",
+    "bay terrace",
+    "beechhurst",
+    "bellaire",
+    "bellerose",
+    "breezy point",
+    "briarwood",
+    "broad channel",
+    "college point",
+    "ditmars steinway",
+    "ditmars-steinway",
+    "douglaston",
+    "east elmhurst",
+    "edgemere",
+    "floral park queens",
+    "glen oaks",
+    "glendale",
+    "hammels",
+    "hillcrest",
+    "hollis hills",
+    "holliswood",
+    "howard beach",
+    "hunters point",
+    "jamaica hills",
+    "kew gardens hills",
+    "lindenwood",
+    "little neck",
+    "malba",
+    "murray hill queens",
+    "neponsit",
+    "oakland gardens",
+    "pomonok",
+    "rockaway park",
+    "rosedale",
+    "roxbury",
+    "south jamaica",
+    "utopia",
     "springfield gardens",
     "ozone park",
     "south ozone park",
@@ -505,6 +939,118 @@ function detectLocation(input: string, locations: any[]) {
     "patchogue",
     "huntington",
     "island park",
+    "north hempstead",
+    "oyster bay",
+    "glen cove",
+    "malverne",
+    "west hempstead",
+    "franklin square",
+    "floral park",
+    "new hyde park",
+    "great neck",
+    "manhasset",
+    "port washington",
+    "roslyn",
+    "roslyn heights",
+    "old westbury",
+    "carle place",
+    "plainview",
+    "bethpage",
+    "wantagh",
+    "seaford",
+    "massapequa park",
+    "farmingdale",
+    "east meadow",
+    "roosevelt",
+    "baldwin",
+    "merrick",
+    "bellmore",
+    "east rockaway",
+    "oceanside",
+    "lynbrook",
+    "lawrence",
+    "cedarhurst",
+    "woodmere",
+    "hewlett",
+    "five towns",
+    "syosset",
+    "jericho",
+    "bayville",
+    "locust valley",
+    "glen head",
+    "sea cliff",
+    "albertson",
+    "williston park",
+    "northport",
+    "commack",
+    "dix hills",
+    "melville",
+    "west babylon",
+    "north babylon",
+    "lindenhurst",
+    "copiague",
+    "amityville",
+    "bay shore",
+    "brentwood",
+    "central islip",
+    "islip",
+    "east islip",
+    "west islip",
+    "sayville",
+    "bohemia",
+    "lake ronkonkoma",
+    "holbrook",
+    "holtsville",
+    "hauppauge",
+    "smithtown",
+    "nesconset",
+    "kings park",
+    "port jefferson",
+    "stony brook",
+    "setauket",
+    "east setauket",
+    "centereach",
+    "selden",
+    "farmingville",
+    "medford",
+    "bellport",
+    "shirley",
+    "mastic",
+    "mastic beach",
+    "moriches",
+    "center moriches",
+    "manorville",
+    "riverhead",
+    "calverton",
+    "wading river",
+    "rocky point",
+    "shoreham",
+    "miller place",
+    "mount sinai",
+    "coram",
+    "middle island",
+    "yaphank",
+    "brookhaven",
+    "hamptons",
+    "southampton",
+    "east hampton",
+    "bridgehampton",
+    "sag harbor",
+    "hampton bays",
+    "westhampton",
+    "westhampton beach",
+    "quogue",
+    "east quogue",
+    "water mill",
+    "sagaponack",
+    "montauk",
+    "amagansett",
+    "shelter island",
+    "greenport",
+    "southold",
+    "mattituck",
+    "cutchogue",
+    "jamesport",
     "westchester",
     "westchester county",
     "yonkers",
@@ -533,6 +1079,26 @@ function detectLocation(input: string, locations: any[]) {
     "hackensack",
     "paramus",
     "englewood",
+    "bayonne",
+    "kearny",
+    "harrison",
+    "clifton",
+    "paterson",
+    "passaic",
+    "montclair",
+    "bloomfield",
+    "east orange",
+    "orange",
+    "west orange",
+    "livingston",
+    "morristown",
+    "summit",
+    "union",
+    "elizabeth",
+    "lodi",
+    "teaneck",
+    "ridgewood nj",
+    "ridgewood new jersey",
     "jfk",
     "laguardia",
     "lga",
@@ -548,22 +1114,167 @@ function detectLocation(input: string, locations: any[]) {
   return Array.from(found);
 }
 
-function matchesLocation(item: any, detectedLocations: string[]) {
+function zipCodeForItem(item: LocationMatchItem) {
+  const zip = String(
+    item.zip_code || item.postal_code || item.address || ""
+  ).match(/\b\d{5}\b/);
+
+  return zip?.[0] || "";
+}
+
+function isSupportedServiceZip(zip: string) {
+  return (
+    MANHATTAN_ZIP_CODES.has(zip) ||
+    BROOKLYN_ZIP_CODES.has(zip) ||
+    BRONX_ZIP_CODES.has(zip) ||
+    STATEN_ISLAND_ZIP_CODES.has(zip) ||
+    QUEENS_ZIP_CODES.has(zip) ||
+    LONG_ISLAND_ZIP_CODES.has(zip) ||
+    NORTHERN_NEW_JERSEY_ZIP_CODES.has(zip)
+  );
+}
+
+function locationTermsFromZip(zip: string) {
+  if (!zip || !isSupportedServiceZip(zip)) return [];
+
+  if (zip === "11412") {
+    return ["st albans", "st. albans", "saint albans", "queens"];
+  }
+
+  if (STATEN_ISLAND_ZIP_CODES.has(zip)) {
+    return ["staten island", "nyc", "new york city"];
+  }
+
+  if (BRONX_ZIP_CODES.has(zip)) return ["bronx", "nyc", "new york city"];
+  if (BROOKLYN_ZIP_CODES.has(zip)) {
+    return ["brooklyn", "nyc", "new york city"];
+  }
+
+  if (MANHATTAN_ZIP_CODES.has(zip)) {
+    return ["manhattan", "nyc", "new york city"];
+  }
+
+  if (QUEENS_ZIP_CODES.has(zip)) {
+    return ["queens", "nyc", "new york city", ...QUEENS_LOCATION_TERMS];
+  }
+
+  if (NASSAU_ZIP_CODES.has(zip)) {
+    return [
+      "nassau",
+      "nassau county",
+      "long island",
+      ...NASSAU_LOCATION_TERMS,
+    ];
+  }
+
+  if (SUFFOLK_ZIP_CODES.has(zip)) {
+    return [
+      "long island",
+      "suffolk",
+      "suffolk county",
+      ...LONG_ISLAND_LOCATION_TERMS,
+    ];
+  }
+
+  if (NORTHERN_NEW_JERSEY_ZIP_CODES.has(zip)) {
+    return NORTHERN_NEW_JERSEY_LOCATION_TERMS;
+  }
+
+  return [];
+}
+
+function boroughFromZip(zip: string) {
+  if (!zip) return "";
+
+  if (STATEN_ISLAND_ZIP_CODES.has(zip)) return "staten island";
+  if (BRONX_ZIP_CODES.has(zip)) return "bronx";
+  if (BROOKLYN_ZIP_CODES.has(zip)) return "brooklyn";
+  if (MANHATTAN_ZIP_CODES.has(zip)) return "manhattan";
+  if (QUEENS_ZIP_CODES.has(zip)) return "queens";
+  if (NASSAU_ZIP_CODES.has(zip)) return "nassau county";
+  if (SUFFOLK_ZIP_CODES.has(zip)) return "suffolk county";
+  if (NORTHERN_NEW_JERSEY_ZIP_CODES.has(zip)) return "northern new jersey";
+
+  return "";
+}
+
+function expandedLocationTerms(location: string) {
+  const normalized = normalizeQuery(location);
+  const aliases: Record<string, string[]> = {
+    fidi: ["financial district"],
+    les: ["lower east side"],
+    lic: ["long island city"],
+    "saint albans": ["st albans", "st. albans", "11412"],
+    "st albans": ["saint albans", "st. albans", "11412"],
+    "st. albans": ["saint albans", "st albans", "11412"],
+    queens: QUEENS_LOCATION_TERMS,
+    "long island": LONG_ISLAND_LOCATION_TERMS,
+    nassau: NASSAU_LOCATION_TERMS,
+    "nassau county": NASSAU_LOCATION_TERMS,
+    suffolk: SUFFOLK_LOCATION_TERMS,
+    "suffolk county": SUFFOLK_LOCATION_TERMS,
+    "new jersey": NORTHERN_NEW_JERSEY_LOCATION_TERMS,
+    "north jersey": NORTHERN_NEW_JERSEY_LOCATION_TERMS,
+    "northern new jersey": NORTHERN_NEW_JERSEY_LOCATION_TERMS,
+    nyc: [
+      "new york",
+      "new york city",
+      "manhattan",
+      "brooklyn",
+      "queens",
+      "bronx",
+      "staten island",
+    ],
+    "new york city": [
+      "new york",
+      "manhattan",
+      "brooklyn",
+      "queens",
+      "bronx",
+      "staten island",
+    ],
+  };
+
+  if (/^\d{5}$/.test(normalized)) {
+    return Array.from(
+      new Set([normalized, ...locationTermsFromZip(normalized)])
+    );
+  }
+
+  return Array.from(new Set([normalized, ...(aliases[normalized] || [])]));
+}
+
+function matchesLocation(item: LocationMatchItem, detectedLocations: string[]) {
   if (!detectedLocations || detectedLocations.length === 0) return true;
 
-  const searchable = [
-    item.city,
-    item.neighborhood,
-    item.borough,
-    item.state,
-    item.zip_code,
-    item.address,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  const itemZip = zipCodeForItem(item);
+  const itemBorough = boroughFromZip(itemZip);
+  const searchable = normalizeQuery(
+    [
+      item.city,
+      item.neighborhood,
+      item.borough,
+      item.state,
+      itemZip,
+      item.address,
+      itemBorough,
+      ...locationTermsFromZip(itemZip),
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
 
-  return detectedLocations.some((location) => searchable.includes(location));
+  return detectedLocations.some((location) => {
+    const normalizedLocation = normalizeQuery(location);
+
+    if (/^\d{5}$/.test(normalizedLocation) && itemZip === normalizedLocation) {
+      return true;
+    }
+
+    return expandedLocationTerms(normalizedLocation).some((term) =>
+      searchable.includes(term)
+    );
+  });
 }
 
 function isRoseOutRelated(input: string) {
@@ -575,12 +1286,28 @@ function isRoseOutRelated(input: string) {
     ...Object.values(TAG_KEYWORDS).flat(),
     ...Object.values(FOOD_INTENTS).flat(),
     ...Object.values(ACTIVITY_INTENTS).flat(),
+    ...QUEENS_LOCATION_TERMS,
+    ...LONG_ISLAND_LOCATION_TERMS,
     "date",
     "outing",
     "plan",
     "plans",
     "place",
     "places",
+    "spot",
+    "spots",
+    "search",
+    "find",
+    "show",
+    "recommend",
+    "recommendation",
+    "recommendations",
+    "suggest",
+    "suggestion",
+    "suggestions",
+    "anything",
+    "something",
+    "somewhere",
     "near",
     "nearby",
     "budget",
@@ -599,7 +1326,12 @@ function isRoseOutRelated(input: string) {
     "long island",
   ];
 
-  return allowedWords.some((word) => text.includes(word));
+  const searchedZips = text.match(/\b\d{5}\b/g) || [];
+
+  return (
+    allowedWords.some((word) => text.includes(word)) ||
+    searchedZips.some(isSupportedServiceZip)
+  );
 }
 
 function isUnsafeOrOffTopic(input: string) {
@@ -858,20 +1590,56 @@ function isWithinRoseOutServiceArea(item: any) {
   );
 }
 
+function distanceMilesFromUser(
+  item: LocationMatchItem,
+  userLat?: number,
+  userLng?: number
+) {
+  if (!userLat || !userLng || !item.latitude || !item.longitude) return null;
+
+  return haversineMiles(
+    Number(userLat),
+    Number(userLng),
+    Number(item.latitude),
+    Number(item.longitude)
+  );
+}
+
+function filterByUserRadius(
+  items: LocationMatchItem[],
+  userLat?: number,
+  userLng?: number,
+  maxMiles?: number | null
+) {
+  if (!userLat || !userLng) return items;
+
+  const radius = maxMiles || DEFAULT_LOCATION_RADIUS_MILES;
+  const itemsWithCoordinates = items.filter(
+    (item) => item.latitude && item.longitude
+  );
+
+  if (itemsWithCoordinates.length === 0) return items;
+
+  return items.filter((item) => {
+    const miles = distanceMilesFromUser(item, userLat, userLng);
+
+    if (miles === null) return false;
+
+    item.distance_miles = Number(miles.toFixed(1));
+
+    return miles <= radius;
+  });
+}
+
 function distanceBoost(
   item: any,
   userLat?: number,
   userLng?: number,
   maxMiles?: number | null
 ) {
-  if (!userLat || !userLng || !item.latitude || !item.longitude) return 0;
+  const miles = distanceMilesFromUser(item, userLat, userLng);
 
-  const miles = haversineMiles(
-    Number(userLat),
-    Number(userLng),
-    Number(item.latitude),
-    Number(item.longitude)
-  );
+  if (miles === null) return 0;
 
   item.distance_miles = Number(miles.toFixed(1));
 
@@ -1540,42 +2308,62 @@ const usableLocations = locations.filter((item: any) => {
       );
     });
 
+    const fallbackRestaurants = restaurants;
+    const fallbackActivities = activities;
+
     restaurants = filterRestaurantsByFoodIntent(restaurants, intent);
     activities = filterActivitiesByActivityIntent(activities, intent);
 
+    if (restaurants.length === 0 && fallbackRestaurants.length > 0) {
+      restaurants = fallbackRestaurants;
+    }
+
+    if (activities.length === 0 && fallbackActivities.length > 0) {
+      activities = fallbackActivities;
+    }
+
     if (intent.locations.length > 0) {
-      const locationRestaurants = restaurants.filter((item: any) =>
+      restaurants = restaurants.filter((item) =>
         matchesLocation(item, intent.locations)
       );
 
-      const locationActivities = activities.filter((item: any) =>
+      activities = activities.filter((item) =>
         matchesLocation(item, intent.locations)
       );
+    } else if (intent.userLat && intent.userLng) {
+      restaurants = filterByUserRadius(
+        restaurants,
+        intent.userLat,
+        intent.userLng,
+        intent.maxMiles
+      );
 
-      if (locationRestaurants.length > 0) {
-        restaurants = locationRestaurants;
-      }
-
-      if (locationActivities.length > 0) {
-        activities = locationActivities;
-      }
+      activities = filterByUserRadius(
+        activities,
+        intent.userLat,
+        intent.userLng,
+        intent.maxMiles
+      );
     }
 
     if (intent.activityIntents.length > 0) {
-      let forcedActivityMatches = locations.filter((item: any) =>
+      let forcedActivityMatches = sourceLocations.filter((item: any) =>
         intent.activityIntents.some((activityIntent) =>
           matchesActivityIntent(item, activityIntent)
         )
       );
 
       if (intent.locations.length > 0) {
-        const locationFiltered = forcedActivityMatches.filter((item: any) =>
+        forcedActivityMatches = forcedActivityMatches.filter((item) =>
           matchesLocation(item, intent.locations)
         );
-
-        if (locationFiltered.length > 0) {
-          forcedActivityMatches = locationFiltered;
-        }
+      } else if (intent.userLat && intent.userLng) {
+        forcedActivityMatches = filterByUserRadius(
+          forcedActivityMatches,
+          intent.userLat,
+          intent.userLng,
+          intent.maxMiles
+        );
       }
 
       if (forcedActivityMatches.length > 0) {
@@ -1736,7 +2524,9 @@ Activities:
 ${JSON.stringify(slimActivities)}
 
 STRICT RULES:
+- This request already passed RoseOut server relevance checks.
 - Only answer RoseOut-related outing, date, restaurant, activity, nightlife, brunch, birthday, budget, distance, or location-planning requests.
+- Restaurant, dinner, steak, cuisine, and recognized location searches are RoseOut-related.
 - If the user asks anything outside RoseOut, respond exactly: "${OFF_TOPIC_REPLY}"
 - Keep the answer short and direct.
 - Use ONLY the listed restaurants and activities.
@@ -1773,6 +2563,13 @@ STRICT RULES:
         })
       : null;
 
+    const generatedReply = response?.output_text?.trim();
+    const fallbackReply = "Here are strong RoseOut matches based on your vibe.";
+    const reply =
+      generatedReply && generatedReply !== OFF_TOPIC_REPLY
+        ? generatedReply
+        : fallbackReply;
+
     const responsePayload = {
       success: true,
       version: getSmartMatchVersion(),
@@ -1791,9 +2588,7 @@ STRICT RULES:
         strictFoodMode: smartIntent.strictFoodMode,
         strictActivityMode: smartIntent.strictActivityMode,
       },
-      reply:
-        response?.output_text ||
-        "Here are strong RoseOut matches based on your vibe.",
+      reply,
       intent: {
         requestedTags: intent.requestedTags,
         foodIntents: intent.foodIntents,
