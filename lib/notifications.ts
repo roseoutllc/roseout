@@ -14,6 +14,8 @@ type NotifyInput = {
   subject: string;
   emailHtml?: string;
   smsBody?: string;
+  replyTo?: string | null;
+  from?: string | null;
 };
 
 export async function sendNotification({
@@ -22,6 +24,8 @@ export async function sendNotification({
   subject,
   emailHtml,
   smsBody,
+  replyTo,
+  from,
 }: NotifyInput) {
   const results: {
     email?: unknown;
@@ -34,15 +38,16 @@ export async function sendNotification({
   if (toEmail && emailHtml && process.env.RESEND_API_KEY) {
     try {
       const email = await resend.emails.send({
-        from: process.env.EMAIL_FROM || "RoseOut <hello@roseout.com>",
+        from: from || process.env.EMAIL_FROM || "RoseOut <hello@roseout.com>",
         to: toEmail,
         subject,
         html: emailHtml,
+        replyTo: replyTo || undefined,
       });
 
       results.email = email;
-    } catch (error: any) {
-      results.errors.push(error?.message || "Email failed");
+    } catch (error: unknown) {
+      results.errors.push(error instanceof Error ? error.message : "Email failed");
     }
   }
 
@@ -55,8 +60,8 @@ export async function sendNotification({
       });
 
       results.sms = sms.sid;
-    } catch (error: any) {
-      results.errors.push(error?.message || "SMS failed");
+    } catch (error: unknown) {
+      results.errors.push(error instanceof Error ? error.message : "SMS failed");
     }
   }
 
