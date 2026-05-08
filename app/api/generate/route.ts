@@ -621,19 +621,67 @@ function detectLocation(input: string, locations: any[]) {
 function matchesLocation(item: any, detectedLocations: string[]) {
   if (!detectedLocations || detectedLocations.length === 0) return true;
 
-  const searchable = [
-    item.city,
-    item.neighborhood,
-    item.borough,
-    item.state,
-    item.zip_code,
-    item.address,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  const searchable = normalizeQuery(
+    [
+      item.city,
+      item.neighborhood,
+      item.borough,
+      item.state,
+      item.zip_code,
+      item.address,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
 
-  return detectedLocations.some((location) => searchable.includes(location));
+  return detectedLocations.some((location) => {
+    if (location === "long island") {
+      return matchesLongIslandLocation(item, searchable);
+    }
+
+    return searchable.includes(location);
+  });
+}
+
+function matchesLongIslandLocation(item: any, searchable: string) {
+  const city = normalizeQuery(String(item.city || ""));
+  const county = normalizeQuery(String(item.county || item.borough || ""));
+
+  if (city === "long island city" || searchable.includes("long island city")) {
+    return false;
+  }
+
+  const longIslandSignals = [
+    "nassau",
+    "nassau county",
+    "suffolk",
+    "suffolk county",
+    "hempstead",
+    "garden city",
+    "mineola",
+    "freeport",
+    "long beach",
+    "rockville centre",
+    "valley stream",
+    "elmont",
+    "uniondale",
+    "westbury",
+    "hicksville",
+    "massapequa",
+    "levittown",
+    "babylon",
+    "deer park",
+    "ronkonkoma",
+    "patchogue",
+    "huntington",
+    "island park",
+  ];
+
+  return (
+    county === "nassau" ||
+    county === "suffolk" ||
+    longIslandSignals.some((signal) => searchable.includes(signal))
+  );
 }
 
 function isRoseOutRelated(input: string) {
@@ -1426,13 +1474,18 @@ function pairSmartMatches(restaurants: any[], activities: any[]) {
     (pair) => pair.distance_miles !== null && pair.distance_miles <= 5
   );
   const cityPairs = pairs.filter((pair) => pair.same_city);
-  const candidatePairs =
-    nearbyPairs.length > 0 ? nearbyPairs : cityPairs.length > 0 ? cityPairs : pairs;
+  const candidatePairs = uniquePairCombinations([
+    ...nearbyPairs,
+    ...cityPairs,
+    ...pairs,
+  ]);
   const anchorPair = candidatePairs[0];
   const focusedPairs = anchorPair
     ? candidatePairs.filter((pair) => pairsShareSearchArea(pair, anchorPair))
     : candidatePairs;
-  const finalCandidatePairs = focusedPairs.length > 0 ? focusedPairs : candidatePairs;
+  const finalCandidatePairs = hasEnoughPairOptions(focusedPairs)
+    ? focusedPairs
+    : candidatePairs;
 
   const restaurantPairs = pickUniquePairs(
     finalCandidatePairs,
@@ -1462,6 +1515,22 @@ function pairSmartMatches(restaurants: any[], activities: any[]) {
     })),
     pairs: bestPairs,
   };
+}
+
+function hasEnoughPairOptions(pairs: any[]) {
+  const restaurantIds = new Set<string>();
+  const activityIds = new Set<string>();
+
+  pairs.forEach((pair) => {
+    restaurantIds.add(
+      String(pair.restaurant.id || pair.restaurant.restaurant_name || pair.restaurant.name || "")
+    );
+    activityIds.add(
+      String(pair.activity.id || pair.activity.activity_name || pair.activity.name || "")
+    );
+  });
+
+  return pairs.length >= 3 || restaurantIds.size >= 3 || activityIds.size >= 2;
 }
 
 function pickUniquePairs(
@@ -1604,7 +1673,7 @@ export async function POST(req: Request) {
     const intent = detectIntent(input, body, locations);
 
    const cacheKey = normalizeQuery(
-  `roseout-${getSmartMatchVersion()}-contact-v5-${input}-${intent.userLat || ""}-${
+  `roseout-${getSmartMatchVersion()}-contact-v6-${input}-${intent.userLat || ""}-${
     intent.userLng || ""
   }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
 );
