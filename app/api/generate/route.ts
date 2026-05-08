@@ -19,6 +19,8 @@ const OFF_TOPIC_REPLY =
 
 const LOCATION_NAME_MATCH_WEIGHT = 500;
 
+type LocationResult = Record<string, unknown>;
+
 const FOOD_KEYWORDS = [
   "food",
   "eat",
@@ -323,6 +325,74 @@ function normalizeLocation(item: any) {
         ? item.activity_name || name
         : item.activity_name,
   };
+}
+
+function locationField(item: LocationResult, key: string) {
+  const value = item[key];
+
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+
+  return "";
+}
+
+function isRestaurantLocation(item: LocationResult) {
+  const type = locationField(item, "location_type").toLowerCase();
+
+  return (
+    type === "restaurant" ||
+    Boolean(locationField(item, "restaurant_name")) ||
+    Boolean(locationField(item, "cuisine")) ||
+    Boolean(locationField(item, "cuisine_type"))
+  );
+}
+
+function isActivityLocation(item: LocationResult) {
+  const type = locationField(item, "location_type").toLowerCase();
+
+  if (isRestaurantLocation(item)) return false;
+
+  return (
+    type === "activity" ||
+    Boolean(locationField(item, "activity_name")) ||
+    Boolean(locationField(item, "activity_type"))
+  );
+}
+
+function resultKey(
+  item: LocationResult,
+  resultType: "restaurant" | "activity"
+) {
+  const name = String(
+    resultType === "restaurant"
+      ? locationField(item, "restaurant_name") || locationField(item, "name")
+      : locationField(item, "activity_name") || locationField(item, "name")
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+  const id = locationField(item, "id");
+
+  return name || (id ? `id:${id}` : "");
+}
+
+function uniqueResults(
+  items: LocationResult[],
+  resultType: "restaurant" | "activity"
+) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key = resultKey(item, resultType);
+
+    if (!key || seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
 }
 
 function detectLocation(input: string, locations: any[]) {
@@ -1352,42 +1422,38 @@ function pairSmartMatches(restaurants: any[], activities: any[]) {
     )
     .sort((a, b) => b.pair_score - a.pair_score);
 
-  const usedRestaurantIds = new Set<string>();
-  const usedActivityIds = new Set<string>();
+  const nearbyPairs = pairs.filter(
+    (pair) => pair.distance_miles !== null && pair.distance_miles <= 5
+  );
+  const cityPairs = pairs.filter((pair) => pair.same_city);
+  const candidatePairs =
+    nearbyPairs.length > 0 ? nearbyPairs : cityPairs.length > 0 ? cityPairs : pairs;
+  const anchorPair = candidatePairs[0];
+  const focusedPairs = anchorPair
+    ? candidatePairs.filter((pair) => pairsShareSearchArea(pair, anchorPair))
+    : candidatePairs;
+  const finalCandidatePairs = focusedPairs.length > 0 ? focusedPairs : candidatePairs;
 
-  const bestPairs = pairs
-    .filter((pair) => {
-      const restaurantId = String(
-        pair.restaurant.id || pair.restaurant.restaurant_name || ""
-      );
-
-      const activityId = String(
-        pair.activity.id || pair.activity.activity_name || ""
-      );
-
-      if (
-        usedRestaurantIds.has(restaurantId) ||
-        usedActivityIds.has(activityId)
-      ) {
-        return false;
-      }
-
-      usedRestaurantIds.add(restaurantId);
-      usedActivityIds.add(activityId);
-
-      return true;
-    })
-    .slice(0, 3);
+  const restaurantPairs = pickUniquePairs(
+    finalCandidatePairs,
+    "restaurant",
+    3
+  );
+  const activityPairs = pickUniquePairs(finalCandidatePairs, "activity", 3);
+  const bestPairs = uniquePairCombinations([
+    ...restaurantPairs,
+    ...activityPairs,
+  ]);
 
   return {
-    restaurants: bestPairs.map((pair) => ({
+    restaurants: restaurantPairs.map((pair) => ({
       ...pair.restaurant,
       paired_activity_name:
         pair.activity.activity_name || pair.activity.name || null,
       pair_distance_miles: pair.distance_miles,
       pair_score: pair.pair_score,
     })),
-    activities: bestPairs.map((pair) => ({
+    activities: activityPairs.map((pair) => ({
       ...pair.activity,
       paired_restaurant_name:
         pair.restaurant.restaurant_name || pair.restaurant.name || null,
@@ -1396,6 +1462,64 @@ function pairSmartMatches(restaurants: any[], activities: any[]) {
     })),
     pairs: bestPairs,
   };
+}
+
+function pickUniquePairs(
+  pairs: any[],
+  resultType: "restaurant" | "activity",
+  limit: number
+) {
+  const usedIds = new Set<string>();
+
+  return pairs.filter((pair) => {
+    const item = resultType === "restaurant" ? pair.restaurant : pair.activity;
+    const id = String(
+      item.id || item.restaurant_name || item.activity_name || item.name || ""
+    );
+
+    if (!id || usedIds.has(id)) return false;
+
+    usedIds.add(id);
+    return true;
+  }).slice(0, limit);
+}
+
+function uniquePairCombinations(pairs: any[]) {
+  const usedKeys = new Set<string>();
+
+  return pairs.filter((pair) => {
+    const key = [
+      pair.restaurant.id || pair.restaurant.restaurant_name || pair.restaurant.name,
+      pair.activity.id || pair.activity.activity_name || pair.activity.name,
+    ]
+      .map((value) => String(value || "").trim().toLowerCase())
+      .join("::");
+
+    if (!key || usedKeys.has(key)) return false;
+
+    usedKeys.add(key);
+    return true;
+  });
+}
+
+function pairsShareSearchArea(pair: any, anchorPair: any) {
+  const pairAreas = pairAreaTokens(pair);
+  const anchorAreas = pairAreaTokens(anchorPair);
+
+  return pairAreas.some((area) => anchorAreas.includes(area));
+}
+
+function pairAreaTokens(pair: any) {
+  return [
+    ...locationAreaTokens(pair.restaurant),
+    ...locationAreaTokens(pair.activity),
+  ];
+}
+
+function locationAreaTokens(item: any) {
+  return [item.neighborhood, item.borough, item.city, item.zip_code]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter((value) => value && value !== "new york" && value !== "ny");
 }
 
 export async function POST(req: Request) {
@@ -1480,7 +1604,7 @@ export async function POST(req: Request) {
     const intent = detectIntent(input, body, locations);
 
    const cacheKey = normalizeQuery(
-  `roseout-${getSmartMatchVersion()}-contact-v1-${input}-${intent.userLat || ""}-${
+  `roseout-${getSmartMatchVersion()}-contact-v5-${input}-${intent.userLat || ""}-${
     intent.userLng || ""
   }-${intent.maxMiles || ""}-${intent.locations.join("-")}`
 );
@@ -1516,29 +1640,9 @@ const usableLocations = locations.filter((item: any) => {
       input
     );
 
-    let restaurants = sourceLocations.filter((item: any) => {
-      const type = String(item.location_type || "").toLowerCase();
+    let restaurants = sourceLocations.filter((item) => isRestaurantLocation(item));
 
-      return (
-        type === "restaurant" ||
-        Boolean(item.restaurant_name) ||
-        Boolean(item.cuisine) ||
-        Boolean(item.cuisine_type)
-      );
-    });
-
-    let activities = sourceLocations.filter((item: any) => {
-      const type = String(item.location_type || "").toLowerCase();
-
-      return (
-        type === "activity" ||
-        Boolean(item.activity_name) ||
-        Boolean(item.activity_type) ||
-        intent.activityIntents.some((activityIntent) =>
-          matchesActivityIntent(item, activityIntent)
-        )
-      );
-    });
+    let activities = sourceLocations.filter((item) => isActivityLocation(item));
 
     restaurants = filterRestaurantsByFoodIntent(restaurants, intent);
     activities = filterActivitiesByActivityIntent(activities, intent);
@@ -1562,10 +1666,12 @@ const usableLocations = locations.filter((item: any) => {
     }
 
     if (intent.activityIntents.length > 0) {
-      let forcedActivityMatches = locations.filter((item: any) =>
-        intent.activityIntents.some((activityIntent) =>
-          matchesActivityIntent(item, activityIntent)
-        )
+      let forcedActivityMatches = sourceLocations.filter(
+        (item) =>
+          isActivityLocation(item) &&
+          intent.activityIntents.some((activityIntent) =>
+            matchesActivityIntent(item, activityIntent)
+          )
       );
 
       if (intent.locations.length > 0) {
@@ -1641,8 +1747,21 @@ const usableLocations = locations.filter((item: any) => {
             pairs: [],
           };
 
-    const topRestaurants = pairedResults.restaurants;
-    const topActivities = pairedResults.activities;
+    const topRestaurants = uniqueResults(
+      pairedResults.restaurants.filter((item) => isRestaurantLocation(item)),
+      "restaurant"
+    );
+    const topRestaurantKeys = new Set(
+      topRestaurants.map((item) => resultKey(item, "restaurant"))
+    );
+    const topActivities = uniqueResults(
+      pairedResults.activities.filter(
+        (item) =>
+          isActivityLocation(item) &&
+          !topRestaurantKeys.has(resultKey(item, "activity"))
+      ),
+      "activity"
+    );
 
     const slimMatchedLocations = matchedLocationResults.map((item: any) => ({
       id: String(item.id),
@@ -1858,6 +1977,8 @@ google_maps_url: item.google_maps_url || null,
         primary_tag: r.primary_tag || null,
         date_style_tags: toArray(r.date_style_tags),
         distance_miles: r.distance_miles || null,
+        latitude: r.latitude || null,
+        longitude: r.longitude || null,
       })),
       activities: topActivities.map((a: any) => ({
         id: String(a.id),
@@ -1888,6 +2009,8 @@ google_maps_url: item.google_maps_url || null,
         primary_tag: a.primary_tag || null,
         date_style_tags: toArray(a.date_style_tags),
         distance_miles: a.distance_miles || null,
+        latitude: a.latitude || null,
+        longitude: a.longitude || null,
       })),
     };
 
