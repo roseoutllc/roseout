@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mergeRecoveredCandidates, planPairRecovery } from "../recoveryPolicy";
 
 describe("pair recovery centering", () => {
-  it("retrieves restaurants around a scarce activity", () => {
+  it("retrieves restaurants around a scarce activity without widening an explicit pair limit", () => {
     expect(
       planPairRecovery({
         restaurantCount: 12,
@@ -16,7 +16,7 @@ describe("pair recovery centering", () => {
       lane: "restaurant",
       centerOn: "activity",
       radiusMiles: 12,
-      maxPairDistanceMiles: 3,
+      maxPairDistanceMiles: 1.5,
     });
   });
 
