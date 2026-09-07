@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+import { applyFinalRestaurantEligibility } from "../finalRestaurantEligibility";
+
+function restaurant(overrides: Record<string, unknown>) {
+  return {
+    id: "r1",
+    name: "Restaurant",
+    location_type: "restaurant",
+    has_photos: true,
+    photo_status: "has_photo",
+    main_image: "https://example.com/photo.jpg",
+    rating: 4.5,
+    review_count: 100,
+    ...overrides,
+  };
+}
+
+function activity() {
+  return {
+    id: "a1",
+    name: "Comedy Club",
+    location_type: "activity",
+    has_photos: true,
+    photo_status: "has_photo",
+    main_image: "https://example.com/activity.jpg",
+  };
+}
+
+function baseResult(restaurants: any[], pairs: any[] = []) {
+  return {
+    success: true,
+    restaurants,
+    activities: [activity()],
+    matched_locations: [],
+    matchedLocations: [],
+    pairs,
+    cards: [...pairs, ...restaurants, activity()],
+    builder: { restaurants: [...restaurants], activities: [activity()] },
+    builder_restaurants: [...restaurants],
+    card_counts: { restaurants: restaurants.length, activities: 1, pairs: pairs.length, cards: pairs.length + restaurants.length + 1 },
+    cardCounts: { restaurants: restaurants.length, activities: 1, pairs: pairs.length, cards: pairs.length + restaurants.length + 1 },
+    debug: {},
+  } as any;
+}
+
+describe("final restaurant eligibility", () => {
+  it("removes delis from normal dinner results and from generated pairs", () => {
+    const deli = restaurant({ id: "deli", name: "George's Deli", primary_category: "deli" });
+    const dinner = restaurant({ id: "dinner", name: "Kokomo Restaurant & Lounge", primary_category: "caribbean", reservable: true });
+    const result = baseResult([deli, dinner], [
+      { restaurant: deli, activity: activity(), restaurant_location_id: "deli" },
+      { restaurant: dinner, activity: activity(), restaurant_location_id: "dinner" },
+    ]);
+
+    const filtered = applyFinalRestaurantEligibility(result, "dinner and comedy show");
+
+    expect(filtered.restaurants.map((item: any) => item.id)).toEqual(["dinner"]);
+    expect(filtered.pairs).toHaveLength(1);
+    expect((filtered.pairs[0] as any).restaurant.id).toBe("dinner");
+    expect((filtered as any).builder.restaurants.map((item: any) => item.id)).toEqual(["dinner"]);
+  });
+
+  it("removes Yardies-shaped weak generic restaurants from normal outings", () => {
+    const yardies = restaurant({
+      id: "yardies",
+      name: "Yardies Jerk - Saint Albans",
+      primary_category: "caribbean",
+      rating: 4.0,
+      review_count: 1095,
+      google_types: ["restaurant", "food", "point_of_interest", "establishment"],
+      reservable: false,
+      dine_in: false,
+      takeout: true,
+    });
+
+    const filtered = applyFinalRestaurantEligibility(baseResult([yardies]), "caribbean dinner and comedy");
+    expect(filtered.restaurants).toEqual([]);
+  });
+
+  it("keeps deli and quick-service candidates when the user explicitly asks for them", () => {
+    const deli = restaurant({ id: "deli", name: "George's Deli", primary_category: "deli" });
+    const filtered = applyFinalRestaurantEligibility(baseResult([deli]), "quick bite at a deli near me");
+    expect(filtered.restaurants.map((item: any) => item.id)).toEqual(["deli"]);
+  });
+
+  it("does not suppress a full-service restaurant merely because it offers takeout", () => {
+    const fullService = restaurant({
+      id: "full-service",
+      name: "Dinner House",
+      google_types: ["restaurant", "meal_takeaway"],
+      dine_in: true,
+      takeout: true,
+      reservable: true,
+    });
+    const filtered = applyFinalRestaurantEligibility(baseResult([fullService]), "dinner near me");
+    expect(filtered.restaurants.map((item: any) => item.id)).toEqual(["full-service"]);
+  });
+});
