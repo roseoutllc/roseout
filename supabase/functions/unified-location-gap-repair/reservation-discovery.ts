@@ -4,6 +4,9 @@ export const RESERVATION_PROVIDERS = [
   ["eventbrite.com", "Eventbrite"], ["mindbodyonline.com", "Mindbody"], ["fareharbor.com", "FareHarbor"],
   ["peek.com", "Peek"], ["calendly.com", "Calendly"], ["tablecheck.com", "TableCheck"],
   ["tablescheck.com", "TableCheck"], ["eatapp.co", "Eat App"], ["simpleerb.com", "SimpleERB"],
+  ["roller.app", "ROLLER"], ["bookeo.com", "Bookeo"], ["acuityscheduling.com", "Acuity Scheduling"],
+  ["checkfront.com", "Checkfront"], ["rezdy.com", "Rezdy"], ["xola.com", "Xola"],
+  ["bokun.io", "Bokun"], ["bookingkit.net", "Bookingkit"], ["getoccasion.com", "Occasion"],
 ] as const;
 
 export const RESERVATION_DISCOVERY_PATHS = [
@@ -24,7 +27,7 @@ const NON_CRAWLABLE_WEBSITE_HOSTS = [
   "ubereats.com",
 ] as const;
 
-export const MAX_RESERVATION_DISCOVERY_PAGES = 6;
+export const MAX_RESERVATION_DISCOVERY_PAGES = 8;
 const RESERVATION_FETCH_TIMEOUT_MS = 7000;
 const MAX_SAME_VENUE_REDIRECTS = 3;
 
@@ -148,7 +151,7 @@ export function extractReservationLinks(html: string, base: URL) {
     .replace(/\\\//g, "/")
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"');
-  for (const match of decoded.matchAll(/(?:href|src)\s*=\s*["']([^"']+)["']/gi)) {
+  for (const match of decoded.matchAll(/(?:href|src|action|data-(?:url|href|src|link|booking-url|reservation-url))\s*=\s*["']([^"']+)["']/gi)) {
     try { results.add(new URL(match[1], base).toString()); } catch { /* ignore */ }
   }
   for (const match of decoded.matchAll(/(?:https?:\/\/|www\.)[^\s"'<>\\)\]]+/gi)) {
@@ -156,6 +159,15 @@ export function extractReservationLinks(html: string, base: URL) {
     if (normalized) results.add(normalized);
   }
   return [...results];
+}
+
+function isLikelyReservationPage(candidate: URL, home: URL) {
+  if (venueHost(candidate) !== venueHost(home)) return false;
+  const value = `${candidate.pathname} ${candidate.search}`.toLowerCase();
+  return [
+    "reserv", "book", "ticket", "schedule", "class", "experience",
+    "visit", "dining", "table", "event", "appointment",
+  ].some((token) => value.includes(token));
 }
 
 async function fetchVenuePage(start: URL, home: URL) {
@@ -192,18 +204,38 @@ export async function discoverReservation(website: string): Promise<ReservationD
     return { status: "not_found", match: null, note: `Skipped non-crawlable third-party website host: ${venueHost(home)}` };
   }
 
+  // Reservation recovery is intentionally Google-free. It only uses the venue
+  // website, its redirects/embedded links, and recognized reservation providers.
   let attempted = 0;
   let successfulChecks = 0;
   let blockedChecks = 0;
   let failedChecks = 0;
   const failureNotes: string[] = [];
+  const queue = RESERVATION_DISCOVERY_PATHS
+    .map((path) => new URL(path, home.origin));
+  const queued = new Set(queue.map((url) => url.toString()));
+  const visited = new Set<string>();
 
-  for (const path of RESERVATION_DISCOVERY_PATHS.slice(0, MAX_RESERVATION_DISCOVERY_PAGES)) {
+  while (queue.length && attempted < MAX_RESERVATION_DISCOVERY_PAGES) {
+    const url = queue.shift()!;
+    if (visited.has(url.toString())) continue;
+    visited.add(url.toString());
     attempted += 1;
-    const url = new URL(path, home.origin);
     try {
       const response = await fetchVenuePage(url, home);
       if (!response) { failedChecks += 1; continue; }
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (location) {
+          const redirectUrl = new URL(location, url);
+          const redirectMatch = reservationMatch(redirectUrl.toString());
+          if (redirectMatch) {
+            return { status: "found", match: redirectMatch, note: `Found via redirect from ${url.pathname}` };
+          }
+        }
+      }
+
       if (response.status === 403 || response.status === 429) {
         blockedChecks += 1;
         failureNotes.push(`${url.pathname}:${response.status}`);
@@ -218,11 +250,25 @@ export async function discoverReservation(website: string): Promise<ReservationD
       const contentType = response.headers.get("content-type") || "";
       if (!contentType.includes("text/html")) continue;
       successfulChecks += 1;
-      const matches = extractReservationLinks(await response.text(), url)
-        .map(reservationMatch)
-        .filter(Boolean) as ReservationMatch[];
+      const links = extractReservationLinks(await response.text(), url);
+      const matches = links.map(reservationMatch).filter(Boolean) as ReservationMatch[];
       const unique = [...new Map(matches.map((match) => [match.url, match])).values()];
       if (unique.length) return { status: "found", match: unique[0], note: `Found on ${url.pathname}` };
+
+      // Follow reservation-looking same-site links discovered in real page markup.
+      // This catches custom paths such as /private-events/book-now that the fixed
+      // path list cannot predict, without introducing a search-engine dependency.
+      for (const link of links) {
+        try {
+          const candidate = new URL(link);
+          if (!isLikelyReservationPage(candidate, home)) continue;
+          const key = candidate.toString();
+          if (!queued.has(key) && !visited.has(key)) {
+            queue.push(candidate);
+            queued.add(key);
+          }
+        } catch { /* ignore malformed links */ }
+      }
     } catch (error) {
       failedChecks += 1;
       failureNotes.push(error instanceof Error ? error.message : "Website discovery failed");

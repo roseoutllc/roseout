@@ -134,3 +134,59 @@ Deno.test("OpenTable adapter never guesses an API request contract", async () =>
   const result = await adapter.lookup({ name: "Example", address: "1 Main St" });
   assertEquals(result.status, "skipped");
 });
+
+Deno.test("extractReservationLinks finds booking URLs in data attributes and form actions", () => {
+  const html = `<button data-booking-url="https://bookeo.com/example">Book</button><form action="https://xola.com/example"></form>`;
+  const links = extractReservationLinks(html, new URL("https://venue.example/"));
+  assertEquals(links.includes("https://bookeo.com/example"), true);
+  assertEquals(links.includes("https://xola.com/example"), true);
+});
+
+Deno.test("discoverReservation detects reservation provider on external redirect", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/") {
+      return Promise.resolve(new Response("", { status: 302, headers: { location: "https://resy.com/cities/ny/venues/example" } }));
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+  try {
+    const result = await discoverReservation("https://venue.example");
+    assertEquals(result.status, "found");
+    assertEquals(result.match?.provider, "Resy");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test("discoverReservation follows discovered custom booking path without Google", async () => {
+  const originalFetch = globalThis.fetch;
+  const seen: string[] = [];
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    const url = new URL(String(input));
+    seen.push(url.pathname);
+    if (url.pathname === "/") {
+      return Promise.resolve(new Response('<a href="/private-events/book-now">Private events</a>', { status: 200, headers: { "content-type": "text/html" } }));
+    }
+    if (url.pathname === "/private-events/book-now") {
+      return Promise.resolve(new Response('<iframe src="https://sevenrooms.com/reservations/example"></iframe>', { status: 200, headers: { "content-type": "text/html" } }));
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+  try {
+    const result = await discoverReservation("https://venue.example");
+    assertEquals(result.status, "found");
+    assertEquals(result.match?.provider, "SevenRooms");
+    assertEquals(seen.includes("/private-events/book-now"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test("additional activity reservation providers are recognized", () => {
+  assertEquals(reservationMatch("https://bookeo.com/example")?.provider, "Bookeo");
+  assertEquals(reservationMatch("https://example.roller.app/book")?.provider, "ROLLER");
+  assertEquals(reservationMatch("https://xola.com/example")?.provider, "Xola");
+  assertEquals(reservationMatch("https://rezdy.com/example")?.provider, "Rezdy");
+});
