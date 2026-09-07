@@ -1,0 +1,30 @@
+name: Search intent accuracy benchmark
+
+on:
+  pull_request:
+    paths:
+      - 'lib/search/v2/**'
+      - '.github/workflows/search-intent-accuracy-benchmark.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/search/v2/**'
+      - '.github/workflows/search-intent-accuracy-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Run 1,000+ prompt labeled intent benchmark
+        run: npx vitest run lib/search/v2/benchmarks/intentAccuracyBenchmark.test.ts --reporter=verbose
