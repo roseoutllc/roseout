@@ -2,6 +2,7 @@ import { requireAdminRole } from "@/lib/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { LocationToolShell, ToolCard } from "@/components/admin/location-tools/LocationToolShell";
 import { ActionToolsClient } from "@/components/admin/location-tools/ActionToolsClient";
+import { GoogleDiscoveryReviewList } from "@/components/admin/location-tools/GoogleDiscoveryReviewList";
 
 export const dynamic = "force-dynamic";
 
@@ -28,16 +29,32 @@ type Candidate = {
   batch_id?: string | null;
   name?: string | null;
   location_type?: string | null;
+  address?: string | null;
   city?: string | null;
   state?: string | null;
+  zip_code?: string | null;
+  phone?: string | null;
+  website?: string | null;
   primary_category?: string | null;
+  cuisine?: string | null;
+  activity_type?: string | null;
   rating?: number | string | null;
   review_count?: number | null;
   quality_score?: number | string | null;
   quality_status?: string | null;
   import_status?: string | null;
+  duplicate_status?: string | null;
   rejection_reason?: string | null;
   main_image?: string | null;
+  source_url?: string | null;
+  has_photos?: boolean | null;
+  photo_status?: string | null;
+  import_confidence?: string | null;
+  source_quality_status?: string | null;
+  public_visibility_tier?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  raw_payload?: Record<string, unknown> | null;
   created_at?: string | null;
 };
 
@@ -51,7 +68,7 @@ async function loadData() {
       .limit(12),
     supabaseAdmin
       .from("location_import_staging")
-      .select("id,batch_id,name,location_type,city,state,primary_category,rating,review_count,quality_score,quality_status,import_status,rejection_reason,main_image,created_at")
+      .select("id,batch_id,name,location_type,address,city,state,zip_code,phone,website,primary_category,cuisine,activity_type,rating,review_count,quality_score,quality_status,import_status,duplicate_status,rejection_reason,main_image,source_url,has_photos,photo_status,import_confidence,source_quality_status,public_visibility_tier,latitude,longitude,raw_payload,created_at")
       .eq("source", SOURCE)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -84,21 +101,6 @@ function formatEasternDateTime(value: string | null | undefined) {
     second: "2-digit",
     timeZoneName: "short",
   }).format(date);
-}
-
-function tone(candidate: Candidate) {
-  if (candidate.import_status === "published") return "border-emerald-400/20 bg-emerald-500/[0.07]";
-  if (candidate.import_status === "rejected" || candidate.import_status === "duplicate") return "border-red-400/15 bg-red-500/[0.05]";
-  return "border-amber-300/15 bg-amber-400/[0.06]";
-}
-
-function label(candidate: Candidate) {
-  if (candidate.import_status === "published") return "Published";
-  if (candidate.import_status === "duplicate") return "Duplicate";
-  if (candidate.import_status === "rejected") return "Rejected";
-  if (candidate.quality_status === "publish_ready") return "Approved · ready to publish";
-  if (candidate.quality_status === "needs_photo") return "Review · photo needed";
-  return "Manual review";
 }
 
 export default async function GoogleDiscoveryPage() {
@@ -192,31 +194,9 @@ export default async function GoogleDiscoveryPage() {
         )}
       </ToolCard>
 
-      <ToolCard title="Recent Google candidates" description="This is the audit trail for what Google returned and how TheOutHaven handled it.">
+      <ToolCard title="Recent Google candidates" description="Click a candidate to review its details, Google evidence, quality state and duplicate status. Manual approval moves it into the normal publish-ready pipeline; keeping it hidden records a persistent review decision.">
         {candidates.length ? (
-          <div className="space-y-2">
-            {candidates.map((candidate) => (
-              <article key={candidate.id} className={`rounded-2xl border p-4 ${tone(candidate)}`}>
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-black text-white">{candidate.name || "Unnamed Google candidate"}</h3>
-                      <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white/65">{label(candidate)}</span>
-                    </div>
-                    <p className="mt-1 text-sm font-bold text-white/50">
-                      {[candidate.city, candidate.state, candidate.primary_category].filter(Boolean).join(" · ") || "Location/category unavailable"}
-                    </p>
-                    {candidate.rejection_reason ? <p className="mt-2 text-xs font-bold text-amber-100/75">Reason: {candidate.rejection_reason.replace(/_/g, " ")}</p> : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-xs font-black text-white/65">
-                    <span className="rounded-full bg-black/25 px-3 py-1.5">★ {number(candidate.rating).toFixed(1)}</span>
-                    <span className="rounded-full bg-black/25 px-3 py-1.5">{number(candidate.review_count).toLocaleString()} reviews</span>
-                    <span className="rounded-full bg-black/25 px-3 py-1.5">Score {number(candidate.quality_score)}</span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
+          <GoogleDiscoveryReviewList candidates={candidates} />
         ) : (
           <p className="text-sm font-bold text-white/45">No curated Google candidates have been staged yet.</p>
         )}
