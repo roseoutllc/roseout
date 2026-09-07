@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - '.github/workflows/oregon-dr-reseed-fail-close-schedules.yml'
+      - '.github/workflows/aws-dr-scheduler-activation.yml'
   push:
     branches: [main]
     paths:
       - '.github/workflows/oregon-dr-reseed-fail-close-schedules.yml'
+      - '.github/workflows/aws-dr-scheduler-activation.yml'
 
 permissions:
   contents: read
@@ -41,7 +43,9 @@ jobs:
             <(jq -r '.enabled[]' infra/aws/edge-runtime/activation.json | sort)
           test "$(jq 'length' infra/aws/edge-runtime/dr-schedules.json)" = '2'
           jq -e 'all(.[]; .name=="dr-auth-standby-reconcile" or .name=="dr-storage-standby-reconcile")' infra/aws/edge-runtime/dr-schedules.json >/dev/null
+          jq -e '.enabled == true and .expected_invalidation_reason == "wal_removed"' infra/aws/edge-runtime/dr-lost-slot-recovery.json >/dev/null
           grep -F 'DR_MODE' .github/workflows/oregon-dr-reseed-fail-close-schedules.yml >/dev/null
+          grep -F -- '--state ENABLED' .github/workflows/oregon-dr-reseed-fail-close-schedules.yml >/dev/null
           grep -F -- '--state DISABLED' .github/workflows/oregon-dr-reseed-fail-close-schedules.yml >/dev/null
 
   fail_close:
@@ -59,38 +63,53 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           allowed-account-ids: ${{ env.AWS_ACCOUNT_ID }}
 
-      - name: Require Virginia primary and healthy base scheduler fleet
+      - name: Require Virginia primary and armed lost-slot recovery
         run: |
           set -euo pipefail
           test "$(aws sts get-caller-identity --query Account --output text)" = "$AWS_ACCOUNT_ID"
           aws secretsmanager get-secret-value --secret-id "$DR_SECRET_NAME" --query SecretString --output text > "$RUNNER_TEMP/dr-current.json"
           test "$(jq -r '.DR_MODE // empty' "$RUNNER_TEMP/dr-current.json")" = 'virginia_primary'
+          jq -e '.enabled == true and .expected_invalidation_reason == "wal_removed" and .reseed_mode == "copy_data_true"' infra/aws/edge-runtime/dr-lost-slot-recovery.json >/dev/null
 
+      - name: Reconcile canonical base scheduler fleet
+        run: |
+          set -euo pipefail
           schedule_count="$(jq 'length' infra/aws/edge-runtime/schedules.json)"
           activation_count="$(jq '.enabled | length' infra/aws/edge-runtime/activation.json)"
           test "$schedule_count" -gt 0
-          test "$schedule_count" = "$activation_count" || {
-            echo "Schedule manifest/activation mismatch: schedules=$schedule_count activation=$activation_count" >&2
-            exit 1
-          }
+          test "$schedule_count" = "$activation_count"
+          diff -u \
+            <(jq -r '.[].name' infra/aws/edge-runtime/schedules.json | sort) \
+            <(jq -r '.enabled[]' infra/aws/edge-runtime/activation.json | sort)
 
-          verified=0
-          while IFS= read -r name; do
-            test "$(aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$name" --query State --output text)" = 'ENABLED' || {
-              echo "Base production schedule is not enabled: $name" >&2
-              exit 1
-            }
-            verified=$((verified + 1))
-          done < <(jq -r '.[].name' infra/aws/edge-runtime/schedules.json)
-          test "$verified" = "$schedule_count"
+          invoker_arn="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='SchedulerInvokerFunctionArn'].OutputValue" --output text)"
+          scheduler_role="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='EventBridgeSchedulerRoleArn'].OutputValue" --output text)"
+          test -n "$invoker_arn"
+          test -n "$scheduler_role"
+
+          reconciled=0
+          while IFS= read -r item; do
+            name="$(jq -r '.name' <<<"$item")"
+            expression="$(jq -r '.expression' <<<"$item")"
+            input="$(jq -c '{function:.function,body:.body}' <<<"$item")"
+            target="$(jq -nc --arg arn "$invoker_arn" --arg role "$scheduler_role" --arg input "$input" '{Arn:$arn,RoleArn:$role,Input:$input,RetryPolicy:{MaximumEventAgeInSeconds:3600,MaximumRetryAttempts:2}}')"
+            aws scheduler update-schedule \
+              --group-name "$SCHEDULE_GROUP" \
+              --name "$name" \
+              --schedule-expression "$expression" \
+              --flexible-time-window '{"Mode":"OFF"}' \
+              --state ENABLED \
+              --target "$target" >/dev/null
+            test "$(aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$name" --query State --output text)" = 'ENABLED'
+            reconciled=$((reconciled + 1))
+          done < <(jq -c '.[]' infra/aws/edge-runtime/schedules.json)
+          test "$reconciled" = "$schedule_count"
 
       - name: Fail-close forward DR schedules for reseed
         run: |
           set -euo pipefail
           invoker_arn="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='SchedulerInvokerFunctionArn'].OutputValue" --output text)"
           scheduler_role="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='EventBridgeSchedulerRoleArn'].OutputValue" --output text)"
-          test -n "$invoker_arn"
-          test -n "$scheduler_role"
           while IFS= read -r item; do
             name="$(jq -r '.name' <<<"$item")"
             expression="$(jq -r '.expression' <<<"$item")"
@@ -113,10 +132,9 @@ jobs:
             echo '### Oregon DR reseed scheduler guard'
             echo ''
             echo '- Virginia remains authoritative primary.'
-            echo "- All ${schedule_count} base production schedules remain enabled."
-            echo '- Both forward DR reconciliation schedules are now disabled.'
+            echo "- Reconciled all ${schedule_count} canonical base production schedules to ENABLED."
+            echo '- Both forward DR reconciliation schedules are DISABLED while the lost-slot reseed marker is armed.'
             echo '- No database or traffic mutation was performed.'
-            echo '- The lost-slot reseed may now be retried through its protected workflow.'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Cleanup
