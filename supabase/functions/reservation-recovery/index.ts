@@ -7,6 +7,8 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   headers: { "content-type": "application/json", "cache-control": "no-store" },
 });
 
+const ALLOWED_STATUSES = new Set(["", "not_found", "failed", "blocked", "no_website"]);
+
 function blank(value: unknown) {
   return value == null || (typeof value === "string" && !value.trim());
 }
@@ -51,6 +53,10 @@ serve(async (req) => {
   const limit = Math.min(50, Math.max(1, Number(body.limit || 50)));
   const concurrency = Math.min(8, Math.max(1, Number(body.concurrency || 8)));
   const force = body.force === true;
+  const requestedStatuses = Array.isArray(body.statuses)
+    ? body.statuses.map((value: unknown) => String(value || "").trim()).filter((value: string) => ALLOWED_STATUSES.has(value))
+    : [];
+  const statusFilter = requestedStatuses.length ? new Set(requestedStatuses) : null;
   const now = new Date();
 
   const { data, error } = await supabase
@@ -70,7 +76,8 @@ serve(async (req) => {
         .some((value) => !blank(value));
       if (alreadyHasReservation || blank(row.website)) return false;
       const status = String(row.reservation_discovery_status || "");
-      if (!["", "not_found", "failed", "blocked", "no_website"].includes(status)) return false;
+      if (!ALLOWED_STATUSES.has(status)) return false;
+      if (statusFilter && !statusFilter.has(status)) return false;
       if (force) return true;
       if (!row.reservation_discovery_next_retry_at) return true;
       return new Date(row.reservation_discovery_next_retry_at).getTime() <= now.getTime();
@@ -86,6 +93,7 @@ serve(async (req) => {
     blocked: 0,
     failed: 0,
     googleCalls: 0,
+    requestedStatuses,
     providerCounts: {} as Record<string, number>,
   };
 
@@ -150,7 +158,7 @@ serve(async (req) => {
       success_count: counters.found,
       failed_count: counters.failed,
       message: `Reservation recovery completed: ${counters.found} found of ${counters.attempted}.`,
-      metadata: { mode: "reservation_only", googleCalls: 0, providerCounts: counters.providerCounts },
+      metadata: { mode: "reservation_only", googleCalls: 0, requestedStatuses, providerCounts: counters.providerCounts },
     }).eq("id", runId);
   }
 
