@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type SafeLocationImageProps = {
   src?: string | null;
@@ -63,13 +63,17 @@ export default function SafeLocationImage({
 }: SafeLocationImageProps) {
   const [failed, setFailed] = useState(false);
   const [attribution, setAttribution] = useState<Attribution | null>(null);
+  const [googleAvailability, setGoogleAvailability] = useState<"unknown" | "available" | "unavailable">("available");
+  const unavailableMarkerRef = useRef<HTMLSpanElement | null>(null);
   const cleanedSrc = String(src || "").trim();
   const googleRequest = useMemo(() => googlePhotoRequest(cleanedSrc), [cleanedSrc]);
+  const isLazyGooglePhoto = Boolean(googleRequest && Number(googleRequest.index || 0) > 0);
 
   useEffect(() => {
     setFailed(false);
     setAttribution(null);
-  }, [cleanedSrc]);
+    setGoogleAvailability(isLazyGooglePhoto ? "unknown" : "available");
+  }, [cleanedSrc, isLazyGooglePhoto]);
 
   useEffect(() => {
     if (!googleRequest) return;
@@ -79,17 +83,43 @@ export default function SafeLocationImage({
       index: googleRequest.index,
     });
     fetch(`/api/public/google-place-photo/metadata?${params.toString()}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
+      .then(async (response) => {
+        if (cancelled) return null;
+        if (!response.ok) {
+          if (isLazyGooglePhoto) setGoogleAvailability("unavailable");
+          return null;
+        }
+        if (isLazyGooglePhoto) setGoogleAvailability("available");
+        return response.json();
+      })
       .then((payload) => {
-        if (cancelled) return;
+        if (cancelled || !payload) return;
         const first = Array.isArray(payload?.attributions) ? payload.attributions[0] : null;
         if (first) setAttribution(first);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled && isLazyGooglePhoto) setGoogleAvailability("unavailable");
+      });
     return () => {
       cancelled = true;
     };
-  }, [googleRequest]);
+  }, [googleRequest, isLazyGooglePhoto]);
+
+  useEffect(() => {
+    const marker = unavailableMarkerRef.current;
+    if (!marker) return;
+    const parentButton = marker.closest("button");
+    if (!(parentButton instanceof HTMLElement)) return;
+    const previousDisplay = parentButton.style.display;
+    parentButton.style.display = "none";
+    return () => {
+      parentButton.style.display = previousDisplay;
+    };
+  }, [googleAvailability]);
+
+  if (isLazyGooglePhoto && googleAvailability !== "available") {
+    return <span ref={unavailableMarkerRef} data-location-photo-unavailable className="hidden" aria-hidden="true" />;
+  }
 
   if (!isUsableImageSrc(cleanedSrc) || failed) {
     return <BrandedFallback className={className} hidden={fallbackType === "hide"} />;
