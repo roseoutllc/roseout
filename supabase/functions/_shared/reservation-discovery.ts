@@ -106,7 +106,7 @@ export function reservationMatch(candidate: string): ReservationMatch | null {
       if (host === "widgets.resy.com") {
         const keys = Array.from(url.searchParams.keys()).map((key) => key.toLowerCase());
         const hasVenueIdentifier = keys.some((key) => ["venueid", "venue_id", "venue"].includes(key));
-        if ((path === "/" || path === "") && !hasVenueIdentifier) return null;
+        if (!hasVenueIdentifier) return null;
       } else if (!path.includes("/venues/")) return null;
       return finishReservationMatch(url, "Resy");
     }
