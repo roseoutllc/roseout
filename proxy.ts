@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { authorizeAdminApiBoundary } from "@/lib/security/admin-api-boundary";
+import { requiresAdminApiSession } from "@/lib/security/admin-api-boundary-paths";
 
 const rateRules: Array<{ prefix: string; limit: number; windowMs: number }> = [
   { prefix: "/api/auth", limit: 30, windowMs: 60_000 },
@@ -33,19 +35,13 @@ function isApplicationInfrastructurePath(pathname: string) {
 }
 
 function shortLinkHostResponse(request: NextRequest) {
-  const configuredHost = String(process.env.SHORT_LINK_HOST || "")
-    .trim()
-    .toLowerCase();
+  const configuredHost = String(process.env.SHORT_LINK_HOST || "").trim().toLowerCase();
   if (!configuredHost || normalizedHostname(request) !== configuredHost) return null;
 
   const pathname = request.nextUrl.pathname;
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://theouthaven.com").replace(/\/$/, "");
-
   if (pathname === "/") return NextResponse.redirect(siteUrl, 302);
-
-  if (isApplicationInfrastructurePath(pathname)) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  if (isApplicationInfrastructurePath(pathname)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const code = pathname.replace(/^\/+|\/+$/g, "");
   if (SHORT_CODE_PATTERN.test(code) && !code.includes("/")) {
@@ -53,71 +49,56 @@ function shortLinkHostResponse(request: NextRequest) {
     rewriteUrl.pathname = `/p/${code}`;
     return NextResponse.rewrite(rewriteUrl);
   }
-
   return NextResponse.redirect(siteUrl, 302);
-}
-
-function isLoadTestBypassAllowed(request: NextRequest) {
-  const loadTestSecret = process.env.LOAD_TEST_SECRET;
-  const requestLoadTestSecret = request.headers.get("x-load-test-secret");
-
-  if (!loadTestSecret || !requestLoadTestSecret) return false;
-  if (requestLoadTestSecret !== loadTestSecret) return false;
-
-  const isProduction = process.env.VERCEL_ENV === "production";
-  const allowProductionBypass = process.env.ALLOW_PRODUCTION_LOAD_TEST_BYPASS === "true";
-
-  return !isProduction || allowProductionBypass;
 }
 
 function isProductionRuntime() {
   return process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
 }
 
-export function proxy(request: NextRequest) {
+function isLoadTestBypassAllowed(request: NextRequest) {
+  const loadTestSecret = process.env.LOAD_TEST_SECRET;
+  const requestLoadTestSecret = request.headers.get("x-load-test-secret");
+  if (!loadTestSecret || !requestLoadTestSecret) return false;
+  if (requestLoadTestSecret !== loadTestSecret) return false;
+  const isProduction = process.env.VERCEL_ENV === "production";
+  const allowProductionBypass = process.env.ALLOW_PRODUCTION_LOAD_TEST_BYPASS === "true";
+  return !isProduction || allowProductionBypass;
+}
+
+export async function proxy(request: NextRequest) {
   const shortHostResponse = shortLinkHostResponse(request);
   if (shortHostResponse) return shortHostResponse;
 
   const pathname = request.nextUrl.pathname;
-
   if (pathname === "/api/debug" || pathname.startsWith("/api/debug/")) {
-    if (isProductionRuntime()) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
+    if (isProductionRuntime()) return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const shouldBypassRateLimitForLoadTest =
-    pathname.startsWith("/api/generate") && isLoadTestBypassAllowed(request);
-
+  const shouldBypassRateLimitForLoadTest = pathname.startsWith("/api/generate") && isLoadTestBypassAllowed(request);
   if (shouldBypassRateLimitForLoadTest) return NextResponse.next();
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-
   for (const rule of rateRules) {
     if (pathname.startsWith(rule.prefix)) {
-      const verdict = enforceRateLimit(`${rule.prefix}:${ip}`, rule.limit, rule.windowMs);
-
+      const verdict = await enforceRateLimit(`${rule.prefix}:${ip}`, rule.limit, rule.windowMs);
       if (!verdict.ok) {
         return NextResponse.json(
           { error: "Rate limit exceeded" },
-          {
-            status: 429,
-            headers: { "Retry-After": String(verdict.retryAfterSeconds || 60) },
-          },
+          { status: 429, headers: { "Retry-After": String(verdict.retryAfterSeconds || 60) } },
         );
       }
     }
   }
+
+  if (requiresAdminApiSession(pathname)) return authorizeAdminApiBoundary(request);
 
   if (pathname.startsWith("/admin")) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-theouthaven-admin-pathname", pathname);
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
-
   return NextResponse.next();
 }
 
-export const config = {
-  matcher: ["/api/:path*", "/admin/:path*", "/", "/:shortCode"],
-};
+export const config = { matcher: ["/api/:path*", "/admin/:path*", "/", "/:shortCode"] };

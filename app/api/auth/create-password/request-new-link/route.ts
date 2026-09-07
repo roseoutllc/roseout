@@ -9,7 +9,7 @@ const generic = { ok: true, message: "If an account exists for that email, we se
 
 export async function POST(request: Request) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
-  const ipRate = enforceRateLimit(`pwd_setup:${ip}`, 15, 5 * 60 * 1000);
+  const ipRate = await enforceRateLimit(`pwd_setup:${ip}`, 15, 5 * 60 * 1000);
   if (!ipRate.ok) return NextResponse.json(generic);
 
   const body = await request.json().catch(() => ({}));

@@ -1,18 +1,39 @@
-const buckets = new Map<string, { count: number; resetAt: number }>();
+import "server-only";
 
-export function enforceRateLimit(key: string, limit: number, windowMs: number) {
-  const now = Date.now();
-  const existing = buckets.get(key);
+import { createHash } from "node:crypto";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
-  if (!existing || existing.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
-    return { ok: true, remaining: limit - 1 };
+export type RateLimitVerdict = {
+  ok: boolean;
+  remaining: number;
+  retryAfterSeconds: number;
+};
+
+export async function enforceRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<RateLimitVerdict> {
+  const safeLimit = Math.max(1, Math.floor(limit));
+  const windowSeconds = Math.max(1, Math.ceil(windowMs / 1000));
+
+  const storageKey = createHash("sha256").update(key).digest("hex");
+
+  const { data, error } = await supabaseAdmin.rpc("consume_api_rate_limit", {
+    p_key: storageKey,
+    p_limit: safeLimit,
+    p_window_seconds: windowSeconds,
+  });
+
+  if (error) {
+    console.error("Distributed rate limiter unavailable", { error: error.message });
+    return { ok: false, remaining: 0, retryAfterSeconds: Math.min(windowSeconds, 60) };
   }
 
-  if (existing.count >= limit) {
-    return { ok: false, remaining: 0, retryAfterSeconds: Math.ceil((existing.resetAt - now) / 1000) };
-  }
-
-  existing.count += 1;
-  return { ok: true, remaining: Math.max(0, limit - existing.count) };
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    ok: Boolean(row?.allowed),
+    remaining: Math.max(0, Number(row?.remaining ?? 0)),
+    retryAfterSeconds: Math.max(1, Number(row?.retry_after_seconds ?? windowSeconds)),
+  };
 }

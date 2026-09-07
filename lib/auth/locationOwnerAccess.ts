@@ -116,11 +116,10 @@ async function getAuthenticatedUserAdminHints(userId: string) {
     const user = data?.user as any;
     return {
       email: typeof user?.email === "string" ? user.email : null,
+      // Only app_metadata is server-controlled. Never trust user_metadata for privileges.
       role:
         user?.app_metadata?.role ??
-        user?.user_metadata?.role ??
         user?.app_metadata?.admin_role ??
-        user?.user_metadata?.admin_role ??
         null,
     };
   } catch {

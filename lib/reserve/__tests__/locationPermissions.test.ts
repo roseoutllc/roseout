@@ -364,4 +364,27 @@ describe("Reserve location permissions", () => {
     expect(access.location?.id).toBe("loc-1");
     expect(access.permissions.manageReservations).toBe(true);
   });
+
+  it("blocks a location owner from Reserve PII at another location", async () => {
+    resetTables({
+      locations: [
+        location({ id: "loc-a", source_id: "source-a" }),
+        location({ id: "loc-b", source_id: "source-b" }),
+      ],
+      business_claims: [{ user_id: "owner-a", location_id: "loc-a", status: "approved" }],
+    });
+    currentUser = { id: "owner-a", email: "owner-a@example.com" };
+    authUsers.set("owner-a", { email: "owner-a@example.com" });
+
+    const { requireReservePermission } = await getReserveModule();
+    const result = await requireReservePermission("loc-b", "viewDashboard");
+
+    expect(result.error).toBeInstanceOf(Response);
+    expect(result.error.status).toBe(403);
+    await expect(result.error.json()).resolves.toMatchObject({
+      success: false,
+      error: "You do not have permission to manage this location.",
+    });
+  });
+
 });
