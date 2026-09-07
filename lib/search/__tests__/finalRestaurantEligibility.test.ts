@@ -95,4 +95,22 @@ describe("final restaurant eligibility", () => {
     const filtered = applyFinalRestaurantEligibility(baseResult([fullService]), "dinner near me");
     expect(filtered.restaurants.map((item: any) => item.id)).toEqual(["full-service"]);
   });
+
+  it("sanitizes the nested searchV2 payload used by the guided create UI", () => {
+    const deli = restaurant({ id: "deli", name: "George's Deli", primary_category: "deli" });
+    const dinner = restaurant({ id: "dinner", name: "Kokomo Restaurant & Lounge", primary_category: "caribbean", reservable: true });
+    const deliPair = { restaurant: deli, activity: activity(), restaurant_location_id: "deli" };
+    const dinnerPair = { restaurant: dinner, activity: activity(), restaurant_location_id: "dinner" };
+    const topLevel = baseResult([deli, dinner], [deliPair, dinnerPair]);
+    topLevel.searchV2 = baseResult([deli, dinner], [deliPair, dinnerPair]);
+
+    const filtered = applyFinalRestaurantEligibility(topLevel, "dinner and comedy show") as any;
+
+    expect(filtered.restaurants.map((item: any) => item.id)).toEqual(["dinner"]);
+    expect(filtered.searchV2.restaurants.map((item: any) => item.id)).toEqual(["dinner"]);
+    expect(filtered.searchV2.pairs).toHaveLength(1);
+    expect(filtered.searchV2.pairs[0].restaurant.id).toBe("dinner");
+    expect(filtered.searchV2.cards.some((item: any) => item?.id === "deli" || item?.restaurant?.id === "deli")).toBe(false);
+    expect(filtered.searchV2.builder.restaurants.map((item: any) => item.id)).toEqual(["dinner"]);
+  });
 });
