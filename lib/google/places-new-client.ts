@@ -166,9 +166,9 @@ export async function searchPlacesTextNew(
     cacheTtlDays?: number;
     bypassIdCache?: boolean;
   } = {},
-) {
+): Promise<PlacesNewPlace[]> {
   const query = clean(textQuery);
-  if (!query) return [] as PlacesNewPlace[];
+  if (!query) return [];
   const regionCode = clean(options.regionCode || "US").toUpperCase();
   const fieldMode = options.fieldMode || "rich";
   const operation = fieldMode === "ids-only" ? "text_search_ids_only" : "text_search_rich";
