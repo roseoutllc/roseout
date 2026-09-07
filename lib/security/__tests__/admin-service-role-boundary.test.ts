@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { requiresAdminApiSession } from "../admin-api-boundary-paths";
+import "./pii-and-abuse-boundaries.test";
 
 const ROUTE_AUTH_MARKERS = [
   "requireAdminApiRole(", "requireSuperAdmin(", "requireAdminRole(", "getCurrentAdmin(",
