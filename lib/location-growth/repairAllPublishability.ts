@@ -1,5 +1,6 @@
 import { ACTIVE_MARKET_STATES, buildPublishabilityUpdate, evaluateLocationPublishability } from "@/lib/location-publishability";
 import { getPhotoPublishabilityUpdates } from "@/lib/location-growth/repairPhotoPublishability";
+import { getPlaceDetailsNew, searchPlacesTextNew } from "@/lib/google/places-new-client";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 type Row = Record<string, any>;
@@ -8,6 +9,7 @@ type Place = { id?: string; formattedAddress?: string; addressComponents?: Compo
 
 const text = (value: unknown) => String(value ?? "").trim();
 const activeState = (value: unknown) => ACTIVE_MARKET_STATES.includes(text(value).toUpperCase() as any);
+const REPAIR_GOOGLE_JOB_KEY = "repair-publishability";
 
 function component(place: Place, type: string, short = false) {
   const item = place.addressComponents?.find((part) => part.types?.includes(type));
@@ -15,26 +17,32 @@ function component(place: Place, type: string, short = false) {
 }
 
 async function fetchGooglePlace(row: Row): Promise<Place | null> {
-  const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!key) return null;
   let placeId = text(row.google_place_id);
   if (!placeId) {
     const query = [row.name || row.restaurant_name || row.activity_name, row.address, row.city, row.state, row.zip_code || row.postal_code].map(text).filter(Boolean).join(", ");
     if (!query) return null;
-    const search = await fetch("https://places.googleapis.com/v1/places:searchText", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id" },
-      body: JSON.stringify({ textQuery: query, maxResultCount: 1 }),
-    });
-    if (!search.ok) return null;
-    const payload = await search.json().catch(() => ({}));
-    placeId = text(payload?.places?.[0]?.id);
+    try {
+      const places = await searchPlacesTextNew(query, {
+        fieldMode: "ids-only",
+        pageSize: 1,
+        jobKey: REPAIR_GOOGLE_JOB_KEY,
+        priority: "low",
+      });
+      placeId = text(places[0]?.id);
+    } catch {
+      return null;
+    }
   }
   if (!placeId) return null;
-  const details = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`, {
-    headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": "id,formattedAddress,addressComponents,location" },
-  });
-  return details.ok ? details.json() : null;
+  try {
+    return await getPlaceDetailsNew(placeId, {
+      fieldMode: "address",
+      jobKey: REPAIR_GOOGLE_JOB_KEY,
+      priority: "low",
+    });
+  } catch {
+    return null;
+  }
 }
 
 async function hasActiveDuplicatePair(locationId: string) {
