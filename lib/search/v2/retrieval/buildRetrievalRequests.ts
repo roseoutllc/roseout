@@ -23,6 +23,11 @@ function taxonomyTerms(term: string) { return runtimeRetrievalTerms(normalized(t
 function restaurantRetrievalTerms(term: string) {
   return [...new Set([...taxonomyTerms(term), rawTerm(term)].filter(Boolean))];
 }
+function explicitLowLevelInventoryRequest(rawQuery: string) {
+  const query = rawTerm(rawQuery);
+  return /\b(?:deli|delicatessen|bodega|corner store|takeout|take out|to go|pickup|pick up|delivery|quick bite|quick food|fast food|fast casual|food truck|food cart|cheap eats|chinese takeout)\b/.test(query)
+    || /\bpizza by the slice\b/.test(query);
+}
 function activityTerms(category: string) {
   const key = normalized(category);
   // Generic requests such as "something fun" should search the entire activity
@@ -42,12 +47,13 @@ function isBroadDateRestaurantIntent(plan: SearchPlan) {
 export function buildRetrievalRequests(plan: SearchPlan): RetrievalRequest[] {
   const requests: RetrievalRequest[] = [];
   if (plan.restaurant.required) {
+    const allowLowLevel = explicitLowLevelInventoryRequest(plan.rawQuery);
     // Preserve the user's authored dish evidence ahead of broader inferred cuisine
     // terms. This matters for fallback retrieval: "lobster ravioli" should scout
     // ravioli/lobster evidence before a broad inferred parent such as "seafood".
     // Candidate limits stay unchanged; only evidence priority changes.
     const requested = [...plan.restaurant.foods, ...plan.restaurant.cuisines, ...plan.restaurant.features, ...plan.restaurant.mealPeriods];
-    requests.push({ desiredRole: "restaurant", cuisines: plan.restaurant.cuisines, foods: plan.restaurant.foods, categories: [], features: plan.restaurant.features, retrievalTerms: [...new Set(requested.flatMap((term) => restaurantRetrievalTerms(term)))], eligibleStorageTypes: ["restaurant", "activity", "nightlife"], geo: plan.geo });
+    requests.push({ desiredRole: "restaurant", cuisines: plan.restaurant.cuisines, foods: plan.restaurant.foods, categories: [], features: plan.restaurant.features, retrievalTerms: [...new Set(requested.flatMap((term) => restaurantRetrievalTerms(term)))], eligibleStorageTypes: ["restaurant", "activity", "nightlife"], geo: plan.geo, allowLowLevel });
     if (isBroadDateRestaurantIntent(plan)) {
       requests.push({
         desiredRole: "restaurant",
@@ -58,6 +64,7 @@ export function buildRetrievalRequests(plan: SearchPlan): RetrievalRequest[] {
         retrievalTerms: DATE_DINING_RECOVERY_TERMS,
         eligibleStorageTypes: ["restaurant", "activity", "nightlife"],
         geo: plan.geo,
+        allowLowLevel,
       });
     }
   }

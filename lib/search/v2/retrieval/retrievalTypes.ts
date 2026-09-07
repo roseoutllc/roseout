@@ -12,6 +12,7 @@ export type RetrievalRequest = {
   retrievalTerms: readonly string[];
   eligibleStorageTypes: readonly string[];
   geo: SearchPlan["geo"];
+  allowLowLevel?: boolean;
 };
 
 export type RetrievedCandidate = {
