@@ -138,10 +138,21 @@ export function applyFinalRestaurantEligibility(
         : [],
     query,
   );
+  const sameVenueResults = filterRestaurantArray(
+    Array.isArray(raw.sameVenueResults)
+      ? raw.sameVenueResults
+      : Array.isArray(raw.same_venue_results)
+        ? raw.same_venue_results
+        : [],
+    query,
+  );
 
   const nextBuilder = raw.builder
     ? { ...raw.builder, restaurants: builderRestaurants }
     : raw.builder;
+  const nestedSearchV2 = raw.searchV2 && raw.searchV2 !== raw
+    ? applyFinalRestaurantEligibility(raw.searchV2 as EnterpriseSearchResult, query)
+    : raw.searchV2;
 
   return {
     ...raw,
@@ -152,6 +163,9 @@ export function applyFinalRestaurantEligibility(
     cards,
     builder: nextBuilder,
     builder_restaurants: builderRestaurants,
+    sameVenueResults,
+    same_venue_results: sameVenueResults,
+    searchV2: nestedSearchV2,
     restaurant_count: restaurants.length,
     restaurantCount: restaurants.length,
     pair_count: pairs.length,
@@ -165,6 +179,7 @@ export function applyFinalRestaurantEligibility(
           cards: cards.length,
           builder_restaurants: builderRestaurants.length,
           matched_locations: matchedLocations.length,
+          same_venue: sameVenueResults.length,
         }
       : raw.card_counts,
     cardCounts: raw.cardCounts
@@ -175,11 +190,13 @@ export function applyFinalRestaurantEligibility(
           cards: cards.length,
           builderRestaurants: builderRestaurants.length,
           matched_locations: matchedLocations.length,
+          sameVenue: sameVenueResults.length,
         }
       : raw.cardCounts,
     debug: {
       ...(raw.debug ?? {}),
       finalRestaurantEligibilityRejectedCount: originalRestaurants.length - restaurants.length,
+      finalRestaurantEligibilityNestedV2Sanitized: Boolean(raw.searchV2),
     },
   } as EnterpriseSearchResult;
 }
