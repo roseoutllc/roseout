@@ -1,0 +1,93 @@
+name: AWS scheduler drift diagnostic
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/aws-scheduler-drift-diagnostic.yml'
+      - 'infra/aws/edge-runtime/schedules.json'
+      - 'infra/aws/edge-runtime/activation.json'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-scheduler-drift-diagnostic
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: '742020474738'
+  SCHEDULE_GROUP: toh-production-edge-runtime
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PLATFORM_DEPLOY_ROLE_ARN || 'arn:aws:iam::742020474738:role/TheOutHavenGitHubPlatformDeployRole' }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ env.AWS_ACCOUNT_ID }}
+
+      - name: Compare canonical manifest with live AWS state
+        run: |
+          set -euo pipefail
+          test "$(aws sts get-caller-identity --query Account --output text)" = "$AWS_ACCOUNT_ID"
+
+          jq -r '.enabled[]' infra/aws/edge-runtime/activation.json | sort > "$RUNNER_TEMP/enabled-expected.txt"
+          jq -r '.[].name' infra/aws/edge-runtime/schedules.json | sort > "$RUNNER_TEMP/manifest.txt"
+          diff -u "$RUNNER_TEMP/manifest.txt" "$RUNNER_TEMP/enabled-expected.txt" || {
+            echo 'Manifest and activation enabled set differ.' >&2
+            exit 1
+          }
+
+          : > "$RUNNER_TEMP/disabled.txt"
+          : > "$RUNNER_TEMP/missing.txt"
+          while IFS= read -r name; do
+            if ! state="$(aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$name" --query State --output text 2>/dev/null)"; then
+              echo "$name" >> "$RUNNER_TEMP/missing.txt"
+              continue
+            fi
+            if [ "$state" != 'ENABLED' ]; then
+              printf '%s\t%s\n' "$name" "$state" >> "$RUNNER_TEMP/disabled.txt"
+            fi
+          done < "$RUNNER_TEMP/manifest.txt"
+
+          manifest_count="$(wc -l < "$RUNNER_TEMP/manifest.txt" | tr -d ' ')"
+          disabled_count="$(wc -l < "$RUNNER_TEMP/disabled.txt" | tr -d ' ')"
+          missing_count="$(wc -l < "$RUNNER_TEMP/missing.txt" | tr -d ' ')"
+
+          {
+            echo '### AWS scheduler drift diagnostic'
+            echo ''
+            echo "- Canonical schedules: ${manifest_count}"
+            echo "- Non-enabled schedules: ${disabled_count}"
+            echo "- Missing schedules: ${missing_count}"
+            if [ "$disabled_count" -gt 0 ]; then
+              echo ''
+              echo '#### Non-enabled'
+              echo '```'
+              cat "$RUNNER_TEMP/disabled.txt"
+              echo '```'
+            fi
+            if [ "$missing_count" -gt 0 ]; then
+              echo ''
+              echo '#### Missing'
+              echo '```'
+              cat "$RUNNER_TEMP/missing.txt"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$disabled_count" -gt 0 ] || [ "$missing_count" -gt 0 ]; then
+            echo 'Live AWS scheduler state differs from canonical activation.' >&2
+            echo 'non_enabled:' >&2
+            cat "$RUNNER_TEMP/disabled.txt" >&2 || true
+            echo 'missing:' >&2
+            cat "$RUNNER_TEMP/missing.txt" >&2 || true
+            exit 1
+          fi
