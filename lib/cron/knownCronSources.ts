@@ -11,7 +11,7 @@ export type KnownCronSource = {
 };
 
 export const knownCronSources: KnownCronSource[] = [
-  { job_key: "run-google-import", source: "vercel_cron", route_path: "/api/admin/run-google-import?type=both&limit=2&batch=all&areas=nyc&maxQueries=2", schedule_detected: true, schedule_hint: "Vercel cron: 0 3 * * *", logger_expected: true, notes: "Declared in vercel.json." },
+  { job_key: "google-curated-discovery", source: "nextjs_route", route_path: "/api/admin/location-growth/google-curated-discovery", schedule_detected: true, schedule_hint: "Canonical Google discovery schedule", logger_expected: true, notes: "Canonical cost-controlled Google discovery pipeline. Legacy run-google-import route is compatibility-only." },
   { job_key: "backfill-review-counts", source: "vercel_cron", route_path: "/api/admin/backfill-review-counts", schedule_detected: true, schedule_hint: "Vercel cron: 30 4 * * *", logger_expected: true, notes: "Declared in vercel.json." },
   { job_key: "semantic-nightly", source: "vercel_cron", route_path: "/api/admin/semantic-nightly", schedule_detected: true, schedule_hint: "Vercel cron: 0 3 * * *", logger_expected: true, notes: "Declared in vercel.json." },
   { job_key: "nightly-photo-backfill", source: "edge_function", route_path: "supabase/functions/nightly-photo-backfill", schedule_detected: true, schedule_hint: "pg_cron: 30 6 * * *; Vercel route also exists at /api/cron/nightly-photo-backfill (15 4 * * *)", logger_expected: true, notes: "Scheduled in supabase/sql/setup-edge-function-crons.sql and vercel.json." },
