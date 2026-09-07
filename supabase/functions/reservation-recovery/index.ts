@@ -12,18 +12,45 @@ function blank(value: unknown) {
 }
 
 serve(async (req) => {
-  const cronSecret = Deno.env.get("CRON_SECRET") || Deno.env.get("UNIFIED_LOCATION_GAP_REPAIR_SECRET");
-  if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) return json({ error: "Unauthorized" }, 401);
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("NEXT_PUBLIC_SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceKey) return json({ error: "Missing required environment" }, 500);
+
+  const supabase = createClient(supabaseUrl, serviceKey);
+  const cronSecret = Deno.env.get("CRON_SECRET") || Deno.env.get("UNIFIED_LOCATION_GAP_REPAIR_SECRET");
+  const cronAuthorized = Boolean(cronSecret && req.headers.get("x-cron-secret") === cronSecret);
+  const runId = String(req.headers.get("x-recovery-run-id") || "").trim();
+  let runAuthorized = false;
+
+  if (!cronAuthorized && runId) {
+    const { data: run } = await supabase
+      .from("cron_job_runs")
+      .select("id,status,job_key,source,created_at")
+      .eq("id", runId)
+      .eq("job_key", "reservation-recovery-manual")
+      .eq("source", "manual_capability")
+      .eq("status", "queued")
+      .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .maybeSingle();
+
+    if (run) {
+      const { data: consumed } = await supabase
+        .from("cron_job_runs")
+        .update({ status: "running", started_at: new Date().toISOString(), message: "Reservation recovery run started." })
+        .eq("id", runId)
+        .eq("status", "queued")
+        .select("id")
+        .maybeSingle();
+      runAuthorized = Boolean(consumed?.id);
+    }
+  }
+
+  if (!cronAuthorized && !runAuthorized) return json({ error: "Unauthorized" }, 401);
 
   const body = await req.json().catch(() => ({}));
   const limit = Math.min(50, Math.max(1, Number(body.limit || 50)));
   const concurrency = Math.min(8, Math.max(1, Number(body.concurrency || 8)));
   const force = body.force === true;
-  const supabase = createClient(supabaseUrl, serviceKey);
   const now = new Date();
 
   const { data, error } = await supabase
@@ -111,6 +138,20 @@ serve(async (req) => {
 
   for (let index = 0; index < candidates.length; index += concurrency) {
     await Promise.all(candidates.slice(index, index + concurrency).map(processRow));
+  }
+
+  if (runAuthorized && runId) {
+    const finishedAt = new Date().toISOString();
+    await supabase.from("cron_job_runs").update({
+      status: "success",
+      finished_at: finishedAt,
+      completed_at: finishedAt,
+      checked_count: counters.attempted,
+      success_count: counters.found,
+      failed_count: counters.failed,
+      message: `Reservation recovery completed: ${counters.found} found of ${counters.attempted}.`,
+      metadata: { mode: "reservation_only", googleCalls: 0, providerCounts: counters.providerCounts },
+    }).eq("id", runId);
   }
 
   return json({ success: true, mode: "reservation_only", force, concurrency, ...counters });
