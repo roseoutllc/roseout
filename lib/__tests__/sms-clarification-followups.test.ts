@@ -1,0 +1,33 @@
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+const route = fs.readFileSync(
+  path.join(process.cwd(), "app/api/webhooks/telnyx/messages/route.ts"),
+  "utf8",
+);
+
+describe("SMS clarification follow-ups", () => {
+  it("keeps concierge conversations alive when intent is unclear", () => {
+    expect(route).toContain("incoming_concierge_clarification");
+    expect(route).toContain("concierge_clarification_sent");
+    expect(route).toContain("Tell me a little more and I’ll keep going.");
+  });
+
+  it("asks CRM senders for context when no conversation matches", () => {
+    expect(route).toContain('text !== "HELP" && !crmRoute?.matched');
+    expect(route).toContain("incoming_crm_clarification");
+    expect(route).toContain("crm_clarification_sent");
+  });
+
+  it("asks marketing senders a routing follow-up instead of stopping", () => {
+    expect(route).toContain("incoming_marketing_clarification");
+    expect(route).toContain("marketing_clarification_sent");
+    expect(route).toContain("Is this about a reservation, support issue, outing recommendation, or one of our updates?");
+  });
+
+  it("preserves reservation clarification behavior", () => {
+    expect(route).toContain("incoming_reservation_clarification");
+    expect(route).toContain("reservation_clarification_sent");
+  });
+});
