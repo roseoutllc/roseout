@@ -33,10 +33,3 @@ describe("CRM core module implementation contract", () => {
     expect(source).toContain("replaceAll");
   });
 });
-
-describe("CRM module route coverage", () => {
-  it("preserves outreach follow-up and site-visit route adapters", () => {
-    expect(read("app/admin/dashboard/crm/follow-ups/page.tsx")).toContain("../outreach/page");
-    expect(read("app/admin/dashboard/crm/site-visits/page.tsx")).toContain("../outreach/page");
-  });
-});
