@@ -6,6 +6,12 @@ on:
       - '.github/workflows/aws-scheduler-drift-diagnostic.yml'
       - 'infra/aws/edge-runtime/schedules.json'
       - 'infra/aws/edge-runtime/activation.json'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aws-scheduler-drift-diagnostic.yml'
+      - 'infra/aws/edge-runtime/schedules.json'
+      - 'infra/aws/edge-runtime/activation.json'
 
 permissions:
   contents: read
