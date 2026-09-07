@@ -13,6 +13,14 @@ describe("adaptive pairing and QA performance telemetry", () => {
     expect(source).toContain("adaptive");
   });
 
+  it("targets only the diverse pair count the current lanes can actually produce", () => {
+    const source = read("lib/search/v2/pairing/buildPairs.ts");
+    expect(source).toContain("Math.min(TARGET_PAIR_COUNT, adaptiveRestaurantLimit, adaptiveActivityLimit)");
+    expect(source).toContain("targetPairCount");
+    expect(source).toContain("diversifyPairs(bestTierPairs(), targetPairCount)");
+    expect(source).toContain("initialDiversified.length < targetPairCount");
+  });
+
   it("does not evaluate pairs when either final eligible lane is empty", () => {
     const source = read("lib/search/v2/pairing/buildPairs.ts");
     expect(source).toContain("insufficient_domain_candidates");

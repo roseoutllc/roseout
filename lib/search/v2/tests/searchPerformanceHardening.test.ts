@@ -21,6 +21,20 @@ describe("V2 search performance hardening",()=>{
     expect(trace.pairingDebug?.eligibilityContractValid).toBe(true);
   });
 
+  it("does not expand a 40 by 18 search chasing an impossible twentieth diverse pair",async()=>{
+    const restaurants=Array.from({length:40},(_,i)=>candidate(`r-asym-${i}`,"restaurant",100-i,i));
+    const activities=Array.from({length:18},(_,i)=>candidate(`a-asym-${i}`,"activity",100-i,i));
+    const trace=createSearchTrace("asymmetric-performance-regression");
+    const pairs=await buildPairs({plan,restaurants,activities,trace});
+    expect(pairs).toHaveLength(18);
+    expect(trace.pairingDebug?.targetPairCount).toBe(18);
+    expect(trace.pairingDebug?.theoreticalPairCandidates).toBe(720);
+    expect(trace.pairingDebug?.pairCandidatesEvaluated).toBeLessThanOrEqual(360);
+    expect(trace.pairingDebug?.pairCandidatesSkipped).toBeGreaterThanOrEqual(360);
+    expect(trace.pairingDebug?.adaptiveExpansionApplied).toBe(false);
+    expect(trace.pairingDebug?.eligibilityContractValid).toBe(true);
+  });
+
   it("publishes all requested stage-level timings",()=>{
     const trace=createSearchTrace("timing-regression");
     trace.retrievalCalls.push({role:"restaurant",domain:"restaurant",reason:"test",durationMs:12,resultCount:20});
