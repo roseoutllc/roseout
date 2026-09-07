@@ -111,11 +111,13 @@ export function applyFinalRestaurantEligibility(
   const raw = result as any;
   const originalRestaurants = Array.isArray(raw.restaurants) ? raw.restaurants : [];
   const restaurants = filterRestaurantArray(originalRestaurants, query);
-  const allowedRestaurantIds = new Set(restaurants.map(locationId).filter(Boolean) as string[]);
-  const excludedRestaurantIds = new Set(
+  const allowedRestaurantIds = new Set<string>(
+    restaurants.map(locationId).filter((id: string | null): id is string => Boolean(id)),
+  );
+  const excludedRestaurantIds = new Set<string>(
     originalRestaurants
       .map(locationId)
-      .filter((id: string | null): id is string => Boolean(id) && !allowedRestaurantIds.has(id as string)),
+      .filter((id: string | null): id is string => Boolean(id) && !allowedRestaurantIds.has(id)),
   );
 
   const pairs = filterPairs(Array.isArray(raw.pairs) ? raw.pairs : [], query, excludedRestaurantIds);
