@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const BUCKET = "career-resumes";
@@ -18,8 +19,20 @@ function extensionFor(name: string) {
   return match?.[1] || "";
 }
 
+function requestIp(req: Request) {
+  return req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+}
+
 export async function POST(req: Request) {
   try {
+    const rateLimit = await enforceRateLimit(`career-resume-upload:${requestIp(req)}`, 6, 10 * 60_000);
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: "Too many resume uploads. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+      );
+    }
+
     const form = await req.formData();
     const file = form.get("resume");
     if (!(file instanceof File)) return NextResponse.json({ error: "Please choose a resume file to upload." }, { status: 400 });
