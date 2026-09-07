@@ -219,7 +219,7 @@ export async function discoverReservation(website: string): Promise<ReservationD
           const candidate = new URL(link);
           if (!isLikelyReservationPage(candidate, home)) continue;
           const key = candidate.toString();
-          if (!queued.has(key) && !visited.has(key)) { queue.push(candidate); queued.add(key); }
+          if (!queued.has(key) && !visited.has(key)) { queue.unshift(candidate); queued.add(key); }
         } catch { /* ignore malformed links */ }
       }
     } catch (error) {
