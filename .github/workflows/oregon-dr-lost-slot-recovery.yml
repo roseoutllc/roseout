@@ -134,6 +134,10 @@ jobs:
           jq -S 'sort_by(.kind,.object_name,.item_name)' "$RUNNER_TEMP/oregon-catalog.json" > "$RUNNER_TEMP/oregon-catalog-normalized.json"
           cmp -s "$RUNNER_TEMP/virginia-catalog-normalized.json" "$RUNNER_TEMP/oregon-catalog-normalized.json" || {
             echo 'Virginia/Oregon writable catalogs are not identical; refusing reseed.' >&2
+            diff -u \
+              <(jq -r '.[] | [.kind,.object_name,.item_name,.definition_hash] | @tsv' "$RUNNER_TEMP/virginia-catalog-normalized.json") \
+              <(jq -r '.[] | [.kind,.object_name,.item_name,.definition_hash] | @tsv' "$RUNNER_TEMP/oregon-catalog-normalized.json") \
+              | head -n 200 || true
             exit 1
           }
 
@@ -147,7 +151,7 @@ jobs:
 
           target_sql="select (select count(*) from cron.job where active) active_cron,(select count(*) from pg_subscription where subname='${SUBSCRIPTION}') subscriptions,(select count(*) from pg_subscription s join pg_stat_subscription st on st.subid=s.oid where s.subname='${SUBSCRIPTION}' and st.pid is not null) workers,(select count(*) from pg_subscription_rel sr join pg_subscription s on s.oid=sr.srsubid where s.subname='${SUBSCRIPTION}') total,(select count(*) from pg_subscription_rel sr join pg_subscription s on s.oid=sr.srsubid where s.subname='${SUBSCRIPTION}' and sr.srsubstate='r') ready,(select coalesce(bool_or(subenabled),false) from pg_subscription where subname='${SUBSCRIPTION}') subscription_enabled;"
           query_ref "$OREGON_REF" "$target_sql" "$RUNNER_TEMP/target-preflight.json"
-          jq -e '.[0].active_cron==0 and .[0].subscriptions==1 and .[0].workers==0 and .[0].total==462 and .[0].ready==462' "$RUNNER_TEMP/target-preflight.json" >/dev/null || {
+          jq -e '.[0].active_cron==0 and .[0].subscriptions==1 and .[0].workers==0 and .[0].total>0 and .[0].ready==.[0].total and .[0].subscription_enabled==false' "$RUNNER_TEMP/target-preflight.json" >/dev/null || {
             echo 'Oregon subscriber preconditions are not exact.' >&2
             jq -c '.[0] | {active_cron,subscriptions,workers,total,ready,subscription_enabled}' "$RUNNER_TEMP/target-preflight.json" >&2
             exit 1
@@ -261,10 +265,10 @@ jobs:
           set -euo pipefail
           psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -c "alter subscription ${SUBSCRIPTION} enable;" >/dev/null
           for attempt in $(seq 1 360); do
-            state="$(psql "$SUPABASE_DB_URL" -X -A -t -F ':' -v ON_ERROR_STOP=1 -c "select count(*) filter (where sr.srsubstate<>'r'),count(*) from pg_subscription_rel sr join pg_subscription s on s.oid=sr.srsubid where s.subname='${SUBSCRIPTION}';")"
-            pending="${state%%:*}"; total="${state##*:}"
+            state="$(psql "$SUPABASE_DB_URL" -X -A -t -F ':' -v ON_ERROR_STOP=1 -c "with candidate as (select n.nspname||'.'||c.relname rel from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname='public' and c.relname not in ('toh_region_migration_apply_errors','toh_storage_migration_manifest')), subscribed as (select n.nspname||'.'||c.relname rel, sr.srsubstate from pg_subscription_rel sr join pg_subscription s on s.oid=sr.srsubid join pg_class c on c.oid=sr.srrelid join pg_namespace n on n.oid=c.relnamespace where s.subname='${SUBSCRIPTION}') select (select count(*) from subscribed where srsubstate<>'r'),(select count(*) from subscribed),(select count(*) from candidate),(select md5(coalesce(string_agg(rel,',' order by rel),'')) from candidate),(select md5(coalesce(string_agg(rel,',' order by rel),'')) from subscribed);")"
+            IFS=':' read -r pending total candidate candidate_fp subscribed_fp <<< "$state"
             workers="$(psql "$SUPABASE_DB_URL" -X -A -t -v ON_ERROR_STOP=1 -c "select count(*) from pg_subscription s join pg_stat_subscription st on st.subid=s.oid where s.subname='${SUBSCRIPTION}' and st.pid is not null")"
-            if [ "$total" = '462' ] && [ "$pending" = '0' ] && [ "$workers" -ge 1 ]; then
+            if [ "$total" = "$candidate" ] && [ "$pending" = '0' ] && [ "$candidate_fp" = "$subscribed_fp" ] && [ "$workers" -ge 1 ]; then
               echo "initial_sync_tables=$total"
               echo "initial_public_sync_ready=true"
               exit 0
@@ -320,7 +324,7 @@ jobs:
             echo '- Virginia remained the authoritative primary.'
             echo '- The invalidated wal_removed slot and its broken Oregon subscriber were detached.'
             echo '- Oregon public application tables were reseeded with copy_data=true through a fresh logical replication slot.'
-            echo '- The replacement subscriber reached all 462 relations ready with a connected worker and low WAL lag.'
+            echo '- The replacement subscriber reached the complete eligible relation set with a connected worker and low WAL lag.'
             echo '- Virginia pg_cron remained empty; Oregon active pg_cron remained zero.'
             echo '- Forward DR EventBridge schedules remained disabled for the separate fail-closed activation gate.'
           } >> "$GITHUB_STEP_SUMMARY"
