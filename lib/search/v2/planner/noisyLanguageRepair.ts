@@ -13,6 +13,7 @@ const WORD_REWRITES: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bnite\b/gi, "night"],
   [/\blowkey\b/gi, "low key"],
   [/\bbk\b/gi, "brooklyn"],
+  [/\bquick bite\b/gi, "quick bite restaurant"],
 ];
 
 const CUISINE_ALIASES: ReadonlyArray<readonly [string, RegExp]> = [
