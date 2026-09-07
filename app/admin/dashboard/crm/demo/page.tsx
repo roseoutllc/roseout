@@ -1,2 +1,0 @@
-import { redirect } from "next/navigation";
-export default function RedirectPage() { redirect("/admin/dashboard/settings/demo-center?mode=crm"); }
