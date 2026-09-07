@@ -365,7 +365,7 @@ export async function POST(req: Request) {
     }
 
     const ipHash = getClientIpHash(req);
-    const attemptLimit = enforceRateLimit(
+    const attemptLimit = await enforceRateLimit(
       `business-claim:${user.id}:${ipHash}`,
       5,
       10 * 60_000,

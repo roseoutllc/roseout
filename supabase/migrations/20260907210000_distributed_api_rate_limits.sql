@@ -30,8 +30,8 @@ begin
   returning request_count into v_count;
   delete from public.api_rate_limits where expires_at < v_now - interval '1 hour';
   allowed := v_count <= p_limit;
-  remaining := pg_catalog.greatest(p_limit - v_count, 0);
-  retry_after_seconds := pg_catalog.greatest(1, pg_catalog.ceil(extract(epoch from (v_expires_at - v_now)))::integer);
+  remaining := greatest(p_limit - v_count, 0);
+  retry_after_seconds := greatest(1, ceil(extract(epoch from (v_expires_at - v_now)))::integer);
   return next;
 end;
 $$;

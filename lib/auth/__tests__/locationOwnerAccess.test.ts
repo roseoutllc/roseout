@@ -337,3 +337,55 @@ describe("location access guards", () => {
     expect(access.canEdit).toBe(true);
   });
 });
+
+
+describe("location privilege escalation regression", () => {
+  it("does not trust a user-editable user_metadata admin role", async () => {
+    resetTables({ locations: [location()] });
+    authUsers.set("attacker-1", { email: "attacker@example.com" });
+
+    const adminAuth = (await import("@/lib/supabase-admin")).supabaseAdmin.auth.admin.getUserById as any;
+    adminAuth.mockResolvedValueOnce({
+      data: {
+        user: {
+          email: "attacker@example.com",
+          app_metadata: {},
+          user_metadata: { role: "superadmin", admin_role: "superadmin" },
+        },
+      },
+    });
+
+    const { resolveLocationAccessContext } = await getAccessModule();
+    const access = await resolveLocationAccessContext({
+      userId: "attacker-1",
+      userEmail: "attacker@example.com",
+      locationId: "loc-1",
+    });
+
+    expect(access.isAdmin).toBe(false);
+    expect(access.isSuperadmin).toBe(false);
+    expect(access.canView).toBe(false);
+    expect(access.canEdit).toBe(false);
+  });
+
+  it("prevents one location owner from viewing or editing another location", async () => {
+    resetTables({
+      locations: [
+        location({ id: "loc-a", source_id: "source-a" }),
+        location({ id: "loc-b", source_id: "source-b" }),
+      ],
+      business_claims: [{ user_id: "owner-a", location_id: "loc-a", status: "approved" }],
+    });
+    authUsers.set("owner-a", { email: "owner-a@example.com" });
+
+    const { resolveLocationAccessContext } = await getAccessModule();
+    const access = await resolveLocationAccessContext({
+      userId: "owner-a",
+      userEmail: "owner-a@example.com",
+      locationId: "loc-b",
+    });
+
+    expect(access.canView).toBe(false);
+    expect(access.canEdit).toBe(false);
+  });
+});
