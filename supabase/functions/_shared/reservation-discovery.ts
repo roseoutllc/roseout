@@ -185,7 +185,7 @@ export async function discoverReservation(website: string): Promise<ReservationD
   let blockedChecks = 0;
   let failedChecks = 0;
   const failureNotes: string[] = [];
-  const queue = RESERVATION_DISCOVERY_PATHS.map((path) => new URL(path, home.origin));
+  const queue = [home, ...RESERVATION_DISCOVERY_PATHS.map((path) => new URL(path, home.origin))];
   const queued = new Set(queue.map((url) => url.toString()));
   const visited = new Set<string>();
 
