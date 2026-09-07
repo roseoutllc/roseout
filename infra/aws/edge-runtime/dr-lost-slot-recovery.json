@@ -4,5 +4,6 @@
   "expected_slot": "theouthaven_va_to_or_dr_slot",
   "expected_subscription": "theouthaven_va_to_or_dr",
   "expected_invalidation_reason": "wal_removed",
-  "reseed_mode": "copy_data_true"
+  "reseed_mode": "copy_data_true",
+  "requested_at": "2026-09-07T22:26:00-04:00"
 }
