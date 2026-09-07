@@ -27,6 +27,16 @@ describe("PII and abuse security boundaries", () => {
     expect(sql).toMatch(/to service_role/);
   });
 
+  it("locks legacy regional migration helpers and disables the retained reader credential", () => {
+    const sql = read("supabase/migrations/20260907230000_lock_legacy_migration_helpers.sql");
+    expect(sql).toContain("REVOKE USAGE ON SCHEMA migration_work");
+    expect(sql).toContain("REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA migration_work");
+    expect(sql).toContain("source_connstr()");
+    expect(sql).toContain("select null::text");
+    expect(sql).toContain("ALTER ROLE toh_region_migration_reader NOLOGIN");
+    expect(sql).toContain("ALTER FUNCTION public.score_reserve_opportunity() SET search_path = public, pg_temp");
+  });
+
   it("keeps applicant resumes private and removes active SVG content from public media buckets", () => {
     const sql = read("supabase/migrations/20260907224500_harden_public_storage_mime_types.sql");
     expect(sql).toContain("career-resumes");
@@ -35,6 +45,14 @@ describe("PII and abuse security boundaries", () => {
     expect(sql).toContain("reservation-assets");
     expect(sql).toContain("user-avatars");
     expect(sql).not.toContain("image/svg+xml");
+  });
+
+  it("keeps private team evidence links short lived", () => {
+    for (const file of ["app/api/team/social-outreach/route.ts", "app/api/team/site-visits/route.ts"]) {
+      const source = read(file);
+      expect(source).toContain("createSignedUrl(data.path, 15 * 60)");
+      expect(source).not.toContain("createSignedUrl(data.path, 60 * 60 * 24 * 7)");
+    }
   });
 
   it("keeps representative PII domains behind their authorization guard", () => {
