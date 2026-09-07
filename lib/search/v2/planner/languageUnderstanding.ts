@@ -14,7 +14,7 @@ export function detectVenueRelationship(query: string) {
   const sequential = /\b(?:then|and then|followed by|afterward|afterwards|after|before)\b/.test(text);
   const stayPut = /\b(?:without\s+(?:ever\s+)?leaving|never\s+leave|do\s+not\s+leave|don't\s+leave|stay(?:ing)?\s+(?:at|in))\s+(?:the\s+)?(?:same\s+)?(?:venue|place|spot|restaurant|bar)\b/.test(text);
   const sameVenueRequired = /\b(?:same (?:venue|place)|one (?:venue|place)|under one roof|all in one place)\b/.test(text) || stayPut;
-  const singlePlaceFrame = /\b(?:somewhere|place|spot|venue|restaurant|bar|lounge|cafe)\b.{0,100}\b(?:where|that|with|having|has|offers?|serves?|to)\b/.test(text);
+  const singlePlaceFrame = /\b(?:somewhere|one place|one spot|one venue|a place|a spot|a venue)\b.{0,45}\b(?:where|that)\b/.test(text);
   const mealCapability = /\b(?:eat|dine|dining|food|dinner|brunch|lunch|breakfast|meal|restaurant|kitchen)\b/.test(text);
   const activityCapability = /\b(?:live music|jazz|karaoke|hookah|shisha|dancing|dance|dj|rooftop|cocktails?|drinks?|arcade|bowling|comedy|show|entertainment|performance)\b/.test(text);
   const hookahAddonFrame = /\b(?:restaurant|dinner|brunch|lunch|food|dining)\b.{0,45}\bwith\b.{0,30}\b(?:hookah|shisha)\b/.test(text);

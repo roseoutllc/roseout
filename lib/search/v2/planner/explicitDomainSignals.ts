@@ -10,13 +10,15 @@ export type ExplicitDomainSignals = Readonly<{
 const RESTAURANT_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
   ["restaurant", /\brestaurants?\b/i],
   ["meal", /\b(?:breakfast|brunch|lunch|dinner|supper)\b/i],
-  ["food", /\b(?:food|eat|eating|meal)\b/i],
+  ["food", /\b(?:food|eat|eating|meal|takeout|take-away|fast casual|quick bite)\b/i],
   ["cuisine", /\b(?:sushi|italian|mexican|chinese|japanese|thai|indian|halal|steak|seafood|pizza|tacos?|burgers?)\b/i],
   ["dish", /\bpasta\b/i],
 ];
 
 const ACTIVITY_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
   ["activity", /\b(?:activity|activities|things? to do)\b/i],
+  ["open_ended_activity", /\b(?:something|somewhere|anything)\s+(?:fun|interesting|different|active|creative)?\s*(?:nearby\s+|close by\s+)?to\s+do\b|\bsomething\s+(?:fun|interesting|different|active|creative)\b/i],
+  ["second_stop", /\b(?:and|then|afterward|afterwards|after)\s+(?:something|somewhere|anything)\b.{0,35}\b(?:do|activity|fun)\b/i],
   ["event", /\bevents?\b/i],
   ["escape_room", /\bescape rooms?\b/i],
   ["karaoke", /\bkaraoke\b/i],
