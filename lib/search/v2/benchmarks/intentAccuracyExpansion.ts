@@ -2,7 +2,8 @@ import type { IntentBenchmarkCase, IntentExpectation } from "./intentAccuracyCor
 
 const cuisines = [["Italian","italian"],["Mexican","mexican"],["Thai","thai"],["Indian","indian"],["Chinese","chinese"],["Japanese","japanese"],["Korean","korean"],["Caribbean","caribbean"],["Jamaican","jamaican"],["Haitian","haitian"],["Seafood","seafood"],["Sushi","sushi"],["Steakhouse","steakhouse"],["Peruvian","peruvian"],["Vegan","vegan"]] as const;
 const activities = [["bowling","bowling"],["karaoke","karaoke"],["a comedy show","comedy"],["an escape room","escape_room"],["mini golf","mini_golf"],["an arcade","arcade"],["live music","live_music"],["a rooftop lounge","rooftop"]] as const;
-const neighborhoods = ["Astoria","Flushing","Forest Hills","Long Island City","Harlem","Williamsburg","Bushwick","Jackson Heights","Huntington","Patchogue"] as const;
+const neighborhoods = ["Astoria","Flushing","Forest Hills","Long Island City","Harlem","Williamsburg","Bushwick","Jackson Heights"] as const;
+const towns = ["Huntington","Patchogue"] as const;
 
 const cases: IntentBenchmarkCase[] = [];
 let id = 0;
@@ -32,6 +33,15 @@ for (const neighborhood of neighborhoods) {
     add(`dinner then ${activityLabel} around ${neighborhood}`, {
       mode: "paired_outing", restaurantRequired: true, activityRequired: true,
       neighborhood, activityCategoriesAnyOf: [activity],
+    });
+  }
+}
+
+for (const city of towns) {
+  for (const [activityLabel, activity] of activities) {
+    add(`dinner then ${activityLabel} around ${city}`, {
+      mode: "paired_outing", restaurantRequired: true, activityRequired: true,
+      city, activityCategoriesAnyOf: [activity],
     });
   }
 }
