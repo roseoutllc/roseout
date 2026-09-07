@@ -1,9 +1,27 @@
 import type { EnterpriseSearchResult } from "@/lib/search/enterprise/types";
 import {
-  isLowLevelLocation,
   isQuickBiteSearchCandidate,
+  normalizeSearchText,
   userExplicitlyAskedForLowLevel,
 } from "@/lib/search/lowLevel";
+
+const LOW_LEVEL_RESTAURANT_IDENTITIES = [
+  "deli",
+  "delicatessen",
+  "bodega",
+  "grocery",
+  "supermarket",
+  "convenience store",
+  "corner store",
+  "food cart",
+  "food truck",
+  "halal cart",
+  "fast food",
+  "quick service",
+  "counter service",
+  "pizza by the slice",
+  "chinese takeout",
+];
 
 function locationId(item: any): string | null {
   const value = item?.id ?? item?.location_id ?? item?.source_id ?? null;
@@ -15,10 +33,29 @@ function isRestaurantLike(item: any): boolean {
   return locationType === "restaurant" || Boolean(item?.restaurant_name);
 }
 
+function hasExplicitLowLevelRestaurantIdentity(item: any): boolean {
+  if (!item) return false;
+  if (item?.is_low_level === true) return true;
+  if (String(item?.curation_tier ?? "").toLowerCase() === "low_level") return true;
+  if (String(item?.public_visibility_tier ?? "").toLowerCase() === "low_level") return true;
+
+  const text = normalizeSearchText([
+    item?.name,
+    item?.restaurant_name,
+    item?.primary_category,
+    item?.category,
+    item?.google_primary_type,
+    item?.google_types,
+    item?.tags,
+    item?.search_keywords,
+  ]);
+  return LOW_LEVEL_RESTAURANT_IDENTITIES.some((term) => text.includes(normalizeSearchText(term)));
+}
+
 function restaurantEligible(item: any, query: string): boolean {
   if (!item) return true;
   if (userExplicitlyAskedForLowLevel(query)) return true;
-  return !isLowLevelLocation(item) && !isQuickBiteSearchCandidate(item);
+  return !hasExplicitLowLevelRestaurantIdentity(item) && !isQuickBiteSearchCandidate(item);
 }
 
 function pairRestaurant(pair: any) {
