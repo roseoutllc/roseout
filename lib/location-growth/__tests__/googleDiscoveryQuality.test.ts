@@ -50,6 +50,32 @@ describe("curated Google discovery quality", () => {
     expect(result.reasons).toContain("quick_service");
   });
 
+  it("rejects takeout-first restaurants when Google explicitly says dine-in is unavailable", () => {
+    const result = evaluateGoogleDiscoveryCandidate(candidate({
+      name: "Independent Jerk Kitchen",
+      rating: 4.8,
+      reviewCount: 900,
+      types: ["restaurant", "meal_takeaway", "food"],
+      dineIn: false,
+      takeout: true,
+      delivery: true,
+    }));
+    expect(result.decision).toBe("reject");
+    expect(result.reasons).toContain("quick_service");
+  });
+
+  it("does not reject a dine-in restaurant merely because it also offers takeout", () => {
+    const result = evaluateGoogleDiscoveryCandidate(candidate({
+      name: "Independent Dining Room",
+      types: ["restaurant", "meal_takeaway", "food"],
+      dineIn: true,
+      takeout: true,
+      reservable: true,
+    }));
+    expect(result.decision).not.toBe("reject");
+    expect(result.reasons).toContain("dine_in");
+  });
+
   it("auto-imports a strong destination restaurant when the place itself has outing evidence", () => {
     const result = evaluateGoogleDiscoveryCandidate(candidate({
       name: "Skyline Rooftop Dining Room",
