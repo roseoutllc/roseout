@@ -39,18 +39,19 @@ describe("curated Google discovery quality", () => {
     expect(result.reasons).toContain("chain_or_qsr");
   });
 
-  it("rejects quick-service style candidates that are not on the chain list", () => {
+  it("keeps a strong independent quick-service candidate for intent-aware search", () => {
     const result = evaluateGoogleDiscoveryCandidate(candidate({
       name: "Local Hot Wings & Pizza Inc",
       rating: 4.8,
       reviewCount: 650,
       types: ["pizza_restaurant", "meal_takeaway", "restaurant"],
     }));
-    expect(result.decision).toBe("reject");
+    expect(result.decision).not.toBe("reject");
     expect(result.reasons).toContain("quick_service");
+    expect(result.reasons).toContain("quick_service_search_only");
   });
 
-  it("rejects takeout-first restaurants when Google explicitly says dine-in is unavailable", () => {
+  it("keeps a strong takeout-first restaurant when Google explicitly says dine-in is unavailable", () => {
     const result = evaluateGoogleDiscoveryCandidate(candidate({
       name: "Independent Jerk Kitchen",
       rating: 4.8,
@@ -60,11 +61,12 @@ describe("curated Google discovery quality", () => {
       takeout: true,
       delivery: true,
     }));
-    expect(result.decision).toBe("reject");
+    expect(result.decision).not.toBe("reject");
     expect(result.reasons).toContain("quick_service");
+    expect(result.reasons).toContain("quick_service_search_only");
   });
 
-  it("does not reject a dine-in restaurant merely because it also offers takeout", () => {
+  it("does not classify a dine-in restaurant as quick-service merely because it also offers takeout", () => {
     const result = evaluateGoogleDiscoveryCandidate(candidate({
       name: "Independent Dining Room",
       types: ["restaurant", "meal_takeaway", "food"],
@@ -73,6 +75,7 @@ describe("curated Google discovery quality", () => {
       reservable: true,
     }));
     expect(result.decision).not.toBe("reject");
+    expect(result.quickService).toBe(false);
     expect(result.reasons).toContain("dine_in");
   });
 
@@ -104,10 +107,7 @@ describe("curated Google discovery quality", () => {
   });
 
   it("keeps a solid but not exceptional restaurant for manual review", () => {
-    const result = evaluateGoogleDiscoveryCandidate(candidate({
-      rating: 4.3,
-      reviewCount: 120,
-    }));
+    const result = evaluateGoogleDiscoveryCandidate(candidate({ rating: 4.3, reviewCount: 120 }));
     expect(result.decision).toBe("review");
   });
 
