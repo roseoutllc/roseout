@@ -616,7 +616,9 @@ async function stageCandidate({
   const firstPhoto = place.photos?.[0];
   const hasGooglePhoto = Boolean(firstPhoto?.photo_reference || firstPhoto?.name);
   const photoRequiresAttribution = Boolean(firstPhoto?.authorAttributions?.length);
-  const hasPhoto = hasGooglePhoto && !photoRequiresAttribution;
+  // Attribution is presentation metadata, not a photo-availability blocker.
+  // The public photo layer is responsible for rendering any required attribution.
+  const hasPhoto = hasGooglePhoto;
   const hasPhone = Boolean(place.formatted_phone_number || place.international_phone_number);
   const hasWebsite = Boolean(place.website || place.websiteUri);
   const usableHours = hasHours(place);
@@ -648,11 +650,10 @@ async function stageCandidate({
   const rejectionReasons = unique([
     duplicate ? "duplicate_existing_location" : null,
     invalidMarket ? validation.reason || "wrong_market" : null,
-    photoRequiresAttribution ? "google_photo_requires_attribution" : null,
     ...(decision === "reject" ? quality.reasons : []),
   ]);
 
-  const imageUrl = hasPhoto ? publicGooglePlacePhotoUrl(placeId) : null;
+  const imageUrl = hasGooglePhoto ? publicGooglePlacePhotoUrl(placeId) : null;
   const baseRow: Record<string, unknown> = {
     batch_id: batchId,
     source: SOURCE,
@@ -695,7 +696,7 @@ async function stageCandidate({
       photoPolicy: {
         hasGooglePhoto,
         photoRequiresAttribution,
-        displayMode: hasPhoto ? "live_place_id_proxy" : "manual_review",
+        displayMode: hasGooglePhoto ? "live_place_id_proxy" : "missing",
       },
       gap: {
         category: plan.category,
@@ -716,12 +717,8 @@ async function stageCandidate({
     quality_status: stageStatus(decision, hasPhoto),
     import_status: duplicate ? "duplicate" : decision === "reject" ? "rejected" : "staged",
     rejection_reason: rejectionReasons.length ? rejectionReasons.join(",") : null,
-    has_photos: hasPhoto,
-    photo_status: hasPhoto
-      ? "google_live_proxy"
-      : photoRequiresAttribution
-        ? "requires_attribution_review"
-        : "missing_photo",
+    has_photos: hasGooglePhoto,
+    photo_status: hasGooglePhoto ? "google_live_proxy" : "missing_photo",
     curation_tier: decision === "auto_import" ? "curated" : decision === "review" ? "review" : "rejected",
     public_visibility_tier: decision === "reject" ? "hidden" : "standard",
     is_low_level: decision === "reject" && (quality.quickService || Boolean(quality.chainBrand)),
