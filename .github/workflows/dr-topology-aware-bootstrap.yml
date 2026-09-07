@@ -1,0 +1,108 @@
+name: DR topology-aware bootstrap
+
+on:
+  push:
+    branches:
+      - ops/normalize-dr-table-count-480-2026-09-07
+    paths:
+      - '.github/workflows/dr-topology-aware-bootstrap.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/normalize-dr-table-count-480-2026-09-07
+          fetch-depth: 0
+
+      - name: Make DR health topology-aware
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Canonical DR guard: derive the expected relation count from the live
+          # Virginia publication instead of a baked table count.
+          p = Path('supabase/functions/dr-standby-reconciler/index.ts')
+          text = p.read_text()
+          text = text.replace('const EXPECTED_PUBLIC_TABLES = 462;\n', '')
+          old = '    (select count(*) from pg_publication where pubname=${literal(PUBLICATION)}) as publications,\n'
+          new = old + '    (select count(*) from pg_publication_tables where pubname=${literal(PUBLICATION)}) as published_tables,\n'
+          if 'as published_tables,' not in text:
+              if old not in text:
+                  raise SystemExit('reconciler publication anchor missing')
+              text = text.replace(old, new, 1)
+          if 'const expectedTables = Number(source.published_tables || 0);' not in text:
+              anchor = '  const healthy = Number(source.cron_jobs) === 0 &&\n'
+              if anchor not in text:
+                  raise SystemExit('reconciler health anchor missing')
+              text = text.replace(anchor, '  const expectedTables = Number(source.published_tables || 0);\n  const healthy = expectedTables > 0 &&\n    Number(source.cron_jobs) === 0 &&\n', 1)
+          text = text.replace('    Number(target.total_tables) === EXPECTED_PUBLIC_TABLES &&\n    Number(target.ready_tables) === EXPECTED_PUBLIC_TABLES &&', '    Number(target.total_tables) === expectedTables &&\n    Number(target.ready_tables) === expectedTables &&')
+          if '    sourcePublishedTables: expectedTables,' not in text:
+              text = text.replace('    sourceActiveSlots: Number(source.active_slots),\n', '    sourceActiveSlots: Number(source.active_slots),\n    sourcePublishedTables: expectedTables,\n', 1)
+          if '    targetTotalTables: Number(target.total_tables),' not in text:
+              text = text.replace('    targetActiveCronJobs: Number(target.active_cron_jobs),\n', '    targetActiveCronJobs: Number(target.active_cron_jobs),\n    targetTotalTables: Number(target.total_tables),\n', 1)
+          if 'EXPECTED_PUBLIC_TABLES' in text:
+              raise SystemExit('stale reconciler table constant remains')
+          p.write_text(text)
+
+          # Every executable DR workflow that checked the old fixed forward
+          # relation count now compares the Oregon subscription to the source
+          # publication count returned by the canonical guard.
+          replacement = '.response.guard.sourcePublishedTables>0 and .response.guard.targetTotalTables==.response.guard.sourcePublishedTables and .response.guard.targetReadyTables==.response.guard.sourcePublishedTables'
+          changed_workflows = 0
+          for wf in Path('.github/workflows').glob('*.yml'):
+              if wf.name == 'dr-topology-aware-bootstrap.yml':
+                  continue
+              t = wf.read_text()
+              nt, n = re.subn(r'\.response\.guard\.targetReadyTables\s*==\s*462', replacement, t)
+              if n:
+                  wf.write_text(nt)
+                  changed_workflows += n
+          if changed_workflows == 0:
+              raise SystemExit('no stale forward DR workflow predicates found')
+
+          # CloudWatch ReadyTableGap also follows the live publication size.
+          p = Path('infra/aws/lambda/edge_scheduler_invoker.py')
+          text = p.read_text()
+          text = text.replace('expected_ready_tables = 462\n', '')
+          old = 'max(0, expected_ready_tables - numeric(guard.get("targetReadyTables", 0)))'
+          new = 'max(0, numeric(guard.get("sourcePublishedTables", guard.get("targetTotalTables", guard.get("targetReadyTables", 0)))) - numeric(guard.get("targetReadyTables", 0)))'
+          if old in text:
+              text = text.replace(old, new)
+          if 'expected_ready_tables' in text:
+              raise SystemExit('stale invoker expected_ready_tables remains')
+          p.write_text(text)
+
+          p = Path('infra/aws/cloudformation/edge-runtime.yml')
+          text = p.read_text()
+          text = text.replace("          expected_ready_tables = 462\n", '')
+          old = "max(0, expected_ready_tables - numeric(guard.get('targetReadyTables', 0)))"
+          new = "max(0, numeric(guard.get('sourcePublishedTables', guard.get('targetTotalTables', guard.get('targetReadyTables', 0)))) - numeric(guard.get('targetReadyTables', 0)))"
+          if old in text:
+              text = text.replace(old, new)
+          if 'expected_ready_tables' in text:
+              raise SystemExit('stale cloudformation expected_ready_tables remains')
+          p.write_text(text)
+          PY
+
+          grep -F 'sourcePublishedTables: expectedTables' supabase/functions/dr-standby-reconciler/index.ts >/dev/null
+          grep -F 'targetTotalTables: Number(target.total_tables)' supabase/functions/dr-standby-reconciler/index.ts >/dev/null
+          ! grep -R -F 'targetReadyTables==462' .github/workflows >/dev/null
+          ! grep -R -F 'targetReadyTables == 462' .github/workflows >/dev/null
+          ! grep -R -F 'expected_ready_tables = 462' infra/aws >/dev/null
+
+      - name: Commit canonical DR fix and remove bootstrap
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/dr-topology-aware-bootstrap.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/functions/dr-standby-reconciler/index.ts .github/workflows infra/aws/lambda/edge_scheduler_invoker.py infra/aws/cloudformation/edge-runtime.yml
+          git commit -m 'Make DR health checks topology-aware'
+          git push origin HEAD:ops/normalize-dr-table-count-480-2026-09-07
