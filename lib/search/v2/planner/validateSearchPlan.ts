@@ -2,6 +2,11 @@ import { extractRawRestaurantDishTerms } from "../../enterprise/rawDishTerms";
 import type { SearchIntent } from "../../enterprise/types";
 import type { SearchPlan } from "./searchPlanTypes";
 import { detectPlannerDomainLoss } from "./explicitDomainSignals";
+import {
+  detectVenueRelationship,
+  extractNegativeConstraints,
+  extractSubjectivePreferences,
+} from "./languageUnderstanding";
 
 const NON_DISH_ACTIVITY_RESIDUALS = new Set([
   "child",
@@ -69,9 +74,6 @@ function repairArbitraryDishIntent(plan: SearchPlan) {
   const activityOnly = plan.activity.required && !wasRestaurantRequired;
   const hasMixedConnector = /\b(?:and\s+then|then|after|before|with|and)\b/i.test(plan.rawQuery);
 
-  // Respect a clearly activity-only request. When an activity is present with a
-  // connector, still probe the remaining user-authored phrase so arbitrary
-  // dishes can restore the missing restaurant lane in a true mixed outing.
   if (activityOnly && !hasMixedConnector) return;
 
   const inferredDishTerms = extractRawRestaurantDishTerms(
@@ -81,9 +83,6 @@ function repairArbitraryDishIntent(plan: SearchPlan) {
   if (!inferredDishTerms.length) return;
   if (activityOnly && socialActivityResidualOnly(inferredDishTerms)) return;
 
-  // buildSearchPlan calls validation before deepFreeze. SearchPlan is readonly by
-  // contract for consumers, so replace the draft's nested objects through one
-  // explicit mutable adapter rather than weakening the public type.
   const draft = plan as unknown as {
     mode: SearchPlan["mode"];
     restaurant: SearchPlan["restaurant"];
@@ -96,8 +95,6 @@ function repairArbitraryDishIntent(plan: SearchPlan) {
     foods: Array.from(new Set([...plan.restaurant.foods, ...inferredDishTerms])),
   };
 
-  // Only change mode/pairing when this repair actually restores a missing
-  // restaurant domain. Existing broad-date and same-domain semantics stay as-is.
   if (!wasRestaurantRequired && plan.activity.required) {
     draft.mode = plan.pairing.sameVenueRequired ? "same_venue" : "paired_outing";
     draft.pairing = { ...plan.pairing, required: true };
@@ -114,10 +111,185 @@ function repairArbitraryDishIntent(plan: SearchPlan) {
   };
 }
 
+function normalizeConstraintQuery(query: string) {
+  return query
+    .replace(/\b(?:pls|plz|please)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function repairExplicitConstraintsAndPreferences(plan: SearchPlan) {
+  const constraintQuery = normalizeConstraintQuery(plan.rawQuery);
+  const negatives = extractNegativeConstraints(constraintQuery);
+  const subjective = extractSubjectivePreferences(constraintQuery);
+  const premiumFromNaturalLanguage = /\b(?:fancy|splurge[- ]worthy)\b/i.test(constraintQuery);
+  const budget = premiumFromNaturalLanguage ? "premium" : subjective.budget;
+  const draft = plan as unknown as {
+    restaurant: SearchPlan["restaurant"];
+    activity: SearchPlan["activity"];
+    preferences?: SearchPlan["preferences"];
+    parser: SearchPlan["parser"];
+  };
+
+  const restaurantExclusions = Array.from(new Set([
+    ...plan.restaurant.exclusions,
+    ...negatives.restaurant,
+  ]));
+  const activityExclusions = Array.from(new Set([
+    ...plan.activity.exclusions,
+    ...negatives.activity,
+  ]));
+  draft.restaurant = { ...plan.restaurant, exclusions: restaurantExclusions };
+  draft.activity = { ...plan.activity, exclusions: activityExclusions };
+  draft.preferences = {
+    vibes: subjective.vibes,
+    avoidVibes: negatives.vibes,
+    subjectiveTerms: subjective.subjectiveTerms,
+    budget,
+    noise: subjective.noise,
+  };
+
+  if (
+    restaurantExclusions.length !== plan.restaurant.exclusions.length ||
+    activityExclusions.length !== plan.activity.exclusions.length ||
+    subjective.vibes.length ||
+    negatives.vibes.length ||
+    budget ||
+    subjective.noise
+  ) {
+    draft.parser = {
+      ...plan.parser,
+      reasons: [
+        ...plan.parser.reasons,
+        "explicit exclusions and subjective preferences preserved in final search plan",
+      ],
+    };
+  }
+}
+
+function newYorkParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute"), second: value("second") };
+}
+
+function newYorkOffsetMs(date: Date) {
+  const parts = newYorkParts(date);
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - Math.floor(date.getTime() / 1000) * 1000;
+}
+
+function newYorkLocalToIso(year: number, month: number, day: number, hour: number, minute: number) {
+  const wallClockUtc = Date.UTC(year, month - 1, day, hour, minute, 0);
+  let instant = new Date(wallClockUtc - newYorkOffsetMs(new Date(wallClockUtc)));
+  instant = new Date(wallClockUtc - newYorkOffsetMs(instant));
+  return instant.toISOString();
+}
+
+const WEEKDAYS: Record<string, number> = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
+
+function parseClock(hourValue: string | undefined, minuteValue: string | undefined, meridiem: string | undefined, fallbackHour: number) {
+  if (!hourValue) return { hour: fallbackHour, minute: 0 };
+  let hour = Number(hourValue);
+  const minute = Number(minuteValue ?? 0);
+  if (!Number.isFinite(hour) || hour < 1 || hour > 12 || minute < 0 || minute > 59) return null;
+  const suffix = String(meridiem ?? "").toLowerCase();
+  if (suffix === "pm" && hour !== 12) hour += 12;
+  else if (suffix === "am" && hour === 12) hour = 0;
+  else if (!suffix && hour <= 11) hour += 12;
+  return { hour, minute };
+}
+
+function parseBroaderPlannedFor(query: string, now = new Date()) {
+  const text = query.toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, " ").trim();
+  const hasDateLanguage = /\b(?:today|tonight|tomorrow|this evening|tomorrow evening|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/.test(text);
+  if (!hasDateLanguage) return null;
+
+  const current = newYorkParts(now);
+  let dayOffset = 0;
+  let fallbackHour = 19;
+  if (/\btonight\b/.test(text) || /\bthis evening\b/.test(text)) fallbackHour = 19;
+  if (/\btomorrow\b/.test(text)) dayOffset = 1;
+  if (/\btomorrow evening\b/.test(text)) fallbackHour = 19;
+
+  const weekdayMatch = text.match(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+  if (weekdayMatch) {
+    const currentWeekday = new Date(Date.UTC(current.year, current.month - 1, current.day)).getUTCDay();
+    const targetWeekday = WEEKDAYS[weekdayMatch[1]];
+    dayOffset = (targetWeekday - currentWeekday + 7) % 7;
+  }
+
+  const clockMatch = text.match(/\b(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/);
+  const clock = parseClock(clockMatch?.[1], clockMatch?.[2], clockMatch?.[3], fallbackHour);
+  if (!clock) return null;
+  const targetDate = new Date(Date.UTC(current.year, current.month - 1, current.day + dayOffset));
+  return newYorkLocalToIso(
+    targetDate.getUTCFullYear(),
+    targetDate.getUTCMonth() + 1,
+    targetDate.getUTCDate(),
+    clock.hour,
+    clock.minute,
+  );
+}
+
+function repairBroaderDateTime(plan: SearchPlan) {
+  if (plan.plannedFor) return;
+  const plannedFor = parseBroaderPlannedFor(plan.rawQuery);
+  if (!plannedFor) return;
+  const draft = plan as unknown as { plannedFor: string | null; parser: SearchPlan["parser"] };
+  draft.plannedFor = plannedFor;
+  draft.parser = {
+    ...plan.parser,
+    reasons: [...plan.parser.reasons, "natural-language date/time preserved in final search plan"],
+  };
+}
+
+function repairExplicitVenueRelationship(plan: SearchPlan) {
+  const relationship = detectVenueRelationship(plan.rawQuery);
+  if (relationship.type !== "same_venue_required") return;
+  if (!plan.restaurant.required || !plan.activity.required) return;
+  if (plan.pairing.sameVenueRequired && plan.mode === "same_venue") return;
+  const draft = plan as unknown as {
+    mode: SearchPlan["mode"];
+    pairing: SearchPlan["pairing"];
+    parser: SearchPlan["parser"];
+  };
+  draft.mode = "same_venue";
+  draft.pairing = {
+    ...plan.pairing,
+    required: true,
+    sameVenuePreferred: false,
+    sameVenueRequired: true,
+  };
+  draft.parser = {
+    ...plan.parser,
+    reasons: [...plan.parser.reasons, "explicit same-venue relationship restored at final plan validation"],
+  };
+}
+
 export function validateSearchPlan(plan: SearchPlan): void {
   if (!plan.rawQuery.trim()) throw new Error("SEARCH_PLAN_EMPTY_QUERY");
 
   repairArbitraryDishIntent(plan);
+  repairExplicitConstraintsAndPreferences(plan);
+  repairBroaderDateTime(plan);
+  repairExplicitVenueRelationship(plan);
 
   const domainContract = detectPlannerDomainLoss(plan.rawQuery, plan);
   if (domainContract.lostRestaurant) {
@@ -128,9 +300,6 @@ export function validateSearchPlan(plan: SearchPlan): void {
   }
 
   if (plan.pairing.required && (!plan.restaurant.required || !plan.activity.required)) throw new Error("SEARCH_PLAN_INVALID_PAIRING");
-  // A same-venue phrase can describe a single-domain venue requirement, e.g.
-  // "seafood rooftop restaurant". Only enforce the pairing invariant when both
-  // domains are required; single-domain plans do not need a pair to satisfy it.
   if (
     plan.pairing.sameVenueRequired &&
     !plan.pairing.required &&
