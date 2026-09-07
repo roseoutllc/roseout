@@ -44,6 +44,7 @@ export const LOW_LEVEL_ALLOWED_QUERY_TERMS = [
   "corner store",
   "cheap eats",
   "quick bite",
+  "quick food",
   "fast food",
   "food truck",
   "food cart",
@@ -51,6 +52,7 @@ export const LOW_LEVEL_ALLOWED_QUERY_TERMS = [
   "casual",
   "grab food",
   "grab lunch",
+  "grab dinner",
   "nearby deli",
   "chinese takeout",
 ];
@@ -103,6 +105,13 @@ const DESTINATION_GOOGLE_TYPES = new Set([
   "bar",
   "night_club",
   "event_venue",
+]);
+
+const GENERIC_GOOGLE_TYPES = new Set([
+  "restaurant",
+  "food",
+  "point_of_interest",
+  "establishment",
 ]);
 
 const DESTINATION_TERMS = [
@@ -191,77 +200,25 @@ function isOperationalPublicRecord(item: any): boolean {
   const dataStatus = lower(item?.data_status);
   const duplicateStatus = lower(item?.duplicate_status);
   const publicVisibilityTier = lower(item?.public_visibility_tier);
-
-  return (
-    item?.is_hidden !== true &&
-    publicVisibilityTier !== "hidden" &&
-    !["hidden", "deleted", "archived"].includes(dataStatus) &&
-    !["closed", "deleted", "archived", "hidden"].includes(status) &&
-    duplicateStatus !== "duplicate"
-  );
+  return item?.is_hidden !== true && publicVisibilityTier !== "hidden" && !["hidden", "deleted", "archived"].includes(dataStatus) && !["closed", "deleted", "archived", "hidden"].includes(status) && duplicateStatus !== "duplicate";
 }
 
 export function isWellnessActivity(item: any): boolean {
   const text = combinedItemText(item);
   const locationType = lower(item?.location_type);
-  const activityFields = normalizeSearchText([
-    item?.activity_name,
-    item?.activity_type,
-    item?.primary_category,
-    item?.category,
-    item?.tags,
-    item?.google_types,
-    item?.search_keywords,
-  ]);
-
-  const hasWellnessTerm = WELLNESS_ACTIVITY_TERMS.some((term) =>
-    text.includes(normalizeSearchText(term)),
-  );
-
+  const activityFields = normalizeSearchText([item?.activity_name,item?.activity_type,item?.primary_category,item?.category,item?.tags,item?.google_types,item?.search_keywords]);
+  const hasWellnessTerm = WELLNESS_ACTIVITY_TERMS.some((term) => text.includes(normalizeSearchText(term)));
   if (!hasWellnessTerm) return false;
-
-  return (
-    locationType === "activity" ||
-    Boolean(item?.activity_name || item?.activity_type) ||
-    WELLNESS_ACTIVITY_TERMS.some((term) =>
-      activityFields.includes(normalizeSearchText(term)),
-    )
-  );
+  return locationType === "activity" || Boolean(item?.activity_name || item?.activity_type) || WELLNESS_ACTIVITY_TERMS.some((term) => activityFields.includes(normalizeSearchText(term)));
 }
 
 export function isQualifiedWellnessActivity(item: any): boolean {
-  return (
-    isWellnessActivity(item) &&
-    isOperationalPublicRecord(item) &&
-    hasStrongRestaurantQuality(item)
-  );
+  return isWellnessActivity(item) && isOperationalPublicRecord(item) && hasStrongRestaurantQuality(item);
 }
 
 function combinedItemText(item: any): string {
   return normalizeSearchText([
-    item?.name,
-    item?.restaurant_name,
-    item?.activity_name,
-    item?.location_type,
-    item?.primary_category,
-    item?.category,
-    item?.cuisine,
-    item?.cuisine_type,
-    item?.food_type,
-    item?.activity_type,
-    item?.description,
-    item?.search_document,
-    item?.source,
-    item?.source_table,
-    item?.import_source,
-    item?.low_level_reason,
-    item?.tags,
-    item?.semantic_tags,
-    item?.vibe_tags,
-    item?.best_for_tags,
-    item?.google_types,
-    item?.google_primary_type,
-    item?.search_keywords,
+    item?.name,item?.restaurant_name,item?.activity_name,item?.location_type,item?.primary_category,item?.category,item?.cuisine,item?.cuisine_type,item?.food_type,item?.activity_type,item?.description,item?.search_document,item?.source,item?.source_table,item?.import_source,item?.low_level_reason,item?.tags,item?.semantic_tags,item?.vibe_tags,item?.best_for_tags,item?.google_types,item?.google_primary_type,item?.search_keywords,
   ]);
 }
 
@@ -282,70 +239,59 @@ function hasDineInEvidence(item: any): boolean {
 function hasDestinationEvidence(item: any): boolean {
   if (isProtected(item)) return true;
   if (readBoolean(item, "reservable", "google_reservable") === true) return true;
-  if (readBoolean(item, "goodForGroups", "good_for_groups") === true) return true;
+  if (readBoolean(item, "goodForGroups", "good_for_groups", "group_friendly") === true) return true;
   if (readBoolean(item, "outdoorSeating", "outdoor_seating") === true) return true;
   if (readBoolean(item, "liveMusic", "live_music") === true) return true;
   if (readBoolean(item, "servesCocktails", "serves_cocktails") === true) return true;
   if (readBoolean(item, "servesWine", "serves_wine") === true) return true;
-  if (typeof item?.reservation_url === "string" && item.reservation_url.trim()) return true;
-
+  for (const key of ["reservation_url", "reservation_link", "reservation_external_url", "external_reservation_url", "reservation_provider_url"]) {
+    if (typeof item?.[key] === "string" && item[key].trim()) return true;
+  }
   const googleTypes = toArray(item?.google_types).map(lower);
   if (googleTypes.some((type) => DESTINATION_GOOGLE_TYPES.has(type))) return true;
-
   const text = combinedItemText(item);
   return DESTINATION_TERMS.some((term) => text.includes(normalizeSearchText(term)));
 }
 
+function hasOnlyGenericGoogleRestaurantTypes(item: any): boolean {
+  const types = toArray(item?.google_types).map(lower).filter(Boolean);
+  if (!types.length) return false;
+  return types.includes("restaurant") && types.every((type) => GENERIC_GOOGLE_TYPES.has(type));
+}
+
 export function isStorefrontTakeoutRestaurant(item: any): boolean {
   if (!isRestaurant(item) || isProtected(item)) return false;
-
   const dineIn = readBoolean(item, "dineIn", "dine_in", "google_dine_in");
   const takeout = readBoolean(item, "takeout", "google_takeout");
   const delivery = readBoolean(item, "delivery", "google_delivery");
   const curbside = readBoolean(item, "curbsidePickup", "curbside_pickup", "google_curbside_pickup");
   const types = toArray(item?.google_types).map(lower);
   const destination = hasDestinationEvidence(item);
-
-  if (dineIn === false && (takeout === true || delivery === true || curbside === true) && !destination) {
-    return true;
-  }
+  if (dineIn === false && (takeout === true || delivery === true || curbside === true) && !destination) return true;
   if (types.some((type) => QUICK_SERVICE_GOOGLE_TYPES.has(type)) && !destination) return true;
-
   const takeawayTypeCount = types.filter((type) => TAKEAWAY_GOOGLE_TYPES.has(type)).length;
-  if (takeawayTypeCount > 0 && !hasDineInEvidence(item) && !destination) return true;
-
-  return false;
+  return takeawayTypeCount > 0 && !hasDineInEvidence(item) && !destination;
 }
 
 export function isWeakGenericRestaurant(item: any): boolean {
   if (!isRestaurant(item) || isProtected(item)) return false;
+  if (!hasOnlyGenericGoogleRestaurantTypes(item)) return false;
   if (hasDineInEvidence(item) || hasDestinationEvidence(item)) return false;
-
   const rating = Number(item?.rating ?? item?.google_rating ?? 0);
   const reviews = Number(item?.review_count ?? item?.google_user_rating_count ?? 0);
-  if (!Number.isFinite(rating) || !Number.isFinite(reviews) || rating <= 0 || reviews < 25) return false;
+  return Number.isFinite(rating) && Number.isFinite(reviews) && rating > 0 && rating < 4.2 && reviews >= 25;
+}
 
-  // Generic restaurant records below the normal discovery quality floor are
-  // weak outing candidates even when Google has many reviews. This catches
-  // storefront/takeout businesses that Google exposes only as "restaurant".
-  return rating < 4.2;
+export function isQuickBiteSearchCandidate(item: any): boolean {
+  return isStorefrontTakeoutRestaurant(item) || isWeakGenericRestaurant(item);
 }
 
 function hasLowLevelTermSignal(item: any): boolean {
   const itemText = combinedItemText(item);
-  const matches = LOW_LEVEL_TERMS.filter((term) =>
-    itemText.includes(normalizeSearchText(term)),
-  );
+  const matches = LOW_LEVEL_TERMS.filter((term) => itemText.includes(normalizeSearchText(term)));
   if (!matches.length) return false;
-
-  const identityMatches = matches.filter(
-    (term) => !LOW_LEVEL_SERVICE_CAPABILITY_TERMS.has(term),
-  );
+  const identityMatches = matches.filter((term) => !LOW_LEVEL_SERVICE_CAPABILITY_TERMS.has(term));
   if (identityMatches.length) return true;
-
-  // A normal full-service restaurant can legitimately offer takeout/carryout.
-  // Treat those words as service capabilities rather than low-level identity
-  // when the record is clearly dine-in or has already passed curated quality.
   const trustedFullService = hasDineInEvidence(item) || (isProtected(item) && hasStrongRestaurantQuality(item));
   return !trustedFullService;
 }
@@ -364,8 +310,6 @@ export function isLowLevelLocation(item: any): boolean {
   if (["low_level", "hidden"].includes(lower(item.public_visibility_tier))) return true;
   if (UNVERIFIED_SOURCE_QUALITY.has(lower(item.source_quality_status))) return true;
   if (lower(item.import_confidence) === "low") return true;
-  if (isStorefrontTakeoutRestaurant(item)) return true;
-  if (isWeakGenericRestaurant(item)) return true;
   if (hasLowLevelTermSignal(item)) return true;
   if (!hasPublicPhoto(item)) return true;
   return isUnverifiedNycRestaurant(item);
@@ -381,10 +325,10 @@ function exactLowLevelIntentMatches(item: any, input: string): boolean {
 }
 
 export function applyLowLevelPenalty(score: number, item: any, input: string): number {
-  const allow = userExplicitlyAskedForLowLevel(input);
+  const allowQuickBite = userExplicitlyAskedForLowLevel(input);
   let adjusted = score;
-
-  if (!allow) {
+  if (!allowQuickBite) {
+    if (isQuickBiteSearchCandidate(item)) adjusted -= 900;
     if (isLowLevelLocation(item)) adjusted -= 1000;
     if (isUnverifiedNycRestaurant(item)) adjusted -= 1200;
     if (!hasPublicPhoto(item)) adjusted -= 800;
@@ -392,7 +336,7 @@ export function applyLowLevelPenalty(score: number, item: any, input: string): n
     if (["hidden", "low_level"].includes(lower(item?.public_visibility_tier))) adjusted -= 700;
     return adjusted;
   }
-
+  if (isQuickBiteSearchCandidate(item)) adjusted += 175;
   if (!hasPublicPhoto(item)) adjusted -= 300;
   if (exactLowLevelIntentMatches(item, input)) adjusted += 200;
   return adjusted;
