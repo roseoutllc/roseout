@@ -5,12 +5,16 @@ import {
   getPhotoStatus,
 } from "@/lib/location-growth/photoDetection";
 import {
-  calculateLocationQuality as sharedCalculateLocationQuality,
   cleanText,
   normalizePhone,
   nullIfEmpty,
   removeDuplicatedCityStateZipFromAddress,
 } from "@/lib/location-growth/shared";
+import {
+  calculateLocationQuality as weightedCalculateLocationQuality,
+  qualitySearchAdjustment,
+  qualityTierForScore,
+} from "@/lib/location-quality-score";
 
 export function cleanLocationRow(row: any) {
   const name =
@@ -53,12 +57,13 @@ export function cleanLocationRow(row: any) {
 }
 
 export function calculateLocationQuality(row: any) {
-  return sharedCalculateLocationQuality(row);
+  return weightedCalculateLocationQuality(row);
 }
 
 export function buildLocationCleanupUpdates(row: any) {
   const cleaned = cleanLocationRow(row);
   const qualityScore = calculateLocationQuality(cleaned);
+  const qualityTier = qualityTierForScore(qualityScore);
   const hasPhotos = hasLocationPhoto(cleaned);
   const photoStatus = getPhotoStatus(cleaned);
   const chain = detectChainBrand(
@@ -67,24 +72,32 @@ export function buildLocationCleanupUpdates(row: any) {
     ),
   );
   const qualityStatus =
-    qualityScore >= 75 && !hasPhotos
+    !hasPhotos
       ? "needs_photo"
-      : qualityScore >= 75
+      : qualityScore >= 50
         ? "publish_ready"
-        : qualityScore >= 55
-          ? "review"
-          : "reject";
+        : "review";
   const hasAddress = Boolean(cleanText(cleaned.address));
   const hasCoordinates = cleaned.latitude != null && cleaned.longitude != null;
   const hasCategory = Boolean(cleanText(cleaned.primary_category));
   const isDuplicate = cleaned.duplicate_status === "duplicate";
+  const standardVisibility = !cleaned.is_hidden && !cleaned.is_low_level && !["hidden", "low_level", "internal", "pending_review", "rejected"].includes(String(cleaned.public_visibility_tier || "standard").toLowerCase());
+  const trustedSource = !["imported_unverified", "low_level_review", "needs_enrichment"].includes(String(cleaned.source_quality_status || "").toLowerCase());
+  const acceptableConfidence = String(cleaned.import_confidence || "").toLowerCase() !== "low";
   const isSearchable =
-    qualityScore >= 75 &&
+    qualityScore >= 50 &&
     hasPhotos &&
     hasAddress &&
     hasCoordinates &&
     hasCategory &&
-    !isDuplicate;
+    !isDuplicate &&
+    standardVisibility &&
+    trustedSource &&
+    acceptableConfidence;
+
+  const existingBoost = Number(cleaned.search_boost ?? 0);
+  const qualityAdjustment = qualitySearchAdjustment(qualityScore);
+  const chainAdjustment = chain.isChain ? -25 : 0;
 
   return {
     name: cleaned.name,
@@ -99,6 +112,7 @@ export function buildLocationCleanupUpdates(row: any) {
     normalized_phone: normalizePhone(cleaned.phone),
     quality_score: qualityScore,
     quality_status: qualityStatus,
+    ranking_badge: qualityTier,
     is_searchable: isSearchable,
     has_photos: hasPhotos,
     photo_status: photoStatus,
@@ -109,10 +123,11 @@ export function buildLocationCleanupUpdates(row: any) {
       ? "utility"
       : cleaned.curation_tier || "standard",
     date_score: chain.isChain ? 20 : (cleaned.date_score ?? 50),
-    search_boost: chain.isChain ? -25 : (cleaned.search_boost ?? 0),
+    search_boost: existingBoost + qualityAdjustment + chainAdjustment,
     ...(chain.isChain ? { is_featured: false } : {}),
-    data_status: qualityStatus === "publish_ready" ? "clean" : "needs_review",
+    data_status: isSearchable ? "clean" : "needs_review",
     last_cleaned_at: new Date().toISOString(),
     last_quality_check_at: new Date().toISOString(),
+    last_ranked_at: new Date().toISOString(),
   };
 }
