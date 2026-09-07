@@ -17,6 +17,16 @@ export type GoogleDiscoveryQualityInput = {
   hasWebsite: boolean;
   hasHours: boolean;
   hasLocation: boolean;
+  dineIn?: boolean | null;
+  takeout?: boolean | null;
+  delivery?: boolean | null;
+  curbsidePickup?: boolean | null;
+  reservable?: boolean | null;
+  goodForGroups?: boolean | null;
+  outdoorSeating?: boolean | null;
+  liveMusic?: boolean | null;
+  servesCocktails?: boolean | null;
+  servesWine?: boolean | null;
 };
 
 export type GoogleDiscoveryQualityResult = {
@@ -40,6 +50,25 @@ const QUICK_SERVICE_TYPES = new Set([
   "meal_delivery",
   "food_delivery",
   "pizza_delivery",
+]);
+
+const TAKEAWAY_TYPES = new Set([
+  "meal_takeaway",
+  "sandwich_shop",
+  "hamburger_restaurant",
+  "pizza_restaurant",
+]);
+
+const DESTINATION_TYPES = new Set([
+  "fine_dining_restaurant",
+  "steak_house",
+  "seafood_restaurant",
+  "sushi_restaurant",
+  "wine_bar",
+  "cocktail_bar",
+  "bar",
+  "night_club",
+  "event_venue",
 ]);
 
 const QUICK_SERVICE_NAME_TERMS = [
@@ -109,28 +138,36 @@ function normalize(value: unknown) {
     .trim();
 }
 
-export function isQuickServiceDiscoveryCandidate(input: Pick<GoogleDiscoveryQualityInput, "name" | "types">) {
+function hasStructuredDestinationSignal(input: GoogleDiscoveryQualityInput) {
+  return Boolean(
+    input.dineIn === true ||
+      input.reservable === true ||
+      input.goodForGroups === true ||
+      input.outdoorSeating === true ||
+      input.liveMusic === true ||
+      input.servesCocktails === true ||
+      input.servesWine === true,
+  );
+}
+
+function hasDestinationType(types: string[]) {
+  return types.some((type) => DESTINATION_TYPES.has(type));
+}
+
+export function isQuickServiceDiscoveryCandidate(input: Pick<GoogleDiscoveryQualityInput, "name" | "types" | "dineIn" | "takeout" | "delivery" | "curbsidePickup" | "reservable" | "goodForGroups" | "outdoorSeating" | "liveMusic" | "servesCocktails" | "servesWine">) {
   const types = (input.types || []).map((type) => String(type).toLowerCase());
-  if (types.some((type) => QUICK_SERVICE_TYPES.has(type))) return true;
+  const destination = hasStructuredDestinationSignal(input as GoogleDiscoveryQualityInput) || hasDestinationType(types);
+
+  if (input.dineIn === false && (input.takeout === true || input.delivery === true || input.curbsidePickup === true) && !destination) {
+    return true;
+  }
+
+  if (types.some((type) => QUICK_SERVICE_TYPES.has(type)) && !destination) return true;
 
   const text = normalize(input.name);
   const quickName = QUICK_SERVICE_NAME_TERMS.some((term) => text.includes(term));
-  const takeawaySignals = types.filter((type) =>
-    ["meal_takeaway", "sandwich_shop", "hamburger_restaurant", "pizza_restaurant"].includes(type),
-  ).length;
-  const destinationSignals = types.some((type) =>
-    [
-      "fine_dining_restaurant",
-      "steak_house",
-      "seafood_restaurant",
-      "sushi_restaurant",
-      "wine_bar",
-      "cocktail_bar",
-      "event_venue",
-    ].includes(type),
-  );
-
-  return quickName && takeawaySignals > 0 && !destinationSignals;
+  const takeawaySignals = types.filter((type) => TAKEAWAY_TYPES.has(type)).length;
+  return quickName && takeawaySignals > 0 && !destination;
 }
 
 export function calculateOutingFitScore(input: GoogleDiscoveryQualityInput) {
@@ -158,6 +195,33 @@ export function calculateOutingFitScore(input: GoogleDiscoveryQualityInput) {
   } else if ((input.types || []).some((type) => type.includes("restaurant"))) {
     score += 5;
     reasons.push("full_service_food");
+  }
+
+  if (input.kind === "restaurant") {
+    if (input.dineIn === true) {
+      score += 7;
+      reasons.push("dine_in");
+    }
+    if (input.reservable === true) {
+      score += 8;
+      reasons.push("reservable");
+    }
+    if (input.goodForGroups === true) {
+      score += 4;
+      reasons.push("group_friendly");
+    }
+    if (input.outdoorSeating === true) {
+      score += 3;
+      reasons.push("outdoor_seating");
+    }
+    if (input.liveMusic === true) {
+      score += 8;
+      reasons.push("live_music");
+    }
+    if (input.servesCocktails === true || input.servesWine === true) {
+      score += 4;
+      reasons.push("drinks_service");
+    }
   }
 
   return { score: clamp(score, 0, 50), reasons: Array.from(new Set(reasons)) };
@@ -288,6 +352,7 @@ export function evaluateGoogleDiscoveryCandidate(
     if (!input.hasWebsite) reasons.push("needs_website");
     if (!input.hasHours) reasons.push("needs_hours");
     if (hiddenGem) reasons.push("subjective_hidden_gem_requires_review");
+    if (input.kind === "restaurant" && outing.score < 8) reasons.push("weak_outing_evidence");
     reasons.push("curated_manual_review");
     return {
       decision: "review",
