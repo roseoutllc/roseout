@@ -432,12 +432,17 @@ export function normalizePublicLocationPhotosFromRecord(
   ]);
 
   const placeId = googlePlaceId(location);
-  if (existing.length > 0) return existing.slice(0, 5);
+  if (!placeId || existing.length >= 5) return existing.slice(0, 5);
 
-  // Do not eagerly expose Google gallery slots. The public surfaces get one primary
-  // photo only; gallery slots 2-5 are requested lazily on the location profile.
-  const primaryGooglePhoto = placeId ? googlePhotoSlotUrl(placeId, 0, 1200) : null;
-  return dedupeLocationPhotos([primaryGooglePhoto]).slice(0, 1);
+  const startIndex = existing.length > 0 ? existing.length : 0;
+  const googleSlots = Array.from({ length: Math.max(0, 5 - startIndex) }, (_, offset) =>
+    googlePhotoSlotUrl(placeId, startIndex + offset, 1200),
+  ).filter((value): value is string => Boolean(value));
+
+  // Existing/stored photos stay first. Google fills only missing positions. Slot 0
+  // is the primary fallback; slots 1-4 are availability-checked and lazy-loaded by
+  // SafeLocationImage, so new imports pay for one photo until gallery demand exists.
+  return dedupeLocationPhotos([...existing, ...googleSlots]).slice(0, 5);
 }
 
 export function getLazyGooglePhotoSlots(
