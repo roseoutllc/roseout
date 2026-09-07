@@ -80,6 +80,16 @@ function venueHost(value: URL) {
   return value.hostname.toLowerCase().replace(/^www\./, "");
 }
 
+function isGenericProviderAsset(url: URL) {
+  const host = venueHost(url);
+  const path = url.pathname.toLowerCase();
+  if (host === "waiver.roller.app") return true;
+  if (path.endsWith(".js")) return true;
+  if (path === "/pluginjs" || path === "/pluginjs/") return true;
+  if (path.includes("/javascripts/")) return true;
+  return false;
+}
+
 export function isNonCrawlableWebsite(value: string) {
   const normalized = normalizeUrl(value);
   if (!normalized) return false;
@@ -115,6 +125,7 @@ export function reservationMatch(candidate: string): ReservationMatch | null {
       return finishReservationMatch(url, "Toast");
     }
     if (host === "toasttab.com" || host.endsWith(".toasttab.com")) return null;
+    if (isGenericProviderAsset(url)) return null;
     for (const [providerHost, provider] of RESERVATION_PROVIDERS) {
       if (host === providerHost || host.endsWith(`.${providerHost}`)) return finishReservationMatch(url, provider);
     }
