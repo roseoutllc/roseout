@@ -77,4 +77,10 @@ describe("admin service-role boundary", () => {
     expect(rateLimitIndex).toBeGreaterThan(-1);
     expect(formDataIndex).toBeGreaterThan(rateLimitIndex);
   });
+
+  it("never treats a client-writable impersonation cookie as an authenticated user id", () => {
+    const source = fs.readFileSync(path.join(process.cwd(), "lib/getCurrentUserId.ts"), "utf8");
+    expect(source).not.toContain("theouthaven_impersonate_user_id");
+    expect(source).toContain("supabase.auth.getUser()");
+  });
 });
