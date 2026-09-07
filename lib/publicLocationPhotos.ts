@@ -3,6 +3,7 @@ import {
   dedupePhotoUrls,
   extractPhotoValues,
   getPhotoDedupeKey,
+  getLazyGooglePhotoSlots,
   isLikelyValidImageUrl,
   normalizePhotoUrl,
   normalizePublicLocationPhotosFromRecord as normalizeBase,
@@ -14,6 +15,7 @@ export {
   dedupeLocationPhotos,
   extractPhotoValues,
   getPhotoDedupeKey,
+  getLazyGooglePhotoSlots,
   isLikelyValidImageUrl,
   normalizePhotoUrl,
 };

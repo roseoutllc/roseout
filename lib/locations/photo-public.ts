@@ -432,13 +432,33 @@ export function normalizePublicLocationPhotosFromRecord(
   ]);
 
   const placeId = googlePlaceId(location);
-  const googleSlots = placeId
-    ? Array.from({ length: 5 }, (_, index) => googlePhotoSlotUrl(placeId, index, 1200)).filter(Boolean)
-    : [];
+  if (!placeId || existing.length >= 5) return existing.slice(0, 5);
 
-  // Owner-controlled and stable TheOutHaven photos remain first. Google only fills
-  // the missing positions up to the public five-photo profile mosaic.
-  return dedupeLocationPhotos([...ownerPhotos, ...existing, ...googleSlots]).slice(0, 5);
+  const startIndex = existing.length > 0 ? existing.length : 0;
+  const googleSlots = Array.from({ length: Math.max(0, 5 - startIndex) }, (_, offset) =>
+    googlePhotoSlotUrl(placeId, startIndex + offset, 1200),
+  ).filter((value): value is string => Boolean(value));
+
+  // Existing/stored photos stay first. Google fills only missing positions. Slot 0
+  // is the primary fallback; slots 1-4 are availability-checked and lazy-loaded by
+  // SafeLocationImage, so new imports pay for one photo until gallery demand exists.
+  return dedupeLocationPhotos([...existing, ...googleSlots]).slice(0, 5);
+}
+
+export function getLazyGooglePhotoSlots(
+  location: PublicLocationPhotoRecord | null,
+  maxPhotos = 5,
+  startIndex = 1,
+) {
+  const placeId = googlePlaceId(location);
+  if (!placeId) return [];
+  const limit = Math.max(1, Math.min(5, Math.floor(Number(maxPhotos) || 5)));
+  const start = Math.max(1, Math.min(5, Math.floor(Number(startIndex) || 1)));
+  // Slot zero is reserved for the primary image. Existing photos consume the first
+  // positions, so only the missing Google slots are considered for lazy loading.
+  return Array.from({ length: Math.max(0, limit - start) }, (_, offset) =>
+    googlePhotoSlotUrl(placeId, start + offset, 1200),
+  ).filter((value): value is string => Boolean(value));
 }
 
 export function getBestLocationImage(record: unknown): string | null {
