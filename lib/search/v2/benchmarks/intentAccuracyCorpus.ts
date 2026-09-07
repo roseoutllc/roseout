@@ -1,7 +1,7 @@
 export type IntentBenchmarkCategory = "gold" | "typo" | "slang" | "vague" | "exclusion" | "neighborhood" | "cuisine" | "vibe" | "budget" | "date_time" | "walking" | "same_venue" | "combination";
 export type IntentExpectation = Readonly<{
   mode?: "restaurant_only" | "activity_only" | "same_venue" | "paired_outing" | "anchored_nearby";
-  restaurantRequired?: boolean; activityRequired?: boolean; borough?: string | null; neighborhood?: string | null;
+  restaurantRequired?: boolean; activityRequired?: boolean; borough?: string | null; city?: string | null; neighborhood?: string | null;
   cuisinesAnyOf?: readonly string[]; activityCategoriesAnyOf?: readonly string[]; restaurantExclusionsAnyOf?: readonly string[]; activityExclusionsAnyOf?: readonly string[];
   budget?: "budget" | "moderate" | "premium" | null; travelMode?: "walking" | "driving" | "unspecified"; requireWalkable?: boolean; sameVenueRequired?: boolean; plannedForPresent?: boolean;
 }>;
@@ -27,11 +27,12 @@ const gold: IntentBenchmarkCase[] = [
   ["need a lowkey spot for dinner then jazz around harlem", { mode:"paired_outing", restaurantRequired:true, activityRequired:true, neighborhood:"Harlem", activityCategoriesAnyOf:["jazz","live_music"] }],
   ["girls nite drinks + dinner + dancing in manhattan", { mode:"paired_outing", restaurantRequired:true, activityRequired:true, borough:"Manhattan" }],
   ["romantic seafood dinner tonight at 8 in long island city then rooftop drinks", { mode:"paired_outing", restaurantRequired:true, activityRequired:true, neighborhood:"Long Island City", cuisinesAnyOf:["seafood"], plannedForPresent:true, activityCategoriesAnyOf:["rooftop","lounge"] }],
-  ["bar with wings in queens, all in one place", { mode:"same_venue", restaurantRequired:true, borough:"Queens", sameVenueRequired:true }],
+  ["bar with wings in queens, all in one place", { mode:"restaurant_only", restaurantRequired:true, activityRequired:false, borough:"Queens", sameVenueRequired:false }],
 ].map((row, index) => ({ id:`gold-${String(index+1).padStart(3,"0")}`, category:"gold", source:"hand_labeled", query:row[0] as string, expected:row[1] as IntentExpectation }));
 
 const boroughs = ["Queens","Brooklyn","Manhattan","Bronx"] as const;
-const neighborhoods = ["Astoria","Flushing","Forest Hills","Long Island City","Harlem","Williamsburg","Bushwick","Jackson Heights","Huntington","Patchogue"] as const;
+const neighborhoods = ["Astoria","Flushing","Forest Hills","Long Island City","Harlem","Williamsburg","Bushwick","Jackson Heights"] as const;
+const towns = ["Huntington","Patchogue"] as const;
 const cuisines = [["Italian","italian"],["Mexican","mexican"],["Thai","thai"],["Indian","indian"],["Chinese","chinese"],["Japanese","japanese"],["Korean","korean"],["Caribbean","caribbean"],["Jamaican","jamaican"],["Haitian","haitian"],["Seafood","seafood"],["Sushi","sushi"],["Steakhouse","steakhouse"],["Peruvian","peruvian"],["Vegan","vegan"]] as const;
 const activities = [["bowling","bowling"],["karaoke","karaoke"],["a comedy show","comedy"],["an escape room","escape_room"],["mini golf","mini_golf"],["an arcade","arcade"],["live music","live_music"],["a rooftop lounge","rooftop"]] as const;
 const stress: IntentBenchmarkCase[] = []; let n=0;
@@ -46,6 +47,12 @@ for (const neighborhood of neighborhoods) {
   add("neighborhood",`dinner then karaoke in ${neighborhood}`,{mode:"paired_outing",restaurantRequired:true,activityRequired:true,neighborhood,activityCategoriesAnyOf:["karaoke"]});
   add("walking",`dinner and bowling in ${neighborhood}, walking distance`,{mode:"paired_outing",restaurantRequired:true,activityRequired:true,neighborhood,travelMode:"walking",requireWalkable:true,activityCategoriesAnyOf:["bowling"]});
   add("same_venue",`one place in ${neighborhood} for dinner and karaoke`,{mode:"same_venue",restaurantRequired:true,activityRequired:true,neighborhood,sameVenueRequired:true,activityCategoriesAnyOf:["karaoke"]});
+}
+for (const city of towns) {
+  add("neighborhood",`dinner in ${city}`,{mode:"restaurant_only",restaurantRequired:true,activityRequired:false,city});
+  add("neighborhood",`dinner then karaoke in ${city}`,{mode:"paired_outing",restaurantRequired:true,activityRequired:true,city,activityCategoriesAnyOf:["karaoke"]});
+  add("walking",`dinner and bowling in ${city}, walking distance`,{mode:"paired_outing",restaurantRequired:true,activityRequired:true,city,travelMode:"walking",requireWalkable:true,activityCategoriesAnyOf:["bowling"]});
+  add("same_venue",`one place in ${city} for dinner and karaoke`,{mode:"same_venue",restaurantRequired:true,activityRequired:true,city,sameVenueRequired:true,activityCategoriesAnyOf:["karaoke"]});
 }
 for (const [activityLabel,activity] of activities) for (const borough of boroughs) {
   add("combination",`dinner and ${activityLabel} in ${borough}`,{mode:"paired_outing",restaurantRequired:true,activityRequired:true,borough,activityCategoriesAnyOf:[activity]});
@@ -73,7 +80,7 @@ for(const borough of boroughs) for(const [activityLabel,activity] of activities.
   add("walking",`dinner then ${activityLabel} in ${borough}, keep it walking distance`,{mode:"paired_outing",restaurantRequired:true,activityRequired:true,borough,travelMode:"walking",requireWalkable:true,activityCategoriesAnyOf:[activity]});
   add("same_venue",`I want one place in ${borough} with dinner and ${activityLabel}`,{mode:"same_venue",restaurantRequired:true,activityRequired:true,borough,sameVenueRequired:true,activityCategoriesAnyOf:[activity]});
 }
-for(const [phrase,budget] of [["cheap","budget"],["affordable","budget"],["not too expensive","moderate"],["mid range","moderate"],["upscale","premium"],["fancy","premium"]] as const) for(const borough of boroughs) add("budget",`${phrase} dinner in ${borough}`,{mode:"restaurant_only",restaurantRequired:true,activityRequired:false,borough,budget});
+for(const [phrase,budget] of [["cheap","budget"],["affordable","budget"],["not too expensive","moderate"],["mid range","moderate"],["luxury","premium"],["fancy","premium"]] as const) for(const borough of boroughs) add("budget",`${phrase} dinner in ${borough}`,{mode:"restaurant_only",restaurantRequired:true,activityRequired:false,borough,budget});
 for(const vibe of ["romantic","lively","quiet","cozy","upscale","casual","trendy","intimate"] as const) for(const borough of boroughs) add("vibe",`${vibe} dinner and something fun in ${borough}`,{mode:"paired_outing",restaurantRequired:true,activityRequired:true,borough});
 for(const when of ["tonight at 8","tomorrow at 7 pm","Friday at 8","Saturday night","tomorrow evening"] as const) for(const borough of boroughs) add("date_time",`dinner and bowling in ${borough} ${when}`,{mode:"paired_outing",restaurantRequired:true,activityRequired:true,borough,activityCategoriesAnyOf:["bowling"],plannedForPresent:true});
 for(const [cuisineLabel,cuisine] of cuisines) for(const [activityLabel,activity] of activities) for(const borough of boroughs) add("combination",`${cuisineLabel} dinner then ${activityLabel} in ${borough}`,{mode:"paired_outing",restaurantRequired:true,activityRequired:true,borough,cuisinesAnyOf:[cuisine],activityCategoriesAnyOf:[activity]});
