@@ -467,9 +467,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ received: true, action: conciergeResult.action || "concierge_edge_handled" });
       }
 
+      await sendConciergeSms({
+        to: from,
+        body: "I’m not completely sure what you mean yet. Are you asking for outing ideas, information about a place, directions or hours, help with a booking, or something else? Tell me a little more and I’ll keep going.",
+      });
       await supabaseAdmin.from("sms_logs").insert({
         customer_phone: from,
-        message_type: "incoming_concierge_unmatched",
+        message_type: "incoming_concierge_clarification",
         message_body: rawText,
         provider: "telnyx",
         provider_message_id: providerMessageId,
@@ -477,7 +481,7 @@ export async function POST(req: Request) {
         created_at: new Date().toISOString(),
         metadata: conciergeResult.error ? { edge_router_error: conciergeResult.error } : { routed_by: "concierge-router" },
       });
-      return NextResponse.json({ received: true, action: "concierge_unmatched" });
+      return NextResponse.json({ received: true, action: "concierge_clarification_sent" });
     }
 
     if (channel === "support") {
@@ -500,11 +504,17 @@ export async function POST(req: Request) {
     if (isCrmMainNumber) {
       const crmRoute = await routeInboundCrmSms({ from, to, body: rawText, eventId, providerMessageId });
       if (firstDelivery && text === "HELP") await sendCrmSms({ to: from, body: "TheOutHaven CRM: reply naturally with a question or update and we’ll keep it with your conversation. For support, just say what you need and I’ll route it. Reply STOP to stop CRM messages." });
+      if (firstDelivery && text !== "HELP" && !crmRoute?.matched) {
+        await sendCrmSms({
+          to: from,
+          body: "I received that, but I’m not sure which conversation or request it belongs to yet. Can you tell me what you’re following up about, the business or person involved, or what you need us to do next?",
+        });
+      }
       if (firstDelivery) {
         await supabaseAdmin.from("sms_logs").insert({
           location_id: crmRoute?.locationId || null,
           customer_phone: from,
-          message_type: crmRoute?.matched ? "incoming_crm_message" : "incoming_crm_unmatched",
+          message_type: crmRoute?.matched ? "incoming_crm_message" : "incoming_crm_clarification",
           message_body: rawText,
           provider: "telnyx",
           provider_message_id: providerMessageId,
@@ -515,7 +525,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         received: true,
         duplicate: !firstDelivery,
-        action: text === "HELP" ? "crm_help" : "crm_message_received",
+        action: text === "HELP" ? "crm_help" : crmRoute?.matched ? "crm_message_received" : "crm_clarification_sent",
         routing: crmRoute?.matched ? "matched" : "unmatched",
         conversationId: crmRoute?.conversationId || null,
       });
@@ -528,14 +538,18 @@ export async function POST(req: Request) {
       }
       await supabaseAdmin.from("sms_logs").insert({
         customer_phone: from,
-        message_type: "incoming_marketing_message",
+        message_type: "incoming_marketing_clarification",
         message_body: rawText,
         provider: "telnyx",
         provider_message_id: providerMessageId,
         status: "received",
         created_at: new Date().toISOString(),
       });
-      return NextResponse.json({ received: true, action: "marketing_message_recorded" });
+      await sendMarketingSms({
+        to: from,
+        body: "I got your reply, but I’m not sure what you need yet. Is this about a reservation, support issue, outing recommendation, or one of our updates? Tell me a little more and I’ll route it for you.",
+      });
+      return NextResponse.json({ received: true, action: "marketing_clarification_sent" });
     }
 
     if (channel === "reservations") {
