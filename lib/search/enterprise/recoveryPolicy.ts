@@ -25,6 +25,7 @@ export type PairRecoveryPlan = {
 };
 
 const TARGET_VIABLE_CANDIDATES = 3;
+const DEFAULT_UNCONSTRAINED_PAIR_RECOVERY_MILES = 6;
 
 export function decideLaneRecovery(
   snapshot: ViabilitySnapshot,
@@ -154,15 +155,17 @@ export function planPairRecovery(args: {
     centerOn = "restaurant";
   }
 
+  const requestedPairLimit = Number(args.maxPairDistanceMiles ?? 0);
+  const recoveryPairLimit = requestedPairLimit > 0
+    ? requestedPairLimit
+    : DEFAULT_UNCONSTRAINED_PAIR_RECOVERY_MILES;
+
   return {
     shouldRecover: true,
     lane,
     centerOn,
     radiusMiles: Math.max(Number(args.radiusMiles ?? 0), 12),
-    maxPairDistanceMiles: Math.max(
-      Number(args.maxPairDistanceMiles ?? 0),
-      3,
-    ),
+    maxPairDistanceMiles: recoveryPairLimit,
     reason: "valid_lanes_but_no_pair_after_primary_pairing",
   };
 }
