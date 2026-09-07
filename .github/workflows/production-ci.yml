@@ -76,6 +76,9 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Security access regressions
+        run: npm run test:security-access
+
       - name: Core search intent regression
         run: npm test
 
