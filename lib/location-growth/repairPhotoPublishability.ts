@@ -29,8 +29,10 @@ function isDuplicate(row: LocationLike) {
 function hasCompletedEnrichment(row: LocationLike) {
   const source = lower(row.import_source || row.source || row.source_table);
   const isNyc = source.includes("nyc") || source.includes("open_data") || source.includes("opendata");
-  const enrichmentComplete = ["completed", "enriched"].includes(lower(row.enrichment_status)) || Boolean(row.last_enriched_at);
-  const googleEvidence = Boolean(row.google_place_id) && Number(row.rating || 0) > 0 && Number(row.review_count || 0) > 0;
+  const legacyComplete = ["completed", "enriched"].includes(lower(row.enrichment_status)) || Boolean(row.last_enriched_at);
+  const googleComplete = ["approved", "completed", "enriched"].includes(lower(row.google_enrichment_status));
+  const enrichmentComplete = legacyComplete || googleComplete;
+  const googleEvidence = Boolean(row.google_place_id) && Number(row.rating || row.google_rating || 0) > 0 && Number(row.review_count || row.google_user_rating_count || 0) > 0;
   return isNyc && enrichmentComplete && googleEvidence && hasLocationPhoto(row);
 }
 
