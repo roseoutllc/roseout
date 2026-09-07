@@ -21,6 +21,7 @@ function scoreCase(testCase: IntentBenchmarkCase, plan: any) {
   if (e.restaurantRequired !== undefined) add("restaurantRequired", plan.restaurant?.required === e.restaurantRequired);
   if (e.activityRequired !== undefined) add("activityRequired", plan.activity?.required === e.activityRequired);
   if (e.borough !== undefined) add("borough", norm(plan.geo?.borough) === norm(e.borough));
+  if (e.city !== undefined) add("city", norm(plan.geo?.city) === norm(e.city));
   if (e.neighborhood !== undefined) add("neighborhood", norm(plan.geo?.neighborhood) === norm(e.neighborhood));
   if (e.cuisinesAnyOf?.length) add("cuisine", containsAny(plan.restaurant?.cuisines, e.cuisinesAnyOf));
   if (e.activityCategoriesAnyOf?.length) add("activityCategory", containsAny(plan.activity?.categories, e.activityCategoriesAnyOf));
