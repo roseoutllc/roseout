@@ -61,9 +61,8 @@ serve(async (req) => {
 
   const { data, error } = await supabase
     .from("locations")
-    .select("id,name,website,location_type,reservation_discovery_status,reservation_discovery_next_retry_at,external_reservation_url,reservation_external_url,reservation_url,reservation_link,booking_url,is_demo,deleted_at")
+    .select("id,name,website,location_type,reservation_discovery_status,reservation_discovery_next_retry_at,external_reservation_url,reservation_external_url,reservation_provider_url,reservation_platform_url,reservation_url,reservation_link,booking_url,is_demo,is_hidden,duplicate_status,deleted_at")
     .is("deleted_at", null)
-    .eq("is_demo", false)
     .not("website", "is", null)
     .order("reservation_discovery_next_retry_at", { ascending: true, nullsFirst: true })
     .limit(Math.max(limit * 20, 200));
@@ -72,8 +71,17 @@ serve(async (req) => {
 
   const candidates = (data || [])
     .filter((row: any) => {
-      const alreadyHasReservation = [row.external_reservation_url, row.reservation_external_url, row.reservation_url, row.reservation_link, row.booking_url]
-        .some((value) => !blank(value));
+      if (row.is_demo === true || row.is_hidden === true) return false;
+      if (String(row.duplicate_status || "").toLowerCase() === "duplicate") return false;
+      const alreadyHasReservation = [
+        row.external_reservation_url,
+        row.reservation_external_url,
+        row.reservation_provider_url,
+        row.reservation_platform_url,
+        row.reservation_url,
+        row.reservation_link,
+        row.booking_url,
+      ].some((value) => !blank(value));
       if (alreadyHasReservation || blank(row.website)) return false;
       const status = String(row.reservation_discovery_status || "");
       if (!ALLOWED_STATUSES.has(status)) return false;
