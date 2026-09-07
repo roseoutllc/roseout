@@ -232,7 +232,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const existing = await supabaseAdmin.from("event_tickets").select("public_token").eq("event_id", id).eq("attendee_email", email).neq("status", "void").order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (existing.error) return NextResponse.json({ error: "Unable to check registration" }, { status: 500 });
-  if (existing.data?.public_token) return NextResponse.json({ ticketUrl: `/tickets/${existing.data.public_token}`, existing: true });
+  if (existing.data?.public_token) {
+    // Never return an existing bearer ticket token to an unauthenticated caller
+    // who merely knows the attendee email. Re-deliver it only to that email.
+    await deliverEventTicket({
+      attendeeName: name,
+      email,
+      phone: null,
+      eventTitle: event.title,
+      startsAt: event.starts_at,
+      timezone: event.timezone || "America/New_York",
+      ticketPath: `/tickets/${existing.data.public_token}`,
+    }).catch(() => undefined);
+    return NextResponse.json({ existing: true, message: "If a ticket exists for this email, it has been sent again." });
+  }
 
   const { data: order, error: orderError } = await supabaseAdmin.from("event_ticket_orders").insert({
     event_id: id,
