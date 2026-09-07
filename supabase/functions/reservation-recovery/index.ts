@@ -29,7 +29,7 @@ serve(async (req) => {
       .eq("id", runId)
       .eq("job_key", "reservation-recovery-manual")
       .eq("source", "manual_capability")
-      .eq("status", "queued")
+      .eq("status", "started")
       .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
       .maybeSingle();
 
@@ -38,7 +38,7 @@ serve(async (req) => {
         .from("cron_job_runs")
         .update({ status: "running", started_at: new Date().toISOString(), message: "Reservation recovery run started." })
         .eq("id", runId)
-        .eq("status", "queued")
+        .eq("status", "started")
         .select("id")
         .maybeSingle();
       runAuthorized = Boolean(consumed?.id);
