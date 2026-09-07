@@ -1,9 +1,4 @@
 export const LOW_LEVEL_TERMS = [
-  "takeout",
-  "take out",
-  "take-away",
-  "takeaway",
-  "carryout",
   "delivery only",
   "deli",
   "delicatessen",
@@ -57,97 +52,21 @@ export const LOW_LEVEL_ALLOWED_QUERY_TERMS = [
   "chinese takeout",
 ];
 
-const PROTECTED_CURATION_TIERS = new Set([
-  "premium",
-  "curated",
-  "date_worthy",
-  "featured",
-  "high_value",
-]);
+const PROTECTED_CURATION_TIERS = new Set(["premium", "curated", "date_worthy", "featured", "high_value"]);
+const UNVERIFIED_SOURCE_QUALITY = new Set(["imported_unverified", "generic_restaurant", "needs_enrichment", "low_level_review"]);
+const QUICK_SERVICE_GOOGLE_TYPES = new Set(["fast_food_restaurant", "food_court", "meal_delivery", "food_delivery", "pizza_delivery"]);
+const TAKEAWAY_GOOGLE_TYPES = new Set(["meal_takeaway", "sandwich_shop", "hamburger_restaurant", "pizza_restaurant"]);
+const DESTINATION_GOOGLE_TYPES = new Set(["fine_dining_restaurant", "steak_house", "seafood_restaurant", "sushi_restaurant", "wine_bar", "cocktail_bar", "bar", "night_club", "event_venue"]);
+const GENERIC_GOOGLE_TYPES = new Set(["restaurant", "food", "point_of_interest", "establishment"]);
+const DESTINATION_TERMS = ["dine in", "reservation", "reservable", "rooftop", "waterfront", "fine dining", "tasting menu", "omakase", "private dining", "live music", "jazz", "cocktail", "wine bar", "lounge", "romantic", "date night", "birthday", "celebration", "good for groups", "outdoor seating"];
 
-const UNVERIFIED_SOURCE_QUALITY = new Set([
-  "imported_unverified",
-  "generic_restaurant",
-  "needs_enrichment",
-  "low_level_review",
-]);
-
-const LOW_LEVEL_SERVICE_CAPABILITY_TERMS = new Set([
-  "takeout",
-  "take out",
-  "take-away",
-  "takeaway",
-  "carryout",
-]);
-
-const QUICK_SERVICE_GOOGLE_TYPES = new Set([
-  "fast_food_restaurant",
-  "food_court",
-  "meal_delivery",
-  "food_delivery",
-  "pizza_delivery",
-]);
-
-const TAKEAWAY_GOOGLE_TYPES = new Set([
-  "meal_takeaway",
-  "sandwich_shop",
-  "hamburger_restaurant",
-  "pizza_restaurant",
-]);
-
-const DESTINATION_GOOGLE_TYPES = new Set([
-  "fine_dining_restaurant",
-  "steak_house",
-  "seafood_restaurant",
-  "sushi_restaurant",
-  "wine_bar",
-  "cocktail_bar",
-  "bar",
-  "night_club",
-  "event_venue",
-]);
-
-const GENERIC_GOOGLE_TYPES = new Set([
-  "restaurant",
-  "food",
-  "point_of_interest",
-  "establishment",
-]);
-
-const DESTINATION_TERMS = [
-  "dine in",
-  "reservation",
-  "reservable",
-  "rooftop",
-  "waterfront",
-  "fine dining",
-  "tasting menu",
-  "omakase",
-  "private dining",
-  "live music",
-  "jazz",
-  "cocktail",
-  "wine bar",
-  "lounge",
-  "romantic",
-  "date night",
-  "birthday",
-  "celebration",
-  "good for groups",
-  "outdoor seating",
-];
-
-function lower(value: unknown) {
-  return String(value ?? "").toLowerCase().trim();
-}
-
+function lower(value: unknown) { return String(value ?? "").toLowerCase().trim(); }
 function toArray(value: unknown): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (typeof value === "string") return value.split(",").map((item) => item.trim()).filter(Boolean);
   return [];
 }
-
 function readBoolean(item: any, ...keys: string[]): boolean | null {
   for (const key of keys) {
     if (item?.[key] === true) return true;
@@ -185,15 +104,7 @@ export function hasStrongRestaurantQuality(item: any): boolean {
   return hasPublicPhoto(item) && rating >= 4 && reviewCount >= 25;
 }
 
-export const WELLNESS_ACTIVITY_TERMS = [
-  "spa",
-  "massage",
-  "wellness",
-  "head spa",
-  "float spa",
-  "yoga spa",
-  "recovery spa",
-];
+export const WELLNESS_ACTIVITY_TERMS = ["spa", "massage", "wellness", "head spa", "float spa", "yoga spa", "recovery spa"];
 
 function isOperationalPublicRecord(item: any): boolean {
   const status = lower(item?.status);
@@ -201,6 +112,10 @@ function isOperationalPublicRecord(item: any): boolean {
   const duplicateStatus = lower(item?.duplicate_status);
   const publicVisibilityTier = lower(item?.public_visibility_tier);
   return item?.is_hidden !== true && publicVisibilityTier !== "hidden" && !["hidden", "deleted", "archived"].includes(dataStatus) && !["closed", "deleted", "archived", "hidden"].includes(status) && duplicateStatus !== "duplicate";
+}
+
+function combinedItemText(item: any): string {
+  return normalizeSearchText([item?.name,item?.restaurant_name,item?.activity_name,item?.location_type,item?.primary_category,item?.category,item?.cuisine,item?.cuisine_type,item?.food_type,item?.activity_type,item?.description,item?.search_document,item?.source,item?.source_table,item?.import_source,item?.low_level_reason,item?.tags,item?.semantic_tags,item?.vibe_tags,item?.best_for_tags,item?.google_types,item?.google_primary_type,item?.search_keywords]);
 }
 
 export function isWellnessActivity(item: any): boolean {
@@ -216,26 +131,14 @@ export function isQualifiedWellnessActivity(item: any): boolean {
   return isWellnessActivity(item) && isOperationalPublicRecord(item) && hasStrongRestaurantQuality(item);
 }
 
-function combinedItemText(item: any): string {
-  return normalizeSearchText([
-    item?.name,item?.restaurant_name,item?.activity_name,item?.location_type,item?.primary_category,item?.category,item?.cuisine,item?.cuisine_type,item?.food_type,item?.activity_type,item?.description,item?.search_document,item?.source,item?.source_table,item?.import_source,item?.low_level_reason,item?.tags,item?.semantic_tags,item?.vibe_tags,item?.best_for_tags,item?.google_types,item?.google_primary_type,item?.search_keywords,
-  ]);
-}
-
 function isProtected(item: any): boolean {
   return PROTECTED_CURATION_TIERS.has(lower(item?.curation_tier)) || ["premium", "curated"].includes(lower(item?.public_visibility_tier));
 }
-
-function isRestaurant(item: any): boolean {
-  return lower(item?.location_type) === "restaurant" || Boolean(item?.restaurant_name);
-}
-
+function isRestaurant(item: any): boolean { return lower(item?.location_type) === "restaurant" || Boolean(item?.restaurant_name); }
 function hasDineInEvidence(item: any): boolean {
-  const explicit = readBoolean(item, "dineIn", "dine_in", "google_dine_in");
-  if (explicit === true) return true;
+  if (readBoolean(item, "dineIn", "dine_in", "google_dine_in") === true) return true;
   return /(^|\s)dine\s+in(\s|$)/.test(combinedItemText(item));
 }
-
 function hasDestinationEvidence(item: any): boolean {
   if (isProtected(item)) return true;
   if (readBoolean(item, "reservable", "google_reservable") === true) return true;
@@ -252,11 +155,9 @@ function hasDestinationEvidence(item: any): boolean {
   const text = combinedItemText(item);
   return DESTINATION_TERMS.some((term) => text.includes(normalizeSearchText(term)));
 }
-
 function hasOnlyGenericGoogleRestaurantTypes(item: any): boolean {
   const types = toArray(item?.google_types).map(lower).filter(Boolean);
-  if (!types.length) return false;
-  return types.includes("restaurant") && types.every((type) => GENERIC_GOOGLE_TYPES.has(type));
+  return types.length > 0 && types.includes("restaurant") && types.every((type) => GENERIC_GOOGLE_TYPES.has(type));
 }
 
 export function isStorefrontTakeoutRestaurant(item: any): boolean {
@@ -269,13 +170,14 @@ export function isStorefrontTakeoutRestaurant(item: any): boolean {
   const destination = hasDestinationEvidence(item);
   if (dineIn === false && (takeout === true || delivery === true || curbside === true) && !destination) return true;
   if (types.some((type) => QUICK_SERVICE_GOOGLE_TYPES.has(type)) && !destination) return true;
-  const takeawayTypeCount = types.filter((type) => TAKEAWAY_GOOGLE_TYPES.has(type)).length;
-  return takeawayTypeCount > 0 && !hasDineInEvidence(item) && !destination;
+  if (types.some((type) => TAKEAWAY_GOOGLE_TYPES.has(type)) && !hasDineInEvidence(item) && !destination) return true;
+  const text = combinedItemText(item);
+  const serviceText = /(^|\s)(takeout|take out|takeaway|carryout|pickup|to go)(\s|$)/.test(text);
+  return serviceText && !hasDineInEvidence(item) && !destination;
 }
 
 export function isWeakGenericRestaurant(item: any): boolean {
-  if (!isRestaurant(item) || isProtected(item)) return false;
-  if (!hasOnlyGenericGoogleRestaurantTypes(item)) return false;
+  if (!isRestaurant(item) || isProtected(item) || !hasOnlyGenericGoogleRestaurantTypes(item)) return false;
   if (hasDineInEvidence(item) || hasDestinationEvidence(item)) return false;
   const rating = Number(item?.rating ?? item?.google_rating ?? 0);
   const reviews = Number(item?.review_count ?? item?.google_user_rating_count ?? 0);
@@ -288,12 +190,7 @@ export function isQuickBiteSearchCandidate(item: any): boolean {
 
 function hasLowLevelTermSignal(item: any): boolean {
   const itemText = combinedItemText(item);
-  const matches = LOW_LEVEL_TERMS.filter((term) => itemText.includes(normalizeSearchText(term)));
-  if (!matches.length) return false;
-  const identityMatches = matches.filter((term) => !LOW_LEVEL_SERVICE_CAPABILITY_TERMS.has(term));
-  if (identityMatches.length) return true;
-  const trustedFullService = hasDineInEvidence(item) || (isProtected(item) && hasStrongRestaurantQuality(item));
-  return !trustedFullService;
+  return LOW_LEVEL_TERMS.some((term) => itemText.includes(normalizeSearchText(term)));
 }
 
 export function isUnverifiedNycRestaurant(item: any): boolean {
