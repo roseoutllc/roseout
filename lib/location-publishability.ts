@@ -1,12 +1,17 @@
+import {
+  calculateLocationQualityBreakdown,
+  type LocationQualityTier,
+} from "@/lib/location-quality-score";
+
 export const ACTIVE_MARKET_STATES = ["NY", "NJ", "CT"] as const;
 export type ActiveMarketState = (typeof ACTIVE_MARKET_STATES)[number];
 
 export type LocationPublishabilityInput = {
-  id?: string | null; name?: string | null; restaurant_name?: string | null; activity_name?: string | null; primary_category?: string | null; category?: string | null; activity_type?: string | null; cuisine?: string | null; state?: string | null; status?: string | null; data_status?: string | null; quality_status?: string | null; source_quality_status?: string | null; import_confidence?: string | null; public_visibility_tier?: string | null; duplicate_status?: string | null; is_searchable?: boolean | null; is_hidden?: boolean | null; is_low_level?: boolean | null; has_photos?: boolean | null; photo_status?: string | null; main_image?: string | null; image_url?: string | null; images?: unknown; gallery_images?: unknown; photos?: unknown; gallery?: unknown; image_gallery?: unknown; address?: string | null; city?: string | null; latitude?: number | string | null; longitude?: number | string | null; location_type?: string | null;
+  id?: string | null; name?: string | null; restaurant_name?: string | null; activity_name?: string | null; primary_category?: string | null; category?: string | null; activity_type?: string | null; cuisine?: string | null; cuisine_type?: string | null; primary_tag?: string | null; state?: string | null; status?: string | null; data_status?: string | null; quality_status?: string | null; source_quality_status?: string | null; import_confidence?: string | null; public_visibility_tier?: string | null; duplicate_status?: string | null; is_searchable?: boolean | null; is_hidden?: boolean | null; is_low_level?: boolean | null; has_photos?: boolean | null; photo_status?: string | null; main_image?: string | null; image_url?: string | null; photo_url?: string | null; primary_photo_url?: string | null; images?: unknown; gallery_images?: unknown; photos?: unknown; gallery?: unknown; image_gallery?: unknown; photo_urls?: unknown; gallery_image_urls?: unknown; address?: string | null; formatted_address?: string | null; city?: string | null; latitude?: number | string | null; longitude?: number | string | null; location_type?: string | null; rating?: number | string | null; google_rating?: number | string | null; review_count?: number | string | null; google_user_rating_count?: number | string | null; phone?: string | null; website?: string | null; hours?: unknown; business_hours?: unknown; opening_hours?: unknown; reservation_url?: string | null; booking_url?: string | null; reserve_url?: string | null; resy_url?: string | null; opentable_url?: string | null; google_enrichment_status?: string | null; google_enriched_at?: string | null; last_enriched_at?: string | null; last_quality_check_at?: string | null; updated_at?: string | null; tags?: unknown; vibe_tags?: unknown; best_for_tags?: unknown; search_keywords?: unknown; google_types?: unknown; signature_items?: unknown; special_features?: unknown;
 };
 
 export type LocationPublishabilityResult = {
-  isSearchable: boolean; isReadyToApprove: boolean; qualityStatus: string; sourceQualityStatus: string; importConfidence: string; publicVisibilityTier: string; isHidden: boolean; isLowLevel: boolean; normalizedImages: string[]; primaryImage: string | null; reasons: string[];
+  isSearchable: boolean; isReadyToApprove: boolean; qualityScore: number; qualityTier: LocationQualityTier; qualityStatus: string; sourceQualityStatus: string; importConfidence: string; publicVisibilityTier: string; isHidden: boolean; isLowLevel: boolean; normalizedImages: string[]; primaryImage: string | null; reasons: string[];
   reviewLabel: "Ready to approve" | "Needs review" | "Needs photo" | "Low-level / hidden" | "Duplicate" | "Out of market" | "Missing required data";
 };
 
@@ -33,8 +38,8 @@ function normalizeImageValue(value: unknown): string[] {
 }
 
 export function normalizeLocationImages(location: LocationPublishabilityInput) {
-  const images = [...normalizeImageValue(location.images), ...normalizeImageValue(location.gallery_images), ...normalizeImageValue(location.photos), ...normalizeImageValue(location.gallery), ...normalizeImageValue(location.image_gallery)];
-  const primary = text(location.main_image) || text(location.image_url) || images[0] || null;
+  const images = [...normalizeImageValue(location.images), ...normalizeImageValue(location.gallery_images), ...normalizeImageValue(location.photos), ...normalizeImageValue(location.gallery), ...normalizeImageValue(location.image_gallery), ...normalizeImageValue(location.photo_urls), ...normalizeImageValue(location.gallery_image_urls)];
+  const primary = text(location.main_image) || text(location.image_url) || text(location.photo_url) || text(location.primary_photo_url) || images[0] || null;
   if (images.length === 0 && primary) images.push(primary);
   return { normalizedImages: Array.from(new Set(images)), primaryImage: primary };
 }
@@ -69,6 +74,7 @@ export function evaluateLocationPublishability(location: LocationPublishabilityI
   const { normalizedImages, primaryImage } = normalizeLocationImages(location);
   const photoStatus = lower(location.photo_status);
   const hasPhoto = Boolean(primaryImage || normalizedImages.length > 0 || location.has_photos === true || photoStatus === "has_photo");
+  const quality = calculateLocationQualityBreakdown({ ...location, images: normalizedImages, main_image: primaryImage });
 
   if (!isActiveMarketState(state)) reasons.push("Out of active market");
   if (!["approved", "active", ""].includes(status)) reasons.push(status === "rejected" || status === "closed" || status === "archived" ? `Status ${status}` : "Not approved");
@@ -87,6 +93,7 @@ export function evaluateLocationPublishability(location: LocationPublishabilityI
   if (sourceQuality === "imported_unverified") reasons.push("Imported unverified");
   if (sourceQuality === "low_level_review") reasons.push("Low-level");
   if (importConfidence === "low") reasons.push("Low import confidence");
+  if (quality.total < 50) reasons.push("Quality score below publish threshold");
 
   const eligible = reasons.length === 0;
   const isSearchable = eligible;
@@ -99,14 +106,15 @@ export function evaluateLocationPublishability(location: LocationPublishabilityI
     qualityStatus = "publish_ready"; sourceQualityStatus = "enriched"; nextImportConfidence = "high"; publicVisibilityTier = "standard";
   } else if (reasons.includes("Missing photo") || reasons.includes("Missing image")) qualityStatus = "needs_photo";
   else if (isHidden || isLowLevel || sourceQuality === "imported_unverified" || importConfidence === "low") qualityStatus = "low_level_review";
-  else if (qualityStatus === "publish_ready") qualityStatus = "needs_review";
+  else if (qualityStatus === "publish_ready" || quality.total < 50) qualityStatus = "needs_review";
   if (isHidden) publicVisibilityTier = "hidden"; else if (isLowLevel) publicVisibilityTier = "low_level";
 
   const reviewLabel = eligible && options.allowApproval ? "Ready to approve" : !isActiveMarketState(state) ? "Out of market" : duplicateStatus === "duplicate" ? "Duplicate" : (isHidden || isLowLevel || sourceQuality === "imported_unverified" || importConfidence === "low") ? "Low-level / hidden" : (!hasPhoto || !primaryImage) ? "Needs photo" : reasons.some((r) => r.startsWith("Missing") || r === "Unsupported location type") ? "Missing required data" : "Needs review";
-  return { isSearchable, isReadyToApprove: eligible, qualityStatus, sourceQualityStatus, importConfidence: nextImportConfidence, publicVisibilityTier, isHidden: isSearchable ? false : isHidden, isLowLevel: isSearchable ? false : isLowLevel, normalizedImages, primaryImage, reasons: Array.from(new Set(reasons)), reviewLabel };
+  return { isSearchable, isReadyToApprove: eligible, qualityScore: quality.total, qualityTier: quality.tier, qualityStatus, sourceQualityStatus, importConfidence: nextImportConfidence, publicVisibilityTier, isHidden: isSearchable ? false : isHidden, isLowLevel: isSearchable ? false : isLowLevel, normalizedImages, primaryImage, reasons: Array.from(new Set(reasons)), reviewLabel };
 }
 
 export function buildPublishabilityUpdate(location: LocationPublishabilityInput, options: { allowApproval?: boolean } = {}) {
   const result = evaluateLocationPublishability(location, options);
-  return { result, update: { is_searchable: result.isSearchable, quality_status: result.qualityStatus, source_quality_status: result.sourceQualityStatus, import_confidence: result.importConfidence, public_visibility_tier: result.publicVisibilityTier, is_hidden: result.isHidden, is_low_level: result.isLowLevel, images: result.normalizedImages } };
+  const now = new Date().toISOString();
+  return { result, update: { is_searchable: result.isSearchable, quality_score: result.qualityScore, quality_status: result.qualityStatus, ranking_badge: result.qualityTier, source_quality_status: result.sourceQualityStatus, import_confidence: result.importConfidence, public_visibility_tier: result.publicVisibilityTier, is_hidden: result.isHidden, is_low_level: result.isLowLevel, images: result.normalizedImages, last_quality_check_at: now, last_ranked_at: now } };
 }
