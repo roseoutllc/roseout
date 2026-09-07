@@ -97,7 +97,13 @@ jobs:
             echo 'Lost-slot reseed is allowed only while Virginia is authoritative.' >&2
             exit 1
           }
-          test "$(jq 'length' infra/aws/edge-runtime/schedules.json)" = '65'
+          schedule_count="$(jq 'length' infra/aws/edge-runtime/schedules.json)"
+          activation_count="$(jq '.enabled | length' infra/aws/edge-runtime/activation.json)"
+          test "$schedule_count" -gt 0
+          test "$schedule_count" = "$activation_count" || {
+            echo "Schedule manifest/activation mismatch: schedules=$schedule_count activation=$activation_count" >&2
+            exit 1
+          }
           while IFS= read -r name; do
             test "$(aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$name" --query State --output text)" = 'ENABLED' || {
               echo "Base production schedule is not enabled: $name" >&2
