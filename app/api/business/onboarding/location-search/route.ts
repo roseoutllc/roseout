@@ -15,7 +15,7 @@ const LOCATION_SELECT =
 export async function GET(request: NextRequest) {
   const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const clientKey = forwardedFor || request.headers.get("x-real-ip") || "unknown";
-  const rateLimit = enforceRateLimit(`business-location-search:${clientKey}`, 60, 60_000);
+  const rateLimit = await enforceRateLimit(`business-location-search:${clientKey}`, 60, 60_000);
 
   if (!rateLimit.ok) {
     return NextResponse.json(
