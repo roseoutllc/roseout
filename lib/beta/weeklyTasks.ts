@@ -79,14 +79,14 @@ const rotating: Record<string, string[]> = {
     "/admin/dashboard/beta",
     "/admin/dashboard/beta?tab=search-speed",
     "/admin/dashboard/search-health",
-    "/admin/dashboard/import",
+    "/admin/dashboard/settings/location-tools/import",
     "/admin/dashboard/logs",
   ],
   superadmin: [
     "/admin/dashboard/beta",
     "/admin/dashboard/beta?tab=search-speed",
     "/admin/dashboard/search-health",
-    "/admin/dashboard/import",
+    "/admin/dashboard/settings/location-tools/import",
     "/admin/dashboard/logs",
   ],
 };

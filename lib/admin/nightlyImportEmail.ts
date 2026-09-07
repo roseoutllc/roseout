@@ -143,7 +143,7 @@ async function sendAdminHtmlEmail({ to, from, subject, html, text }: { to: strin
 
 export async function sendCronImportSummaryEmail({ success, cronName = "Cron Imports", startedAt, finishedAt, durationMs, steps }: { success: boolean; cronName?: string; startedAt: string; finishedAt: string; durationMs: number; steps: CronImportStep[] }) {
   const { to, from, siteUrl } = getAdminEmailConfig();
-  const importDashboardUrl = `${siteUrl}/admin/dashboard/import`;
+  const importDashboardUrl = `${siteUrl}/admin/dashboard/settings/location-tools/import`;
   const totals = buildTotals(steps);
   const totalJobs = steps.length;
   const successfulJobs = steps.filter((step) => step.ok).length;
