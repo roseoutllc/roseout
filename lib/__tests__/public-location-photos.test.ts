@@ -29,20 +29,21 @@ describe("public location photo dedupe", () => {
     expect(photos).toHaveLength(2);
   });
 
-  it("exposes only the primary Google fallback until the gallery lazy-loads", () => {
+  it("builds one primary plus four lazy Google gallery slots", () => {
     const location = { google_place_id: "ChIJ-test-place" };
     const photos = getPhotoList(location);
     const lazyPhotos = getLazyGooglePhotoSlots(location);
 
-    expect(photos).toHaveLength(1);
+    expect(photos).toHaveLength(5);
     expect(photos[0]).toContain("placeId=ChIJ-test-place");
     expect(photos[0]).toContain("index=0");
+    expect(photos[4]).toContain("index=4");
     expect(lazyPhotos).toHaveLength(4);
     expect(lazyPhotos[0]).toContain("index=1");
     expect(lazyPhotos[3]).toContain("index=4");
   });
 
-  it("replaces a legacy persisted Google snapshot with the current primary Google slot", () => {
+  it("replaces a legacy persisted Google snapshot with current indexed Google slots", () => {
     const legacy = "https://project.supabase.co/storage/v1/object/public/location-images/locations/1/migrated-google-123.jpg";
     const photos = getPhotoList({
       google_place_id: "ChIJ-live-google",
@@ -52,12 +53,12 @@ describe("public location photo dedupe", () => {
       images: [legacy],
     });
 
-    expect(photos).toHaveLength(1);
+    expect(photos).toHaveLength(5);
     expect(photos).not.toContain(legacy);
-    expect(photos[0]).toContain("/api/public/google-place-photo");
+    expect(photos.every((url) => url.includes("/api/public/google-place-photo"))).toBe(true);
   });
 
-  it("keeps existing photos first and exposes only the missing Google slots lazily", () => {
+  it("keeps existing photos first and fills only their missing Google positions", () => {
     const location = {
       google_place_id: "ChIJ-owner-place",
       owner_primary_photo_url: "https://project.supabase.co/storage/v1/object/public/location-images/locations/1/hero.jpg",
@@ -68,14 +69,16 @@ describe("public location photo dedupe", () => {
       ],
     };
     const photos = getPhotoList(location);
-    const lazyPhotos = getLazyGooglePhotoSlots(location, 5, photos.length);
+    const lazyPhotos = getLazyGooglePhotoSlots(location, 5, 3);
 
-    expect(photos).toHaveLength(3);
-    expect(photos).toEqual([
+    expect(photos).toHaveLength(5);
+    expect(photos.slice(0, 3)).toEqual([
       "https://project.supabase.co/storage/v1/object/public/location-images/locations/1/hero.jpg",
       "https://project.supabase.co/storage/v1/object/public/location-images/locations/1/interior.jpg",
       "https://project.supabase.co/storage/v1/object/public/location-images/locations/1/food.jpg",
     ]);
+    expect(photos[3]).toContain("index=3");
+    expect(photos[4]).toContain("index=4");
     expect(lazyPhotos).toHaveLength(2);
     expect(lazyPhotos[0]).toContain("index=3");
     expect(lazyPhotos[1]).toContain("index=4");
@@ -93,7 +96,7 @@ describe("public location photo dedupe", () => {
     expect(primary).toBe(ownerHero);
   });
 
-  it("does not add lazy Google calls when five owner photos already fill the public mosaic", () => {
+  it("does not add Google calls when five owner photos already fill the public mosaic", () => {
     const ownerPhotos = Array.from(
       { length: 5 },
       (_, index) => `https://project.supabase.co/storage/v1/object/public/location-images/locations/1/photo-${index}.jpg`,
