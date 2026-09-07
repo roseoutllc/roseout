@@ -115,9 +115,9 @@ export default function SafeLocationImage({
     return () => {
       parentButton.style.display = previousDisplay;
     };
-  }, [googleAvailability]);
+  }, [googleAvailability, failed]);
 
-  if (isLazyGooglePhoto && googleAvailability !== "available") {
+  if (isLazyGooglePhoto && (googleAvailability !== "available" || failed)) {
     return <span ref={unavailableMarkerRef} data-location-photo-unavailable className="hidden" aria-hidden="true" />;
   }
 

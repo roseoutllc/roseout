@@ -40,6 +40,18 @@ function brandedPhotoFallback(request: Request, reason: string) {
   return response;
 }
 
+function unavailablePhotoResponse(request: Request, reason: string, lazyGoogleSlot: boolean) {
+  if (!lazyGoogleSlot) return brandedPhotoFallback(request, reason);
+  return new NextResponse(null, {
+    status: 404,
+    headers: {
+      "Cache-Control": "public, max-age=300, s-maxage=300",
+      "X-TheOutHaven-Photo-Unavailable": "1",
+      "X-TheOutHaven-Photo-Fallback-Reason": clean(reason).slice(0, 160) || "google_photo_unavailable",
+    },
+  });
+}
+
 async function reserveGooglePhotoRequest(placeId: string) {
   const { data, error } = await supabaseAdmin.rpc("reserve_google_photo_request", {
     p_google_place_id: placeId || "unknown",
@@ -93,10 +105,11 @@ export async function GET(request: Request) {
   const ref = clean(requestUrl.searchParams.get("ref"));
   const index = clampIndex(requestUrl.searchParams.get("index"));
   const maxWidthPx = clampWidth(requestUrl.searchParams.get("maxwidth"));
+  const lazyGoogleSlot = Boolean(placeId && index > 0);
 
   if (!platformIntegrationApiConfigured() && !process.env.GOOGLE_PLACES_API_KEY?.trim()) {
     console.warn("[google-place-photo] Google Places provider missing; using branded fallback");
-    return brandedPhotoFallback(request, "missing_google_places_api_key");
+    return unavailablePhotoResponse(request, "missing_google_places_api_key", lazyGoogleSlot);
   }
 
   if (!placeId && !ref) {
@@ -107,7 +120,7 @@ export async function GET(request: Request) {
     let photoName = ref;
     if (placeId) {
       const slot = await getGooglePhotoSlot(placeId, index);
-      if (!slot?.name) return brandedPhotoFallback(request, "google_photo_slot_unavailable");
+      if (!slot?.name) return unavailablePhotoResponse(request, "google_photo_slot_unavailable", lazyGoogleSlot);
       photoName = slot.name;
     } else if (!(ref.startsWith("places/") && ref.includes("/photos/"))) {
       return brandedPhotoFallback(request, "legacy_photo_reference_requires_place_id");
@@ -120,7 +133,7 @@ export async function GET(request: Request) {
         monthCount: usage.monthCount,
         monthlyCap: monthlyCap(),
       });
-      return brandedPhotoFallback(request, "google_photo_monthly_cap_reached");
+      return unavailablePhotoResponse(request, "google_photo_monthly_cap_reached", lazyGoogleSlot);
     }
 
     const response = await proxyPhoto(photoName, maxWidthPx);
@@ -135,6 +148,6 @@ export async function GET(request: Request) {
       index,
       error: error instanceof Error ? error.message : String(error),
     });
-    return brandedPhotoFallback(request, "google_photo_proxy_failed");
+    return unavailablePhotoResponse(request, "google_photo_proxy_failed", lazyGoogleSlot);
   }
 }
