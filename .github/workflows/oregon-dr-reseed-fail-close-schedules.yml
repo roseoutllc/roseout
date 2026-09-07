@@ -32,7 +32,13 @@ jobs:
       - name: Validate fail-close contract
         run: |
           set -euo pipefail
-          test "$(jq 'length' infra/aws/edge-runtime/schedules.json)" = '65'
+          schedule_count="$(jq 'length' infra/aws/edge-runtime/schedules.json)"
+          activation_count="$(jq '.enabled | length' infra/aws/edge-runtime/activation.json)"
+          test "$schedule_count" -gt 0
+          test "$schedule_count" = "$activation_count"
+          diff -u \
+            <(jq -r '.[].name' infra/aws/edge-runtime/schedules.json | sort) \
+            <(jq -r '.enabled[]' infra/aws/edge-runtime/activation.json | sort)
           test "$(jq 'length' infra/aws/edge-runtime/dr-schedules.json)" = '2'
           jq -e 'all(.[]; .name=="dr-auth-standby-reconcile" or .name=="dr-storage-standby-reconcile")' infra/aws/edge-runtime/dr-schedules.json >/dev/null
           grep -F 'DR_MODE' .github/workflows/oregon-dr-reseed-fail-close-schedules.yml >/dev/null
@@ -59,13 +65,24 @@ jobs:
           test "$(aws sts get-caller-identity --query Account --output text)" = "$AWS_ACCOUNT_ID"
           aws secretsmanager get-secret-value --secret-id "$DR_SECRET_NAME" --query SecretString --output text > "$RUNNER_TEMP/dr-current.json"
           test "$(jq -r '.DR_MODE // empty' "$RUNNER_TEMP/dr-current.json")" = 'virginia_primary'
-          test "$(jq 'length' infra/aws/edge-runtime/schedules.json)" = '65'
+
+          schedule_count="$(jq 'length' infra/aws/edge-runtime/schedules.json)"
+          activation_count="$(jq '.enabled | length' infra/aws/edge-runtime/activation.json)"
+          test "$schedule_count" -gt 0
+          test "$schedule_count" = "$activation_count" || {
+            echo "Schedule manifest/activation mismatch: schedules=$schedule_count activation=$activation_count" >&2
+            exit 1
+          }
+
+          verified=0
           while IFS= read -r name; do
             test "$(aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$name" --query State --output text)" = 'ENABLED' || {
               echo "Base production schedule is not enabled: $name" >&2
               exit 1
             }
+            verified=$((verified + 1))
           done < <(jq -r '.[].name' infra/aws/edge-runtime/schedules.json)
+          test "$verified" = "$schedule_count"
 
       - name: Fail-close forward DR schedules for reseed
         run: |
@@ -91,11 +108,12 @@ jobs:
 
       - name: Fail-close summary
         run: |
+          schedule_count="$(jq 'length' infra/aws/edge-runtime/schedules.json)"
           {
             echo '### Oregon DR reseed scheduler guard'
             echo ''
             echo '- Virginia remains authoritative primary.'
-            echo '- All 65 base production schedules remain enabled.'
+            echo "- All ${schedule_count} base production schedules remain enabled."
             echo '- Both forward DR reconciliation schedules are now disabled.'
             echo '- No database or traffic mutation was performed.'
             echo '- The lost-slot reseed may now be retried through its protected workflow.'
