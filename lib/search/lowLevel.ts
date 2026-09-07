@@ -78,6 +78,56 @@ const LOW_LEVEL_SERVICE_CAPABILITY_TERMS = new Set([
   "carryout",
 ]);
 
+const QUICK_SERVICE_GOOGLE_TYPES = new Set([
+  "fast_food_restaurant",
+  "food_court",
+  "meal_delivery",
+  "food_delivery",
+  "pizza_delivery",
+]);
+
+const TAKEAWAY_GOOGLE_TYPES = new Set([
+  "meal_takeaway",
+  "sandwich_shop",
+  "hamburger_restaurant",
+  "pizza_restaurant",
+]);
+
+const DESTINATION_GOOGLE_TYPES = new Set([
+  "fine_dining_restaurant",
+  "steak_house",
+  "seafood_restaurant",
+  "sushi_restaurant",
+  "wine_bar",
+  "cocktail_bar",
+  "bar",
+  "night_club",
+  "event_venue",
+]);
+
+const DESTINATION_TERMS = [
+  "dine in",
+  "reservation",
+  "reservable",
+  "rooftop",
+  "waterfront",
+  "fine dining",
+  "tasting menu",
+  "omakase",
+  "private dining",
+  "live music",
+  "jazz",
+  "cocktail",
+  "wine bar",
+  "lounge",
+  "romantic",
+  "date night",
+  "birthday",
+  "celebration",
+  "good for groups",
+  "outdoor seating",
+];
+
 function lower(value: unknown) {
   return String(value ?? "").toLowerCase().trim();
 }
@@ -87,6 +137,14 @@ function toArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (typeof value === "string") return value.split(",").map((item) => item.trim()).filter(Boolean);
   return [];
+}
+
+function readBoolean(item: any, ...keys: string[]): boolean | null {
+  for (const key of keys) {
+    if (item?.[key] === true) return true;
+    if (item?.[key] === false) return false;
+  }
+  return null;
 }
 
 export function normalizeSearchText(value: unknown): string {
@@ -113,8 +171,8 @@ export function hasPublicPhoto(item: any): boolean {
 }
 
 export function hasStrongRestaurantQuality(item: any): boolean {
-  const rating = Number(item?.rating ?? 0);
-  const reviewCount = Number(item?.review_count ?? 0);
+  const rating = Number(item?.rating ?? item?.google_rating ?? 0);
+  const reviewCount = Number(item?.review_count ?? item?.google_user_rating_count ?? 0);
   return hasPublicPhoto(item) && rating >= 4 && reviewCount >= 25;
 }
 
@@ -198,13 +256,79 @@ function combinedItemText(item: any): string {
     item?.import_source,
     item?.low_level_reason,
     item?.tags,
+    item?.semantic_tags,
+    item?.vibe_tags,
+    item?.best_for_tags,
     item?.google_types,
+    item?.google_primary_type,
     item?.search_keywords,
   ]);
 }
 
 function isProtected(item: any): boolean {
   return PROTECTED_CURATION_TIERS.has(lower(item?.curation_tier)) || ["premium", "curated"].includes(lower(item?.public_visibility_tier));
+}
+
+function isRestaurant(item: any): boolean {
+  return lower(item?.location_type) === "restaurant" || Boolean(item?.restaurant_name);
+}
+
+function hasDineInEvidence(item: any): boolean {
+  const explicit = readBoolean(item, "dineIn", "dine_in", "google_dine_in");
+  if (explicit === true) return true;
+  return /(^|\s)dine\s+in(\s|$)/.test(combinedItemText(item));
+}
+
+function hasDestinationEvidence(item: any): boolean {
+  if (isProtected(item)) return true;
+  if (readBoolean(item, "reservable", "google_reservable") === true) return true;
+  if (readBoolean(item, "goodForGroups", "good_for_groups") === true) return true;
+  if (readBoolean(item, "outdoorSeating", "outdoor_seating") === true) return true;
+  if (readBoolean(item, "liveMusic", "live_music") === true) return true;
+  if (readBoolean(item, "servesCocktails", "serves_cocktails") === true) return true;
+  if (readBoolean(item, "servesWine", "serves_wine") === true) return true;
+  if (typeof item?.reservation_url === "string" && item.reservation_url.trim()) return true;
+
+  const googleTypes = toArray(item?.google_types).map(lower);
+  if (googleTypes.some((type) => DESTINATION_GOOGLE_TYPES.has(type))) return true;
+
+  const text = combinedItemText(item);
+  return DESTINATION_TERMS.some((term) => text.includes(normalizeSearchText(term)));
+}
+
+export function isStorefrontTakeoutRestaurant(item: any): boolean {
+  if (!isRestaurant(item) || isProtected(item)) return false;
+
+  const dineIn = readBoolean(item, "dineIn", "dine_in", "google_dine_in");
+  const takeout = readBoolean(item, "takeout", "google_takeout");
+  const delivery = readBoolean(item, "delivery", "google_delivery");
+  const curbside = readBoolean(item, "curbsidePickup", "curbside_pickup", "google_curbside_pickup");
+  const types = toArray(item?.google_types).map(lower);
+  const destination = hasDestinationEvidence(item);
+
+  if (dineIn === false && (takeout === true || delivery === true || curbside === true) && !destination) {
+    return true;
+  }
+  if (types.some((type) => QUICK_SERVICE_GOOGLE_TYPES.has(type)) && !destination) return true;
+
+  const takeawayTypeCount = types.filter((type) => TAKEAWAY_GOOGLE_TYPES.has(type)).length;
+  if (takeawayTypeCount > 0 && !hasDineInEvidence(item) && !destination) return true;
+
+  return false;
+}
+
+export function isWeakGenericRestaurant(item: any): boolean {
+  if (!isRestaurant(item) || isProtected(item)) return false;
+  if (hasDineInEvidence(item) || hasDestinationEvidence(item)) return false;
+
+  const rating = Number(item?.rating ?? item?.google_rating ?? 0);
+  const reviews = Number(item?.review_count ?? item?.google_user_rating_count ?? 0);
+  if (!Number.isFinite(rating) || !Number.isFinite(reviews) || rating <= 0 || reviews < 25) return false;
+
+  // Generic restaurant records below the normal discovery quality floor are
+  // weak outing candidates even when Google has many reviews. This catches
+  // storefront/takeout businesses that Google exposes only as "restaurant".
+  return rating < 4.2;
 }
 
 function hasLowLevelTermSignal(item: any): boolean {
@@ -222,9 +346,8 @@ function hasLowLevelTermSignal(item: any): boolean {
   // A normal full-service restaurant can legitimately offer takeout/carryout.
   // Treat those words as service capabilities rather than low-level identity
   // when the record is clearly dine-in or has already passed curated quality.
-  const hasDineInEvidence = /(^|\s)dine\s+in(\s|$)/.test(itemText);
-  const trustedFullService = isProtected(item) && hasStrongRestaurantQuality(item);
-  return !hasDineInEvidence && !trustedFullService;
+  const trustedFullService = hasDineInEvidence(item) || (isProtected(item) && hasStrongRestaurantQuality(item));
+  return !trustedFullService;
 }
 
 export function isUnverifiedNycRestaurant(item: any): boolean {
@@ -241,6 +364,8 @@ export function isLowLevelLocation(item: any): boolean {
   if (["low_level", "hidden"].includes(lower(item.public_visibility_tier))) return true;
   if (UNVERIFIED_SOURCE_QUALITY.has(lower(item.source_quality_status))) return true;
   if (lower(item.import_confidence) === "low") return true;
+  if (isStorefrontTakeoutRestaurant(item)) return true;
+  if (isWeakGenericRestaurant(item)) return true;
   if (hasLowLevelTermSignal(item)) return true;
   if (!hasPublicPhoto(item)) return true;
   return isUnverifiedNycRestaurant(item);
