@@ -11,8 +11,11 @@ import { buildHfSearchQueryDocument } from "../retrieval/retrieveHfSemanticRows"
 import type { ScoredCandidate } from "./scoringTypes";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-const DEFAULT_RERANK_CANDIDATE_LIMIT = 20;
-const MAX_RERANK_CANDIDATE_LIMIT = 20;
+const DEFAULT_RERANK_CANDIDATE_LIMIT = 12;
+const MAX_RERANK_CANDIDATE_LIMIT = 12;
+const DEFAULT_RERANK_TIMEOUT_MS = 1100;
+const MIN_RERANK_TIMEOUT_MS = 400;
+const MAX_RERANK_TIMEOUT_MS = 1200;
 
 function configuredRerankCandidateLimit() {
   const configured = Number(
@@ -22,6 +25,16 @@ function configuredRerankCandidateLimit() {
     ? configured
     : DEFAULT_RERANK_CANDIDATE_LIMIT;
   return Math.max(5, Math.min(MAX_RERANK_CANDIDATE_LIMIT, safeConfigured));
+}
+
+export function configuredRerankTimeoutMs() {
+  const configured = Number(
+    process.env.SEARCH_HF_RERANK_REQUEST_TIMEOUT_MS || DEFAULT_RERANK_TIMEOUT_MS,
+  );
+  const safeConfigured = Number.isFinite(configured)
+    ? configured
+    : DEFAULT_RERANK_TIMEOUT_MS;
+  return Math.max(MIN_RERANK_TIMEOUT_MS, Math.min(MAX_RERANK_TIMEOUT_MS, safeConfigured));
 }
 
 function locationOf(item: ScoredCandidate) {
@@ -92,7 +105,7 @@ async function rerankLane({
   const started = performance.now();
   try {
     const results = await fetchHuggingFaceRerank(query, head.map(buildHfRerankDocument), {
-      timeoutMs: Number(process.env.SEARCH_HF_RERANK_REQUEST_TIMEOUT_MS || 1800),
+      timeoutMs: configuredRerankTimeoutMs(),
       topN: head.length,
     });
     const scoreByIndex = new Map(results.map((row) => [row.index, row]));
@@ -177,7 +190,7 @@ export async function applyHfReranking({
       modelVersion: runtimeConfig.rerankVersion,
       candidateLimit: configuredRerankCandidateLimit(),
       hardCandidateLimit: MAX_RERANK_CANDIDATE_LIMIT,
-      timeoutMs: Number(process.env.SEARCH_HF_RERANK_REQUEST_TIMEOUT_MS || 1800),
+      timeoutMs: configuredRerankTimeoutMs(),
       restaurantReranked: restaurants.rerankedCount,
       activityReranked: activities.rerankedCount,
       restaurantLatencyMs: restaurants.latencyMs,
