@@ -5,10 +5,14 @@ import {
   getPhotoStatus,
 } from "@/lib/location-growth/photoDetection";
 import {
-  calculateLocationQuality,
   cleanText,
   normalizePhone,
 } from "@/lib/location-growth/shared";
+import {
+  calculateLocationQuality,
+  qualitySearchAdjustment,
+  qualityTierForScore,
+} from "@/lib/location-quality-score";
 import { isLowLevelLocation, isUnverifiedNycRestaurant } from "@/lib/search/lowLevel";
 
 type StageableRow = Record<string, unknown>;
@@ -84,14 +88,14 @@ export function buildLocationKey(row: StageableRow) {
 }
 
 export function qualityStatusForScore(score: number, hasPhotos = true) {
-  if (score >= 75 && !hasPhotos) return "needs_photo";
-  if (score >= 75) return "publish_ready";
-  if (score >= 55) return "review";
-  return "reject";
+  if (!hasPhotos) return "needs_photo";
+  if (score >= 50) return "publish_ready";
+  return "review";
 }
 
 export function calculateStagingQuality(row: StageableRow) {
-  const qualityScore = calculateLocationQuality(row);
+  const qualityScore = calculateLocationQuality(row as Record<string, any>);
+  const qualityTier = qualityTierForScore(qualityScore);
   const hasPhotos = hasLocationPhoto(row);
   const photoStatus = getPhotoStatus(row);
   const name = row.name || row.restaurant_name || row.activity_name;
@@ -100,6 +104,9 @@ export function calculateStagingQuality(row: StageableRow) {
   const unverifiedNyc = isUnverifiedNycRestaurant({ ...row, has_photos: hasPhotos, photo_status: photoStatus });
   const lowLevelReason = unverifiedNyc ? "nyc_import_unverified" : lowLevel ? "low_level_review" : null;
   const theaterLike = isTheaterLikeLocation(row);
+  const existingBoost = Number(row.search_boost ?? 0);
+  const qualityAdjustment = qualitySearchAdjustment(qualityScore);
+  const chainAdjustment = chain.isChain ? -25 : 0;
 
   return {
     normalized_name:
@@ -122,6 +129,7 @@ export function calculateStagingQuality(row: StageableRow) {
       : {}),
     quality_score: qualityScore,
     quality_status: lowLevel || unverifiedNyc ? "low_level_review" : qualityStatusForScore(qualityScore, hasPhotos),
+    ranking_badge: qualityTier,
     has_photos: hasPhotos,
     photo_status: photoStatus,
     is_chain: chain.isChain,
@@ -131,7 +139,7 @@ export function calculateStagingQuality(row: StageableRow) {
       ? "utility"
       : String(row.curation_tier || "standard"),
     date_score: chain.isChain ? 20 : Number(row.date_score ?? 50),
-    search_boost: lowLevel || unverifiedNyc ? -500 : chain.isChain ? -25 : Number(row.search_boost ?? 0),
+    search_boost: lowLevel || unverifiedNyc ? -500 : existingBoost + qualityAdjustment + chainAdjustment,
     is_low_level: lowLevel || unverifiedNyc,
     low_level_reason: lowLevelReason,
     low_level_detected_at: lowLevel || unverifiedNyc ? new Date().toISOString() : null,
@@ -139,6 +147,8 @@ export function calculateStagingQuality(row: StageableRow) {
     public_visibility_tier: lowLevel || unverifiedNyc ? "hidden" : String(row.public_visibility_tier || "standard"),
     import_confidence: lowLevel || unverifiedNyc ? "low" : String(row.import_confidence || "unknown"),
     source_quality_status: unverifiedNyc ? "imported_unverified" : lowLevel ? "low_level_review" : String(row.source_quality_status || "unknown"),
+    last_quality_check_at: new Date().toISOString(),
+    last_ranked_at: new Date().toISOString(),
   };
 }
 
