@@ -10,7 +10,7 @@ async function uploadProof(file: File, path: string) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const { data, error } = await supabaseAdmin.storage.from("team-proofs").upload(path, bytes, { contentType: file.type || "application/octet-stream", upsert: false });
   if (error) throw error;
-  const { data: signed } = await supabaseAdmin.storage.from("team-proofs").createSignedUrl(data.path, 60 * 60 * 24 * 7);
+  const { data: signed } = await supabaseAdmin.storage.from("team-proofs").createSignedUrl(data.path, 15 * 60);
   return { path: data.path, url: signed?.signedUrl || data.path };
 }
 
