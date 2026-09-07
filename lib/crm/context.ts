@@ -18,7 +18,7 @@ export const buildOutreachHref = (ctx:CrmRecordContext={}) => withCrmContext("/a
 export const buildOpportunitiesHref = (ctx:CrmRecordContext={}) => withCrmContext("/admin/dashboard/crm/opportunities", ctx);
 export const buildSupportHref = (ctx:CrmRecordContext={}) => withCrmContext("/admin/dashboard/crm/support", ctx);
 export const buildTasksHref = (ctx:CrmRecordContext={}) => withCrmContext("/admin/dashboard/crm/tasks", ctx);
-export const buildActivityHref = (ctx:CrmRecordContext={}) => withCrmContext("/admin/dashboard/crm/activity-audit", ctx);
+export const buildActivityHref = (ctx:CrmRecordContext={}) => withCrmContext("/admin/dashboard/crm/operations", ctx, { view: "activity" });
 export async function resolveCrmContext(input: CrmRecordContext) { const ctx = {...input};
  if (ctx.locationId && !ctx.accountId) { const {data} = await supabaseAdmin.from("crm_account_locations").select("account_id").eq("location_id",ctx.locationId).eq("status","active").limit(1).maybeSingle(); if (data?.account_id) ctx.accountId=data.account_id; }
  if (ctx.opportunityId) { const {data} = await supabaseAdmin.from("crm_opportunities").select("account_id,primary_contact_id,primary_location_id").eq("id",ctx.opportunityId).maybeSingle(); if (data) { ctx.accountId ||= data.account_id; ctx.contactId ||= data.primary_contact_id; ctx.locationId ||= data.primary_location_id; } }
