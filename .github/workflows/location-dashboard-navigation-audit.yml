@@ -1,0 +1,22 @@
+name: Location dashboard navigation audit
+
+on:
+  pull_request:
+    paths:
+      - "app/locations/dashboard/**"
+      - "scripts/audit-location-dashboard-navigation.mjs"
+      - ".github/workflows/location-dashboard-navigation-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Audit 17-workspace location navigation
+        run: node scripts/audit-location-dashboard-navigation.mjs
