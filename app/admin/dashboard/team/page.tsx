@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAdminRole } from "@/lib/admin-auth";
-import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
+import { ADMIN_PAGE_ACCESS, canAdmin, type AdminPermissionKey } from "@/lib/admin-permissions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import TeamWorkSessionClient from "@/components/TeamWorkSessionClient";
 import {
@@ -55,6 +55,12 @@ function Action({
   );
 }
 
+type TeamLink = {
+  label: string;
+  path: string;
+  permission?: AdminPermissionKey;
+};
+
 export default async function AdminTeamPage() {
   const admin = await requireAdminRole(ADMIN_PAGE_ACCESS.dashboard);
   const [
@@ -82,23 +88,24 @@ export default async function AdminTeamPage() {
     count("team_work_sessions", { approval_status: "approved" }),
     getTeamProfileForUser(admin.user_id),
   ]);
-  const links = [
-    ["Overview", ""],
-    ["Members", "members"],
-    ["Assign Locations", "assignments"],
-    ["Work Sessions", "work-sessions"],
-    ["Manager Review", "review"],
-    ["Site Visits", "site-visits"],
-    ["Social Outreach", "social-outreach"],
-    ["Support Work", "support-work"],
-    ["Location Change Requests", "location-change-requests"],
-    ["Claim Code Audit", "claim-code-audit"],
-    ["Password Reset Audit", "password-reset-audit"],
-    ["Payroll", "payroll"],
-    ["Performance", "performance"],
-    ["Proof Review", "proof-review"],
-    ["Settings", "settings"],
+  const links: TeamLink[] = [
+    { label: "Overview", path: "" },
+    { label: "Members", path: "members" },
+    { label: "Assign Locations", path: "assignments" },
+    { label: "Work Sessions", path: "work-sessions", permission: "teamManagement" },
+    { label: "Manager Review", path: "review", permission: "teamManagement" },
+    { label: "Site Visits", path: "site-visits", permission: "teamManagement" },
+    { label: "Social Outreach", path: "social-outreach", permission: "teamManagement" },
+    { label: "Support Work", path: "support-work" },
+    { label: "Location Change Requests", path: "location-change-requests", permission: "teamManagement" },
+    { label: "Claim Code Audit", path: "claim-code-audit", permission: "teamSecurityAudit" },
+    { label: "Password Reset Audit", path: "password-reset-audit", permission: "teamSecurityAudit" },
+    { label: "Payroll", path: "payroll", permission: "teamSecurityAudit" },
+    { label: "Performance", path: "performance", permission: "teamManagement" },
+    { label: "Proof Review", path: "proof-review", permission: "teamManagement" },
+    { label: "Settings", path: "settings", permission: "teamManagement" },
   ];
+  const visibleLinks = links.filter((link) => !link.permission || canAdmin(admin.role, link.permission));
   const workspaceData = profile
     ? await Promise.all([
         getAllowedWorkTypesForUser(admin.user_id, profile),
@@ -138,11 +145,10 @@ export default async function AdminTeamPage() {
           explanation: "Your team profile does not allow demo/training mode.",
         },
         {
-          label: "My Payroll",
+          label: "Payroll",
           href: "/admin/dashboard/team/payroll",
-          enabled: true,
-          explanation:
-            "Payroll history is available for every workspace profile.",
+          enabled: canAdmin(admin.role, "teamSecurityAudit"),
+          explanation: "Payroll export data is limited to authorized administrators.",
         },
       ]
     : [];
@@ -178,7 +184,7 @@ export default async function AdminTeamPage() {
           />
         </div>
         <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {links.map(([label, path]) => (
+          {visibleLinks.map(({ label, path }) => (
             <Link
               key={path}
               href={path?.startsWith("../") ? `/admin/dashboard/${path.slice(3)}` : path ? `/admin/dashboard/team/${path}` : "/admin/dashboard/team"}
