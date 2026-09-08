@@ -21,9 +21,39 @@ function read(file) {
   return fs.readFileSync(file, 'utf8');
 }
 
+function pageFileToRoute(file) {
+  return `/${rel(file).replace(/^app\//, '').replace(/\/page\.tsx$/, '')}`;
+}
+
 const pages = walk(adminRoot).filter((file) => file.endsWith('/page.tsx'));
 const tsFiles = walk(root).filter((file) => /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file) && !file.includes('/node_modules/'));
 const sourceCache = new Map(tsFiles.map((file) => [file, read(file)]));
+
+const navigationSource = read(path.join(root, 'app', 'admin', 'admin-navigation.ts'));
+const navigationEntrypoints = [...new Set(
+  [...navigationSource.matchAll(/href:\s*["'`](\/admin\/dashboard[^"'`]*)["'`]/g)]
+    .map((match) => match[1].split('?')[0]),
+)].sort();
+
+const pageRoutes = new Map(pages.map((file) => [pageFileToRoute(file), file]));
+const navigationRoutesWithPages = navigationEntrypoints.filter((route) => pageRoutes.has(route));
+const navigationRoutesMissingPages = navigationEntrypoints.filter((route) => !pageRoutes.has(route));
+
+const routeReferenceCounts = new Map();
+for (const route of pageRoutes.keys()) routeReferenceCounts.set(route, 0);
+for (const [file, text] of sourceCache) {
+  if (rel(file) === 'app/admin/admin-navigation.ts') continue;
+  for (const route of pageRoutes.keys()) {
+    if (text.includes(route)) routeReferenceCounts.set(route, (routeReferenceCounts.get(route) || 0) + 1);
+  }
+}
+
+const orphanReviewCandidates = [...pageRoutes.keys()]
+  .filter((route) => route !== '/admin/dashboard')
+  .filter((route) => !navigationEntrypoints.includes(route))
+  .filter((route) => !route.includes('['))
+  .filter((route) => (routeReferenceCounts.get(route) || 0) === 0)
+  .sort();
 
 const awaitHotspots = [];
 const responsiveRisk = [];
@@ -72,11 +102,18 @@ const structuralChecks = {
   rolesDataParallelized: rolesPage.includes('Promise.all(['),
   roleCreateRequiresSuperadmin: roleMembersRoute.includes('requireSuperAdmin()'),
   roleMutationRequiresSuperadmin: roleMemberRoute.includes('requireSuperAdmin()'),
+  navigationEntrypointsResolve: navigationRoutesMissingPages.length === 0,
 };
 
 const report = {
   generatedAt: new Date().toISOString(),
-  routeCount: pages.length,
+  filesystemRouteCount: pages.length,
+  navigationEntrypointCount: navigationEntrypoints.length,
+  navigationEntrypoints,
+  navigationRoutesWithPages,
+  navigationRoutesMissingPages,
+  orphanReviewCandidateCount: orphanReviewCandidates.length,
+  orphanReviewCandidates,
   awaitHotspots,
   responsiveRiskCount: responsiveRisk.length,
   responsiveRisk,
@@ -91,7 +128,8 @@ console.log(JSON.stringify(report, null, 2));
 if (process.env.GITHUB_STEP_SUMMARY) {
   const topAwait = awaitHotspots.slice(0, 12).map((item) => `| \`${item.file}\` | ${item.awaits} |`).join('\n') || '| None | 0 |';
   const unused = unusedAdminComponents.slice(0, 20).map((file) => `- \`${file}\``).join('\n') || '- None';
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Routes: **${pages.length}**\n- Responsive-risk pages: **${responsiveRisk.length}**\n- Theme-risk pages: **${themeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n#### Highest await counts\n\n| Route | awaits |\n| --- | ---: |\n${topAwait}\n\n#### Unused component candidates\n${unused}\n`);
+  const orphans = orphanReviewCandidates.slice(0, 30).map((route) => `- \`${route}\``).join('\n') || '- None';
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Responsive-risk pages: **${responsiveRisk.length}**\n- Theme-risk pages: **${themeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Filesystem route count is not the number of admin pages actively used. Navigation entry points represent the intentional top-level admin surface; child/detail routes are evaluated separately.\n\n#### Highest await counts\n\n| Route | awaits |\n| --- | ---: |\n${topAwait}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
 }
 
 const failed = Object.entries(structuralChecks).filter(([, ok]) => !ok);
