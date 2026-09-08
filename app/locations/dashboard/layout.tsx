@@ -1,11 +1,17 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase-server";
 import CanonicalLocationModuleNav from "./CanonicalLocationModuleNav";
 
-export default function LocationsDashboardLayout({
+export default async function LocationsDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login?next=/locations/dashboard");
+
   return (
     <div className="location-dashboard-layout min-h-screen overflow-x-hidden bg-[#050607] md:flex">
       <Suspense fallback={null}>
