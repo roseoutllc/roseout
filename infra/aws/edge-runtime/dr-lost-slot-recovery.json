@@ -5,6 +5,6 @@
   "expected_subscription": "theouthaven_va_to_or_dr",
   "expected_invalidation_reason": "wal_removed",
   "reseed_mode": "copy_data_true",
-  "requested_at": "2026-09-07T22:41:00-04:00",
-  "retrigger": "scheduler-preflight-green-2026-09-07-b"
+  "requested_at": "2026-09-08T05:48:00-04:00",
+  "retrigger": "scheduler-fail-close-green-2026-09-08"
 }
