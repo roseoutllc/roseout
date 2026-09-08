@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getCredentialVaultRuntimeSnapshot, type CredentialVaultEnvironment } from "@/lib/aws/admin-credential-vault";
+
 export const MICROSOFT_365_SCOPES = [
   "openid",
   "profile",
@@ -41,9 +43,27 @@ function validateTenantId(value: string) {
   return value;
 }
 
-export function getMicrosoft365Config() {
-  const tenantId = resolveConsistentEnv(TENANT_ENV_KEYS, "M365_TENANT");
-  const clientId = resolveConsistentEnv(CLIENT_ENV_KEYS, "M365_CLIENT");
+function environmentName(): CredentialVaultEnvironment {
+  return process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV !== "production" ? "staging" : "production";
+}
+
+async function getVaultMicrosoftIdentity() {
+  try {
+    const snapshot = await getCredentialVaultRuntimeSnapshot(environmentName());
+    const microsoft = snapshot.providers.microsoft;
+    return {
+      tenantId: String(microsoft?.tenantId || "").trim(),
+      clientId: String(microsoft?.clientId || "").trim(),
+    };
+  } catch {
+    return { tenantId: "", clientId: "" };
+  }
+}
+
+export async function getMicrosoft365Config() {
+  const vault = await getVaultMicrosoftIdentity();
+  const tenantId = vault.tenantId || resolveConsistentEnv(TENANT_ENV_KEYS, "M365_TENANT");
+  const clientId = vault.clientId || resolveConsistentEnv(CLIENT_ENV_KEYS, "M365_CLIENT");
   const appUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_URL || "https://theouthaven.com").replace(/\/$/, "");
   const redirectUri = process.env.M365_REDIRECT_URI?.trim() || `${appUrl}/api/admin/integrations/microsoft-365/callback`;
   if (!tenantId || !clientId) throw new Error("M365_NOT_CONFIGURED");
