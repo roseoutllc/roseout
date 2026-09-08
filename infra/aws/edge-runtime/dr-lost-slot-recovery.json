@@ -1,10 +1,12 @@
 {
-  "enabled": true,
+  "enabled": false,
   "reason": "oregon-forward-logical-replication-slot-lost",
   "expected_slot": "theouthaven_va_to_or_dr_slot",
   "expected_subscription": "theouthaven_va_to_or_dr",
   "expected_invalidation_reason": "wal_removed",
   "reseed_mode": "copy_data_true",
   "requested_at": "2026-09-08T05:48:00-04:00",
-  "retrigger": "scheduler-fail-close-green-2026-09-08"
+  "retrigger": "scheduler-fail-close-green-2026-09-08",
+  "completed_at": "2026-09-08T06:13:20-04:00",
+  "completion": "logical-replication-480-ready-auth-and-storage-parity-restored"
 }
