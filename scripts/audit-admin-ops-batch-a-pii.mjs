@@ -19,6 +19,8 @@ const feature = [source[files[0]], source[files[1]], source[files[2]], source[fi
 const cron = [source[files[4]], source[files[5]], source[files[6]]].join("\n");
 const logs = source[files[7]];
 const workers = [source[files[8]], source[files[9]]].join("\n");
+const workerJobProjection = source[files[8]].match(/const WORKER_JOB_FIELDS = "([^"]+)"/)?.[1] || "";
+const workerJobFields = workerJobProjection.split(",").map((field) => field.trim()).filter(Boolean);
 
 const checks = {
   clusterAvoidsBroadSelect: !/\.select\(\s*["'`]\*["'`]\s*\)/.test(cluster),
@@ -28,7 +30,7 @@ const checks = {
   cronJobsUseNamedProjection: /CRON_JOB_FIELDS/.test(cron) && !/select\(["']\*["']\)/.test(cron),
   cronRunHistoryExcludesRawInternals: /CRON_RUN_FIELDS/.test(source[files[6]]) && !/error_stack|response_excerpt|request_id|metadata/.test(source[files[6]].match(/const CRON_RUN_FIELDS[^;]+;/)?.[0] || ""),
   adminLogsExcludeMetadata: /ADMIN_LOG_FIELDS/.test(logs) && !/ADMIN_LOG_FIELDS[^\n]*metadata/.test(logs),
-  workerJobResponseExcludesPayloads: /WORKER_JOB_FIELDS/.test(workers) && !/WORKER_JOB_FIELDS[^\n]*(payload|result|checkpoint)/.test(workers),
+  workerJobResponseExcludesPayloads: workerJobFields.length > 0 && !workerJobFields.some((field) => ["payload", "result", "checkpoint"].includes(field)),
   workerEventsExcludeMetadata: /WORKER_EVENT_FIELDS/.test(workers) && !/WORKER_EVENT_FIELDS[^\n]*metadata/.test(workers),
   cronRecipientListIsBounded: /\.slice\(0, 20\)/.test(source[files[5]]),
 };
