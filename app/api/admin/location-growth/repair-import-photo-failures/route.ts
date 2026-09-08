@@ -11,6 +11,15 @@ export const maxDuration = 300;
 const REPAIR_PACING_MS = 250;
 const EXTRA_REPAIR_FIELDS = "created_at,image_status,image_storage_path,image_cached_at,import_last_error";
 
+type RepairSourceRow = Record<string, unknown> & {
+  id: string | number;
+  name?: string | null;
+  restaurant_name?: string | null;
+  activity_name?: string | null;
+  google_place_id?: string | null;
+  created_at?: string | null;
+};
+
 function getErrorMessage(error: unknown) { return error instanceof Error ? error.message : String(error); }
 function sleep(ms: number) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 function sourceFields(table: "restaurants" | "activities") { return `${table === "restaurants" ? RESTAURANT_LOCATION_SELECT : ACTIVITY_LOCATION_SELECT},${EXTRA_REPAIR_FIELDS}`; }
@@ -22,10 +31,10 @@ async function authorize(request: NextRequest) {
   return error;
 }
 
-async function getFailedRows(table: "restaurants" | "activities", limit: number) {
-  const { data, error } = await supabaseAdmin.from(table).select(sourceFields(table)).eq("image_status", "failed").not("google_place_id", "is", null).order("created_at", { ascending: false }).limit(limit);
+async function getFailedRows(table: "restaurants" | "activities", limit: number): Promise<RepairSourceRow[]> {
+  const { data, error } = await supabaseAdmin.from(table).select(sourceFields(table) as any).eq("image_status", "failed").not("google_place_id", "is", null).order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(`${table}: ${error.message}`);
-  return data || [];
+  return (data || []) as unknown as RepairSourceRow[];
 }
 
 async function getRemainingBacklog() {
@@ -40,16 +49,17 @@ async function getRemainingBacklog() {
   return { total: restaurantCount + activityCount, restaurants: restaurantCount, activities: activityCount };
 }
 
-async function repairRow(table: "restaurants" | "activities", row: Record<string, any>) {
+async function repairRow(table: "restaurants" | "activities", row: RepairSourceRow) {
   const id = String(row.id || "");
   if (!id) throw new Error("Location id is missing.");
   const stored = await cacheGooglePlacePhotoToStorage({ id, name: row.name, restaurant_name: row.restaurant_name, activity_name: row.activity_name, google_place_id: row.google_place_id });
   const patch = { image_url: stored.publicUrl, main_image: stored.publicUrl, image_storage_path: stored.objectPath, image_status: "cached", image_cached_at: new Date().toISOString(), photo_status: "google_photo", import_last_error: null };
-  const { data: updatedRow, error: updateError } = await supabaseAdmin.from(table).update(patch).eq("id", id).select(sourceFields(table)).single();
+  const { data: updatedRow, error: updateError } = await supabaseAdmin.from(table).update(patch).eq("id", id).select(sourceFields(table) as any).single();
   if (updateError || !updatedRow) throw new Error(updateError?.message || "Photo metadata was not saved.");
-  if (table === "activities") await syncActivityToLocation(updatedRow as Record<string, unknown> & { id: string | number });
-  else await syncRestaurantToLocation(updatedRow as Record<string, unknown> & { id: string | number });
-  return { id, name: row.name || row.restaurant_name || row.activity_name || id };
+  const typedUpdatedRow = updatedRow as unknown as RepairSourceRow;
+  if (table === "activities") await syncActivityToLocation(typedUpdatedRow);
+  else await syncRestaurantToLocation(typedUpdatedRow);
+  return { id, name: String(row.name || row.restaurant_name || row.activity_name || id) };
 }
 
 export async function POST(request: NextRequest) {
