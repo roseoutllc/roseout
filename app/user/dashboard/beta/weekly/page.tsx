@@ -37,7 +37,7 @@ export default async function Page({
     getWeeklyBetaE2ETestModeEnabled(),
   ]);
 
-  if (!testMode && !ctx.isBeta) {
+  if (!testMode && (!ctx.isBeta || !ctx.beta)) {
     return (
       <UserDashboardShell>
         <DashboardCard>Beta access required.</DashboardCard>
@@ -99,7 +99,15 @@ export default async function Page({
         </UserDashboardShell>
       );
     }
-    const result = await getOrCreateWeeklyBetaSessionForTester(ctx.beta.id);
+    const beta = ctx.beta;
+    if (!beta) {
+      return (
+        <UserDashboardShell>
+          <DashboardCard>Beta access required.</DashboardCard>
+        </UserDashboardShell>
+      );
+    }
+    const result = await getOrCreateWeeklyBetaSessionForTester(beta.id);
     session = result.session;
   }
 
@@ -108,7 +116,7 @@ export default async function Page({
       <BetaCommandCenter
         assignments={session ? [weeklySessionToVirtualAssignment(session)] : []}
         weekStart={week}
-        giveawayStatus={ctx.beta?.giveaway_status || null}
+        giveawayStatus={null}
         feedbackCount={0}
         profileComplete
         testMode={testMode}
