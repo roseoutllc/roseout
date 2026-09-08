@@ -85,14 +85,17 @@ jobs:
             reason: .response.reason,
             sourceCronJobs: .response.guard.sourceCronJobs,
             sourceActiveSlots: .response.guard.sourceActiveSlots,
+            sourcePublishedTables: .response.guard.sourcePublishedTables,
+            sourceSlotLagBytes: .response.guard.sourceSlotLagBytes,
             targetActiveCronJobs: .response.guard.targetActiveCronJobs,
+            targetTotalTables: .response.guard.targetTotalTables,
             targetReadyTables: .response.guard.targetReadyTables,
             targetConnectedWorkers: .response.guard.targetConnectedWorkers,
             auth_parity: .response.auth.parity,
             storage_parity: .response.storage.parity
           }' "$RUNNER_TEMP/status-output.json"
 
-          jq -e '.ok==true and .status<400 and .response.success==true and .response.guard.sourceCronJobs==0 and .response.guard.sourceActiveSlots==1 and .response.guard.targetActiveCronJobs==0 and .response.guard.targetReadyTables==462 and .response.guard.targetConnectedWorkers>=1 and .response.auth.parity==true and .response.storage.parity==true' "$RUNNER_TEMP/status-output.json" >/dev/null
+          jq -e '.ok==true and .status<400 and .response.success==true and .response.guard.sourceCronJobs==0 and .response.guard.sourceActiveSlots==1 and .response.guard.targetActiveCronJobs==0 and .response.guard.sourceSlotLagBytes>=0 and .response.guard.sourceSlotLagBytes<=67108864 and .response.guard.sourcePublishedTables>0 and .response.guard.targetTotalTables==.response.guard.sourcePublishedTables and .response.guard.targetReadyTables==.response.guard.sourcePublishedTables and .response.guard.targetConnectedWorkers>=1 and .response.auth.parity==true and .response.storage.parity==true' "$RUNNER_TEMP/status-output.json" >/dev/null
 
       - name: Cleanup
         if: always()
