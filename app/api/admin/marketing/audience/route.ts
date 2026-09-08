@@ -4,6 +4,9 @@ import { requireMarketingAdminApi, requireMarketingViewerApi } from "@/lib/marke
 
 export const dynamic = "force-dynamic";
 
+const MARKETING_AUDIENCE_FIELDS = "id,name,description,segment_key,filters,subscriber_count,created_by,created_at,updated_at" as const;
+const MARKETING_SUBSCRIBER_FIELDS = "id,user_id,email,phone,full_name,city,state,source,email_opt_in,sms_opt_in,email_opted_in_at,sms_opted_in_at,email_opted_out_at,sms_opted_out_at,tags,created_at,updated_at" as const;
+
 type MarketingUserRow = {
   id: string;
   email?: string | null;
@@ -39,11 +42,11 @@ export async function GET() {
   if (error) return error;
 
   const [audiencesResult, subscribersResult, usersResult] = await Promise.all([
-    supabaseAdmin.from("marketing_audiences").select("*").order("created_at", { ascending: false }),
-    supabaseAdmin.from("marketing_subscribers").select("*").limit(1000),
+    supabaseAdmin.from("marketing_audiences").select(MARKETING_AUDIENCE_FIELDS).order("created_at", { ascending: false }),
+    supabaseAdmin.from("marketing_subscribers").select(MARKETING_SUBSCRIBER_FIELDS).limit(1000),
     supabaseAdmin
       .from("users")
-      .select("id,email,phone,full_name,marketing_opt_in,created_at")
+      .select("id,email,phone,full_name,marketing_opt_in")
       .eq("marketing_opt_in", true)
       .limit(1000),
   ]);
@@ -89,7 +92,7 @@ export async function POST(req: Request) {
       filters: typeof body.filters === "object" && body.filters ? body.filters : {},
       created_by: adminUser?.user_id || null,
     })
-    .select("*")
+    .select(MARKETING_AUDIENCE_FIELDS)
     .single();
 
   if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
