@@ -13,10 +13,21 @@
 .admin-theme[data-admin-theme="light"] [class*="bg-[#0b0b0c]"],
 .admin-theme[data-admin-theme="light"] [class*="bg-[#140707]"],
 .admin-theme[data-admin-theme="light"] [class*="bg-[#0f0f12]"],
-.admin-theme[data-admin-theme="light"] [class*="bg-[#171717]"] {
+.admin-theme[data-admin-theme="light"] [class*="bg-[#171717]"],
+.admin-theme[data-admin-theme="light"] [class*="bg-[#0a0b0d]"],
+.admin-theme[data-admin-theme="light"] [class*="bg-[#1b1210]"],
+.admin-theme[data-admin-theme="light"] [class*="bg-[#070606]"],
+.admin-theme[data-admin-theme="light"] [class*="bg-[#0f1510]"] {
   background-color: var(--admin-panel) !important;
   background-image: none !important;
   color: var(--admin-text) !important;
+}
+
+/* Bright custom reds are CTA hover states, not dark panels. Keep them on the Admin accent ramp in light mode. */
+.admin-theme[data-admin-theme="light"] .hover\:bg-\[\#ff173d\]:hover,
+.admin-theme[data-admin-theme="light"] .hover\:bg-\[\#ff174f\]:hover {
+  background-color: var(--admin-accent-hover) !important;
+  color: #fff !important;
 }
 
 /* Preserve a little hierarchy for nested black/charcoal rows without leaving true black boxes in light mode. */
