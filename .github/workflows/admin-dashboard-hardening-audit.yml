@@ -21,6 +21,7 @@ on:
       - 'scripts/audit-admin-identity-batch-c-pii.mjs'
       - 'scripts/audit-admin-content-batch-d-pii.mjs'
       - 'scripts/audit-admin-search-batch-e-pii.mjs'
+      - 'scripts/audit-admin-search-batch-f-pii.mjs'
       - '.github/workflows/admin-dashboard-hardening-audit.yml'
   push:
     branches: [main]
@@ -43,6 +44,7 @@ on:
       - 'scripts/audit-admin-identity-batch-c-pii.mjs'
       - 'scripts/audit-admin-content-batch-d-pii.mjs'
       - 'scripts/audit-admin-search-batch-e-pii.mjs'
+      - 'scripts/audit-admin-search-batch-f-pii.mjs'
       - '.github/workflows/admin-dashboard-hardening-audit.yml'
 
 permissions:
@@ -85,3 +87,5 @@ jobs:
         run: node scripts/audit-admin-content-batch-d-pii.mjs
       - name: Audit search batch E PII and mutation boundaries
         run: node scripts/audit-admin-search-batch-e-pii.mjs
+      - name: Audit search batch F PII and mutation boundaries
+        run: node scripts/audit-admin-search-batch-f-pii.mjs
