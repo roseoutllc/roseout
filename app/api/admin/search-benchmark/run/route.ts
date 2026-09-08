@@ -24,6 +24,15 @@ type RankedItem = {
   type: "restaurant" | "activity" | "pair" | "matched_location";
 };
 
+type ScorecardRow = {
+  control_ndcg_at_5?: number | string | null;
+  shadow_ndcg_at_5?: number | string | null;
+  control_wrong_domain_rate?: number | string | null;
+  shadow_wrong_domain_rate?: number | string | null;
+  control_wrong_market_rate?: number | string | null;
+  shadow_wrong_market_rate?: number | string | null;
+};
+
 function locationId(item: Record<string, any>) {
   const value = item.location_id ?? item.locationId ?? item.id;
   return typeof value === "string" ? value : null;
@@ -191,7 +200,7 @@ export async function POST(_request: NextRequest) {
     .eq("id", run.id)
     .limit(1);
 
-  const scorecard = scorecardRows?.[0] ?? {};
+  const scorecard = ((scorecardRows?.[0] ?? {}) as unknown) as ScorecardRow;
   const controlScore = Number(scorecard.control_ndcg_at_5 ?? 0);
   const shadowScore = Number(scorecard.shadow_ndcg_at_5 ?? 0);
   const labeledQueryCount = benchmarkQueries.length;
