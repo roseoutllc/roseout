@@ -9,14 +9,14 @@ const APPLYABLE_STATUSES = new Set(["pending_review", "auto_apply_ready", "appro
 const AUTO_APPLY_BATCH_SIZE = 100;
 type SourceTable = "locations" | "restaurants" | "activities";
 type ApplyAction = "approve" | "reject" | "apply_ready";
+type SourceRow = Record<string, unknown> & { id: string | number };
 
 function asArray(value: unknown): string[] { if (!Array.isArray(value)) return []; return value.map((item) => String(item || "").trim().toLowerCase()).filter(Boolean).slice(0, 100); }
 function uniqueMerge(...values: unknown[]): string[] { const seen = new Set<string>(); const merged: string[] = []; for (const value of values) for (const item of asArray(value)) if (!seen.has(item)) { seen.add(item); merged.push(item); } return merged.slice(0, 200); }
 function firstNonEmpty(...values: unknown[]): string | null { for (const value of values) { if (Array.isArray(value)) { const first = asArray(value)[0]; if (first) return first; continue; } const text = String(value || "").trim().toLowerCase(); if (text) return text; } return null; }
 function keepExistingOrFirst(existing: unknown, suggested: unknown): string | null { const current = String(existing || "").trim(); return current || firstNonEmpty(suggested); }
-function sourceFields(sourceTable: SourceTable) { if (sourceTable === "locations") return ADMIN_LOCATION_ENRICHMENT_FIELDS; return sourceTable === "restaurants" ? RESTAURANT_LOCATION_SELECT : ACTIVITY_LOCATION_SELECT; }
 
-function buildCompatibleLocationUpdate(location: any, suggestion: any) {
+function buildCompatibleLocationUpdate(location: Record<string, unknown>, suggestion: Record<string, unknown>) {
   const suggestedFoodTerms = asArray(suggestion.suggested_food_terms);
   const suggestedCuisineTerms = asArray(suggestion.suggested_cuisine_terms);
   const suggestedCategoryTerms = asArray(suggestion.suggested_category_terms);
@@ -56,7 +56,7 @@ async function enqueueProfileRefresh(locationId: string, reason: string) {
   if (insert.error) throw new Error(`Profile enqueue failed: ${insert.error.message}`);
 }
 
-async function refreshCanonicalSearchProfile(sourceTable: SourceTable, sourceId: string, row: any) {
+async function refreshCanonicalSearchProfile(sourceTable: SourceTable, sourceId: string, row: SourceRow) {
   if (sourceTable === "locations") { await enqueueProfileRefresh(sourceId, "google_enrichment_applied"); return sourceId; }
   const synced = await syncSourceRowToLocation(sourceTable, row);
   const canonicalLocationId = String(synced.id);
@@ -67,6 +67,25 @@ async function refreshCanonicalSearchProfile(sourceTable: SourceTable, sourceId:
 async function loadSuggestions(action: ApplyAction, suggestionIds: string[]) {
   if (action === "apply_ready") return supabaseAdmin.from("location_google_food_term_suggestions").select(GOOGLE_FOOD_SUGGESTION_FIELDS).eq("status", "auto_apply_ready").order("created_at", { ascending: true }).limit(AUTO_APPLY_BATCH_SIZE);
   return supabaseAdmin.from("location_google_food_term_suggestions").select(GOOGLE_FOOD_SUGGESTION_FIELDS).in("id", suggestionIds.slice(0, 200));
+}
+
+async function loadSourceRow(sourceTable: SourceTable, sourceId: string): Promise<{ data: SourceRow | null; error: { message: string } | null }> {
+  if (sourceTable === "locations") {
+    const result = await supabaseAdmin.from("locations").select(ADMIN_LOCATION_ENRICHMENT_FIELDS).eq("id", sourceId).maybeSingle();
+    return { data: result.data as unknown as SourceRow | null, error: result.error };
+  }
+  if (sourceTable === "restaurants") {
+    const result = await supabaseAdmin.from("restaurants").select(RESTAURANT_LOCATION_SELECT).eq("id", sourceId).maybeSingle();
+    return { data: result.data as unknown as SourceRow | null, error: result.error };
+  }
+  const result = await supabaseAdmin.from("activities").select(ACTIVITY_LOCATION_SELECT).eq("id", sourceId).maybeSingle();
+  return { data: result.data as unknown as SourceRow | null, error: result.error };
+}
+
+async function updateSourceRow(sourceTable: SourceTable, sourceId: string, update: Record<string, unknown>) {
+  if (sourceTable === "locations") return supabaseAdmin.from("locations").update(update).eq("id", sourceId);
+  if (sourceTable === "restaurants") return supabaseAdmin.from("restaurants").update(update).eq("id", sourceId);
+  return supabaseAdmin.from("activities").update(update).eq("id", sourceId);
 }
 
 export async function POST(req: Request) {
@@ -100,11 +119,11 @@ export async function POST(req: Request) {
     }
     const sourceTable = suggestion.source_table as SourceTable;
     if (!VALID_TABLES.has(sourceTable)) { failures.push({ id: suggestion.id, error: "Invalid source table" }); continue; }
-    const { data: location, error: locationError } = await supabaseAdmin.from(sourceTable).select(sourceFields(sourceTable)).eq("id", suggestion.source_id).maybeSingle();
+    const { data: location, error: locationError } = await loadSourceRow(sourceTable, String(suggestion.source_id));
     if (locationError || !location) { failures.push({ id: suggestion.id, error: (locationError?.message || "Source row not found").slice(0, 1000) }); continue; }
-    const update = buildCompatibleLocationUpdate(location, suggestion);
-    const updatedRow = { ...location, ...update };
-    const { error: updateError } = await supabaseAdmin.from(sourceTable).update(update).eq("id", suggestion.source_id);
+    const update = buildCompatibleLocationUpdate(location, suggestion as unknown as Record<string, unknown>);
+    const updatedRow = { ...location, ...update } as SourceRow;
+    const { error: updateError } = await updateSourceRow(sourceTable, String(suggestion.source_id), update);
     if (updateError) { failures.push({ id: suggestion.id, error: updateError.message.slice(0, 1000) }); continue; }
     try { await refreshCanonicalSearchProfile(sourceTable, String(suggestion.source_id), updatedRow); profilesQueued += 1; }
     catch (profileError) { failures.push({ id: suggestion.id, error: (profileError instanceof Error ? profileError.message : String(profileError)).slice(0, 1000) }); continue; }
