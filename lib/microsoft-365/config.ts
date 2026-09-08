@@ -1,5 +1,7 @@
 import "server-only";
 
+import { credentialVaultEnvironmentName, getCredentialVaultProviderValues } from "@/lib/admin/credential-vault-runtime-source";
+
 export const MICROSOFT_365_SCOPES = [
   "openid",
   "profile",
@@ -26,24 +28,35 @@ function resolveConsistentEnv(keys: readonly string[], label: string) {
 
   if (!configured.length) return "";
   const distinct = [...new Set(configured.map((entry) => entry.value))];
-  if (distinct.length > 1) {
-    throw new Error(`${label}_ENV_CONFLICT`);
-  }
+  if (distinct.length > 1) throw new Error(`${label}_ENV_CONFLICT`);
   return distinct[0];
 }
 
 function validateTenantId(value: string) {
   const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const dns = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
-  if (!guid.test(value) && !dns.test(value)) {
-    throw new Error("M365_TENANT_ID_INVALID");
-  }
+  if (!guid.test(value) && !dns.test(value)) throw new Error("M365_TENANT_ID_INVALID");
   return value;
 }
 
-export function getMicrosoft365Config() {
-  const tenantId = resolveConsistentEnv(TENANT_ENV_KEYS, "M365_TENANT");
-  const clientId = resolveConsistentEnv(CLIENT_ENV_KEYS, "M365_CLIENT");
+export async function getMicrosoft365Config() {
+  const environment = credentialVaultEnvironmentName();
+  let tenantId = "";
+  let clientId = "";
+
+  try {
+    const microsoft = await getCredentialVaultProviderValues("microsoft", environment);
+    tenantId = String(microsoft.tenantId || "").trim();
+    clientId = String(microsoft.clientId || "").trim();
+  } catch {
+    if (environment === "production") throw new Error("M365_CREDENTIAL_VAULT_UNAVAILABLE");
+  }
+
+  if (environment !== "production") {
+    tenantId ||= resolveConsistentEnv(TENANT_ENV_KEYS, "M365_TENANT");
+    clientId ||= resolveConsistentEnv(CLIENT_ENV_KEYS, "M365_CLIENT");
+  }
+
   const appUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_URL || "https://theouthaven.com").replace(/\/$/, "");
   const redirectUri = process.env.M365_REDIRECT_URI?.trim() || `${appUrl}/api/admin/integrations/microsoft-365/callback`;
   if (!tenantId || !clientId) throw new Error("M365_NOT_CONFIGURED");
