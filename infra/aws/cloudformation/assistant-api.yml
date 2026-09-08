@@ -110,13 +110,6 @@ Resources:
   AssistantApiUrlPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      TargetFunctionArn: !GetAtt AssistantApiFunction.Arn
-      AuthType: NONE
-      InvokeMode: BUFFERED
-
-  AssistantApiUrlPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
       FunctionName: !Ref AssistantApiFunction
       Action: lambda:InvokeFunctionUrl
       Principal: '*'
