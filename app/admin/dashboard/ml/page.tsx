@@ -40,13 +40,15 @@ async function loadAdvancedMlDashboard() {
     "photo_quality_ml_features",
     "owner_lead_ml_features",
   ];
-  const counts = await Promise.all(
-    tables.map(async (table) => ({
-      table,
-      count: await safe(async () => (await supabaseAdmin.from(table).select("id", { count: "exact", head: true })).count || 0, 0),
-    })),
-  );
-  const lastRuns = await safe(async () => (await supabaseAdmin.from("advanced_ml_score_runs").select("*").order("started_at", { ascending: false }).limit(12)).data || [], [] as any[]);
+  const [counts, lastRuns] = await Promise.all([
+    Promise.all(
+      tables.map(async (table) => ({
+        table,
+        count: await safe(async () => (await supabaseAdmin.from(table).select("id", { count: "exact", head: true })).count || 0, 0),
+      })),
+    ),
+    safe(async () => (await supabaseAdmin.from("advanced_ml_score_runs").select("*").order("started_at", { ascending: false }).limit(12)).data || [], [] as any[]),
+  ]);
   return { counts, lastRuns };
 }
 
@@ -289,8 +291,10 @@ async function loadMlDashboard() {
 }
 export default async function MlRankingPage() {
   await requireAdminRole(ADMIN_PAGE_ACCESS.searchHealth);
-  const data = await loadMlDashboard();
-  const advanced = await loadAdvancedMlDashboard();
+  const [data, advanced] = await Promise.all([
+    loadMlDashboard(),
+    loadAdvancedMlDashboard(),
+  ]);
   return (
     <AdminPageShell>
       <AdminPageHeader
