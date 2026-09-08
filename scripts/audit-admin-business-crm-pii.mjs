@@ -18,7 +18,9 @@ const checks = {
   clusterAvoidsBroadSelect: Object.values(source).every((text) => !broadSelect.test(text)),
   businessUsesNamedLocationAndCrmFields: source.business.includes("LOCATION_FIELDS") && source.business.includes("CRM_FIELDS"),
   businessPatchUsesExplicitEditableFields: source.business.includes("EDITABLE_FIELDS") && !source.business.includes("...body"),
-  notesUseProductionNoteBodyColumn: source.notes.includes("note_body: noteBody") && !source.notes.includes(" note:"),
+  notesUseProductionNoteBodyColumn:
+    source.notes.includes("note_body: noteBody") &&
+    !/\.insert\(\s*\{[\s\S]*?\bnote\s*:/m.test(source.notes),
   notesRecordActor: source.notes.includes("actor_user_id: auth.adminUser?.user_id"),
   outreachUsesCanonicalLocationFields: source.outreach.includes('.from("locations")') && !source.outreach.includes("business_outreach"),
   outreachBoundsNotes: source.outreach.includes("slice(0, 5000)"),
