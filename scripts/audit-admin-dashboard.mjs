@@ -12,8 +12,13 @@ const reviewedHiddenOperationalRoutes = new Set([
   '/admin/dashboard/communication',
   '/admin/dashboard/crm/claim-codes',
   '/admin/dashboard/experiences',
+  '/admin/dashboard/feature-flags',
+  '/admin/dashboard/location-layout/create',
   '/admin/dashboard/marketing/analytics',
+  '/admin/dashboard/marketing/featured-outings',
+  '/admin/dashboard/operations/users',
   '/admin/dashboard/reviews',
+  '/admin/dashboard/search-anchors/verification',
   '/admin/dashboard/seo-tools',
   '/admin/dashboard/sms',
 ]);
@@ -178,6 +183,7 @@ const layout = read(path.join(root, 'app', 'admin', 'layout.tsx'));
 const rolesPage = read(path.join(root, 'app', 'admin', 'dashboard', 'roles', 'page.tsx'));
 const roleMembersRoute = read(path.join(root, 'app', 'api', 'admin', 'system', 'role-members', 'route.ts'));
 const roleMemberRoute = read(path.join(root, 'app', 'api', 'admin', 'system', 'role-members', '[adminId]', 'route.ts'));
+const searchAnchorsLayout = read(path.join(root, 'app', 'admin', 'dashboard', 'search-anchors', 'layout.tsx'));
 
 const structuralChecks = {
   responsiveLayerImported: layout.includes('./admin-responsive.css'),
@@ -186,6 +192,7 @@ const structuralChecks = {
   rolesDataParallelized: rolesPage.includes('Promise.all(['),
   roleCreateRequiresSuperadmin: roleMembersRoute.includes('requireSuperAdmin()'),
   roleMutationRequiresSuperadmin: roleMemberRoute.includes('requireSuperAdmin()'),
+  searchAnchorsWorkspaceProtected: searchAnchorsLayout.includes('requireAdminRole(ADMIN_PAGE_ACCESS.dataQuality)'),
   navigationEntrypointsResolve: navigationRoutesMissingPages.length === 0,
   reviewedHiddenOperationalRoutesResolve: [...reviewedHiddenOperationalRoutes].every((route) => pageRoutes.has(route)),
 };
