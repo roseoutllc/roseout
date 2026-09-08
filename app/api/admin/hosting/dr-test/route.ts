@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
-  await requireAdminRole(ADMIN_PAGE_ACCESS.dashboard);
+  await requireAdminRole(ADMIN_PAGE_ACCESS.productionFinishLine);
 
   const { data, error } = await supabaseAdmin
     .from("hosting_dr_test_runs")
@@ -25,7 +25,7 @@ export async function GET() {
 }
 
 export async function POST() {
-  await requireAdminRole(ADMIN_PAGE_ACCESS.dashboard);
+  await requireAdminRole(ADMIN_PAGE_ACCESS.productionFinishLine);
 
   try {
     const run = await runHostingDrSimulation();
