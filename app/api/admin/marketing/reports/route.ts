@@ -11,6 +11,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const DUE_SCHEDULE_FIELDS = "id,name,report_config,recipients,cadence,day_of_week,day_of_month,send_hour,send_minute,timezone,next_run_at";
+const SAVED_REPORT_FIELDS = "id,name,description,report_type,date_range,comparison,breakdown,filters,created_at,updated_at";
+const SCHEDULE_RESPONSE_FIELDS = "id,report_id,name,recipients,cadence,day_of_week,day_of_month,send_hour,send_minute,timezone,next_run_at,last_sent_at,last_status,is_active,created_at,updated_at";
+
 type ScheduleInput = {
   name: string;
   recipients: string[];
@@ -94,7 +98,7 @@ async function processDueSchedules() {
   const now = new Date();
   const { data: due, error } = await supabaseAdmin
     .from("marketing_report_schedules")
-    .select("*")
+    .select(DUE_SCHEDULE_FIELDS)
     .eq("is_active", true)
     .lte("next_run_at", now.toISOString())
     .order("next_run_at", { ascending: true })
@@ -129,7 +133,7 @@ async function processDueSchedules() {
         last_error: message.slice(0, 1000),
         updated_at: now.toISOString(),
       }).eq("id", schedule.id);
-      results.push({ id: schedule.id, sent: false, error: message });
+      results.push({ id: schedule.id, sent: false });
     }
   }
   return results;
@@ -169,7 +173,7 @@ export async function POST(request: Request) {
         breakdown: config.breakdown,
         filters: config.filters || {},
         created_by: admin.user_id,
-      }).select("*").single();
+      }).select(SAVED_REPORT_FIELDS).single();
       if (error) throw error;
       return NextResponse.json({ ok: true, savedReport: data });
     }
@@ -199,7 +203,7 @@ export async function POST(request: Request) {
         timezone,
         next_run_at: firstRun.toISOString(),
         created_by: admin.user_id,
-      }).select("*").single();
+      }).select(SCHEDULE_RESPONSE_FIELDS).single();
       if (error) throw error;
       return NextResponse.json({ ok: true, schedule: data });
     }
