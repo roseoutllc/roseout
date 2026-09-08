@@ -7,6 +7,7 @@ export type CredentialVaultEnvironment = "production" | "staging";
 export type CredentialVaultProviderStatus = { provider: CredentialProviderId; environment: CredentialVaultEnvironment; configuredFields: string[]; updatedAt: string | null; versionId: string | null; status: "configured" | "not_configured" };
 export type CredentialVaultSummary = { ok: boolean; providers: CredentialVaultProviderStatus[] };
 export type CredentialVaultRuntimeSnapshot = { ok: boolean; environment: CredentialVaultEnvironment; providers: Partial<Record<CredentialProviderId, Record<string, string>>> };
+export type CredentialVaultRuntimeSyncResult = { triggered: boolean; workflow: string; error?: string };
 
 function getGatewayConfig() {
   const baseUrl = String(process.env.AWS_PLATFORM_JOB_GATEWAY_URL || "").trim().replace(/\/$/, "");
@@ -44,4 +45,37 @@ export async function deleteCredentialVaultProvider(provider: CredentialProvider
 }
 export async function testCredentialVaultProvider(provider: CredentialProviderId, environment: CredentialVaultEnvironment) {
   return signedRequest<{ ok: boolean; provider: CredentialProviderId; status: "healthy" | "configured"; detail: string }>("POST", `/v1/credentials/${encodeURIComponent(provider)}/test`, JSON.stringify({ environment }));
+}
+
+export async function requestCredentialVaultRuntimeSync(environment: CredentialVaultEnvironment): Promise<CredentialVaultRuntimeSyncResult> {
+  const workflow = "aws-credential-vault-runtime-sync.yml";
+  try {
+    const snapshot = await getCredentialVaultRuntimeSnapshot(environment);
+    const token = String(snapshot.providers.github?.token || process.env.GITHUB_TOKEN || "").trim();
+    if (!token) return { triggered: false, workflow, error: "github_runtime_sync_token_not_configured" };
+
+    const repository = String(process.env.CREDENTIAL_VAULT_SYNC_REPOSITORY || "DevSoft-Development/roseout").trim();
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
+      return { triggered: false, workflow, error: "credential_vault_sync_repository_invalid" };
+    }
+
+    const response = await fetch(`https://api.github.com/repos/${repository}/actions/workflows/${workflow}/dispatches`, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        "user-agent": "TheOutHaven-CredentialVault",
+        "x-github-api-version": "2022-11-28",
+      },
+      body: JSON.stringify({ ref: "main", inputs: { environment } }),
+    });
+    if (!response.ok) {
+      return { triggered: false, workflow, error: `github_runtime_sync_http_${response.status}` };
+    }
+    return { triggered: true, workflow };
+  } catch (error) {
+    return { triggered: false, workflow, error: error instanceof Error ? error.message : "credential_vault_runtime_sync_failed" };
+  }
 }
