@@ -1,0 +1,187 @@
+name: DR topology patch once
+
+on:
+  push:
+    branches: [ops/dynamic-dr-topology-health-2026-09-08]
+    paths:
+      - '.github/workflows/dr-topology-patch-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/dynamic-dr-topology-health-2026-09-08
+          fetch-depth: 0
+
+      - name: Patch active DR topology guards
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"expected pattern missing: {path}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          # Runtime reconciler: derive the expected subscriber set from the live publication.
+          p = Path('supabase/functions/dr-standby-reconciler/index.ts')
+          text = p.read_text()
+          if 'const EXPECTED_PUBLIC_TABLES = 462;\n' not in text:
+              raise SystemExit('expected reconciler 462 constant missing')
+          text = text.replace('const EXPECTED_PUBLIC_TABLES = 462;\n', '', 1)
+          text = text.replace(
+              '(select count(*) from pg_publication where pubname=${literal(PUBLICATION)}) as publications,\n    (select count(*) from pg_replication_slots',
+              '(select count(*) from pg_publication where pubname=${literal(PUBLICATION)}) as publications,\n    (select count(*) from pg_publication_tables where pubname=${literal(PUBLICATION)}) as published_tables,\n    (select count(*) from pg_replication_slots',
+              1,
+          )
+          text = text.replace(
+              '    Number(source.publications) === 1 &&\n    Number(source.slots) === 1 &&',
+              '    Number(source.publications) === 1 &&\n    Number(source.published_tables) > 0 &&\n    Number(source.slots) === 1 &&',
+              1,
+          )
+          text = text.replace(
+              '    Number(target.total_tables) === EXPECTED_PUBLIC_TABLES &&\n    Number(target.ready_tables) === EXPECTED_PUBLIC_TABLES &&',
+              '    Number(target.total_tables) === Number(source.published_tables) &&\n    Number(target.ready_tables) === Number(source.published_tables) &&',
+              1,
+          )
+          text = text.replace(
+              '    sourceActiveSlots: Number(source.active_slots),\n    sourceSlotLagBytes:',
+              '    sourceActiveSlots: Number(source.active_slots),\n    sourcePublishedTables: Number(source.published_tables),\n    sourceSlotLagBytes:',
+              1,
+          )
+          text = text.replace(
+              '    targetActiveCronJobs: Number(target.active_cron_jobs),\n    targetReadyTables:',
+              '    targetActiveCronJobs: Number(target.active_cron_jobs),\n    targetTotalTables: Number(target.total_tables),\n    targetReadyTables:',
+              1,
+          )
+          p.write_text(text)
+
+          # Normal DR activation: never re-enable forward jobs while the one-shot marker is armed,
+          # and compare target relations to the live publication rather than a baked count.
+          p = Path('.github/workflows/aws-dr-scheduler-activation.yml')
+          text = p.read_text()
+          marker_path = "      - 'infra/aws/edge-runtime/dr-lost-slot-recovery.json'\n"
+          pr_anchor = "      - 'infra/aws/edge-runtime/dr-schedules.json'\n      - '.github/workflows/aws-dr-scheduler-activation.yml'"
+          if marker_path not in text:
+              text = text.replace(pr_anchor, "      - 'infra/aws/edge-runtime/dr-schedules.json'\n" + marker_path + "      - '.github/workflows/aws-dr-scheduler-activation.yml'", 1)
+          push_anchor = "    paths:\n      - '.github/workflows/aws-dr-scheduler-activation.yml'"
+          if text.count("infra/aws/edge-runtime/dr-lost-slot-recovery.json") < 2:
+              text = text.replace(push_anchor, "    paths:\n      - '.github/workflows/aws-dr-scheduler-activation.yml'\n" + marker_path, 1)
+          mode_block = "      - name: Refresh isolated DR runtime secret for Virginia primary\n"
+          guard_block = """      - name: Require disarmed lost-slot recovery for Virginia primary
+        if: steps.mode.outputs.dr_mode == 'virginia_primary'
+        run: |
+          set -euo pipefail
+          jq -e '.enabled == false' infra/aws/edge-runtime/dr-lost-slot-recovery.json >/dev/null || {
+            echo 'Forward DR schedules stay disabled while lost-slot recovery is armed.' >&2
+            exit 1
+          }
+
+"""
+          if 'Require disarmed lost-slot recovery for Virginia primary' not in text:
+              if mode_block not in text:
+                  raise SystemExit('activation insertion anchor missing')
+              text = text.replace(mode_block, guard_block + mode_block, 1)
+          old = '.response.guard.targetReadyTables==462 and .response.guard.targetConnectedWorkers>=1'
+          new = '.response.guard.sourceSlotLagBytes>=0 and .response.guard.sourceSlotLagBytes<=67108864 and .response.guard.sourcePublishedTables>0 and .response.guard.targetTotalTables==.response.guard.sourcePublishedTables and .response.guard.targetReadyTables==.response.guard.sourcePublishedTables and .response.guard.targetConnectedWorkers>=1'
+          if old not in text:
+              raise SystemExit('activation stale 462 guard missing')
+          text = text.replace(old, new, 1)
+          p.write_text(text)
+
+          # Read-only health diagnostic uses the same live topology contract.
+          replace(
+              '.github/workflows/aws-dr-standby-health-diagnostic.yml',
+              '.response.guard.targetReadyTables==462 and .response.guard.targetConnectedWorkers>=1',
+              '.response.guard.sourceSlotLagBytes>=0 and .response.guard.sourceSlotLagBytes<=67108864 and .response.guard.sourcePublishedTables>0 and .response.guard.targetTotalTables==.response.guard.sourcePublishedTables and .response.guard.targetReadyTables==.response.guard.sourcePublishedTables and .response.guard.targetConnectedWorkers>=1',
+          )
+
+          # Canonical scheduler invoker CloudWatch metric follows the runtime-provided publication count.
+          p = Path('infra/aws/lambda/edge_scheduler_invoker.py')
+          text = p.read_text()
+          if 'expected_ready_tables = 462\n' not in text:
+              raise SystemExit('canonical invoker stale count missing')
+          text = text.replace('expected_ready_tables = 462\n', '', 1)
+          text = text.replace(
+              'max(0, expected_ready_tables - numeric(guard.get("targetReadyTables", 0))),',
+              'max(0, numeric(guard.get("sourcePublishedTables", 0)) - numeric(guard.get("targetReadyTables", 0))),',
+              1,
+          )
+          p.write_text(text)
+
+          # CloudFormation inline fallback must not reintroduce the old metric topology.
+          p = Path('infra/aws/cloudformation/edge-runtime.yml')
+          text = p.read_text()
+          if "          expected_ready_tables = 462\n" not in text:
+              raise SystemExit('cloudformation inline stale count missing')
+          text = text.replace("          expected_ready_tables = 462\n", '', 1)
+          text = text.replace(
+              "max(0, expected_ready_tables - numeric(guard.get('targetReadyTables', 0)))",
+              "max(0, numeric(guard.get('sourcePublishedTables', 0)) - numeric(guard.get('targetReadyTables', 0)))",
+              1,
+          )
+          text = text.replace(
+              'Oregon logical replication has fewer than the expected 462 ready public relations.',
+              'Oregon logical replication has fewer ready public relations than the live Virginia publication.',
+              1,
+          )
+          p.write_text(text)
+
+          # One-shot recovery validates either armed or disarmed state. A disarm push must skip recovery cleanly.
+          p = Path('.github/workflows/oregon-dr-lost-slot-recovery.yml')
+          text = p.read_text()
+          text = text.replace(
+              '  validate:\n    runs-on: ubuntu-latest\n    steps:',
+              '  validate:\n    runs-on: ubuntu-latest\n    outputs:\n      recovery_enabled: ${{ steps.marker.outputs.enabled }}\n    steps:',
+              1,
+          )
+          text = text.replace(
+              '      - name: Validate lost-slot recovery contract\n        run: |\n          set -euo pipefail\n          MARKER=\'infra/aws/edge-runtime/dr-lost-slot-recovery.json\'\n          jq -e \'.enabled == true and .expected_slot == "theouthaven_va_to_or_dr_slot" and .expected_subscription == "theouthaven_va_to_or_dr" and .expected_invalidation_reason == "wal_removed" and .reseed_mode == "copy_data_true"\' "$MARKER" >/dev/null',
+              '      - name: Validate lost-slot recovery contract\n        id: marker\n        run: |\n          set -euo pipefail\n          MARKER=\'infra/aws/edge-runtime/dr-lost-slot-recovery.json\'\n          jq -e \'(.enabled|type)=="boolean" and .expected_slot == "theouthaven_va_to_or_dr_slot" and .expected_subscription == "theouthaven_va_to_or_dr" and .expected_invalidation_reason == "wal_removed" and .reseed_mode == "copy_data_true"\' "$MARKER" >/dev/null\n          echo "enabled=$(jq -r \'.enabled\' "$MARKER")" >> "$GITHUB_OUTPUT"',
+              1,
+          )
+          if "    if: github.event_name == 'push'\n" not in text:
+              raise SystemExit('recovery job if anchor missing')
+          text = text.replace(
+              "    if: github.event_name == 'push'\n",
+              "    if: github.event_name == 'push' && needs.validate.outputs.recovery_enabled == 'true'\n",
+              1,
+          )
+          p.write_text(text)
+          PY
+
+      - name: Validate patched contracts
+        run: |
+          set -euo pipefail
+          ! grep -F 'EXPECTED_PUBLIC_TABLES = 462' supabase/functions/dr-standby-reconciler/index.ts
+          ! grep -F 'expected_ready_tables = 462' infra/aws/lambda/edge_scheduler_invoker.py infra/aws/cloudformation/edge-runtime.yml
+          ! grep -F 'targetReadyTables==462' .github/workflows/aws-dr-scheduler-activation.yml .github/workflows/aws-dr-standby-health-diagnostic.yml
+          grep -F 'sourcePublishedTables' supabase/functions/dr-standby-reconciler/index.ts >/dev/null
+          grep -F 'targetTotalTables' supabase/functions/dr-standby-reconciler/index.ts >/dev/null
+          grep -F 'Require disarmed lost-slot recovery for Virginia primary' .github/workflows/aws-dr-scheduler-activation.yml >/dev/null
+          grep -F "needs.validate.outputs.recovery_enabled == 'true'" .github/workflows/oregon-dr-lost-slot-recovery.yml >/dev/null
+          python -m py_compile infra/aws/lambda/edge_scheduler_invoker.py
+
+      - name: Commit focused DR patch and remove helper
+        run: |
+          set -euo pipefail
+          git config user.name 'roseoutllc'
+          git config user.email 'nick@roseout.com'
+          git rm .github/workflows/dr-topology-patch-once.yml
+          git add supabase/functions/dr-standby-reconciler/index.ts \
+            infra/aws/lambda/edge_scheduler_invoker.py \
+            infra/aws/cloudformation/edge-runtime.yml \
+            .github/workflows/aws-dr-scheduler-activation.yml \
+            .github/workflows/aws-dr-standby-health-diagnostic.yml \
+            .github/workflows/oregon-dr-lost-slot-recovery.yml
+          git diff --cached --check
+          git commit -m 'Make DR standby health topology-aware'
+          git push origin HEAD:ops/dynamic-dr-topology-health-2026-09-08
