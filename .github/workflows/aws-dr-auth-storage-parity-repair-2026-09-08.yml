@@ -1,0 +1,158 @@
+name: AWS DR auth and storage parity repair 2026-09-08
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/aws-dr-auth-storage-parity-repair-2026-09-08.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aws-dr-auth-storage-parity-repair-2026-09-08.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-dr-auth-storage-parity-repair-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: '742020474738'
+  STACK_NAME: theouthaven-edge-runtime-production
+  SCHEDULE_GROUP: toh-production-edge-runtime
+  DR_SECRET_NAME: /theouthaven/production/dr-reconciler/env
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate protected parity repair contract
+        run: |
+          set -euo pipefail
+          FILE='.github/workflows/aws-dr-auth-storage-parity-repair-2026-09-08.yml'
+          grep -F 'operation":"auth"' "$FILE" >/dev/null
+          grep -F 'operation":"storage"' "$FILE" >/dev/null
+          grep -F 'maxCopies":50' "$FILE" >/dev/null
+          grep -F 'sourcePublishedTables' "$FILE" >/dev/null
+          grep -F 'targetTotalTables' "$FILE" >/dev/null
+          grep -F 'targetReadyTables' "$FILE" >/dev/null
+          grep -F 'dr-auth-standby-reconcile' "$FILE" >/dev/null
+          grep -F 'dr-storage-standby-reconcile' "$FILE" >/dev/null
+          FILE="$FILE" python <<'PY'
+          import os
+          from pathlib import Path
+
+          text = Path(os.environ['FILE']).read_text(encoding='utf-8').lower()
+          forbidden = (
+              'aws scheduler ' + 'update-schedule',
+              'aws scheduler ' + 'create-schedule',
+              'aws scheduler ' + 'delete-schedule',
+              'apply-' + 'migration',
+              'execute-' + 'sql',
+              'pg_' + 'drop_replication_slot',
+              'drop ' + 'subscription',
+              'truncate ' + 'table',
+          )
+          found = [item for item in forbidden if item in text]
+          if found:
+              raise SystemExit(f'Parity repair contains forbidden infrastructure mutation: {found}')
+          PY
+
+  repair:
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PLATFORM_DEPLOY_ROLE_ARN || 'arn:aws:iam::742020474738:role/TheOutHavenGitHubPlatformDeployRole' }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ env.AWS_ACCOUNT_ID }}
+
+      - name: Require Virginia primary, armed recovery marker, and fail-closed DR schedules
+        run: |
+          set -euo pipefail
+          test "$(aws sts get-caller-identity --query Account --output text)" = "$AWS_ACCOUNT_ID"
+          aws secretsmanager get-secret-value --secret-id "$DR_SECRET_NAME" --query SecretString --output text > "$RUNNER_TEMP/dr-current.json"
+          test "$(jq -r '.DR_MODE // empty' "$RUNNER_TEMP/dr-current.json")" = 'virginia_primary'
+          jq -e '.enabled == true' infra/aws/edge-runtime/dr-lost-slot-recovery.json >/dev/null
+          base_expected="$(jq 'length' infra/aws/edge-runtime/schedules.json)"
+          activation_expected="$(jq '.enabled | length' infra/aws/edge-runtime/activation.json)"
+          test "$base_expected" -gt 0
+          test "$base_expected" = "$activation_expected"
+          diff -u <(jq -r '.[].name' infra/aws/edge-runtime/schedules.json | sort) <(jq -r '.enabled[]' infra/aws/edge-runtime/activation.json | sort)
+          while IFS= read -r name; do
+            test "$(aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$name" --query State --output text)" = 'ENABLED' || {
+              echo "Base production schedule is not enabled: $name" >&2
+              exit 1
+            }
+          done < <(jq -r '.[].name' infra/aws/edge-runtime/schedules.json)
+          for name in dr-auth-standby-reconcile dr-storage-standby-reconcile; do
+            test "$(aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$name" --query State --output text)" = 'DISABLED' || {
+              echo "Forward DR schedule must remain disabled during parity repair: $name" >&2
+              exit 1
+            }
+          done
+
+      - name: Require healthy logical replication and inspect parity gaps
+        run: |
+          set -euo pipefail
+          invoker="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='SchedulerInvokerFunctionName'].OutputValue" --output text)"
+          test -n "$invoker"
+          echo "invoker=$invoker" >> "$GITHUB_ENV"
+          printf '%s' '{"function":"dr-standby-reconciler","body":{"operation":"status","dryRun":true}}' > "$RUNNER_TEMP/status-input.json"
+          aws lambda invoke --function-name "$invoker" --cli-binary-format raw-in-base64-out --payload "fileb://$RUNNER_TEMP/status-input.json" "$RUNNER_TEMP/status-before.json" >/dev/null
+          jq -c '{ok,status,success:.response.success,sourceCronJobs:.response.guard.sourceCronJobs,sourceActiveSlots:.response.guard.sourceActiveSlots,sourcePublishedTables:.response.guard.sourcePublishedTables,sourceSlotLagBytes:.response.guard.sourceSlotLagBytes,targetActiveCronJobs:.response.guard.targetActiveCronJobs,targetTotalTables:.response.guard.targetTotalTables,targetReadyTables:.response.guard.targetReadyTables,targetConnectedWorkers:.response.guard.targetConnectedWorkers,auth_parity:.response.auth.parity,storage_parity:.response.storage.parity,storageCopyOrReplace:.response.storage.copyOrReplace,storageTargetOnly:.response.storage.targetOnly}' "$RUNNER_TEMP/status-before.json"
+          jq -e '.ok==true and .status<400 and .response.success==true and .response.guard.sourceCronJobs==0 and .response.guard.sourceActiveSlots==1 and .response.guard.sourcePublishedTables>0 and .response.guard.sourceSlotLagBytes>=0 and .response.guard.sourceSlotLagBytes<=67108864 and .response.guard.targetActiveCronJobs==0 and .response.guard.targetTotalTables==.response.guard.sourcePublishedTables and .response.guard.targetReadyTables==.response.guard.sourcePublishedTables and .response.guard.targetConnectedWorkers>=1' "$RUNNER_TEMP/status-before.json" >/dev/null
+          jq -e '.response.storage.copyOrReplace>=0 and .response.storage.copyOrReplace<=50 and .response.storage.targetOnly==0' "$RUNNER_TEMP/status-before.json" >/dev/null || {
+            echo 'Storage gap is outside the bounded copy-only repair envelope; refusing mutation.' >&2
+            exit 1
+          }
+
+      - name: Repair Auth parity with built-in verification and rollback
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          if jq -e '.response.auth.parity==true' "$RUNNER_TEMP/status-before.json" >/dev/null; then
+            echo 'Auth parity already healthy; no replacement required.'
+            exit 0
+          fi
+          printf '%s' '{"function":"dr-standby-reconciler","body":{"operation":"auth","dryRun":false}}' > "$RUNNER_TEMP/auth-input.json"
+          aws lambda invoke --function-name "$invoker" --cli-binary-format raw-in-base64-out --payload "fileb://$RUNNER_TEMP/auth-input.json" "$RUNNER_TEMP/auth-output.json" >/dev/null
+          jq -c '{ok,status,success:.response.success,operation:.response.operation,parity:.response.parity,changed:.response.changed,sourceRows:.response.sourceRows,targetRows:.response.targetRows}' "$RUNNER_TEMP/auth-output.json"
+          jq -e '.ok==true and .status<400 and .response.success==true and .response.operation=="auth" and .response.parity==true' "$RUNNER_TEMP/auth-output.json" >/dev/null
+
+      - name: Repair bounded Storage copy gap
+        run: |
+          set -euo pipefail
+          if jq -e '.response.storage.parity==true' "$RUNNER_TEMP/status-before.json" >/dev/null; then
+            echo 'Storage parity already healthy; no copy required.'
+            exit 0
+          fi
+          printf '%s' '{"function":"dr-standby-reconciler","body":{"operation":"storage","dryRun":false,"maxCopies":50}}' > "$RUNNER_TEMP/storage-input.json"
+          aws lambda invoke --function-name "$invoker" --cli-binary-format raw-in-base64-out --payload "fileb://$RUNNER_TEMP/storage-input.json" "$RUNNER_TEMP/storage-output.json" >/dev/null
+          jq -c '{ok,status,success:.response.success,operation:.response.operation,copied:.response.copied,deferredCopies:.response.deferredCopies,targetOnly:.response.targetOnly,pendingDeletes:.response.pendingDeletes,parity:.response.parity}' "$RUNNER_TEMP/storage-output.json"
+          jq -e '.ok==true and .status<400 and .response.success==true and .response.operation=="storage" and .response.deferredCopies==0 and .response.targetOnly==0 and .response.pendingDeletes==0' "$RUNNER_TEMP/storage-output.json" >/dev/null
+
+      - name: Require full passive standby parity while schedules remain fail-closed
+        run: |
+          set -euo pipefail
+          printf '%s' '{"function":"dr-standby-reconciler","body":{"operation":"status","dryRun":true}}' > "$RUNNER_TEMP/status-input.json"
+          aws lambda invoke --function-name "$invoker" --cli-binary-format raw-in-base64-out --payload "fileb://$RUNNER_TEMP/status-input.json" "$RUNNER_TEMP/status-after.json" >/dev/null
+          jq -c '{ok,status,success:.response.success,sourcePublishedTables:.response.guard.sourcePublishedTables,sourceSlotLagBytes:.response.guard.sourceSlotLagBytes,targetTotalTables:.response.guard.targetTotalTables,targetReadyTables:.response.guard.targetReadyTables,targetConnectedWorkers:.response.guard.targetConnectedWorkers,auth_parity:.response.auth.parity,storage_parity:.response.storage.parity}' "$RUNNER_TEMP/status-after.json"
+          jq -e '.ok==true and .status<400 and .response.success==true and .response.guard.sourceCronJobs==0 and .response.guard.sourceActiveSlots==1 and .response.guard.sourcePublishedTables>0 and .response.guard.sourceSlotLagBytes>=0 and .response.guard.sourceSlotLagBytes<=67108864 and .response.guard.targetActiveCronJobs==0 and .response.guard.targetTotalTables==.response.guard.sourcePublishedTables and .response.guard.targetReadyTables==.response.guard.sourcePublishedTables and .response.guard.targetConnectedWorkers>=1 and .response.auth.parity==true and .response.storage.parity==true' "$RUNNER_TEMP/status-after.json" >/dev/null
+          for name in dr-auth-standby-reconcile dr-storage-standby-reconcile; do
+            test "$(aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$name" --query State --output text)" = 'DISABLED'
+          done
+
+      - name: Cleanup
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/*.json
