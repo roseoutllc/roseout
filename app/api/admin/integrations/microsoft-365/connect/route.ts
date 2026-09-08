@@ -11,7 +11,7 @@ function base64url(input: Buffer) {
 
 export async function GET(request: NextRequest) {
   const admin = await getCurrentAdmin();
-  const config = getMicrosoft365Config();
+  const config = await getMicrosoft365Config();
   const silent = request.nextUrl.searchParams.get("silent") === "1";
   const requestedNext = sanitizeIntendedPath(request.nextUrl.searchParams.get("next"));
   const next = requestedNext?.startsWith("/admin")
