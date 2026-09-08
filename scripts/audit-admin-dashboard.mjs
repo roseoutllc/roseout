@@ -5,6 +5,15 @@ const root = process.cwd();
 const adminRoot = path.join(root, 'app', 'admin', 'dashboard');
 const componentRoot = path.join(root, 'components', 'admin');
 
+const reviewedHiddenOperationalRoutes = new Set([
+  '/admin/dashboard/communication',
+  '/admin/dashboard/experiences',
+  '/admin/dashboard/marketing/analytics',
+  '/admin/dashboard/reviews',
+  '/admin/dashboard/seo-tools',
+  '/admin/dashboard/sms',
+]);
+
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -90,6 +99,7 @@ function classifyRoute(route, file) {
   if (route === '/admin/dashboard' || navigationEntrypoints.includes(route)) return 'navigation_entrypoint';
   if (/\/(?:print|export)(?:\/|$)/.test(route)) return 'print_export';
   if (route.includes('[')) return 'dynamic_detail_workflow';
+  if (reviewedHiddenOperationalRoutes.has(route)) return 'hidden_operational_tool';
 
   const compact = text.replace(/\s+/g, ' ');
   const hasRedirect = /\bredirect\s*\(/.test(text);
@@ -171,6 +181,7 @@ const structuralChecks = {
   roleCreateRequiresSuperadmin: roleMembersRoute.includes('requireSuperAdmin()'),
   roleMutationRequiresSuperadmin: roleMemberRoute.includes('requireSuperAdmin()'),
   navigationEntrypointsResolve: navigationRoutesMissingPages.length === 0,
+  reviewedHiddenOperationalRoutesResolve: [...reviewedHiddenOperationalRoutes].every((route) => pageRoutes.has(route)),
 };
 
 const report = {
@@ -180,6 +191,7 @@ const report = {
   navigationEntrypoints,
   navigationRoutesWithPages,
   navigationRoutesMissingPages,
+  reviewedHiddenOperationalRoutes: [...reviewedHiddenOperationalRoutes].sort(),
   routeClassificationCounts: Object.fromEntries(
     Object.entries(routesByClassification).map(([classification, routes]) => [classification, routes.length]),
   ),
@@ -203,7 +215,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
   const unused = unusedAdminComponents.slice(0, 20).map((file) => `- \`${file}\``).join('\n') || '- None';
   const orphans = orphanReviewCandidates.slice(0, 30).map((route) => `- \`${route}\``).join('\n') || '- None';
   const classifications = Object.entries(routesByClassification).map(([classification, routes]) => `- ${classification.replaceAll('_', ' ')}: **${routes.length}**`).join('\n');
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Responsive-risk pages: **${responsiveRisk.length}**\n- Theme-risk pages: **${themeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Filesystem route count is not the number of admin pages actively used. Navigation entry points represent the intentional top-level admin surface; child/detail routes are classified separately. Orphan candidates remain review-only until replacement parity and business-logic ownership are proven.\n\n#### Route classification\n${classifications}\n\n#### Highest await counts\n\n| Route | render awaits | total file awaits |\n| --- | ---: | ---: |\n${topAwait}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Manually reviewed hidden operational tools: **${reviewedHiddenOperationalRoutes.size}**\n- Responsive-risk pages: **${responsiveRisk.length}**\n- Theme-risk pages: **${themeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Filesystem route count is not the number of admin pages actively used. Navigation entry points represent the intentional top-level admin surface; child/detail routes are classified separately. Orphan candidates remain review-only until replacement parity and business-logic ownership are proven.\n\n#### Route classification\n${classifications}\n\n#### Highest await counts\n\n| Route | render awaits | total file awaits |\n| --- | ---: | ---: |\n${topAwait}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
 }
 
 const failed = Object.entries(structuralChecks).filter(([, ok]) => !ok);
