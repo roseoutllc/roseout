@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ sessionId: string }> };
 
 export default async function DemoReservationPreview({ params }: Props) {
-  await requireAdminRole(ADMIN_PAGE_ACCESS.dashboard);
+  await requireAdminRole(ADMIN_PAGE_ACCESS.teamManagement);
   const { sessionId } = await params;
   const [{ data: session }, { data: locations = [] }] = await Promise.all([
     supabaseAdmin.from("crm_demo_sessions").select("*").eq("id", sessionId).maybeSingle(),
