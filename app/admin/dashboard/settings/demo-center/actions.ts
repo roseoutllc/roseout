@@ -24,7 +24,7 @@ export type DemoActionState = {
 };
 
 async function admin() {
-  return requireAdminRole(ADMIN_PAGE_ACCESS.dashboard);
+  return requireAdminRole(ADMIN_PAGE_ACCESS.teamManagement);
 }
 
 function done(

@@ -10,7 +10,7 @@ export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
 export const ADMIN_ROLE_DESCRIPTIONS: Record<AdminRole, string> = {
   superadmin: "Full platform access, ownership settings, billing, imports, users, and destructive actions.",
   admin: "Trusted operations access for locations, CRM, claims, reservations, Experience Team, marketing, and analytics.",
-  manager: "Team operations access for dashboard, Team Tools, work sessions, reviews, and payroll workflows.",
+  manager: "Team operations access for dashboard, Team Tools, work sessions, reviews, assignments, and supervised team workflows.",
   editor: "Content, location details, SEO, photos, templates, reviews, and marketing content.",
   reviewer: "Read-only review access to approved dashboard, CRM, location, analytics, reservation, communication, and content areas.",
   ambassador: "Sales and outreach access for assigned locations, claim links, pipeline updates, and upgrade opportunities.",

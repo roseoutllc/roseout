@@ -3,6 +3,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const adminRoot = path.join(root, 'app', 'admin', 'dashboard');
+const adminApiRoot = path.join(root, 'app', 'api', 'admin');
 const componentRoot = path.join(root, 'components', 'admin');
 
 const reviewedHiddenOperationalRoutes = new Set([
@@ -66,12 +67,36 @@ function getDefaultPageFunction(text) {
   let depth = 0;
   let quote = null;
   let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
   for (let i = bodyStart; i < text.length; i += 1) {
     const char = text[i];
+    const next = text[i + 1];
+    if (lineComment) {
+      if (char === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (char === '*' && next === '/') {
+        blockComment = false;
+        i += 1;
+      }
+      continue;
+    }
     if (quote) {
       if (escaped) escaped = false;
       else if (char === '\\') escaped = true;
       else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '/' && next === '/') {
+      lineComment = true;
+      i += 1;
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      blockComment = true;
+      i += 1;
       continue;
     }
     if (char === '"' || char === "'" || char === '`') {
@@ -85,6 +110,68 @@ function getDefaultPageFunction(text) {
     }
   }
   return text.slice(start);
+}
+
+function countTopLevelAwaits(functionText) {
+  const bodyStart = functionText.indexOf('{');
+  if (bodyStart < 0) return countAwaits(functionText);
+
+  let count = 0;
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let i = bodyStart; i < functionText.length; i += 1) {
+    const char = functionText[i];
+    const next = functionText[i + 1];
+    if (lineComment) {
+      if (char === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (char === '*' && next === '/') {
+        blockComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '/' && next === '/') {
+      lineComment = true;
+      i += 1;
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      blockComment = true;
+      i += 1;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+      continue;
+    }
+    if (char === '{') {
+      depth += 1;
+      continue;
+    }
+    if (char === '}') {
+      depth -= 1;
+      continue;
+    }
+    if (depth === 1 && functionText.startsWith('await', i)) {
+      const before = functionText[i - 1] || '';
+      const after = functionText[i + 5] || '';
+      if (!/[A-Za-z0-9_$]/.test(before) && !/[A-Za-z0-9_$]/.test(after)) count += 1;
+    }
+  }
+  return count;
 }
 
 function normalizeHex(hex) {
@@ -118,7 +205,9 @@ function responsiveHazards(text) {
     if (match.index == null) continue;
     const token = match[0];
     const before = text.slice(Math.max(0, match.index - 1200), match.index);
+    const immediateBefore = text.slice(Math.max(0, match.index - 10), match.index);
     if (token.startsWith('w-[') && before.endsWith('max-')) continue;
+    if (/(?:sm|md|lg|xl|2xl):$/.test(immediateBefore)) continue;
     const safelyScrollable = /overflow-x-auto|overflow-auto|AdminDataTableShell/.test(before);
     if (!token.startsWith('grid-cols-[') && safelyScrollable) continue;
     hazards.push(token);
@@ -127,6 +216,7 @@ function responsiveHazards(text) {
 }
 
 const pages = walk(adminRoot).filter((file) => file.endsWith('/page.tsx'));
+const adminApiRoutes = walk(adminApiRoot).filter((file) => file.endsWith('/route.ts'));
 const tsFiles = walk(root).filter((file) => /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file) && !file.includes('/node_modules/'));
 const sourceCache = new Map(tsFiles.map((file) => [file, read(file)]));
 
@@ -208,18 +298,14 @@ const themeRisk = [];
 for (const file of pages) {
   const text = sourceCache.get(file) || '';
   const totalAwaits = countAwaits(text);
-  const renderAwaits = countAwaits(getDefaultPageFunction(text));
+  const renderAwaits = countTopLevelAwaits(getDefaultPageFunction(text));
   if (renderAwaits >= 5 || totalAwaits >= 8) {
     awaitHotspots.push({ file: rel(file), renderAwaits, totalAwaits });
   }
   const hazards = responsiveHazards(text);
-  if (hazards.length) {
-    responsiveRisk.push({ file: rel(file), hazards });
-  }
+  if (hazards.length) responsiveRisk.push({ file: rel(file), hazards });
   const uncoveredBackgrounds = arbitraryDarkBackgrounds(text).filter((token) => !coveredDarkBackgrounds.has(token));
-  if (uncoveredBackgrounds.length) {
-    themeRisk.push({ file: rel(file), uncoveredBackgrounds });
-  }
+  if (uncoveredBackgrounds.length) themeRisk.push({ file: rel(file), uncoveredBackgrounds });
 }
 
 awaitHotspots.sort((a, b) => b.renderAwaits - a.renderAwaits || b.totalAwaits - a.totalAwaits || a.file.localeCompare(b.file));
@@ -239,6 +325,21 @@ const navigationResponsiveRisk = navigationEntrypoints
     return risk ? { route, ...risk } : null;
   })
   .filter(Boolean);
+
+const adminApiAuthorizationRisk = adminApiRoutes.flatMap((file) => {
+  const text = sourceCache.get(file) || '';
+  const usesBroadDashboard = text.includes('requireAdminRole(ADMIN_PAGE_ACCESS.dashboard)');
+  if (!usesBroadDashboard) return [];
+  const usesServiceRole = /\bsupabaseAdmin\b/.test(text);
+  const mutatingHandler = /export\s+(?:async\s+)?function\s+(?:POST|PUT|PATCH|DELETE)\b/.test(text);
+  const directMutation = /\.(?:insert|update|upsert|delete|rpc)\s*\(|\.functions\.invoke\s*\(/.test(text);
+  if (!usesServiceRole || (!mutatingHandler && !directMutation)) return [];
+  const reasons = [];
+  if (usesServiceRole) reasons.push('service-role client');
+  if (mutatingHandler) reasons.push('mutating HTTP handler');
+  if (directMutation) reasons.push('direct database/function mutation');
+  return [{ file: rel(file), reasons }];
+}).sort((a, b) => a.file.localeCompare(b.file));
 
 const unusedAdminComponents = [];
 const adminComponents = walk(componentRoot).filter((file) => /\.(?:ts|tsx)$/.test(file) && !/\.test\.(?:ts|tsx)$/.test(file));
@@ -263,6 +364,12 @@ const roleMembersRoute = read(path.join(root, 'app', 'api', 'admin', 'system', '
 const roleMemberRoute = read(path.join(root, 'app', 'api', 'admin', 'system', 'role-members', '[adminId]', 'route.ts'));
 const searchAnchorsLayout = read(path.join(root, 'app', 'admin', 'dashboard', 'search-anchors', 'layout.tsx'));
 const crmAutomationLayout = read(path.join(root, 'app', 'admin', 'dashboard', 'crm', 'communications', 'automation', 'layout.tsx'));
+const teamDemoLayout = read(path.join(root, 'app', 'admin', 'dashboard', 'team', 'demo', 'layout.tsx'));
+const websiteHostingLayout = read(path.join(root, 'app', 'admin', 'dashboard', 'website-hosting', 'layout.tsx'));
+const demoCenterLayout = read(path.join(root, 'app', 'admin', 'dashboard', 'settings', 'demo-center', 'layout.tsx'));
+const demoCenterActions = read(path.join(root, 'app', 'admin', 'dashboard', 'settings', 'demo-center', 'actions.ts'));
+const hostingDrRoute = read(path.join(root, 'app', 'api', 'admin', 'hosting', 'dr-test', 'route.ts'));
+const hostingLiveDrRoute = read(path.join(root, 'app', 'api', 'admin', 'hosting', 'live-drill', 'route.ts'));
 const adminPermissions = read(path.join(root, 'lib', 'admin-permissions.ts'));
 const teamManagerPages = [
   'escalations',
@@ -271,8 +378,14 @@ const teamManagerPages = [
   'proof-review',
   'settings',
   'tasks',
+  'work-sessions',
+  'review',
+  'site-visits',
+  'social-outreach',
 ].map((name) => read(path.join(root, 'app', 'admin', 'dashboard', 'team', name, 'page.tsx')));
 const passwordResetAuditPage = read(path.join(root, 'app', 'admin', 'dashboard', 'team', 'password-reset-audit', 'page.tsx'));
+const payrollPage = read(path.join(root, 'app', 'admin', 'dashboard', 'team', 'payroll', 'page.tsx'));
+const claimCodeAuditPage = read(path.join(root, 'app', 'admin', 'dashboard', 'team', 'claim-code-audit', 'page.tsx'));
 
 const structuralChecks = {
   responsiveLayerImported: layout.includes('./admin-responsive.css'),
@@ -285,8 +398,18 @@ const structuralChecks = {
   crmAutomationWorkspaceProtected: crmAutomationLayout.includes('requireAdminRole(ADMIN_PAGE_ACCESS.communicationSend)'),
   teamManagementPermissionDefined: adminPermissions.includes('teamManagement: ["superadmin", "admin", "manager"]'),
   teamSecurityAuditPermissionDefined: adminPermissions.includes('teamSecurityAudit: ["superadmin", "admin"]'),
+  managerRoleDoesNotPromisePayroll: !/manager:\s*"[^"]*payroll/i.test(adminPermissions),
   teamManagerPagesProtected: teamManagerPages.every((text) => text.includes('requireAdminRole(ADMIN_PAGE_ACCESS.teamManagement)')),
   passwordResetAuditProtected: passwordResetAuditPage.includes('requireAdminRole(ADMIN_PAGE_ACCESS.teamSecurityAudit)'),
+  payrollProtected: payrollPage.includes('requireAdminRole(ADMIN_PAGE_ACCESS.teamSecurityAudit)'),
+  claimCodeAuditProtected: claimCodeAuditPage.includes('requireAdminRole(ADMIN_PAGE_ACCESS.teamSecurityAudit)'),
+  teamDemoWorkspaceProtected: teamDemoLayout.includes('requireAdminRole(ADMIN_PAGE_ACCESS.teamManagement)'),
+  demoCenterWorkspaceProtected: demoCenterLayout.includes('requireAdminRole(ADMIN_PAGE_ACCESS.teamManagement)'),
+  demoCenterActionsProtected: demoCenterActions.includes('requireAdminRole(ADMIN_PAGE_ACCESS.teamManagement)') && !demoCenterActions.includes('requireAdminRole(ADMIN_PAGE_ACCESS.dashboard)'),
+  websiteHostingWorkspaceProtected: websiteHostingLayout.includes('requireAdminRole(ADMIN_PAGE_ACCESS.productionFinishLine)'),
+  hostingDrApiProtected: hostingDrRoute.includes('requireAdminRole(ADMIN_PAGE_ACCESS.productionFinishLine)') && !hostingDrRoute.includes('ADMIN_PAGE_ACCESS.dashboard'),
+  hostingLiveDrApiProtected: hostingLiveDrRoute.includes('requireAdminRole(ADMIN_PAGE_ACCESS.productionFinishLine)') && !hostingLiveDrRoute.includes('ADMIN_PAGE_ACCESS.dashboard'),
+  sensitiveAdminApisAvoidBroadDashboard: adminApiAuthorizationRisk.length === 0,
   navigationEntrypointsResolve: navigationRoutesMissingPages.length === 0,
   reviewedHiddenOperationalRoutesResolve: [...reviewedHiddenOperationalRoutes].every((route) => pageRoutes.has(route)),
 };
@@ -315,6 +438,8 @@ const report = {
   themeRisk,
   navigationThemeRiskCount: navigationThemeRisk.length,
   navigationThemeRisk,
+  adminApiAuthorizationRiskCount: adminApiAuthorizationRisk.length,
+  adminApiAuthorizationRisk,
   coveredDarkBackgrounds: [...coveredDarkBackgrounds].sort(),
   unusedAdminComponents,
   structuralChecks,
@@ -328,8 +453,9 @@ if (process.env.GITHUB_STEP_SUMMARY) {
   const orphans = orphanReviewCandidates.slice(0, 30).map((route) => `- \`${route}\``).join('\n') || '- None';
   const themeItems = navigationThemeRisk.slice(0, 20).map((item) => `- \`${item.route}\`: ${item.uncoveredBackgrounds.map((token) => `\`${token}\``).join(', ')}`).join('\n') || '- None';
   const responsiveItems = navigationResponsiveRisk.slice(0, 20).map((item) => `- \`${item.route}\`: ${item.hazards.map((token) => `\`${token}\``).join(', ')}`).join('\n') || '- None';
+  const apiItems = adminApiAuthorizationRisk.slice(0, 30).map((item) => `- \`${item.file}\`: ${item.reasons.join(', ')}`).join('\n') || '- None';
   const classifications = Object.entries(routesByClassification).map(([classification, routes]) => `- ${classification.replaceAll('_', ' ')}: **${routes.length}**`).join('\n');
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Manually reviewed hidden operational tools: **${reviewedHiddenOperationalRoutes.size}**\n- Responsive-risk filesystem pages: **${responsiveRisk.length}**\n- Responsive-risk navigation destinations: **${navigationResponsiveRisk.length}**\n- Uncovered theme-risk filesystem pages: **${themeRisk.length}**\n- Uncovered theme-risk navigation destinations: **${navigationThemeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Theme risk reports only dark arbitrary background colors not already normalized by the Admin appearance compatibility layers. Responsive risk ignores intentionally wide tables and data grids that are already contained by horizontal scrolling, plus ordinary max-w content caps. Filesystem route count is not the number of admin pages actively used.\n\n#### Route classification\n${classifications}\n\n#### Highest await counts\n\n| Route | render awaits | total file awaits |\n| --- | ---: | ---: |\n${topAwait}\n\n#### Navigation theme risks\n${themeItems}\n\n#### Navigation responsive risks\n${responsiveItems}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Manually reviewed hidden operational tools: **${reviewedHiddenOperationalRoutes.size}**\n- Responsive-risk filesystem pages: **${responsiveRisk.length}**\n- Responsive-risk navigation destinations: **${navigationResponsiveRisk.length}**\n- Uncovered theme-risk filesystem pages: **${themeRisk.length}**\n- Uncovered theme-risk navigation destinations: **${navigationThemeRisk.length}**\n- Broad-dashboard sensitive admin API risks: **${adminApiAuthorizationRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Theme risk reports only dark arbitrary background colors not already normalized by the Admin appearance compatibility layers. Responsive risk ignores scroll-contained wide tables, ordinary max-w caps, and breakpoint-only wide layouts. Render await counts only include top-level awaits in the page function; total file awaits remain a complexity signal. Filesystem route count is not the number of admin pages actively used.\n\n#### Route classification\n${classifications}\n\n#### Highest await counts\n\n| Route | render awaits | total file awaits |\n| --- | ---: | ---: |\n${topAwait}\n\n#### Sensitive admin API authorization risks\n${apiItems}\n\n#### Navigation theme risks\n${themeItems}\n\n#### Navigation responsive risks\n${responsiveItems}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
 }
 
 const failed = Object.entries(structuralChecks).filter(([, ok]) => !ok);
