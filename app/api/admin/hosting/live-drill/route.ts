@@ -91,7 +91,7 @@ async function snapshot() {
 }
 
 export async function GET() {
-  await requireAdminRole(ADMIN_PAGE_ACCESS.dashboard);
+  await requireAdminRole(ADMIN_PAGE_ACCESS.productionFinishLine);
   try {
     return NextResponse.json({ ok: true, ...(await snapshot()) });
   } catch (error) {
@@ -100,7 +100,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  await requireAdminRole(ADMIN_PAGE_ACCESS.dashboard);
+  await requireAdminRole(ADMIN_PAGE_ACCESS.productionFinishLine);
 
   try {
     const body = await request.json().catch(() => ({}));
