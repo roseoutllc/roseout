@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getCurrentBusinessLocation } from "@/lib/growth-pro/data";
+import { requireOwnerOrAdminAccessToLocation } from "@/lib/auth/locationOwnerAccess";
 import { createLocationSupportTicketAction, replyToLocationSupportTicketAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -26,24 +27,42 @@ export default async function LocationSupportPage({
   const params = searchParams ? await searchParams : {};
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const location = await getCurrentBusinessLocation();
-  if (!user?.id || !location?.id) {
+  const currentLocation = await getCurrentBusinessLocation();
+  if (!user?.id || !currentLocation?.id) {
     return <main className="min-h-screen bg-[#07090d] p-8 text-white"><div className="rounded-3xl border border-white/10 bg-white/[.04] p-6">No connected location account was found.</div></main>;
   }
+
+  const access = await requireOwnerOrAdminAccessToLocation(user.id, String(currentLocation.id));
+  if (!access) {
+    return <main className="min-h-screen bg-[#07090d] p-8 text-white"><div className="rounded-3xl border border-white/10 bg-white/[.04] p-6">You do not have access to this location.</div></main>;
+  }
+  const location = access.location;
 
   const { data: tickets } = await supabaseAdmin
     .from("support_tickets")
     .select("id,ticket_number,subject,status,priority,category,created_at,updated_at,last_message_at")
     .eq("location_id", location.id)
+    .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(100);
 
   const selectedId = params.ticket || tickets?.[0]?.id || null;
   const selected = selectedId
-    ? await supabaseAdmin.from("support_tickets").select("*").eq("id", selectedId).eq("location_id", location.id).maybeSingle()
+    ? await supabaseAdmin
+        .from("support_tickets")
+        .select("id,ticket_number,subject,status,priority,category,topic")
+        .eq("id", selectedId)
+        .eq("location_id", location.id)
+        .eq("user_id", user.id)
+        .maybeSingle()
     : { data: null } as any;
   const messages = selected.data
-    ? await supabaseAdmin.from("support_ticket_messages").select("*").eq("ticket_id", selected.data.id).eq("internal_note", false).order("created_at")
+    ? await supabaseAdmin
+        .from("support_ticket_messages")
+        .select("id,author_name,sender_role,actor_type,body,message,created_at")
+        .eq("ticket_id", selected.data.id)
+        .eq("internal_note", false)
+        .order("created_at")
     : { data: [] } as any;
 
   return (
