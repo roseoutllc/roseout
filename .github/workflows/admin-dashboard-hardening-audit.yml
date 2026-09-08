@@ -18,6 +18,7 @@ on:
       - 'scripts/audit-admin-promo-code-pii.mjs'
       - 'scripts/audit-admin-ops-batch-a-pii.mjs'
       - 'scripts/audit-admin-location-batch-b-pii.mjs'
+      - 'scripts/audit-admin-identity-batch-c-pii.mjs'
       - '.github/workflows/admin-dashboard-hardening-audit.yml'
   push:
     branches: [main]
@@ -37,6 +38,7 @@ on:
       - 'scripts/audit-admin-promo-code-pii.mjs'
       - 'scripts/audit-admin-ops-batch-a-pii.mjs'
       - 'scripts/audit-admin-location-batch-b-pii.mjs'
+      - 'scripts/audit-admin-identity-batch-c-pii.mjs'
       - '.github/workflows/admin-dashboard-hardening-audit.yml'
 
 permissions:
@@ -73,3 +75,5 @@ jobs:
         run: node scripts/audit-admin-ops-batch-a-pii.mjs
       - name: Audit location batch B PII and mutation boundaries
         run: node scripts/audit-admin-location-batch-b-pii.mjs
+      - name: Audit identity batch C PII and mutation boundaries
+        run: node scripts/audit-admin-identity-batch-c-pii.mjs
