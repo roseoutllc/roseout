@@ -36,9 +36,13 @@ export default async function AdminSecurityPage() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-300">Admin Dashboard / System</p>
             <h1 className="mt-2 text-4xl font-black">Security</h1>
-            <p className="mt-2 max-w-3xl text-sm font-bold text-white/55">Monitor privileged accounts, stale sign-ins, disabled access, managed devices, and security-sensitive admin activity. Access changes are superadmin-only and audited.</p>
+            <p className="mt-2 max-w-3xl text-sm font-bold text-white/55">Monitor privileged accounts, stale sign-ins, disabled access, managed devices, audit history, credentials, and security-sensitive admin activity. Access changes are superadmin-only and audited.</p>
           </div>
-          <Link href="/admin/dashboard/security/devices" className="inline-flex rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2 text-sm font-black">Device Management</Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/dashboard/security/devices" className="inline-flex rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2 text-sm font-black">Device Management</Link>
+            <Link href="/admin/dashboard/logs" className="inline-flex rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2 text-sm font-black">Audit Logs</Link>
+            <Link href="/admin/dashboard/credentials" className="inline-flex rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2 text-sm font-black">Credentials Vault</Link>
+          </div>
         </header>
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
