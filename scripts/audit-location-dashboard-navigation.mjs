@@ -7,7 +7,7 @@ const hubFiles = [
   "app/locations/dashboard/marketing-growth/page.tsx",
 ];
 
-const primaryItemCount = (nav.match(/\bicon: /g) || []).length;
+const primaryItemCount = (nav.match(/\bicon: [A-Z]/g) || []).length;
 const requiredPrimaryRoutes = [
   "/locations/dashboard/events-experiences",
   "/locations/dashboard/menu",
