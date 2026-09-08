@@ -1,34 +1,45 @@
 import crypto from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const supportTicketsMaybeSingle = vi.fn();
-const supportTicketsUpdateEq = vi.fn();
-const reservationMaybeSingle = vi.fn();
+const mocks = vi.hoisted(() => {
+  const supportTicketsMaybeSingle = vi.fn();
+  const supportTicketsUpdateEq = vi.fn();
+  const reservationMaybeSingle = vi.fn();
 
-const supportTicketsBuilder = {
-  select: vi.fn(() => ({
-    eq: vi.fn(() => ({ maybeSingle: supportTicketsMaybeSingle })),
-  })),
-  update: vi.fn(() => ({ eq: supportTicketsUpdateEq })),
-};
-
-const reservationBuilder = {
-  select: vi.fn(() => ({
-    eq: vi.fn(() => ({
-      limit: vi.fn(() => ({ maybeSingle: reservationMaybeSingle })),
+  const supportTicketsBuilder = {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({ maybeSingle: supportTicketsMaybeSingle })),
     })),
-  })),
-};
+    update: vi.fn(() => ({ eq: supportTicketsUpdateEq })),
+  };
 
-const from = vi.fn((table: string) => {
-  if (table === "support_tickets") return supportTicketsBuilder;
-  if (table === "location_reservations") return reservationBuilder;
-  throw new Error(`Unexpected table: ${table}`);
+  const reservationBuilder = {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        limit: vi.fn(() => ({ maybeSingle: reservationMaybeSingle })),
+      })),
+    })),
+  };
+
+  const from = vi.fn((table: string) => {
+    if (table === "support_tickets") return supportTicketsBuilder;
+    if (table === "location_reservations") return reservationBuilder;
+    throw new Error(`Unexpected table: ${table}`);
+  });
+
+  return {
+    supportTicketsMaybeSingle,
+    supportTicketsUpdateEq,
+    reservationMaybeSingle,
+    supportTicketsBuilder,
+    reservationBuilder,
+    from,
+  };
 });
 
 vi.mock("@/lib/supabase-admin", () => ({
   supabaseAdmin: {
-    from,
+    from: mocks.from,
     auth: { admin: { listUsers: vi.fn() } },
   },
 }));
@@ -63,13 +74,13 @@ function pendingTicket(code = "654321") {
 describe("support identity verification regressions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    supportTicketsMaybeSingle.mockResolvedValue({ data: null, error: null });
-    supportTicketsUpdateEq.mockResolvedValue({ error: null });
-    reservationMaybeSingle.mockResolvedValue({ data: null, error: null });
+    mocks.supportTicketsMaybeSingle.mockResolvedValue({ data: null, error: null });
+    mocks.supportTicketsUpdateEq.mockResolvedValue({ error: null });
+    mocks.reservationMaybeSingle.mockResolvedValue({ data: null, error: null });
   });
 
   it("does not parse the word status as a reservation confirmation code", async () => {
-    supportTicketsMaybeSingle.mockResolvedValue({
+    mocks.supportTicketsMaybeSingle.mockResolvedValue({
       data: { id: "ticket-1", requester_phone: null, requester_email: null, metadata: {} },
       error: null,
     });
@@ -80,7 +91,7 @@ describe("support identity verification regressions", () => {
     });
 
     expect(result?.reason).toBe("support_identity_reservation_code_required");
-    expect(reservationMaybeSingle).not.toHaveBeenCalled();
+    expect(mocks.reservationMaybeSingle).not.toHaveBeenCalled();
   });
 
   it("bypasses the verification database for routine non-sensitive login/password support", async () => {
@@ -90,11 +101,11 @@ describe("support identity verification regressions", () => {
     });
 
     expect(result).toBeNull();
-    expect(from).not.toHaveBeenCalled();
+    expect(mocks.from).not.toHaveBeenCalled();
   });
 
   it("accepts a standalone six-digit OTP while a challenge is pending", async () => {
-    supportTicketsMaybeSingle.mockResolvedValue({ data: pendingTicket(), error: null });
+    mocks.supportTicketsMaybeSingle.mockResolvedValue({ data: pendingTicket(), error: null });
 
     const result = await getSupportIdentityGateDecision({
       ticketId: "ticket-1",
@@ -102,6 +113,6 @@ describe("support identity verification regressions", () => {
     });
 
     expect(result?.reason).toBe("support_identity_verified");
-    expect(supportTicketsBuilder.update).toHaveBeenCalledTimes(1);
+    expect(mocks.supportTicketsBuilder.update).toHaveBeenCalledTimes(1);
   });
 });
