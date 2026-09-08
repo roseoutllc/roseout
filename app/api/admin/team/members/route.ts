@@ -6,6 +6,8 @@ import { GLOBAL_WORK_TYPES, TEAM_TYPES } from "@/lib/team-tools";
 
 export const dynamic = "force-dynamic";
 
+const TEAM_MEMBER_FIELDS = "id,user_id,team_type,status,pay_type,hourly_rate,include_in_payroll,can_clock_in,can_track_work,can_do_site_visits,can_do_social_outreach,can_work_support_tickets,can_use_demo_mode,allowed_work_types,manager_id,notes,created_at,updated_at,can_send_claim_codes,can_send_owner_password_reset" as const;
+
 export async function POST(req: Request) {
   const { error: authError } = await requireAdminApiRole(ADMIN_PAGE_ACCESS.adminUsers);
   if (authError) return authError;
@@ -31,10 +33,14 @@ export async function POST(req: Request) {
       can_send_owner_password_reset: Boolean(body.canSendOwnerPasswordReset),
       can_use_demo_mode: body.canUseDemoMode !== false,
       allowed_work_types: allowedWorkTypes,
-      notes: body.notes || null,
+      notes: typeof body.notes === "string" ? body.notes.trim() || null : null,
       updated_at: new Date().toISOString(),
     };
-    const { data, error } = await supabaseAdmin.from("team_member_profiles").upsert(payload, { onConflict: "user_id" }).select("*").single();
+    const { data, error } = await supabaseAdmin
+      .from("team_member_profiles")
+      .upsert(payload, { onConflict: "user_id" })
+      .select(TEAM_MEMBER_FIELDS)
+      .single();
     if (error) throw error;
     revalidatePath("/admin/dashboard/team/members");
     return Response.json({ profile: data });
