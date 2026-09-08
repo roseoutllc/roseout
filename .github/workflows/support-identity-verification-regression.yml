@@ -1,0 +1,31 @@
+name: Support identity verification regression
+
+on:
+  pull_request:
+    paths:
+      - 'lib/support/identity-verification.ts'
+      - 'lib/support/__tests__/identity-verification.test.ts'
+      - '.github/workflows/support-identity-verification-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lib/support/identity-verification.ts'
+      - 'lib/support/__tests__/identity-verification.test.ts'
+      - '.github/workflows/support-identity-verification-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Run support identity verification regressions
+        run: npx vitest run lib/support/__tests__/identity-verification.test.ts
