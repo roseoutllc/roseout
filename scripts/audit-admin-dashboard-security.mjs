@@ -22,7 +22,10 @@ function read(file) {
 
 const routeFiles = walk(apiRoot).filter((file) => file.endsWith("/route.ts"));
 const handlerPattern = /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE)\b/g;
-const guardCallPattern = /await\s+(?:requireAdminApiRole|requireSuperAdmin|requireAdminRole|requireAdminLocationApiRead|requireAdminLocationApiWrite|require[A-Za-z0-9_$]*Admin|requireAdmin[A-Za-z0-9_$]*|getCurrentAdmin)\s*\(/;
+// These are verified authorization entrypoints. Matching a real function call (not
+// merely an import) lets local wrappers such as `authorize()` remain visible to
+// this structural audit while keeping the accepted set intentionally small.
+const guardCallPattern = /(?:requireAdminApiRole|requireSuperAdmin|requireAdminRole|requireAdminLocationApiRead|requireAdminLocationApiWrite|requireMarketingAdminApi|requireMarketingViewerApi|requireLocationPermission|getInternalDemoViewer|getAdminLoginRole|require[A-Za-z0-9_$]*Admin[A-Za-z0-9_$]*)\s*\(/;
 const serviceRolePattern = /\b(?:supabaseAdmin|getSupabaseAdminClient)\b/;
 const mutationPattern = /\.(?:insert|update|upsert|delete|rpc)\s*\(|\.functions\.invoke\s*\(/;
 const broadSelectPattern = /\.select\(\s*["'`]\*["'`]\s*\)/;
@@ -48,28 +51,38 @@ for (const file of routeFiles) {
 
 const adminApiAuth = read(path.join(root, "lib", "admin-api-auth.ts"));
 const adminPageAuth = read(path.join(root, "lib", "admin-auth.ts"));
+const loginRole = read(path.join(root, "lib", "auth", "get-admin-login-role.ts"));
+const internalDemoAccess = read(path.join(root, "lib", "demo", "internal-demo-access.ts"));
 const usersRoute = read(path.join(root, "app", "api", "admin", "users", "route.ts"));
 const adminLayout = read(path.join(root, "app", "admin", "layout.tsx"));
 
 const usersGuardIndex = usersRoute.indexOf("requireAdminApiRole(ADMIN_PAGE_ACCESS.adminUsers)");
 const customerBranchIndex = usersRoute.indexOf('url.searchParams.get("customer")');
 
+const canonicalOnly = (text) =>
+  text.includes('.from("admin_users")') &&
+  text.includes('.eq("user_id", user.id)') &&
+  !text.includes("user_metadata?.role") &&
+  !text.includes("user_metadata?.admin_role") &&
+  !text.includes('.eq("email", user.email)') &&
+  !text.includes('.ilike("email", user.email)');
+
 const checks = {
   adminLayoutRequiresAuthenticatedAdmin:
     adminLayout.includes("requireAdminRole(ADMIN_PAGE_ACCESS.dashboard)"),
   adminPageAuthUsesCanonicalAdminUsers:
-    adminPageAuth.includes('.from("admin_users")') &&
-    adminPageAuth.includes('.eq("user_id", user.id)') &&
-    !adminPageAuth.includes("user_metadata?.role") &&
-    !adminPageAuth.includes("user_metadata?.admin_role"),
+    canonicalOnly(adminPageAuth),
   adminApiAuthUsesCanonicalAdminUsersOnly:
-    adminApiAuth.includes('.from("admin_users")') &&
-    adminApiAuth.includes('.eq("user_id", user.id)') &&
+    canonicalOnly(adminApiAuth) &&
     !adminApiAuth.includes("FALLBACK_ROLE_LOOKUPS") &&
-    !adminApiAuth.includes("findFallbackRole") &&
-    !adminApiAuth.includes('.eq("email", user.email)') &&
-    !adminApiAuth.includes("user_metadata?.role") &&
-    !adminApiAuth.includes("user_metadata?.admin_role"),
+    !adminApiAuth.includes("findFallbackRole"),
+  adminLoginRoleUsesCanonicalAdminUsersOnly:
+    canonicalOnly(loginRole) &&
+    !loginRole.includes("roleFromMetadata") &&
+    !loginRole.includes("authAdminRoleFromSupabase"),
+  internalDemoAccessUsesCanonicalAdminUsersOnly:
+    canonicalOnly(internalDemoAccess) &&
+    !internalDemoAccess.includes('.from("users")'),
   adminUsersCustomerViewAuthorizedBeforeRead:
     usersGuardIndex >= 0 && customerBranchIndex >= 0 && usersGuardIndex < customerBranchIndex,
   allAdminApiRoutesHaveAuthGuard: unguardedAdminRoutes.length === 0,
