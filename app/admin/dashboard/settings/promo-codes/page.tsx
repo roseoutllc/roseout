@@ -31,7 +31,6 @@ type Promo = {
   starts_at: string;
   expires_at: string | null;
   created_at: string;
-  created_by: string | null;
 };
 
 type PromoFormState = {
@@ -61,7 +60,6 @@ type PromoFormState = {
 
 type UserOption = {
   id: string;
-  full_name: string | null;
   email: string | null;
 };
 
@@ -523,127 +521,150 @@ export default function AdminPromoCodesPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#1b100f] via-[#120b0a] to-[#080605] shadow-2xl shadow-rose-950/20">
-          <div className="border-b border-white/10 p-5 sm:p-6">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-2xl font-black">Create a promo code</h2>
-                <p className="mt-1 text-sm text-white/55">
-                  Pick a promo type, generate the code, then create it.
-                </p>
-              </div>
+        {msg && (
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+            {msg}
+          </div>
+        )}
 
-              <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
-                Current code:{" "}
-                <span className="font-black tracking-wide">
-                  {form.code || "Not generated yet"}
-                </span>
-              </div>
+        {error && (
+          <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+            {error}
+          </div>
+        )}
+
+        <section className="rounded-[32px] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-300">
+                Create
+              </p>
+              <h2 className="mt-1 text-2xl font-black">New promo code</h2>
+              <p className="mt-1 text-sm text-white/50">
+                Pick a purpose first. The form adjusts to the kind of code you need.
+              </p>
             </div>
           </div>
 
-          <div className="grid gap-6 p-5 sm:p-6 xl:grid-cols-[1fr_380px]">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {promoPresets.map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                className={`rounded-3xl border p-4 text-left transition ${
+                  selectedPreset.key === preset.key
+                    ? "border-rose-400/40 bg-rose-400/10"
+                    : "border-white/10 bg-black/20 hover:bg-white/[0.05]"
+                }`}
+              >
+                <p className="font-black">{preset.title}</p>
+                <p className="mt-1 text-xs leading-5 text-white/50">
+                  {preset.description}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-6">
-              {msg && (
-                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm font-semibold text-emerald-100">
-                  {msg}
-                </div>
-              )}
-
-              {error && (
-                <div className="rounded-2xl border border-rose-400/25 bg-rose-400/10 p-4 text-sm font-semibold text-rose-100">
-                  {error}
-                </div>
-              )}
-
               <div>
-                <p className={labelClass}>1. What kind of promo is this?</p>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  {promoPresets.map((preset) => {
-                    const active = preset.key === form.promo_type;
-
-                    return (
+                <p className={labelClass}>1. Code details</p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-white/75">
+                      Promo code
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        className={fieldClass}
+                        value={form.code}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            code: event.target.value.toUpperCase(),
+                          }))
+                        }
+                        placeholder="Generate or enter a code"
+                      />
                       <button
-                        key={preset.key}
                         type="button"
-                        onClick={() => applyPreset(preset)}
-                        className={`rounded-3xl border p-4 text-left transition ${
-                          active
-                            ? "border-rose-400/60 bg-rose-500/15 shadow-lg shadow-rose-950/30"
-                            : "border-white/10 bg-white/[0.035] hover:border-white/20 hover:bg-white/[0.06]"
-                        }`}
+                        onClick={generateCode}
+                        disabled={generating}
+                        className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 text-sm font-bold hover:bg-white/[0.1] disabled:opacity-50"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-black">{preset.title}</p>
-                            <p className="mt-1 text-sm leading-6 text-white/55">
-                              {preset.description}
-                            </p>
-                          </div>
-
-                          <span
-                            className={`mt-1 h-4 w-4 rounded-full border ${
-                              active
-                                ? "border-rose-300 bg-rose-400"
-                                : "border-white/25"
-                            }`}
-                          />
-                        </div>
+                        Generate
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
+                    </div>
+                  </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <label className={labelClass}>Code prefix</label>
-                  <select
-                    className={selectClass}
-                    value={form.prefix}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        prefix: event.target.value,
-                        code: "",
-                      }))
-                    }
-                  >
-                    {["OUT", "USER", "OWNER", "VIP", "BETA", "SAVE", "PRO", "COMP"].map(
-                      (value) => (
-                        <option key={value} value={value}>
-                          {value}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Promo code</label>
-                  <div className="flex gap-3">
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-white/75">
+                      Prefix for generated codes
+                    </label>
                     <input
                       className={fieldClass}
-                      placeholder="Click Generate Code"
-                      value={form.code}
+                      value={form.prefix}
                       onChange={(event) =>
                         setForm((current) => ({
                           ...current,
-                          code: event.target.value.toUpperCase(),
+                          prefix: event.target.value.toUpperCase(),
                         }))
                       }
+                      placeholder="OUT"
                     />
-
-                    <button
-                      type="button"
-                      onClick={generateCode}
-                      disabled={generating}
-                      className="shrink-0 rounded-2xl bg-white px-5 text-sm font-black text-[#120908] transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Generate
-                    </button>
                   </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-white/75">
+                      Name
+                    </label>
+                    <input
+                      className={fieldClass}
+                      value={form.name}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          name: event.target.value,
+                        }))
+                      }
+                      placeholder="Launch week premium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-white/75">
+                      Internal note
+                    </label>
+                    <input
+                      className={fieldClass}
+                      value={form.internal_notes}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          internal_notes: event.target.value,
+                        }))
+                      }
+                      placeholder="Why this code exists"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-bold text-white/75">
+                    Description
+                  </label>
+                  <textarea
+                    className="min-h-24 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-rose-400/50 focus:bg-white/[0.07]"
+                    value={form.description}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        description: event.target.value,
+                      }))
+                    }
+                    placeholder="What this promotion is for"
+                  />
                 </div>
               </div>
 
@@ -709,7 +730,7 @@ export default function AdminPromoCodesPage() {
 
                     <input
                       className={fieldClass}
-                      placeholder="Search by name or email"
+                      placeholder="Search by email"
                       value={userSearch}
                       onChange={(event) => setUserSearch(event.target.value)}
                     />
@@ -724,7 +745,7 @@ export default function AdminPromoCodesPage() {
                               ...current,
                               assigned_user_id: user.id,
                             }));
-                            setUserSearch(user.full_name || user.email || user.id);
+                            setUserSearch(user.email || user.id);
                           }}
                           className={`rounded-2xl border p-3 text-left text-sm transition ${
                             form.assigned_user_id === user.id
@@ -732,10 +753,8 @@ export default function AdminPromoCodesPage() {
                               : "border-white/10 bg-black/20 hover:bg-white/[0.05]"
                           }`}
                         >
-                          <p className="font-bold">
-                            {user.full_name || "Unnamed user"}
-                          </p>
-                          <p className="text-white/50">{user.email || user.id}</p>
+                          <p className="font-bold">{user.email || "User account"}</p>
+                          <p className="text-white/50">{user.id}</p>
                         </button>
                       ))}
                     </div>
@@ -764,12 +783,9 @@ export default function AdminPromoCodesPage() {
                             setForm((current) => ({
                               ...current,
                               assigned_location_id: location.id,
-                              assigned_location_name:
-                                location.name || location.address || location.id,
+                              assigned_location_name: location.name || "",
                             }));
-                            setLocationSearch(
-                              location.name || location.address || location.id,
-                            );
+                            setLocationSearch(location.name || location.address || location.id);
                           }}
                           className={`rounded-2xl border p-3 text-left text-sm transition ${
                             form.assigned_location_id === location.id
@@ -781,7 +797,9 @@ export default function AdminPromoCodesPage() {
                             {location.name || "Unnamed location"}
                           </p>
                           <p className="text-white/50">
-                            {location.address || "No address"}
+                            {[location.address, location.neighborhood, location.borough]
+                              .filter(Boolean)
+                              .join(" • ") || location.id}
                           </p>
                         </button>
                       ))}
@@ -791,140 +809,148 @@ export default function AdminPromoCodesPage() {
               </div>
 
               <div>
-                <p className={labelClass}>3. What do they get?</p>
-
-                <div className="grid gap-4 md:grid-cols-3">
+                <p className={labelClass}>3. Benefit</p>
+                <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-bold text-white/75">
-                      Plan / benefit
+                      Benefit type
                     </label>
-                    <input
-                      className={fieldClass}
-                      placeholder="premium, location_pro, search_boost"
-                      value={form.plan_granted}
+                    <select
+                      className={selectClass}
+                      value={form.promo_type}
                       onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          plan_granted: event.target.value,
-                        }))
+                        applyPreset(
+                          promoPresets.find(
+                            (preset) => preset.key === event.target.value,
+                          ) || promoPresets[0],
+                        )
                       }
-                    />
+                    >
+                      <option value="premium_access">Free premium access</option>
+                      <option value="location_pro_trial">Location pro trial</option>
+                      <option value="discount">Subscription discount</option>
+                      <option value="search_boost">Search boost</option>
+                    </select>
                   </div>
 
                   <div>
                     <label className="mb-2 block text-sm font-bold text-white/75">
-                      Duration
+                      Duration in days
                     </label>
-                    <select
-                      className={selectClass}
+                    <input
+                      className={fieldClass}
+                      type="number"
+                      min="1"
                       value={form.duration_days}
                       onChange={(event) =>
                         setForm((current) => ({
                           ...current,
                           duration_days: event.target.value,
-                          expires_at: toDatetimeLocal(
-                            addDays(Number(event.target.value) || 30),
-                          ),
                         }))
                       }
-                    >
-                      <option value="7">7 days</option>
-                      <option value="14">14 days</option>
-                      <option value="30">30 days</option>
-                      <option value="60">60 days</option>
-                      <option value="90">90 days</option>
-                      <option value="365">1 year</option>
-                    </select>
+                    />
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-white/75">
-                      Discount
-                    </label>
-                    <select
-                      className={selectClass}
-                      value={form.discount_mode}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          discount_mode: event.target.value as DiscountMode,
-                          discount_percent:
-                            event.target.value === "percent"
-                              ? current.discount_percent || "20"
-                              : "",
-                          discount_amount:
-                            event.target.value === "amount"
-                              ? current.discount_amount || "10"
-                              : "",
-                        }))
-                      }
-                    >
-                      <option value="none">No discount</option>
-                      <option value="percent">Percent off</option>
-                      <option value="amount">Dollar amount off</option>
-                    </select>
-                  </div>
+                  {form.promo_type === "discount" && (
+                    <>
+                      <div>
+                        <label className="mb-2 block text-sm font-bold text-white/75">
+                          Discount style
+                        </label>
+                        <select
+                          className={selectClass}
+                          value={form.discount_mode}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              discount_mode: event.target.value as DiscountMode,
+                            }))
+                          }
+                        >
+                          <option value="percent">Percent off</option>
+                          <option value="amount">Dollar amount off</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-bold text-white/75">
+                          {form.discount_mode === "amount"
+                            ? "Amount off"
+                            : "Percent off"}
+                        </label>
+                        <input
+                          className={fieldClass}
+                          type="number"
+                          min="0"
+                          max={form.discount_mode === "percent" ? "100" : undefined}
+                          step={form.discount_mode === "amount" ? "0.01" : "1"}
+                          value={
+                            form.discount_mode === "amount"
+                              ? form.discount_amount
+                              : form.discount_percent
+                          }
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              [form.discount_mode === "amount"
+                                ? "discount_amount"
+                                : "discount_percent"]: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {form.promo_type !== "discount" && (
+                    <div>
+                      <label className="mb-2 block text-sm font-bold text-white/75">
+                        Plan / benefit granted
+                      </label>
+                      <input
+                        className={fieldClass}
+                        value={form.plan_granted}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            plan_granted: event.target.value,
+                          }))
+                        }
+                        placeholder="premium"
+                      />
+                    </div>
+                  )}
+
+                  {form.promo_type === "search_boost" && (
+                    <div>
+                      <label className="mb-2 block text-sm font-bold text-white/75">
+                        Search limit override
+                      </label>
+                      <input
+                        className={fieldClass}
+                        value={form.search_limit_override}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            search_limit_override: event.target.value,
+                          }))
+                        }
+                        placeholder="Leave blank for plan default"
+                      />
+                    </div>
+                  )}
                 </div>
-
-                {form.discount_mode !== "none" && (
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    {form.discount_mode === "percent" && (
-                      <div>
-                        <label className="mb-2 block text-sm font-bold text-white/75">
-                          Percent off
-                        </label>
-                        <input
-                          className={fieldClass}
-                          placeholder="20"
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={form.discount_percent}
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              discount_percent: event.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                    )}
-
-                    {form.discount_mode === "amount" && (
-                      <div>
-                        <label className="mb-2 block text-sm font-bold text-white/75">
-                          Dollar amount off
-                        </label>
-                        <input
-                          className={fieldClass}
-                          placeholder="10"
-                          type="number"
-                          min="1"
-                          value={form.discount_amount}
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              discount_amount: event.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               <div>
                 <p className={labelClass}>4. Limits and dates</p>
-
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-bold text-white/75">
-                      Total uses
+                      Total redemptions allowed
                     </label>
                     <input
                       className={fieldClass}
-                      placeholder="Unlimited"
                       type="number"
                       min="1"
                       value={form.max_redemptions}
@@ -934,12 +960,13 @@ export default function AdminPromoCodesPage() {
                           max_redemptions: event.target.value,
                         }))
                       }
+                      placeholder="Unlimited"
                     />
                   </div>
 
                   <div>
                     <label className="mb-2 block text-sm font-bold text-white/75">
-                      Uses per user
+                      Per-user limit
                     </label>
                     <input
                       className={fieldClass}
@@ -989,124 +1016,85 @@ export default function AdminPromoCodesPage() {
                     />
                   </div>
                 </div>
-              </div>
 
-              <div>
-                <label className={labelClass}>Admin label / notes</label>
-
-                <div className="grid gap-4 md:grid-cols-2">
+                <label className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm font-bold text-white/75">
                   <input
-                    className={fieldClass}
-                    placeholder="Example: Summer launch code"
-                    value={form.name}
+                    type="checkbox"
+                    checked={form.is_active}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        name: event.target.value,
+                        is_active: event.target.checked,
                       }))
                     }
+                    className="h-4 w-4 accent-rose-500"
                   />
-
-                  <input
-                    className={fieldClass}
-                    placeholder="Short description"
-                    value={form.description}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        description: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
+                  Promo code is active
+                </label>
               </div>
             </div>
 
-            <aside className="h-fit rounded-[1.75rem] border border-white/10 bg-black/25 p-5">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
-                Preview
-              </p>
-
-              <div className="mt-4 rounded-3xl border border-rose-400/20 bg-gradient-to-br from-rose-500/15 to-pink-500/10 p-5">
-                <p className="text-sm text-white/55">Promo code</p>
-                <p className="mt-2 break-all text-3xl font-black tracking-tight">
-                  {form.code || "Generate first"}
+            <aside className="space-y-4">
+              <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/40">
+                  Preview
                 </p>
+                <p className="mt-3 font-mono text-2xl font-black tracking-wider text-rose-200">
+                  {form.code || "YOURCODE"}
+                </p>
+                <p className="mt-3 text-sm font-bold">
+                  {form.name || selectedPreset.title}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-white/55">
+                  {form.description || selectedPreset.description}
+                </p>
+
+                <dl className="mt-5 space-y-3 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-white/45">Audience</dt>
+                    <dd className="text-right font-bold">{form.audience}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-white/45">Rule</dt>
+                    <dd className="text-right font-bold">{form.target_scope}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-white/45">Benefit</dt>
+                    <dd className="text-right font-bold">{form.promo_type}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-white/45">Expires</dt>
+                    <dd className="text-right font-bold">
+                      {form.expires_at ? formatDate(form.expires_at) : "Never"}
+                    </dd>
+                  </div>
+                </dl>
+
+                <button
+                  type="button"
+                  onClick={create}
+                  disabled={loading}
+                  className="mt-6 w-full rounded-2xl bg-gradient-to-r from-rose-600 to-pink-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-rose-950/40 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? "Creating..." : "Create promo code"}
+                </button>
               </div>
-
-              <div className="mt-5 space-y-3 text-sm">
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
-                  <span className="text-white/45">Type</span>
-                  <span className="text-right font-bold">{selectedPreset.title}</span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
-                  <span className="text-white/45">Audience</span>
-                  <span className="text-right font-bold">
-                    {form.audience === "users"
-                      ? "Users"
-                      : form.audience === "locations"
-                        ? "Location owners"
-                        : "Users + owners"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
-                  <span className="text-white/45">Benefit</span>
-                  <span className="text-right font-bold">
-                    {form.discount_mode === "percent"
-                      ? `${form.discount_percent || 0}% off`
-                      : form.discount_mode === "amount"
-                        ? `$${form.discount_amount || 0} off`
-                        : form.plan_granted || "Access"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
-                  <span className="text-white/45">Expires</span>
-                  <span className="text-right font-bold">
-                    {formatDate(form.expires_at)}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-white/45">Status</span>
-                  <span className="text-right font-bold">
-                    {form.is_active ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={create}
-                disabled={loading}
-                className="mt-6 w-full rounded-2xl bg-gradient-to-r from-rose-600 to-pink-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-rose-950/40 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? "Creating..." : "Create Promo Code"}
-              </button>
-
-              <p className="mt-3 text-center text-xs leading-5 text-white/40">
-                Tip: Generate creates the code only. Create Promo Code saves it
-                to your system.
-              </p>
             </aside>
           </div>
         </section>
 
-        <section className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-          <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <section className="rounded-[32px] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h2 className="text-xl font-black">Existing promo codes</h2>
-              <p className="mt-1 text-sm text-white/50">
-                Search, filter, and review created promo codes.
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-300">
+                Library
               </p>
+              <h2 className="mt-1 text-2xl font-black">Existing promo codes</h2>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-4 lg:w-[720px]">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <input
                 className={fieldClass}
-                placeholder="Search code"
                 value={filters.q}
                 onChange={(event) =>
                   setFilters((current) => ({
@@ -1114,6 +1102,7 @@ export default function AdminPromoCodesPage() {
                     q: event.target.value,
                   }))
                 }
+                placeholder="Search code or name"
               />
 
               <select
@@ -1128,8 +1117,25 @@ export default function AdminPromoCodesPage() {
               >
                 <option value="">All audiences</option>
                 <option value="users">Users</option>
-                <option value="locations">Location owners</option>
+                <option value="locations">Locations</option>
                 <option value="both">Both</option>
+              </select>
+
+              <select
+                className={selectClass}
+                value={filters.promo_type}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    promo_type: event.target.value,
+                  }))
+                }
+              >
+                <option value="">All types</option>
+                <option value="premium_access">Premium</option>
+                <option value="location_pro_trial">Location pro</option>
+                <option value="discount">Discount</option>
+                <option value="search_boost">Search boost</option>
               </select>
 
               <select
@@ -1144,84 +1150,84 @@ export default function AdminPromoCodesPage() {
               >
                 <option value="">All statuses</option>
                 <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="expired">Expired</option>
                 <option value="scheduled">Scheduled</option>
+                <option value="expired">Expired</option>
+                <option value="inactive">Inactive</option>
               </select>
-
-              <button
-                type="button"
-                onClick={load}
-                className="rounded-2xl border border-white/10 bg-white px-4 text-sm font-black text-[#120908] transition hover:bg-rose-100"
-              >
-                Apply
-              </button>
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-white/10">
-            <div className="hidden grid-cols-[1.1fr_1fr_1fr_1fr_1fr] gap-4 border-b border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-white/35 lg:grid">
-              <span>Code</span>
-              <span>Type</span>
-              <span>Audience</span>
-              <span>Usage</span>
-              <span>Status</span>
-            </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={load}
+              className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold hover:bg-white/[0.09]"
+            >
+              Apply filters
+            </button>
+          </div>
 
-            <div className="divide-y divide-white/10">
-              {items.length === 0 ? (
-                <div className="p-8 text-center text-sm text-white/45">
-                  No promo codes found.
-                </div>
-              ) : (
-                items.map((promo) => {
-                  const status = statusFor(promo);
+          <div className="mt-5 grid gap-3">
+            {items.length === 0 && (
+              <div className="rounded-3xl border border-dashed border-white/10 p-8 text-center text-sm text-white/45">
+                No promo codes match these filters.
+              </div>
+            )}
 
-                  return (
-                    <div
-                      key={promo.id}
-                      className="grid gap-3 px-4 py-4 text-sm lg:grid-cols-[1.1fr_1fr_1fr_1fr_1fr] lg:items-center"
-                    >
-                      <div>
-                        <p className="font-black tracking-wide">{promo.code}</p>
-                        <p className="mt-1 text-xs text-white/40">
-                          {promo.name || promo.description || "No label"}
-                        </p>
-                      </div>
+            {items.map((promo) => {
+              const status = statusFor(promo);
 
-                      <div className="text-white/65">
-                        {promo.promo_type.replaceAll("_", " ")}
-                      </div>
-
-                      <div className="text-white/65">
-                        {promo.audience === "users"
-                          ? "Users"
-                          : promo.audience === "locations"
-                            ? "Location owners"
-                            : "Both"}
-                      </div>
-
-                      <div className="text-white/65">
-                        {promo.redemption_count || 0}
-                        {promo.max_redemptions
-                          ? ` / ${promo.max_redemptions}`
-                          : " / unlimited"}
-                      </div>
-
-                      <div>
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${badgeClass(
-                            status,
-                          )}`}
-                        >
-                          {status}
-                        </span>
-                      </div>
+              return (
+                <div
+                  key={promo.id}
+                  className="grid gap-4 rounded-3xl border border-white/10 bg-black/20 p-4 md:grid-cols-[1.2fr_1fr_0.8fr_auto] md:items-center"
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-mono text-lg font-black tracking-wider text-rose-200">
+                        {promo.code}
+                      </p>
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${badgeClass(
+                          status,
+                        )}`}
+                      >
+                        {status}
+                      </span>
                     </div>
-                  );
-                })
-              )}
-            </div>
+                    <p className="mt-1 text-sm font-bold">
+                      {promo.name || "Unnamed promotion"}
+                    </p>
+                    <p className="mt-1 text-xs text-white/45">
+                      {promo.description || promo.promo_type}
+                    </p>
+                  </div>
+
+                  <div className="text-sm">
+                    <p className="font-bold">{promo.promo_type}</p>
+                    <p className="mt-1 text-xs text-white/45">
+                      {promo.audience} • {promo.target_scope}
+                    </p>
+                  </div>
+
+                  <div className="text-sm">
+                    <p className="font-bold">
+                      {promo.redemption_count || 0}
+                      {promo.max_redemptions !== null
+                        ? ` / ${promo.max_redemptions}`
+                        : " redemptions"}
+                    </p>
+                    <p className="mt-1 text-xs text-white/45">
+                      Expires {formatDate(promo.expires_at)}
+                    </p>
+                  </div>
+
+                  <div className="text-xs text-white/45">
+                    Created {formatDate(promo.created_at)}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       </div>
