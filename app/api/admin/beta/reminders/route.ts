@@ -2,5 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireBetaAdmin, safeError } from "../_shared";
 import { sendBetaRemindersForActiveTesters } from "@/lib/beta/reminderEmails";
-export async function GET(){const a=await requireBetaAdmin(); if(a.error)return a.error; const {data,error}=await supabaseAdmin.from("beta_email_reminders").select("*").order("created_at",{ascending:false}).limit(300); if(error)return safeError(); return NextResponse.json({success:true,reminders:data||[]});}
-export async function POST(req:NextRequest){const a=await requireBetaAdmin(); if(a.error)return a.error; const b=await req.json().catch(()=>({})); const results=await sendBetaRemindersForActiveTesters(b.reminderType||"weekly_tasks"); return NextResponse.json({success:true,results});}
+
+const REMINDER_FIELDS = "id,tester_id,email,reminder_type,subject,status,week_start,weekly_required_tests,weekly_completed_tests,incomplete_task_count,sent_at,created_at" as const;
+const REMINDER_TYPES = new Set(["weekly_tasks", "incomplete_tasks", "weekly_progress"]);
+
+export async function GET() {
+  const auth = await requireBetaAdmin();
+  if (auth.error) return auth.error;
+  const { data, error } = await supabaseAdmin.from("beta_email_reminders").select(REMINDER_FIELDS).order("created_at", { ascending: false }).limit(300);
+  if (error) return safeError();
+  return NextResponse.json({ success: true, reminders: data || [] });
+}
+
+export async function POST(req: NextRequest) {
+  const auth = await requireBetaAdmin();
+  if (auth.error) return auth.error;
+  const body = await req.json().catch(() => ({}));
+  const reminderType = typeof body.reminderType === "string" && REMINDER_TYPES.has(body.reminderType) ? body.reminderType : "weekly_tasks";
+  const results = await sendBetaRemindersForActiveTesters(reminderType);
+  return NextResponse.json({ success: true, results });
+}
