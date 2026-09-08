@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 function cleanString(value: unknown, max = 160) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -13,8 +14,8 @@ function cleanPhone(value: unknown) {
 }
 
 export async function PATCH(req: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await createClient();
+  const { data: { user } } = await session.auth.getUser();
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
@@ -50,7 +51,7 @@ export async function PATCH(req: Request) {
     updated_at: now,
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("user_profiles")
     .upsert(payload, { onConflict: "user_id" })
     .select("preferred_name,city,birthday_month,mobile_number,sms_opt_in")
