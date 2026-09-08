@@ -10,6 +10,7 @@ on:
       - 'scripts/audit-admin-dashboard.mjs'
       - 'scripts/audit-admin-demo-boundaries.mjs'
       - 'scripts/audit-admin-dashboard-security.mjs'
+      - 'scripts/audit-admin-careers-pii.mjs'
       - '.github/workflows/admin-dashboard-hardening-audit.yml'
   push:
     branches: [main]
@@ -21,6 +22,7 @@ on:
       - 'scripts/audit-admin-dashboard.mjs'
       - 'scripts/audit-admin-demo-boundaries.mjs'
       - 'scripts/audit-admin-dashboard-security.mjs'
+      - 'scripts/audit-admin-careers-pii.mjs'
       - '.github/workflows/admin-dashboard-hardening-audit.yml'
 
 permissions:
@@ -41,3 +43,5 @@ jobs:
         run: node scripts/audit-admin-demo-boundaries.mjs
       - name: Audit admin auth, IDOR, and service-role boundaries
         run: node scripts/audit-admin-dashboard-security.mjs
+      - name: Audit careers PII and mutation boundaries
+        run: node scripts/audit-admin-careers-pii.mjs
