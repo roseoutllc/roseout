@@ -27,6 +27,10 @@ import {
 } from "@/lib/analytics/new-business-analytics";
 import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 
+const LOCATION_FIELDS = "id,name,restaurant_name,activity_name,city,borough,neighborhood,state,primary_category,category,cuisine,cuisine_type,activity_type,location_type,owner_user_id,owner_email,claimed_by_email,is_pro,plan";
+const EVENT_FIELDS = "location_id,event_name,event_type,source,metadata,created_at";
+const OUTING_FIELDS = "location_id,source_location_id,status,saved_at,completed_at,completed_no_feedback_at,attendance_confirmed_at,rating,matched_vibe,would_go_again,contact_method,reservation_type,created_at";
+
 export async function GET(request: NextRequest) {
   await requireAdminRole(ADMIN_PAGE_ACCESS.analytics);
 
@@ -45,9 +49,9 @@ export async function GET(request: NextRequest) {
 
   const from = getRangeStart(range);
   const [{ data: locations = [] }, { data: events = [] }, { data: outings = [] }] = await Promise.all([
-    supabaseAdmin.from("locations").select("*").limit(1000),
-    supabaseAdmin.from("analytics_events").select("*").gte("created_at", from || "1900-01-01"),
-    supabaseAdmin.from("outings").select("*").gte("created_at", from || "1900-01-01"),
+    supabaseAdmin.from("locations").select(LOCATION_FIELDS).limit(1000),
+    supabaseAdmin.from("analytics_events").select(EVENT_FIELDS).gte("created_at", from || "1900-01-01"),
+    supabaseAdmin.from("outings").select(OUTING_FIELDS).gte("created_at", from || "1900-01-01"),
   ]);
 
   const allLoc = locations as AnalyticsLocationRow[];
@@ -79,9 +83,10 @@ export async function GET(request: NextRequest) {
     || b.profile_views - a.profile_views,
   );
   const summary = buildAnalyticsSummary(e, o);
+  const workingIds = new Set(working.map((location) => location.id));
   const filteredSummary = buildAnalyticsSummary(
-    e.filter((event) => working.some((location) => location.id === event.location_id || location.id === event.metadata?.location_id)),
-    o.filter((outing) => working.some((location) => location.id === outing.location_id || location.id === outing.source_location_id)),
+    e.filter((event) => Boolean(event.location_id && workingIds.has(event.location_id)) || Boolean(event.metadata?.location_id && workingIds.has(event.metadata.location_id))),
+    o.filter((outing) => Boolean(outing.location_id && workingIds.has(outing.location_id)) || Boolean(outing.source_location_id && workingIds.has(outing.source_location_id))),
   );
 
   return NextResponse.json({
