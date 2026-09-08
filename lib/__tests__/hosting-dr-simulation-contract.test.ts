@@ -19,8 +19,8 @@ describe("hosting DR simulation contract", () => {
     "utf8",
   );
 
-  it("keeps the admin operation authenticated and simulation-only", () => {
-    expect(routeSource).toContain("requireAdminRole(ADMIN_PAGE_ACCESS.dashboard)");
+  it("keeps the production-admin operation authenticated and simulation-only", () => {
+    expect(routeSource).toContain("requireAdminRole(ADMIN_PAGE_ACCESS.productionFinishLine)");
     expect(simulationSource).toContain('mode: "simulation"');
     expect(migrationSource).toContain("check (mode in ('simulation'))");
   });
