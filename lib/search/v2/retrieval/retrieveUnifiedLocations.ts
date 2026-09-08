@@ -4,12 +4,16 @@ import type { EnterpriseLocation } from "../../enterprise/types";
 import { buildGeoPredicateDiagnostics } from "../geo/localityResolver";
 import { candidateMatchesRequestedGeo, sameGeoValue } from "../geo/geoBoundary";
 import type { SearchTrace } from "../observability/searchTrace";
+import { retrieveIndexedLowLevelLocations } from "./retrieveIndexedLowLevelLocations";
 import type { RetrievalRequest } from "./retrievalTypes";
 
 export type GeoLevel = "exact_neighborhood" | "city" | "borough_or_county" | "market" | "state";
 type LegacyGeoScope = { level: GeoLevel; neighborhood: string | null; city: string | null; borough: string | null; county: string | null; market: string | null; state: string | null; latitude: number | null; longitude: number | null; radiusMiles: number | null };
 const LEVEL_ORDER: GeoLevel[] = ["exact_neighborhood", "city", "borough_or_county", "market", "state"];
-const GENERIC_TERMS = new Set(["restaurant", "activity", "dinner", "lunch", "brunch", "breakfast", "food", "things to do"]);
+const GENERIC_TERMS = new Set([
+  "restaurant", "activity", "dinner", "lunch", "brunch", "breakfast", "food", "things to do",
+  "takeout", "take out", "fast casual", "fast food", "quick bite", "quick service", "counter service",
+]);
 const EXPLICIT_LOW_LEVEL_RETRIEVAL_LIMIT = 30;
 
 export function normalizeDomainEvidence(value: unknown) {
@@ -17,7 +21,7 @@ export function normalizeDomainEvidence(value: unknown) {
     ? value.toLowerCase().normalize("NFKD").replace(/[’']/g, "").replace(/[_\-–—/]+/g, " ").replace(/[^a-z0-9\s]+/g, " ").replace(/\s+/g, " ").trim()
     : "";
 }
-function normalize(value: unknown) { return normalizeDomainEvidence(value).replace(/\bcounty\b/g, "").replace(/\bcore\b/g, "").replace(/\s+/g, " ").trim(); }
+function normalize(value: unknown) { return normalizeDomainEvidence(value).replace(/\bcounty\b/g, "").replace(/\s+/g, " ").trim(); }
 function finiteNumber(value: unknown): number | null { const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN; return Number.isFinite(parsed) ? parsed : null; }
 function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) { const r = 3958.7613; const rad = (d: number) => d * Math.PI / 180; const dLat = rad(lat2 - lat1); const dLon = rad(lon2 - lon1); const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2; return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); }
 function resolveRegion(request: RetrievalRequest, marketOverride?: string | null): string | null { const geo = request.geo; const record = normalizeGeoTerm(marketOverride ?? geo.neighborhood ?? geo.borough ?? geo.city ?? geo.county ?? geo.market ?? geo.state); return record?.region ?? (record?.type === "region" ? record.name : null); }
@@ -41,7 +45,28 @@ export async function retrieveUnifiedLocations(supabase: SupabaseClient, request
   for (const level of levels) {
     const scope = scopeFor(request, level); if (level === "state" && maxOriginMiles(request, level) === 0) continue;
     const params = liveMusic ? { p_search_terms: searchTerms, p_neighborhood: scope.neighborhood, p_borough: scope.borough, p_city: scope.city, p_county: scope.county, p_state: scope.state, p_latitude: scope.latitude, p_longitude: scope.longitude, p_radius_miles: scope.radiusMiles, p_limit: effectiveLimit } : { p_search_terms: searchTerms, p_domain: request.desiredRole === "restaurant" ? "restaurant" : "activity", p_neighborhood: scope.neighborhood, p_borough: scope.borough, p_city: scope.city, p_county: scope.county, p_region: resolveRegion(request, scope.market), p_state: scope.state, p_latitude: scope.latitude, p_longitude: scope.longitude, p_radius_miles: scope.radiusMiles, p_limit: effectiveLimit, p_allow_places_of_worship: false, p_allow_low_level: request.allowLowLevel === true };
-    const { data, error } = await supabase.rpc(rpcName, params); if (error) throw new Error(`SEARCH_V2_RETRIEVAL_FAILED:${rpcName}:${error.message}`);
+
+    let data: unknown = null;
+    let retrievalSource = rpcName;
+    if (request.allowLowLevel === true && request.desiredRole === "restaurant" && !liveMusic) {
+      try {
+        const indexed = await retrieveIndexedLowLevelLocations(supabase, request, scope, effectiveLimit);
+        if (indexed?.length) {
+          data = indexed;
+          retrievalSource = "indexed_low_level_locations";
+        }
+      } catch (error) {
+        trace?.decisions.push({ stage: "retrieval", decision: "indexed_low_level_fallback", reason: error instanceof Error ? error.message : "indexed low-level retrieval failed" });
+      }
+    }
+
+    if (!data) {
+      const rpcResult = await supabase.rpc(rpcName, params);
+      if (rpcResult.error) throw new Error(`SEARCH_V2_RETRIEVAL_FAILED:${rpcName}:${rpcResult.error.message}`);
+      data = rpcResult.data;
+      retrievalSource = rpcName;
+    }
+
     const raw = (Array.isArray(data) ? data : []).map((location) => normalizeCoordinates(location as EnterpriseLocation, request));
     const cap = maxOriginMiles(request, level); const originAvailable = hasOrigin(request); const geoQualified = raw.filter((location) => originAvailable ? coordinateScopeMatch(location, request, cap) : textualScopeMatch(location, scope)); const retained = geoQualified.filter((location) => hasStrongDomainEvidence(location, request)).map((location) => ({ ...location, retrieval_geo_level: level } as EnterpriseLocation));
     if (trace) {
@@ -50,20 +75,7 @@ export async function retrieveUnifiedLocations(supabase: SupabaseClient, request
       trace.decisions.push({
         stage: "retrieval_geo_predicates",
         decision: retained.length ? "geo_level_succeeded" : "geo_level_empty",
-        reason: JSON.stringify({
-          lane: request.desiredRole,
-          rpcName,
-          level,
-          allowLowLevel: request.allowLowLevel === true,
-          effectiveLimit,
-          locality: buildGeoPredicateDiagnostics({ ...request.geo, radiusMiles: scope.radiusMiles }),
-          rpcPredicates: params,
-          requestedAreaRadiusMiles: scope.radiusMiles,
-          pairWalkingMinutes: null,
-          rawCount: raw.length,
-          geoQualifiedCount: geoQualified.length,
-          strongEvidenceCount: retained.length,
-        }),
+        reason: JSON.stringify({ lane: request.desiredRole, rpcName: retrievalSource, level, allowLowLevel: request.allowLowLevel === true, effectiveLimit, locality: buildGeoPredicateDiagnostics({ ...request.geo, radiusMiles: scope.radiusMiles }), rpcPredicates: retrievalSource === "indexed_low_level_locations" ? null : params, requestedAreaRadiusMiles: scope.radiusMiles, pairWalkingMinutes: null, rawCount: raw.length, geoQualifiedCount: geoQualified.length, strongEvidenceCount: retained.length }),
       });
     }
     if (retained.length) return retained.slice(0, effectiveLimit);
