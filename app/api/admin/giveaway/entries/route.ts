@@ -5,13 +5,16 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getBetaGiveawayEligibilityForEmail } from "@/lib/beta-giveaway-eligibility";
 import { getBetaAccountReadinessForEntries } from "@/lib/beta/accountReadiness";
 
+const GIVEAWAY_ENTRY_FIELDS = "id,full_name,email,phone,social_handle,social_platform,usually_go_out_area,wants_giveaway,followed_social,tagged_two_friends,giveaway_status,giveaway_verified_at,giveaway_verified_by,giveaway_notes,giveaway_post_url,email_verified,email_verified_at,duplicate_flag,duplicate_reason,duplicate_checked_at,created_at,updated_at,beta_interest,tester_type,beta_application_status,beta_application_id,beta_approved_at,beta_approved_by,prize_rules_confirmed,age_18_confirmed,followed_social_verified_at,followed_social_verified_by,tagged_friends_verified_at,tagged_friends_verified_by,giveaway_rules_agreed,weekly_beta_tasks_required_for_giveaway,weekly_task_eligibility_status" as const;
+const GIVEAWAY_DUPLICATE_EVENT_FIELDS = "id,signup_id,attempted_email,attempted_social_handle,attempted_social_platform,conflict_type,conflict_signup_id,source,created_at" as const;
+
 export async function GET(request: Request) {
   const auth = await requireAdminApiRole(ADMIN_PAGE_ACCESS.giveaway);
   if (auth.error) return auth.error;
   const url = new URL(request.url);
   const filter = url.searchParams.get("filter") || "all";
   const search = url.searchParams.get("search")?.trim();
-  let query = supabaseAdmin.from("launch_waitlist_signups").select("*").order("created_at", { ascending: false }).limit(500);
+  let query = supabaseAdmin.from("launch_waitlist_signups").select(GIVEAWAY_ENTRY_FIELDS).order("created_at", { ascending: false }).limit(500);
 
   if (filter === "launch_list_only") query = query.eq("wants_giveaway", false);
   if (filter === "giveaway_entries") query = query.eq("wants_giveaway", true);
@@ -47,6 +50,16 @@ export async function GET(request: Request) {
     duplicateFlagged: entries.filter((entry) => entry.duplicate_flag).length,
     winnerSelected: entries.filter((entry) => entry.giveaway_status === "winner").length,
   };
-  const { data: duplicateEvents } = await supabaseAdmin.from("launch_waitlist_duplicate_events").select("*").order("created_at", { ascending: false }).limit(50);
-  return NextResponse.json({ success: true, entries, duplicateEvents: duplicateEvents || [], stats });
+  const { data: duplicateEvents, error: duplicateError } = await supabaseAdmin
+    .from("launch_waitlist_duplicate_events")
+    .select(GIVEAWAY_DUPLICATE_EVENT_FIELDS)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  return NextResponse.json({
+    success: true,
+    entries,
+    duplicateEvents: duplicateEvents || [],
+    stats,
+    warnings: duplicateError ? [duplicateError.message] : [],
+  });
 }
