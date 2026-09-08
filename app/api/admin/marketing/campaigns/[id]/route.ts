@@ -15,6 +15,10 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+const CAMPAIGN_FIELDS = "id,name,campaign_type,status,selected_platforms,audience_segment,audience_id,location_id,location_source_type,location_source_id,location_name,location_image_url,location_category,location_city,location_state,location_address,location_description,public_location_url,public_slug,public_url,source_platform,caption_category,social_captions,hashtags,email_subject,email_body,sms_text,image_url,video_url,cta_url,scheduled_at,sent_at,created_at,updated_at";
+const MESSAGE_FIELDS = "id,campaign_id,channel,platform,subject,body,preview_text,media_url,status,scheduled_at,sent_at,created_at,updated_at";
+const SOCIAL_POST_FIELDS = "id,campaign_id,content_item_id,platform,caption,title,description,hashtags,voiceover_script,cta,location_promo_text,media_url,status,scheduled_at,posted_at,platform_permalink,last_metrics_sync_at,created_at,updated_at";
+
 export async function GET(_req: Request, context: RouteContext) {
   const { error } = await requireMarketingViewerApi();
   if (error) return error;
@@ -22,7 +26,7 @@ export async function GET(_req: Request, context: RouteContext) {
   const { id } = await context.params;
   const { data, error: fetchError } = await supabaseAdmin
     .from("marketing_campaigns")
-    .select("*, marketing_messages(*), social_posts(*)")
+    .select(`${CAMPAIGN_FIELDS},marketing_messages(${MESSAGE_FIELDS}),social_posts(${SOCIAL_POST_FIELDS})`)
     .eq("id", id)
     .maybeSingle();
 
@@ -90,7 +94,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     .from("marketing_campaigns")
     .update(updates)
     .eq("id", id)
-    .select("*")
+    .select(CAMPAIGN_FIELDS)
     .maybeSingle();
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });

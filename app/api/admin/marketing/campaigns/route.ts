@@ -14,6 +14,8 @@ import { buildCampaignSlug, campaignPublicUrl, getUniqueCampaignSlug } from "@/l
 
 export const dynamic = "force-dynamic";
 
+const CAMPAIGN_FIELDS = "id,name,campaign_type,status,selected_platforms,audience_segment,audience_id,location_id,location_source_type,location_source_id,location_name,location_image_url,location_category,location_city,location_state,location_address,location_description,public_location_url,public_slug,public_url,source_platform,caption_category,social_captions,hashtags,email_subject,email_body,sms_text,image_url,video_url,cta_url,scheduled_at,sent_at,created_at,updated_at";
+
 export async function GET(req: Request) {
   const { error } = await requireMarketingViewerApi();
   if (error) return error;
@@ -23,7 +25,7 @@ export async function GET(req: Request) {
 
   let query = supabaseAdmin
     .from("marketing_campaigns")
-    .select("*")
+    .select(CAMPAIGN_FIELDS)
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -96,7 +98,7 @@ export async function POST(req: Request) {
   const { data, error: insertError } = await supabaseAdmin
     .from("marketing_campaigns")
     .insert(payload)
-    .select("*")
+    .select(CAMPAIGN_FIELDS)
     .single();
 
   if (insertError) {

@@ -6,6 +6,8 @@ import { normalizePlatforms } from "@/lib/marketing/content-operations";
 
 export const dynamic = "force-dynamic";
 
+const CONTENT_ITEM_FIELDS = "id,scope,campaign_id,location_id,organization_id,source_type,source_id,title,content_type,occasion,market,neighborhood,budget_category,owner_user_id,status,priority,due_at,publish_at,approval_status,approved_by,approved_at,approved_version,current_version,selected_platforms,media_urls,caption,platform_copy,auto_publish,hook,script,voiceover,cta,created_at,updated_at,last_submitted_at";
+
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -29,7 +31,7 @@ export async function GET(req: Request) {
   const owner = text(url.searchParams.get("owner"));
   let query = supabaseAdmin
     .from("marketing_content_items")
-    .select("*")
+    .select(CONTENT_ITEM_FIELDS)
     .neq("status", "archived")
     .order("updated_at", { ascending: false })
     .limit(250);
@@ -83,7 +85,7 @@ export async function POST(req: Request) {
         metadata: body.metadata && typeof body.metadata === "object" ? body.metadata : {},
         created_by: auth.adminUser?.user_id || null,
       })
-      .select("*")
+      .select(CONTENT_ITEM_FIELDS)
       .single();
 
     if (error || !data) throw error || new Error("Could not create content item.");
