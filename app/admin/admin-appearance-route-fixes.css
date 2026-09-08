@@ -17,7 +17,13 @@
 .admin-theme[data-admin-theme="light"] [class*="bg-[#0a0b0d]"],
 .admin-theme[data-admin-theme="light"] [class*="bg-[#1b1210]"],
 .admin-theme[data-admin-theme="light"] [class*="bg-[#070606]"],
-.admin-theme[data-admin-theme="light"] [class*="bg-[#0f1510]"] {
+.admin-theme[data-admin-theme="light"] [class*="bg-[#0f1510]"],
+.admin-theme[data-admin-theme="light"] [class*="bg-[#08050b]"],
+.admin-theme[data-admin-theme="light"] [class*="bg-[#14110f]"],
+.admin-theme[data-admin-theme="light"] [class*="bg-[#151210]"],
+.admin-theme[data-admin-theme="light"] [class*="bg-[#07111f]"],
+.admin-theme[data-admin-theme="light"] [class*="bg-[#141010]"],
+.admin-theme[data-admin-theme="light"] [class*="bg-[#160d0c]"] {
   background-color: var(--admin-panel) !important;
   background-image: none !important;
   color: var(--admin-text) !important;
