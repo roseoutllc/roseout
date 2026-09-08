@@ -11,8 +11,8 @@ describe("controlled hosting live DR drill contract", () => {
     "utf8",
   );
 
-  it("is admin-only and requires an exact typed confirmation", () => {
-    expect(routeSource).toContain("requireAdminRole(ADMIN_PAGE_ACCESS.dashboard)");
+  it("is production-admin only and requires an exact typed confirmation", () => {
+    expect(routeSource).toContain("requireAdminRole(ADMIN_PAGE_ACCESS.productionFinishLine)");
     expect(routeSource).toContain('const CONFIRMATION = "LIVE DR THEOUTHAVEN LOUNGE"');
     expect(routeSource).toContain("confirmation !== CONFIRMATION");
   });
