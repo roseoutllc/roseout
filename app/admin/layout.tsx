@@ -6,6 +6,8 @@ import "./admin-appearance.css";
 import "./admin-appearance-legacy.css";
 import "./admin-appearance-status.css";
 import "./admin-appearance-route-fixes.css";
+import "./admin-theme-compat.css";
+import "./admin-responsive.css";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { noIndexRobots } from "@/lib/seo";
 import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";

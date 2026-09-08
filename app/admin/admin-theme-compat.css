@@ -1,0 +1,111 @@
+/* Compatibility layer for older admin routes that still use neutral/zinc/slate Tailwind colors.
+ * Scoped to the authenticated admin theme so public pages are unaffected.
+ */
+
+.admin-theme[data-admin-theme="light"] :is(
+  .bg-black,
+  .bg-neutral-950,
+  .bg-neutral-900,
+  .bg-zinc-950,
+  .bg-zinc-900,
+  .bg-slate-950,
+  .bg-slate-900,
+  .bg-gray-950,
+  .bg-gray-900
+) {
+  background-color: var(--admin-panel) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-theme[data-admin-theme="light"] :is(
+  .bg-neutral-800,
+  .bg-zinc-800,
+  .bg-slate-800,
+  .bg-gray-800
+) {
+  background-color: var(--admin-card-strong) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-theme[data-admin-theme="light"] :is(
+  .text-neutral-50,
+  .text-neutral-100,
+  .text-neutral-200,
+  .text-zinc-50,
+  .text-zinc-100,
+  .text-zinc-200,
+  .text-slate-50,
+  .text-slate-100,
+  .text-slate-200,
+  .text-gray-50,
+  .text-gray-100,
+  .text-gray-200
+) {
+  color: var(--admin-text) !important;
+}
+
+.admin-theme[data-admin-theme="light"] :is(
+  .text-neutral-300,
+  .text-neutral-400,
+  .text-zinc-300,
+  .text-zinc-400,
+  .text-slate-300,
+  .text-slate-400,
+  .text-gray-300,
+  .text-gray-400
+) {
+  color: var(--admin-soft) !important;
+}
+
+.admin-theme[data-admin-theme="light"] :is(
+  .text-neutral-500,
+  .text-neutral-600,
+  .text-zinc-500,
+  .text-zinc-600,
+  .text-slate-500,
+  .text-slate-600,
+  .text-gray-500,
+  .text-gray-600
+) {
+  color: var(--admin-muted) !important;
+}
+
+.admin-theme[data-admin-theme="light"] [class*="border-neutral-"],
+.admin-theme[data-admin-theme="light"] [class*="border-zinc-"],
+.admin-theme[data-admin-theme="light"] [class*="border-slate-"],
+.admin-theme[data-admin-theme="light"] [class*="border-gray-"] {
+  border-color: var(--admin-border) !important;
+}
+
+.admin-theme[data-admin-theme="light"] [class*="divide-neutral-"] > :not([hidden]) ~ :not([hidden]),
+.admin-theme[data-admin-theme="light"] [class*="divide-zinc-"] > :not([hidden]) ~ :not([hidden]),
+.admin-theme[data-admin-theme="light"] [class*="divide-slate-"] > :not([hidden]) ~ :not([hidden]),
+.admin-theme[data-admin-theme="light"] [class*="divide-gray-"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--admin-border) !important;
+}
+
+.admin-theme[data-admin-theme="light"] :is(
+  .hover\:bg-neutral-900:hover,
+  .hover\:bg-neutral-800:hover,
+  .hover\:bg-zinc-900:hover,
+  .hover\:bg-zinc-800:hover,
+  .hover\:bg-slate-900:hover,
+  .hover\:bg-slate-800:hover,
+  .hover\:bg-gray-900:hover,
+  .hover\:bg-gray-800:hover
+) {
+  background-color: var(--admin-accent-soft) !important;
+}
+
+/* Native controls and browser autofill should remain readable in both themes. */
+.admin-theme input:-webkit-autofill,
+.admin-theme input:-webkit-autofill:hover,
+.admin-theme input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--admin-text);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+.admin-theme :focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}

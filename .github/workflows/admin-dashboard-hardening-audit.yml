@@ -1,0 +1,35 @@
+name: Admin dashboard hardening audit
+
+on:
+  pull_request:
+    paths:
+      - 'app/admin/**'
+      - 'app/api/admin/**'
+      - 'components/admin/**'
+      - 'lib/admin-*.ts'
+      - 'scripts/audit-admin-dashboard.mjs'
+      - '.github/workflows/admin-dashboard-hardening-audit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app/admin/**'
+      - 'app/api/admin/**'
+      - 'components/admin/**'
+      - 'lib/admin-*.ts'
+      - 'scripts/audit-admin-dashboard.mjs'
+      - '.github/workflows/admin-dashboard-hardening-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Audit admin routes
+        run: node scripts/audit-admin-dashboard.mjs
