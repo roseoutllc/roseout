@@ -1,0 +1,35 @@
+name: Location dashboard security audit
+
+on:
+  pull_request:
+    paths:
+      - 'app/locations/dashboard/**'
+      - 'app/api/owner/**'
+      - 'app/api/reserve/portal/**'
+      - 'lib/auth/locationOwnerAccess.ts'
+      - 'scripts/audit-location-dashboard-security.mjs'
+      - '.github/workflows/location-dashboard-security-audit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app/locations/dashboard/**'
+      - 'app/api/owner/**'
+      - 'app/api/reserve/portal/**'
+      - 'lib/auth/locationOwnerAccess.ts'
+      - 'scripts/audit-location-dashboard-security.mjs'
+      - '.github/workflows/location-dashboard-security-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Audit location dashboard auth, ownership, and PII boundaries
+        run: node scripts/audit-location-dashboard-security.mjs
