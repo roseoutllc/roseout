@@ -9,15 +9,33 @@ const appShell = readFileSync("components/AppShell.tsx", "utf8");
 const layout = readFileSync("app/locations/dashboard/layout.tsx", "utf8");
 
 describe("location workspace E2E navigation", () => {
-  it("keeps location workspace navigation inside the location dashboard shell", () => {
-    for (const route of [
-      "/locations/dashboard/reservations",
-      "/locations/dashboard/reservations/settings",
+  it("keeps the 17 primary owner workspaces inside the location dashboard shell", () => {
+    const primaryRoutes = [
+      "/locations/dashboard",
+      "/locations/dashboard/events-experiences",
       "/locations/dashboard/menu",
       "/locations/dashboard/website",
       "/locations/dashboard/messaging",
-      "/locations/dashboard/analytics",
+      "/locations/dashboard/reservations",
+      "/locations/dashboard/reservations/large-group-bookings",
+      "/locations/dashboard/reservations/settings",
       "/locations/dashboard/profile",
+      "/locations/dashboard/business-setup",
+      "/locations/dashboard/customers",
+      "/locations/dashboard/reviews",
+      "/locations/dashboard/marketing-growth",
+      "/locations/dashboard/analytics",
+      "/locations/dashboard/billing",
+      "/locations/dashboard/support",
+      "/locations/dashboard/settings",
+    ];
+    for (const route of primaryRoutes) expect(nav).toContain(`href: "${route}"`);
+    const itemDefinitions = nav.match(/\{ label: ".+?", href: "\/locations\/dashboard[^\n]+/g) || [];
+    expect(itemDefinitions).toHaveLength(17);
+  });
+
+  it("keeps consolidated child tools reachable and highlights their parent hubs", () => {
+    for (const route of [
       "/locations/dashboard/branding",
       "/locations/dashboard/domains",
       "/locations/dashboard/qr-codes",
@@ -25,14 +43,13 @@ describe("location workspace E2E navigation", () => {
       "/locations/dashboard/offers",
       "/locations/dashboard/vip",
       "/locations/dashboard/notifications",
-      "/locations/dashboard/reviews",
       "/locations/dashboard/marketing-studio",
+      "/locations/dashboard/social-accounts",
       "/locations/dashboard/promotions",
-      "/locations/dashboard/billing",
-      "/locations/dashboard/settings",
     ]) {
       expect(nav).toContain(route);
     }
+    expect(nav).toContain("matches?: string[]");
   });
 
   it("does not send location workspace navigation into the business dashboard shell", () => {
@@ -63,11 +80,12 @@ describe("location workspace E2E navigation", () => {
     expect(nav).toContain("overflow-hidden border-r");
   });
 
-  it("preserves current location and demo query context while navigating", () => {
+  it("preserves location/demo context but drops page-specific tab state", () => {
     expect(nav).toContain("useSearchParams");
     expect(nav).toContain("searchParams.toString()");
     expect(nav).toContain("buildDestination");
-    expect(nav).toContain('params.set("tab", item.tab)');
-    expect(nav).toContain('params.set("section", item.section)');
+    expect(nav).toContain('params.delete("tab")');
+    expect(nav).toContain('params.delete("section")');
+    expect(nav).toContain('params.delete("host")');
   });
 });
