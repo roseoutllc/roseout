@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 export type DashboardUserContext = Awaited<ReturnType<typeof getCurrentUserDashboardContext>>;
 
 const PROFILE_SELECT = "preferred_name,city,birthday_month,mobile_number,sms_opt_in,preferences,age_range";
-const OUTING_SELECT = "id,status,plan_title,source_query,restaurant_location_id,activity_location_id,saved_at,reservation_clicked_at,call_clicked_at,completed_at,external_booking_started_at,external_booking_confirmed_at,external_reservation_url,metadata,created_at,updated_at";
+const OUTING_SELECT = "id,status,contact_method,plan_title,source_query,restaurant_location_id,activity_location_id,saved_at,reservation_clicked_at,call_clicked_at,completed_at,external_booking_started_at,external_booking_confirmed_at,external_reservation_url,metadata,created_at,updated_at";
 
 async function maybeSingle(table: string, select: string, col: string, value?: string | null) {
   if (!value) return null;
@@ -59,8 +59,10 @@ async function listCanonicalOutings(userId: string, limit = 50) {
 
 function lifecycleStage(outing: any) {
   const status = String(outing?.status || "saved").toLowerCase();
+  const contactMethod = String(outing?.contact_method || "").toLowerCase();
   if (["completed", "completed_no_feedback"].includes(status)) return "completed";
   if (status === "cancelled") return "cancelled";
+  if (status === "planned" || contactMethod === "book_plan") return "upcoming";
   if (status === "saved" && !outing?.reservation_clicked_at && !outing?.call_clicked_at && !outing?.external_booking_started_at && !outing?.external_booking_confirmed_at) return "saved";
   return "upcoming";
 }
