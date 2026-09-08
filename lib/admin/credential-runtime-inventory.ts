@@ -31,7 +31,10 @@ const RUNTIME_MAPPINGS: Partial<Record<CredentialProviderId, ProviderRuntimeMapp
     { field: "webhookSecret", env: ["STRIPE_WEBHOOK_SECRET"] },
     { field: "connectWebhookSecret", env: ["STRIPE_CONNECT_WEBHOOK_SECRET"] },
   ] },
-  resend: { source: "Runtime environment", fields: [{ field: "apiKey", env: ["RESEND_API_KEY"] }] },
+  resend: { source: "Runtime environment", fields: [
+    { field: "apiKey", env: ["RESEND_API_KEY"] },
+    { field: "webhookSecret", env: ["RESEND_WEBHOOK_SECRET"] },
+  ] },
   twilio: { source: "Runtime environment", fields: [
     { field: "accountSid", env: ["TWILIO_ACCOUNT_SID"] }, { field: "authToken", env: ["TWILIO_AUTH_TOKEN"] },
   ] },
@@ -44,6 +47,7 @@ const RUNTIME_MAPPINGS: Partial<Record<CredentialProviderId, ProviderRuntimeMapp
     { field: "marketingApiKey", env: ["TELNYX_MARKETING_API_KEY"] },
     { field: "conciergeApiKey", env: ["TELNYX_CONCIERGE_API_KEY"] },
   ] },
+  threecx: { source: "Runtime environment", fields: [{ field: "crmApiKey", env: ["THREE_CX_CRM_API_KEY"] }] },
   meta: { source: "Runtime environment", fields: [
     { field: "appId", env: ["META_APP_ID", "FACEBOOK_APP_ID"] },
     { field: "appSecret", env: ["META_APP_SECRET", "FACEBOOK_APP_SECRET"] },
@@ -70,7 +74,27 @@ const RUNTIME_MAPPINGS: Partial<Record<CredentialProviderId, ProviderRuntimeMapp
     { field: "token", env: ["GITHUB_TOKEN"] }, { field: "appId", env: ["GITHUB_APP_ID"] }, { field: "privateKey", env: ["GITHUB_APP_PRIVATE_KEY"] },
   ] },
   domains: { source: "AWS / registrar gateway", fields: [
-    { field: "apiKey", env: ["DOMAIN_PROVIDER_API_KEY"] }, { field: "apiSecret", env: ["DOMAIN_PROVIDER_API_SECRET"] }, { field: "accountId", env: ["DOMAIN_PROVIDER_ACCOUNT_ID"] },
+    { field: "apiKey", env: ["DOMAIN_PROVIDER_API_KEY"] },
+    { field: "apiSecret", env: ["DOMAIN_PROVIDER_API_SECRET"] },
+    { field: "accountId", env: ["DOMAIN_PROVIDER_ACCOUNT_ID"] },
+    { field: "gatewaySecret", env: ["DOMAIN_GATEWAY_SECRET"] },
+  ] },
+  platform: { source: "Runtime environment / AWS service configuration", fields: [
+    { field: "cronSecret", env: ["CRON_SECRET"] },
+    { field: "importSecret", env: ["IMPORT_SECRET"] },
+    { field: "internalImportSecret", env: ["INTERNAL_IMPORT_SECRET"] },
+    { field: "outingReminderCronSecret", env: ["OUTING_REMINDER_CRON_SECRET"] },
+    { field: "googleLocationEnrichmentCronSecret", env: ["GOOGLE_LOCATION_ENRICHMENT_CRON_SECRET"] },
+    { field: "adminApiSecret", env: ["ADMIN_API_SECRET"] },
+    { field: "adminDigestSecret", env: ["ADMIN_DIGEST_SECRET"] },
+    { field: "notificationSecret", env: ["NOTIFICATION_SECRET"] },
+    { field: "supportEmailWebhookSecret", env: ["SUPPORT_EMAIL_WEBHOOK_SECRET"] },
+    { field: "supportInboundSecret", env: ["SUPPORT_INBOUND_SECRET"] },
+    { field: "websiteHostingGatewaySecret", env: ["AWS_WEBSITE_HOSTING_GATEWAY_SECRET"] },
+    { field: "drGatewaySecret", env: ["AWS_PLATFORM_DR_GATEWAY_SECRET"] },
+    { field: "jobGatewaySecret", env: ["AWS_PLATFORM_JOB_GATEWAY_SECRET"] },
+    { field: "integrationApiSecret", env: ["AWS_PLATFORM_INTEGRATION_API_SECRET"] },
+    { field: "assistantApiSecret", env: ["AWS_PLATFORM_ASSISTANT_API_SECRET"] },
   ] },
 };
 
@@ -95,7 +119,7 @@ export function getRuntimeCredentialStatus(provider: CredentialProviderId, vault
   if (mapping?.roleManaged) return { provider, externalConfiguredFields: [], externalSource: mapping.source, migrationState: "role_managed" };
   const externalConfiguredFields = (mapping?.fields || []).filter((entry) => Boolean(firstValue(entry.env))).map((entry) => entry.field);
   if (externalConfiguredFields.length) return { provider, externalConfiguredFields, externalSource: mapping?.source || "Runtime configuration", migrationState: "runtime_importable" };
-  if (provider === "github" || provider === "domains") return { provider, externalConfiguredFields: [], externalSource: mapping?.source || null, migrationState: "reentry_required" };
+  if (provider === "github" || provider === "domains" || provider === "platform") return { provider, externalConfiguredFields: [], externalSource: mapping?.source || null, migrationState: "reentry_required" };
   return { provider, externalConfiguredFields: [], externalSource: mapping?.source || null, migrationState: "not_configured" };
 }
 
