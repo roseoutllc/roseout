@@ -4,6 +4,7 @@ import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import { validateNewYorkJobPosting } from "@/lib/careers/new-york-compliance";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+const JOB_FIELDS = "id,title,slug,department,subdepartment,role_track,location,workplace_type,employment_type,compensation_type,compensation_min,compensation_max,compensation_text,summary,overview,responsibilities,requirements,nice_to_have,benefits,schedule,hiring_process,status,visibility,is_internship,internship_type,is_paid,supports_college_credit,requires_school_credit,weekly_hours_min,weekly_hours_max,program_duration_weeks,learning_objectives,compliance_status,compliance_notes,hiring_manager_id,created_by,created_at,updated_at";
 const editableFields = new Set(["title","slug","department","subdepartment","role_track","location","workplace_type","employment_type","compensation_type","compensation_min","compensation_max","compensation_text","summary","overview","responsibilities","requirements","nice_to_have","benefits","schedule","hiring_process","status","visibility","is_internship","internship_type","is_paid","supports_college_credit","requires_school_credit","weekly_hours_min","weekly_hours_max","program_duration_weeks","learning_objectives","compliance_status","compliance_notes"]);
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -22,7 +23,7 @@ function buildRecord(body: Record<string, unknown>, userId?: string) {
 export async function GET() {
   try {
     await requireAdminRole(ADMIN_PAGE_ACCESS.careers);
-    const { data } = await supabaseAdmin.from("career_jobs").select("*").limit(100);
+    const { data } = await supabaseAdmin.from("career_jobs").select(JOB_FIELDS).limit(100);
     return NextResponse.json({ records: data || [] });
   } catch {
     return NextResponse.json({ error: "We could not load these job postings." }, { status: 500 });
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: complianceError.message, compliance: "new_york", code: complianceError.key }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin.from("career_jobs").insert(result.record).select("*").single();
+    const { data, error } = await supabaseAdmin.from("career_jobs").insert(result.record).select(JOB_FIELDS).single();
     if (error) return NextResponse.json({ error: "We could not create this job posting." }, { status: 400 });
     return NextResponse.json({ record: data });
   } catch {
