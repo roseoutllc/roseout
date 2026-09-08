@@ -10,6 +10,12 @@ function readableStatus(status: unknown) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function detailsHref(plan: any) {
+  return plan?.legacy_source === "saved_plans"
+    ? `/user/dashboard/saved/${plan.id}`
+    : `/user/dashboard/outings/${plan.id}`;
+}
+
 export default async function Page() {
   const ctx = await getCurrentUserDashboardContext();
   const plans = ctx.savedOutings || [];
@@ -32,15 +38,15 @@ export default async function Page() {
       ) : (
         <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {plans.map((plan: any) => (
-            <DashboardCard key={plan.id} className="flex h-full flex-col p-4 sm:p-5">
+            <DashboardCard key={`${plan.legacy_source || "canonical"}-${plan.id}`} className="flex h-full flex-col p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <CompactStatusBadge tone="success">{readableStatus(plan.status)}</CompactStatusBadge>
-                <span className="text-xs font-bold text-white/35">{plan.created_at ? new Date(plan.created_at).toLocaleDateString() : "Saved"}</span>
+                <span className="text-xs font-bold text-white/35">{plan.saved_at || plan.created_at ? new Date(plan.saved_at || plan.created_at).toLocaleDateString() : "Saved"}</span>
               </div>
               <h2 className="mt-3 line-clamp-2 text-xl font-black tracking-[-0.03em]">{plan.title || "TheOutHaven outing"}</h2>
               <p className="mt-2 line-clamp-3 text-sm font-semibold leading-6 text-white/60">{plan.summary || "Open this saved plan to review the places and continue the outing flow."}</p>
               <div className="mt-auto flex flex-col gap-2 pt-5 sm:flex-row">
-                <Link href={`/user/dashboard/saved/${plan.id}`} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-white px-4 py-2 text-xs font-black text-black">View details</Link>
+                <Link href={detailsHref(plan)} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-white px-4 py-2 text-xs font-black text-black">View details</Link>
                 <Link href="/create" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-white/15 px-4 py-2 text-xs font-black text-white">Create similar</Link>
               </div>
             </DashboardCard>
