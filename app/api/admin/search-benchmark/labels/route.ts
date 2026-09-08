@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApiRole } from "@/lib/admin-api-auth";
 import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { SEARCH_BENCHMARK_LABEL_FIELDS, SEARCH_BENCHMARK_QUERY_FIELDS, SEARCH_BENCHMARK_SCORECARD_FIELDS } from "@/lib/admin/search-security-projections";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ export async function GET() {
     await Promise.all([
       supabaseAdmin
         .from("search_benchmark_queries")
-        .select("*")
+        .select(SEARCH_BENCHMARK_QUERY_FIELDS)
         .eq("active", true)
         .order("query_key"),
       supabaseAdmin
@@ -44,7 +45,7 @@ export async function GET() {
   const labelsResult = queryIds.length
     ? await supabaseAdmin
         .from("search_benchmark_labels")
-        .select("*")
+        .select(SEARCH_BENCHMARK_LABEL_FIELDS)
         .in("query_id", queryIds)
     : { data: [] as any[] };
   const candidatesResult = latestRun?.id
@@ -58,7 +59,7 @@ export async function GET() {
     : { data: [] as any[] };
   const { data: scorecards } = await supabaseAdmin
     .from("search_benchmark_scorecard_v1")
-    .select("*")
+    .select(SEARCH_BENCHMARK_SCORECARD_FIELDS)
     .order("started_at", { ascending: false })
     .limit(10);
 
@@ -76,19 +77,22 @@ export async function POST(request: NextRequest) {
   if (authError) return authError;
 
   const body = await request.json().catch(() => null);
-  const queryId = typeof body?.query_id === "string" ? body.query_id : null;
-  const resultKey = typeof body?.result_key === "string" ? body.result_key : null;
+  const queryId = typeof body?.query_id === "string" ? body.query_id.trim().slice(0, 100) : null;
+  const resultKey = typeof body?.result_key === "string" ? body.result_key.trim().slice(0, 300) : null;
   const grade = Number(body?.relevance_grade);
   const violations = Array.isArray(body?.violation_codes)
     ? body.violation_codes.filter(
         (value: unknown): value is string =>
           typeof value === "string" && ALLOWED_VIOLATIONS.has(value),
-      )
+      ).slice(0, ALLOWED_VIOLATIONS.size)
     : [];
 
   if (!queryId || !resultKey || !Number.isInteger(grade) || grade < 0 || grade > 3) {
     return NextResponse.json({ error: "Invalid benchmark label" }, { status: 400 });
   }
+
+  const { data: query } = await supabaseAdmin.from("search_benchmark_queries").select("id").eq("id", queryId).eq("active", true).maybeSingle();
+  if (!query) return NextResponse.json({ error: "Benchmark query not found" }, { status: 404 });
 
   const pairParts = resultKey.startsWith("pair:") ? resultKey.split(":") : [];
   const locationId = resultKey.startsWith("location:")
@@ -106,13 +110,13 @@ export async function POST(request: NextRequest) {
         activity_location_id: pairParts[2] || null,
         relevance_grade: grade,
         violation_codes: violations,
-        notes: typeof body?.notes === "string" ? body.notes.slice(0, 1000) : null,
+        notes: typeof body?.notes === "string" ? body.notes.trim().slice(0, 1000) || null : null,
         labeled_by: adminUser?.user_id ?? null,
         labeled_at: new Date().toISOString(),
       },
       { onConflict: "query_id,result_key" },
     )
-    .select("*")
+    .select(SEARCH_BENCHMARK_LABEL_FIELDS)
     .single();
   if (error) throw error;
 
