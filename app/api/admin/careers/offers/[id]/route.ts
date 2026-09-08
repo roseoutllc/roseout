@@ -4,13 +4,15 @@ import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import { validateNewYorkHiringText } from "@/lib/careers/new-york-compliance";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+const OFFER_FIELDS = "id,application_id,job_id,status,employment_type,pay_type,compensation_text,start_date,expires_at,sent_at,accepted_at,declined_at,withdrawn_at,created_by,created_at,updated_at" as const;
 const ALLOWED_EDIT_FIELDS = new Set(["employment_type", "pay_type", "compensation_text", "start_date", "expires_at"]);
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAdminRole(ADMIN_PAGE_ACCESS.careers);
     const { id } = await params;
-    const { data } = await supabaseAdmin.from("career_offers").select("*").eq("id", id).maybeSingle();
+    const { data, error } = await supabaseAdmin.from("career_offers").select(OFFER_FIELDS).eq("id", id).maybeSingle();
+    if (error) throw error;
     if (!data) return NextResponse.json({ error: "Record not found." }, { status: 404 });
     return NextResponse.json({ record: data });
   } catch {
@@ -31,10 +33,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (issue) return NextResponse.json({ error: issue.message, compliance: "new_york", code: issue.key }, { status: 400 });
 
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    for (const [key, value] of Object.entries(body)) if (ALLOWED_EDIT_FIELDS.has(key)) patch[key] = value;
-    if (typeof patch.compensation_text === "string") patch.compensation_text = patch.compensation_text.trim().slice(0, 1000);
+    for (const [key, value] of Object.entries(body)) if (ALLOWED_EDIT_FIELDS.has(key)) patch[key] = typeof value === "string" ? value.trim() || null : value;
+    if (typeof patch.compensation_text === "string") patch.compensation_text = patch.compensation_text.slice(0, 1000);
+    if (Object.keys(patch).length === 1) return NextResponse.json({ error: "No editable fields were provided." }, { status: 400 });
 
-    const { data, error } = await supabaseAdmin.from("career_offers").update(patch).eq("id", id).select("*").single();
+    const { data, error } = await supabaseAdmin.from("career_offers").update(patch).eq("id", id).select(OFFER_FIELDS).single();
     if (error) return NextResponse.json({ error: "We could not update this careers record." }, { status: 400 });
     return NextResponse.json({ record: data });
   } catch (error) {
@@ -47,8 +50,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   try {
     await requireAdminRole(ADMIN_PAGE_ACCESS.careersEdit);
     const { id } = await params;
-    const patch: Record<string, string> = { status: "archived" };
-    await supabaseAdmin.from("career_offers").update(patch).eq("id", id);
+    const { error } = await supabaseAdmin.from("career_offers").update({ status: "archived", updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) throw error;
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "We could not archive this careers record." }, { status: 500 });

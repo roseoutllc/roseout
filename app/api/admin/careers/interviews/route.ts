@@ -4,12 +4,14 @@ import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import { validateNewYorkHiringText } from "@/lib/careers/new-york-compliance";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+const INTERVIEW_FIELDS = "id,application_id,interviewer_id,scheduled_at,duration_minutes,meeting_type,meeting_url,location,status,candidate_notes,internal_notes,outcome,created_at,updated_at,interview_guide,interview_answers,interview_live_notes,interview_guide_generated_at" as const;
 const ALLOWED_CREATE_FIELDS = new Set(["application_id", "scheduled_at", "duration_minutes", "meeting_type", "meeting_url", "location", "status", "candidate_notes", "internal_notes", "outcome"]);
 
 export async function GET() {
   try {
     await requireAdminRole(ADMIN_PAGE_ACCESS.careers);
-    const { data } = await supabaseAdmin.from("career_interviews").select("*").limit(100);
+    const { data, error } = await supabaseAdmin.from("career_interviews").select(INTERVIEW_FIELDS).order("scheduled_at", { ascending: false }).limit(100);
+    if (error) throw error;
     return NextResponse.json({ records: data || [] });
   } catch {
     return NextResponse.json({ error: "We could not load these careers records." }, { status: 500 });
@@ -32,7 +34,7 @@ export async function POST(req: Request) {
     if (typeof record.candidate_notes === "string") record.candidate_notes = record.candidate_notes.trim().slice(0, 2000);
     if (typeof record.outcome === "string") record.outcome = record.outcome.trim().slice(0, 120);
 
-    const { data, error } = await supabaseAdmin.from("career_interviews").insert(record).select("*").single();
+    const { data, error } = await supabaseAdmin.from("career_interviews").insert(record).select(INTERVIEW_FIELDS).single();
     if (error) return NextResponse.json({ error: "We could not save this careers record." }, { status: 400 });
     return NextResponse.json({ record: data });
   } catch (error) {
