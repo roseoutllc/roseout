@@ -5,13 +5,20 @@ export type CredentialProviderId =
   | "vercel"
   | "github"
   | "microsoft"
+  | "openai"
   | "huggingface"
+  | "brave"
+  | "serpapi"
+  | "stripe"
   | "resend"
   | "twilio"
+  | "telnyx"
   | "stamps"
   | "meta"
   | "tiktok"
   | "apple"
+  | "turnstile"
+  | "expo"
   | "domains";
 
 export type CredentialField = {
@@ -25,7 +32,7 @@ export type CredentialField = {
 export type CredentialProvider = {
   id: CredentialProviderId;
   label: string;
-  category: "Cloud" | "Data" | "AI" | "Identity" | "Communications" | "Social" | "Domains";
+  category: "Cloud" | "Data" | "AI" | "Identity" | "Communications" | "Social" | "Domains" | "Payments" | "Security";
   description: string;
   fields: readonly CredentialField[];
   note?: string;
@@ -44,16 +51,35 @@ export const CREDENTIAL_PROVIDERS: readonly CredentialProvider[] = [
   { id: "vercel", label: "Vercel", category: "Cloud", description: "Vercel API access for deployment and environment operations.", fields: [
     { key: "token", label: "Access token", secret: true }, { key: "teamId", label: "Team ID" },
   ] },
-  { id: "github", label: "GitHub", category: "Cloud", description: "GitHub token or GitHub App credentials for repository automation.", fields: [
+  { id: "github", label: "GitHub", category: "Cloud", description: "GitHub token or GitHub App credentials for repository automation.", note: "The GitHub token used for automatic credential propagation must be allowed to dispatch Actions workflows for this repository.", fields: [
     { key: "token", label: "Token", secret: true }, { key: "appId", label: "GitHub App ID" }, { key: "privateKey", label: "GitHub App private key", secret: true, multiline: true },
   ] },
   { id: "microsoft", label: "Microsoft / Azure", category: "Identity", description: "Microsoft Entra application credentials and tenant configuration.", fields: [
     { key: "tenantId", label: "Tenant ID" }, { key: "clientId", label: "Client ID" }, { key: "clientSecret", label: "Client secret", secret: true },
   ] },
+  { id: "openai", label: "OpenAI", category: "AI", description: "OpenAI API credential used by server-side AI features and assistant workloads.", fields: [
+    { key: "apiKey", label: "API key", secret: true },
+  ] },
   { id: "huggingface", label: "Hugging Face", category: "AI", description: "Hugging Face access token used by search and AI services.", fields: [{ key: "token", label: "Access token", secret: true }] },
+  { id: "brave", label: "Brave Search", category: "AI", description: "Brave Search API credential used by search enrichment and discovery.", fields: [{ key: "apiKey", label: "API key", secret: true }] },
+  { id: "serpapi", label: "SerpAPI", category: "AI", description: "SerpAPI credential used by search and enrichment fallbacks.", fields: [{ key: "apiKey", label: "API key", secret: true }] },
+  { id: "stripe", label: "Stripe", category: "Payments", description: "Stripe server and webhook credentials used by payments, subscriptions, and Connect.", fields: [
+    { key: "secretKey", label: "Secret key", secret: true },
+    { key: "webhookSecret", label: "Webhook signing secret", secret: true },
+    { key: "connectWebhookSecret", label: "Connect webhook signing secret", secret: true },
+  ] },
   { id: "resend", label: "Resend", category: "Communications", description: "Resend API credentials for transactional email.", fields: [{ key: "apiKey", label: "API key", secret: true }] },
   { id: "twilio", label: "Twilio", category: "Communications", description: "Twilio account credentials for SMS and phone workflows.", fields: [
     { key: "accountSid", label: "Account SID" }, { key: "authToken", label: "Auth token", secret: true },
+  ] },
+  { id: "telnyx", label: "Telnyx", category: "Communications", description: "Telnyx production messaging credentials for transactional, reservations, CRM, support, marketing, and concierge traffic.", fields: [
+    { key: "publicKey", label: "Public key" },
+    { key: "transactionalApiKey", label: "Transactional API key", secret: true },
+    { key: "reservationsApiKey", label: "Reservations API key", secret: true },
+    { key: "crmApiKey", label: "CRM API key", secret: true },
+    { key: "supportApiKey", label: "Support API key", secret: true },
+    { key: "marketingApiKey", label: "Marketing API key", secret: true },
+    { key: "conciergeApiKey", label: "Concierge API key", secret: true },
   ] },
   { id: "stamps", label: "Stamps.com", category: "Communications", description: "Production USPS postage credentials for the Stamps.com SWS/IM v160 integration.", note: "For SWS/IM, use the Stamps API/partner username, not the email address used to sign in to the Stamps website. In Stamps.com, go to Manage Account > Profile > Personal Contact Info > Get Username. Credentials remain only in AWS Secrets Manager; connection validation is non-transactional and does not purchase postage.", fields: [
     { key: "integrationId", label: "Production Integration ID", secret: true, placeholder: "Production SWS/IM Integration ID" },
@@ -67,12 +93,19 @@ export const CREDENTIAL_PROVIDERS: readonly CredentialProvider[] = [
     { key: "instagramAppSecret", label: "Instagram App Secret", secret: true },
     { key: "graphVersion", label: "Graph API version" },
     { key: "loginConfigurationId", label: "Facebook Login configuration ID" },
+    { key: "accessToken", label: "Platform access token", secret: true },
   ] },
   { id: "tiktok", label: "TikTok", category: "Social", description: "TikTok developer application credentials.", fields: [
     { key: "clientKey", label: "Client key" }, { key: "clientSecret", label: "Client secret", secret: true },
   ] },
   { id: "apple", label: "Apple Business", category: "Identity", description: "Apple Business API credentials used for Business Manager and device enrollment integrations.", note: "Use the Apple Business API Client ID, Key ID, and downloaded private key. App Store Connect Issuer ID is not used here.", fields: [
     { key: "issuerId", label: "Client ID", placeholder: "BUSINESSAPI..." }, { key: "keyId", label: "Key ID" }, { key: "privateKey", label: "Private key (PEM)", secret: true, multiline: true },
+  ] },
+  { id: "turnstile", label: "Cloudflare Turnstile", category: "Security", description: "Turnstile server-side verification credential.", fields: [
+    { key: "secretKey", label: "Secret key", secret: true },
+  ] },
+  { id: "expo", label: "Expo", category: "Communications", description: "Expo access token used for authenticated mobile push delivery.", fields: [
+    { key: "accessToken", label: "Access token", secret: true },
   ] },
   { id: "domains", label: "Domain Provider", category: "Domains", description: "Wholesale registrar / domain provider API credentials.", fields: [
     { key: "apiKey", label: "API key", secret: true }, { key: "apiSecret", label: "API secret", secret: true }, { key: "accountId", label: "Account ID" },
