@@ -11,6 +11,7 @@ const reviewedHiddenOperationalRoutes = new Set([
   '/admin/dashboard/careers/internships/compliance',
   '/admin/dashboard/communication',
   '/admin/dashboard/crm/claim-codes',
+  '/admin/dashboard/crm/communications/automation/settings',
   '/admin/dashboard/experiences',
   '/admin/dashboard/feature-flags',
   '/admin/dashboard/location-layout/create',
@@ -191,6 +192,7 @@ const rolesPage = read(path.join(root, 'app', 'admin', 'dashboard', 'roles', 'pa
 const roleMembersRoute = read(path.join(root, 'app', 'api', 'admin', 'system', 'role-members', 'route.ts'));
 const roleMemberRoute = read(path.join(root, 'app', 'api', 'admin', 'system', 'role-members', '[adminId]', 'route.ts'));
 const searchAnchorsLayout = read(path.join(root, 'app', 'admin', 'dashboard', 'search-anchors', 'layout.tsx'));
+const crmAutomationLayout = read(path.join(root, 'app', 'admin', 'dashboard', 'crm', 'communications', 'automation', 'layout.tsx'));
 const adminPermissions = read(path.join(root, 'lib', 'admin-permissions.ts'));
 const teamManagerPages = [
   'escalations',
@@ -210,6 +212,7 @@ const structuralChecks = {
   roleCreateRequiresSuperadmin: roleMembersRoute.includes('requireSuperAdmin()'),
   roleMutationRequiresSuperadmin: roleMemberRoute.includes('requireSuperAdmin()'),
   searchAnchorsWorkspaceProtected: searchAnchorsLayout.includes('requireAdminRole(ADMIN_PAGE_ACCESS.dataQuality)'),
+  crmAutomationWorkspaceProtected: crmAutomationLayout.includes('requireAdminRole(ADMIN_PAGE_ACCESS.communicationSend)'),
   teamManagementPermissionDefined: adminPermissions.includes('teamManagement: ["superadmin", "admin", "manager"]'),
   teamSecurityAuditPermissionDefined: adminPermissions.includes('teamSecurityAudit: ["superadmin", "admin"]'),
   teamManagerPagesProtected: teamManagerPages.every((text) => text.includes('requireAdminRole(ADMIN_PAGE_ACCESS.teamManagement)')),
