@@ -102,11 +102,14 @@ export default async function AdminLocationDetailPage({
 }: {
   params: Promise<{ locationId: string }>;
 }) {
-  await requireAdminRole(ADMIN_PAGE_ACCESS.locations);
-  const { locationId } = await params;
+  const [, { locationId }] = await Promise.all([
+    requireAdminRole(ADMIN_PAGE_ACCESS.locations),
+    params,
+  ]);
   const location = await findLocation(locationId);
   if (!location) notFound();
 
+  const ticketsPromise = listSupportTickets(120);
   const qrValues = [
     location.claim_code,
     (location as any).claim_url,
@@ -124,8 +127,10 @@ export default async function AdminLocationDetailPage({
       forceCanonicalUrl: true,
       regenerateQr: true,
     });
-    await supabaseAdmin.from("locations").update(fields).eq("id", location.id).then(undefined, () => undefined);
-    await upsertLocationClaimCode(location.id, fields);
+    await Promise.all([
+      supabaseAdmin.from("locations").update(fields).eq("id", location.id).then(undefined, () => undefined),
+      upsertLocationClaimCode(location.id, fields),
+    ]);
     Object.assign(location, fields);
   }
 
@@ -169,7 +174,7 @@ export default async function AdminLocationDetailPage({
   const intentTags = Array.isArray(location.intent_tags)
     ? location.intent_tags
     : [];
-  const tickets = (await listSupportTickets(120))
+  const tickets = (await ticketsPromise)
     .filter((ticket) =>
       [ticket.subject, ticket.source]
         .join(" ")
