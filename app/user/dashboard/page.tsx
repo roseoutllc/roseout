@@ -46,7 +46,8 @@ export default async function Page() {
   const saved = ctx.savedOutings || [];
   const upcoming = ctx.bookedOutings || [];
   const completed = ctx.completedOutings || [];
-  const profileIncomplete = !ctx.profile?.preferred_name || !ctx.profile?.city || !ctx.profile?.birthday_month;
+  const profile = ctx.profile as { preferred_name?: string | null; city?: string | null; birthday_month?: number | null };
+  const profileIncomplete = !profile?.preferred_name || !profile?.city || !profile?.birthday_month;
   const { data: supportTickets } = await supabaseAdmin.from("support_tickets")
     .select("id,ticket_number,subject,category,status,updated_at,created_at")
     .eq("user_id", ctx.user.id)
