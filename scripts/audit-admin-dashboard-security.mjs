@@ -25,7 +25,7 @@ const handlerPattern = /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DEL
 // These are verified authorization entrypoints. Matching a real function call (not
 // merely an import) lets local wrappers such as `authorize()` remain visible to
 // this structural audit while keeping the accepted set intentionally small.
-const guardCallPattern = /(?:requireAdminApiRole|requireSuperAdmin|requireAdminRole|requireAdminLocationApiRead|requireAdminLocationApiWrite|requireMarketingAdminApi|requireMarketingViewerApi|requireLocationPermission|getInternalDemoViewer|getAdminLoginRole|require[A-Za-z0-9_$]*Admin[A-Za-z0-9_$]*)\s*\(/;
+const guardCallPattern = /(?:requireAdminApiRole|requireSuperAdmin|requireAdminRole|requireAdminLocationApiRead|requireAdminLocationApiWrite|requireMarketingAdminApi|requireMarketingViewerApi|requireLocationPermission|getInternalDemoViewer|getAdminLoginRole|getCurrentAdmin|require[A-Za-z0-9_$]*Admin[A-Za-z0-9_$]*)\s*\(/;
 const serviceRolePattern = /\b(?:supabaseAdmin|getSupabaseAdminClient)\b/;
 const mutationPattern = /\.(?:insert|update|upsert|delete|rpc)\s*\(|\.functions\.invoke\s*\(/;
 const broadSelectPattern = /\.select\(\s*["'`]\*["'`]\s*\)/;
