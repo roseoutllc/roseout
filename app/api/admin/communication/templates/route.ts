@@ -1,6 +1,7 @@
 import { requireAdminApiRole } from "@/lib/admin-api-auth";
-
 import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
+
+const TEMPLATE_FIELDS = "id,name,channel,subject,body,category,is_system,created_at,updated_at";
 const DEFAULT_TEMPLATES = [
   { name: "Claim QR Code", channel: "email", subject: "Your TheOutHaven claim QR code", body: "Hi {{name}},\n\nHere is your claim QR code and instructions...", category: "claims", is_system: true },
   { name: "Welcome Business Owner", channel: "email", subject: "Welcome to TheOutHaven", body: "Hi {{name}},\n\nWelcome to TheOutHaven...", category: "onboarding", is_system: true },
@@ -20,12 +21,12 @@ export async function GET() {
   const { error, supabase } = await requireAdminApiRole(ADMIN_PAGE_ACCESS.communication);
   if (error) return error;
 
-  const { data, error: fetchError } = await supabase.from("communication_templates").select("*").order("created_at", { ascending: false });
+  const { data, error: fetchError } = await supabase.from("communication_templates").select(TEMPLATE_FIELDS).order("created_at", { ascending: false });
   if (fetchError) return Response.json({ error: fetchError.message }, { status: 500 });
 
   if (!data?.length) {
     await supabase.from("communication_templates").insert(DEFAULT_TEMPLATES);
-    const { data: seeded } = await supabase.from("communication_templates").select("*").order("created_at", { ascending: false });
+    const { data: seeded } = await supabase.from("communication_templates").select(TEMPLATE_FIELDS).order("created_at", { ascending: false });
     return Response.json({ templates: seeded || [] });
   }
 
@@ -36,18 +37,24 @@ export async function POST(request: Request) {
   const { error, supabase, adminUser } = await requireAdminApiRole(ADMIN_PAGE_ACCESS.communication);
   if (error) return error;
   const body = await request.json();
+  const name = String(body.name || "").trim().slice(0, 120);
+  const channel = String(body.channel || "").trim().toLowerCase();
+  const templateBody = String(body.body || "").slice(0, 12000);
+  if (!name || !templateBody || !["email", "sms"].includes(channel)) {
+    return Response.json({ error: "Valid name, channel, and body are required." }, { status: 400 });
+  }
 
   const payload = {
-    name: body.name,
-    channel: body.channel,
-    subject: body.subject || null,
-    body: body.body,
-    category: body.category || "custom",
+    name,
+    channel,
+    subject: body.subject ? String(body.subject).slice(0, 240) : null,
+    body: templateBody,
+    category: body.category ? String(body.category).slice(0, 80) : "custom",
     is_system: false,
     created_by: adminUser?.user_id || null,
   };
 
-  const { data, error: insertError } = await supabase.from("communication_templates").insert(payload).select("*").single();
+  const { data, error: insertError } = await supabase.from("communication_templates").insert(payload).select(TEMPLATE_FIELDS).single();
   if (insertError) return Response.json({ error: insertError.message }, { status: 500 });
   return Response.json({ template: data });
 }

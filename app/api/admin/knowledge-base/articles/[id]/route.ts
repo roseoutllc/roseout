@@ -6,6 +6,7 @@ import { filterArticleForRole, KB_SELECT, sanitizeKbPayload } from "@/lib/knowle
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 type Context = { params: Promise<{ id: string }> };
+const KB_VERSION_SOURCE_FIELDS = "id,title,excerpt,content,status,visibility,allowed_roles,tags,created_by";
 
 export async function GET(_request: NextRequest, { params }: Context) {
   const { error, adminUser } = await requireAdminApiRole(ADMIN_PAGE_ACCESS.knowledgeBase);
@@ -21,7 +22,7 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   const { error, adminUser } = await requireAdminApiRole(ADMIN_PAGE_ACCESS.knowledgeBase);
   if (error) return error;
   const { id } = await params;
-  const { data: current } = await supabaseAdmin.from("knowledge_base_articles").select("*").eq("id", id).single();
+  const { data: current } = await supabaseAdmin.from("knowledge_base_articles").select(KB_VERSION_SOURCE_FIELDS).eq("id", id).single();
   if (!current) return Response.json({ success: false, error: "Not found" }, { status: 404 });
   const manager = roleCanManageKb(adminUser.role);
   if (!manager && !(normalizeKbRole(adminUser.role) === "editor" && current.created_by === adminUser.user_id && current.status === "draft")) {
@@ -40,7 +41,7 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   });
   const body = await request.json();
   const update = { ...sanitizeKbPayload(body, adminUser.role), updated_by: adminUser.user_id };
-  const { data, error: updateError } = await supabaseAdmin.from("knowledge_base_articles").update(update).eq("id", id).select("*").single();
+  const { data, error: updateError } = await supabaseAdmin.from("knowledge_base_articles").update(update).eq("id", id).select(KB_SELECT).single();
   if (updateError) return Response.json({ success: false, error: updateError.message }, { status: 400 });
   return Response.json({ success: true, article: data });
 }
