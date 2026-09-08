@@ -87,6 +87,30 @@ function getDefaultPageFunction(text) {
   return text.slice(start);
 }
 
+function normalizeHex(hex) {
+  const raw = hex.toLowerCase();
+  if (raw.length === 3 || raw.length === 4) return raw.slice(0, 3).split('').map((char) => char + char).join('');
+  return raw.slice(0, 6);
+}
+
+function isDarkHex(hex) {
+  const normalized = normalizeHex(hex);
+  if (!/^[0-9a-f]{6}$/.test(normalized)) return false;
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance < 0.32;
+}
+
+function arbitraryDarkBackgrounds(text) {
+  return [...new Set(
+    [...text.matchAll(/bg-\[#([0-9a-fA-F]{3,8})\]/g)]
+      .map((match) => `bg-[#${match[1].toLowerCase()}]`)
+      .filter((token) => isDarkHex(token.slice(5, -1))),
+  )].sort();
+}
+
 const pages = walk(adminRoot).filter((file) => file.endsWith('/page.tsx'));
 const tsFiles = walk(root).filter((file) => /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file) && !file.includes('/node_modules/'));
 const sourceCache = new Map(tsFiles.map((file) => [file, read(file)]));
@@ -149,6 +173,19 @@ const orphanReviewCandidates = routeClassifications
   .filter((item) => item.classification === 'orphan_candidate')
   .map((item) => item.route);
 
+const appearanceCssFiles = [
+  'admin-appearance.css',
+  'admin-appearance-legacy.css',
+  'admin-appearance-status.css',
+  'admin-appearance-route-fixes.css',
+  'admin-theme-compat.css',
+].map((name) => path.join(root, 'app', 'admin', name));
+const appearanceCoverageSource = appearanceCssFiles
+  .filter((file) => fs.existsSync(file))
+  .map((file) => read(file).replaceAll('\\', ''))
+  .join('\n');
+const coveredDarkBackgrounds = new Set(arbitraryDarkBackgrounds(appearanceCoverageSource));
+
 const awaitHotspots = [];
 const responsiveRisk = [];
 const themeRisk = [];
@@ -163,12 +200,26 @@ for (const file of pages) {
   if (/min-w-\[|w-\[(?:[7-9]\d\d|\d{4,})px\]|grid-cols-\[[^\]]{40,}\]/.test(text)) {
     responsiveRisk.push(rel(file));
   }
-  if (/bg-(?:black|neutral-9|zinc-9|slate-9|gray-9)|bg-\[#0|text-white/.test(text)) {
-    themeRisk.push(rel(file));
+  const uncoveredBackgrounds = arbitraryDarkBackgrounds(text).filter((token) => !coveredDarkBackgrounds.has(token));
+  if (uncoveredBackgrounds.length) {
+    themeRisk.push({ file: rel(file), uncoveredBackgrounds });
   }
 }
 
 awaitHotspots.sort((a, b) => b.renderAwaits - a.renderAwaits || b.totalAwaits - a.totalAwaits || a.file.localeCompare(b.file));
+const navigationThemeRisk = navigationEntrypoints
+  .map((route) => {
+    const file = pageRoutes.get(route);
+    if (!file) return null;
+    const risk = themeRisk.find((item) => item.file === rel(file));
+    return risk ? { route, ...risk } : null;
+  })
+  .filter(Boolean);
+const navigationResponsiveRisk = navigationEntrypoints
+  .filter((route) => {
+    const file = pageRoutes.get(route);
+    return file ? responsiveRisk.includes(rel(file)) : false;
+  });
 
 const unusedAdminComponents = [];
 const adminComponents = walk(componentRoot).filter((file) => /\.(?:ts|tsx)$/.test(file) && !/\.test\.(?:ts|tsx)$/.test(file));
@@ -239,8 +290,13 @@ const report = {
   awaitHotspots,
   responsiveRiskCount: responsiveRisk.length,
   responsiveRisk,
+  navigationResponsiveRiskCount: navigationResponsiveRisk.length,
+  navigationResponsiveRisk,
   themeRiskCount: themeRisk.length,
   themeRisk,
+  navigationThemeRiskCount: navigationThemeRisk.length,
+  navigationThemeRisk,
+  coveredDarkBackgrounds: [...coveredDarkBackgrounds].sort(),
   unusedAdminComponents,
   structuralChecks,
 };
@@ -251,8 +307,10 @@ if (process.env.GITHUB_STEP_SUMMARY) {
   const topAwait = awaitHotspots.slice(0, 12).map((item) => `| \`${item.file}\` | ${item.renderAwaits} | ${item.totalAwaits} |`).join('\n') || '| None | 0 | 0 |';
   const unused = unusedAdminComponents.slice(0, 20).map((file) => `- \`${file}\``).join('\n') || '- None';
   const orphans = orphanReviewCandidates.slice(0, 30).map((route) => `- \`${route}\``).join('\n') || '- None';
+  const themeItems = navigationThemeRisk.slice(0, 20).map((item) => `- \`${item.route}\`: ${item.uncoveredBackgrounds.map((token) => `\`${token}\``).join(', ')}`).join('\n') || '- None';
+  const responsiveItems = navigationResponsiveRisk.slice(0, 20).map((route) => `- \`${route}\``).join('\n') || '- None';
   const classifications = Object.entries(routesByClassification).map(([classification, routes]) => `- ${classification.replaceAll('_', ' ')}: **${routes.length}**`).join('\n');
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Manually reviewed hidden operational tools: **${reviewedHiddenOperationalRoutes.size}**\n- Responsive-risk pages: **${responsiveRisk.length}**\n- Theme-risk pages: **${themeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Filesystem route count is not the number of admin pages actively used. Navigation entry points represent the intentional top-level admin surface; child/detail routes are classified separately. Orphan candidates remain review-only until replacement parity and business-logic ownership are proven.\n\n#### Route classification\n${classifications}\n\n#### Highest await counts\n\n| Route | render awaits | total file awaits |\n| --- | ---: | ---: |\n${topAwait}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Manually reviewed hidden operational tools: **${reviewedHiddenOperationalRoutes.size}**\n- Responsive-risk filesystem pages: **${responsiveRisk.length}**\n- Responsive-risk navigation destinations: **${navigationResponsiveRisk.length}**\n- Uncovered theme-risk filesystem pages: **${themeRisk.length}**\n- Uncovered theme-risk navigation destinations: **${navigationThemeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Theme risk now reports only dark arbitrary background colors that are not already normalized by the Admin appearance compatibility layers. Filesystem route count is not the number of admin pages actively used.\n\n#### Route classification\n${classifications}\n\n#### Highest await counts\n\n| Route | render awaits | total file awaits |\n| --- | ---: | ---: |\n${topAwait}\n\n#### Navigation theme risks\n${themeItems}\n\n#### Navigation responsive risks\n${responsiveItems}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
 }
 
 const failed = Object.entries(structuralChecks).filter(([, ok]) => !ok);
