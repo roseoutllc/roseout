@@ -28,6 +28,9 @@ const GROUP_TERMS = ["group", "private party", "team"];
 const FAMILY_TERMS = ["family", "kids", "children"];
 const FOOD_TERMS = ["restaurant", "food", "dining", "cuisine", "brunch", "lunch", "dinner", "cafe"];
 
+type SemanticLocation = Record<string, unknown> & { id?: string };
+type LocationAnalytics = Record<string, unknown> & { location_id?: string };
+
 function getBearerToken(request: NextRequest) {
   const auth = request.headers.get("authorization") || "";
   if (!auth.toLowerCase().startsWith("bearer ")) return null;
@@ -175,18 +178,20 @@ async function runSemanticNightly(request: NextRequest) {
 
   const { data: locations, error } = await selector;
   if (error) return NextResponse.json({ success: false, error: "Unable to load semantic refresh locations." }, { status: 500 });
+  const locationRows = ((locations ?? []) as unknown) as SemanticLocation[];
 
-  const ids = (locations || []).map((location: any) => String(location.id)).filter(Boolean);
+  const ids = locationRows.map((location) => String(location.id ?? "")).filter(Boolean);
   const analyticsByLocation = new Map<string, Record<string, unknown>>();
   if (ids.length > 0) {
     const { data: analytics } = await supabaseAdmin.from("location_analytics").select(ANALYTICS_FIELDS).in("location_id", ids);
-    (analytics || []).forEach((row: any) => analyticsByLocation.set(String(row.location_id), row));
+    const analyticsRows = ((analytics ?? []) as unknown) as LocationAnalytics[];
+    analyticsRows.forEach((row) => analyticsByLocation.set(String(row.location_id ?? ""), row));
   }
 
   let updated = 0;
   let skipped = 0;
   const failures: Array<{ id: string; error: string }> = [];
-  for (const location of locations || []) {
+  for (const location of locationRows) {
     const id = String(location.id || "");
     if (!id) { skipped += 1; continue; }
     try {
@@ -227,7 +232,7 @@ async function runSemanticNightly(request: NextRequest) {
     semantic_provider: "deterministic_metadata",
     search_v2_embedding_provider: "hugging_face",
     legacy_openai_embedding_generated: false,
-    processed: (locations || []).length,
+    processed: locationRows.length,
     updated,
     skipped,
     failures,
