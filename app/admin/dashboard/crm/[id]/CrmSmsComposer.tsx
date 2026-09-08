@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -45,6 +46,11 @@ function formatPhone(value?: string | null) {
   return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`;
 }
 
+function recipientBlocked(recipient: Recipient) {
+  const consent = String(recipient.smsConsentStatus || "").toLowerCase();
+  return recipient.doNotContact || ["denied", "opted_out", "revoked"].includes(consent);
+}
+
 export default function CrmSmsComposer({
   locationId,
   defaultPhone,
@@ -75,9 +81,9 @@ export default function CrmSmsComposer({
         if (cancelled) return;
         const rows = Array.isArray(payload?.recipients) ? payload.recipients : [];
         setRecipients(rows);
-        const preferred = rows.find((row: Recipient) => row.isPrimary && !row.doNotContact)
-          || rows.find((row: Recipient) => row.isDecisionMaker && !row.doNotContact)
-          || rows.find((row: Recipient) => !row.doNotContact);
+        const preferred = rows.find((row: Recipient) => row.isPrimary && !recipientBlocked(row))
+          || rows.find((row: Recipient) => row.isDecisionMaker && !recipientBlocked(row))
+          || rows.find((row: Recipient) => !recipientBlocked(row));
         setTo(preferred?.phone || "");
       } catch (error) {
         if (!cancelled) {
@@ -97,6 +103,9 @@ export default function CrmSmsComposer({
   const smsLogs = logs.filter((log) => String(log.channel || "").toLowerCase() === "sms");
   const segments = Math.max(1, Math.ceil(body.length / 160));
   const selectedRecipient = recipients.find((recipient) => recipient.phone === to);
+  const hasSmsCapableRecipient = recipients.some((recipient) => !recipientBlocked(recipient));
+  const returnTo = `/admin/dashboard/crm/${locationId}?tab=communication&channel=sms`;
+  const addContactHref = `/admin/dashboard/crm/contacts/new?location_id=${encodeURIComponent(locationId)}&return_to=${encodeURIComponent(returnTo)}`;
 
   async function sendSms() {
     if (!canSend || sending) return;
@@ -104,6 +113,10 @@ export default function CrmSmsComposer({
 
     if (!to.trim() || !body.trim()) {
       setNotice({ type: "error", text: "Choose an owner, manager, or other CRM mobile contact and enter a message." });
+      return;
+    }
+    if (!selectedRecipient || recipientBlocked(selectedRecipient)) {
+      setNotice({ type: "error", text: "This contact cannot receive CRM SMS. Add or choose a contact with a valid mobile number that is not opted out or marked do-not-contact." });
       return;
     }
 
@@ -123,7 +136,7 @@ export default function CrmSmsComposer({
       setBody("");
       setNotice({
         type: "success",
-        text: `Text queued to ${selectedRecipient?.name || formatPhone(to)} from ${CRM_MAIN_NUMBER_DISPLAY}. Replies will return to this CRM conversation.`,
+        text: `Text queued to ${selectedRecipient.name || formatPhone(to)} from ${CRM_MAIN_NUMBER_DISPLAY}. Replies will return to this CRM conversation.`,
       });
       router.refresh();
     } catch (error) {
@@ -151,17 +164,32 @@ export default function CrmSmsComposer({
             <select
               value={to}
               onChange={(event) => setTo(event.target.value)}
-              disabled={!canSend || sending || loadingRecipients || !recipients.length}
+              disabled={!canSend || sending || loadingRecipients || !hasSmsCapableRecipient}
               className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 disabled:opacity-50"
             >
-              <option value="">{loadingRecipients ? "Loading CRM contacts…" : recipients.length ? "Choose a contact" : "No mobile CRM contacts added"}</option>
-              {recipients.map((recipient) => (
-                <option key={recipient.contactId} value={recipient.phone} disabled={recipient.doNotContact}>
-                  {recipient.name} · {recipient.role} · {formatPhone(recipient.phone)}{recipient.doNotContact ? " · Do not contact" : ""}
-                </option>
-              ))}
+              <option value="">{loadingRecipients ? "Loading CRM contacts…" : hasSmsCapableRecipient ? "Choose a contact" : "No SMS-capable contact added"}</option>
+              {recipients.map((recipient) => {
+                const blocked = recipientBlocked(recipient);
+                return (
+                  <option key={recipient.contactId} value={recipient.phone} disabled={blocked}>
+                    {recipient.name} · {recipient.role} · {formatPhone(recipient.phone)}{blocked ? " · SMS blocked" : ""}
+                  </option>
+                );
+              })}
             </select>
           </label>
+
+          {!loadingRecipients && !hasSmsCapableRecipient ? (
+            <div className="rounded-2xl border border-sky-300/20 bg-sky-500/10 p-4 text-sm text-sky-50/85">
+              <b className="block text-white">No SMS-capable contact is attached to this location.</b>
+              <p className="mt-1 leading-5">Add or verify an owner, manager, or other business contact with a mobile number first. The new contact will be linked to this location’s active CRM account before texting is enabled.</p>
+              {canSend ? (
+                <Link href={addContactHref} className="mt-3 inline-flex rounded-full bg-sky-500 px-4 py-2 text-xs font-black text-white hover:bg-sky-400">
+                  Add / verify SMS contact
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
 
           {selectedRecipient ? (
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-white/60">
@@ -184,7 +212,7 @@ export default function CrmSmsComposer({
               value={body}
               onChange={(event) => setBody(event.target.value)}
               placeholder="Type a customer-care or sales follow-up text."
-              disabled={!canSend || sending}
+              disabled={!canSend || sending || !hasSmsCapableRecipient}
               className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 disabled:opacity-50"
             />
           </label>
@@ -199,7 +227,7 @@ export default function CrmSmsComposer({
           <button
             type="button"
             onClick={sendSms}
-            disabled={!canSend || sending || !to.trim() || !body.trim() || Boolean(selectedRecipient?.doNotContact)}
+            disabled={!canSend || sending || !to.trim() || !body.trim() || !selectedRecipient || recipientBlocked(selectedRecipient)}
             className="rounded-full bg-rose-600 px-5 py-3 text-sm font-black text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {sending ? "Sending…" : `Send from ${CRM_MAIN_NUMBER_DISPLAY}`}
