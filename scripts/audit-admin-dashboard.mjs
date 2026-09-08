@@ -111,6 +111,20 @@ function arbitraryDarkBackgrounds(text) {
   )].sort();
 }
 
+function responsiveHazards(text) {
+  const hazards = [];
+  const widePattern = /(?:min-w|w)-\[(?:[7-9]\d\d|\d{4,})px\]|grid-cols-\[[^\]]{40,}\]/g;
+  for (const match of text.matchAll(widePattern)) {
+    if (match.index == null) continue;
+    const token = match[0];
+    const before = text.slice(Math.max(0, match.index - 1200), match.index);
+    const safelyScrollable = /overflow-x-auto|overflow-auto|AdminDataTableShell/.test(before);
+    if (!token.startsWith('grid-cols-[') && safelyScrollable) continue;
+    hazards.push(token);
+  }
+  return [...new Set(hazards)].sort();
+}
+
 const pages = walk(adminRoot).filter((file) => file.endsWith('/page.tsx'));
 const tsFiles = walk(root).filter((file) => /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file) && !file.includes('/node_modules/'));
 const sourceCache = new Map(tsFiles.map((file) => [file, read(file)]));
@@ -197,8 +211,9 @@ for (const file of pages) {
   if (renderAwaits >= 5 || totalAwaits >= 8) {
     awaitHotspots.push({ file: rel(file), renderAwaits, totalAwaits });
   }
-  if (/min-w-\[|w-\[(?:[7-9]\d\d|\d{4,})px\]|grid-cols-\[[^\]]{40,}\]/.test(text)) {
-    responsiveRisk.push(rel(file));
+  const hazards = responsiveHazards(text);
+  if (hazards.length) {
+    responsiveRisk.push({ file: rel(file), hazards });
   }
   const uncoveredBackgrounds = arbitraryDarkBackgrounds(text).filter((token) => !coveredDarkBackgrounds.has(token));
   if (uncoveredBackgrounds.length) {
@@ -216,10 +231,13 @@ const navigationThemeRisk = navigationEntrypoints
   })
   .filter(Boolean);
 const navigationResponsiveRisk = navigationEntrypoints
-  .filter((route) => {
+  .map((route) => {
     const file = pageRoutes.get(route);
-    return file ? responsiveRisk.includes(rel(file)) : false;
-  });
+    if (!file) return null;
+    const risk = responsiveRisk.find((item) => item.file === rel(file));
+    return risk ? { route, ...risk } : null;
+  })
+  .filter(Boolean);
 
 const unusedAdminComponents = [];
 const adminComponents = walk(componentRoot).filter((file) => /\.(?:ts|tsx)$/.test(file) && !/\.test\.(?:ts|tsx)$/.test(file));
@@ -308,9 +326,9 @@ if (process.env.GITHUB_STEP_SUMMARY) {
   const unused = unusedAdminComponents.slice(0, 20).map((file) => `- \`${file}\``).join('\n') || '- None';
   const orphans = orphanReviewCandidates.slice(0, 30).map((route) => `- \`${route}\``).join('\n') || '- None';
   const themeItems = navigationThemeRisk.slice(0, 20).map((item) => `- \`${item.route}\`: ${item.uncoveredBackgrounds.map((token) => `\`${token}\``).join(', ')}`).join('\n') || '- None';
-  const responsiveItems = navigationResponsiveRisk.slice(0, 20).map((route) => `- \`${route}\``).join('\n') || '- None';
+  const responsiveItems = navigationResponsiveRisk.slice(0, 20).map((item) => `- \`${item.route}\`: ${item.hazards.map((token) => `\`${token}\``).join(', ')}`).join('\n') || '- None';
   const classifications = Object.entries(routesByClassification).map(([classification, routes]) => `- ${classification.replaceAll('_', ' ')}: **${routes.length}**`).join('\n');
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Manually reviewed hidden operational tools: **${reviewedHiddenOperationalRoutes.size}**\n- Responsive-risk filesystem pages: **${responsiveRisk.length}**\n- Responsive-risk navigation destinations: **${navigationResponsiveRisk.length}**\n- Uncovered theme-risk filesystem pages: **${themeRisk.length}**\n- Uncovered theme-risk navigation destinations: **${navigationThemeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Theme risk now reports only dark arbitrary background colors that are not already normalized by the Admin appearance compatibility layers. Filesystem route count is not the number of admin pages actively used.\n\n#### Route classification\n${classifications}\n\n#### Highest await counts\n\n| Route | render awaits | total file awaits |\n| --- | ---: | ---: |\n${topAwait}\n\n#### Navigation theme risks\n${themeItems}\n\n#### Navigation responsive risks\n${responsiveItems}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Manually reviewed hidden operational tools: **${reviewedHiddenOperationalRoutes.size}**\n- Responsive-risk filesystem pages: **${responsiveRisk.length}**\n- Responsive-risk navigation destinations: **${navigationResponsiveRisk.length}**\n- Uncovered theme-risk filesystem pages: **${themeRisk.length}**\n- Uncovered theme-risk navigation destinations: **${navigationThemeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Theme risk reports only dark arbitrary background colors not already normalized by the Admin appearance compatibility layers. Responsive risk ignores intentionally wide tables and data grids that are already contained by horizontal scrolling. Filesystem route count is not the number of admin pages actively used.\n\n#### Route classification\n${classifications}\n\n#### Highest await counts\n\n| Route | render awaits | total file awaits |\n| --- | ---: | ---: |\n${topAwait}\n\n#### Navigation theme risks\n${themeItems}\n\n#### Navigation responsive risks\n${responsiveItems}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
 }
 
 const failed = Object.entries(structuralChecks).filter(([, ok]) => !ok);
