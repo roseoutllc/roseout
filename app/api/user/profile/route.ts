@@ -5,41 +5,57 @@ function cleanString(value: unknown, max = 160) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function cleanPhone(value: unknown) {
+  const raw = cleanString(value, 40);
+  if (!raw) return null;
+  const normalized = raw.replace(/[^+\d]/g, "");
+  return normalized.length >= 7 && normalized.length <= 20 ? normalized : null;
+}
+
 export async function PATCH(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
-  const b = await req.json().catch(() => ({}));
-  const safe: Record<string, unknown> = {};
+  const body = await req.json().catch(() => ({}));
+  const firstName = cleanString(body.preferred_name, 80);
+  const city = cleanString(body.city, 120);
+  const month = Number(body.birthday_month);
+  const phone = cleanPhone(body.phone ?? body.mobile_number);
+  const smsOptIn = Boolean(body.sms_opt_in);
 
-  if ("full_name" in b) safe.full_name = cleanString(b.full_name);
-  if ("preferred_name" in b) safe.preferred_name = cleanString(b.preferred_name);
-  if ("city" in b) safe.city = cleanString(b.city, 120);
-  if ("mobile_number" in b || "phone" in b) {
-    const phone = cleanString(b.mobile_number ?? b.phone, 40);
-    safe.mobile_number = phone || null;
-    safe.phone = phone || null;
+  if (!firstName) return NextResponse.json({ success: false, error: "First name is required." }, { status: 400 });
+  if (!city) return NextResponse.json({ success: false, error: "City is required." }, { status: 400 });
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    return NextResponse.json({ success: false, error: "Birth month must be between 1 and 12." }, { status: 400 });
   }
-  if ("birthday_month" in b) {
-    const month = Number(b.birthday_month);
-    if (!Number.isInteger(month) || month < 1 || month > 12) {
-      return NextResponse.json({ success: false, error: "Birth month must be between 1 and 12." }, { status: 400 });
-    }
-    safe.birthday_month = month;
+  if ((body.phone || body.mobile_number) && !phone) {
+    return NextResponse.json({ success: false, error: "Enter a valid phone number or leave it blank." }, { status: 400 });
   }
-  if ("age_range" in b) safe.age_range = cleanString(b.age_range, 40) || null;
-  if ("sms_opt_in" in b) safe.sms_opt_in = Boolean(b.sms_opt_in);
-  if ("preferences" in b) safe.preferences = b.preferences && typeof b.preferences === "object" ? b.preferences : {};
+  if (smsOptIn && !phone) {
+    return NextResponse.json({ success: false, error: "A phone number is required to enable text messages." }, { status: 400 });
+  }
 
-  safe.updated_at = new Date().toISOString();
+  const now = new Date().toISOString();
+  const payload = {
+    user_id: user.id,
+    preferred_name: firstName,
+    city,
+    birthday_month: month,
+    mobile_number: phone,
+    sms_opt_in: smsOptIn,
+    sms_opt_in_at: smsOptIn ? now : null,
+    sms_opt_in_source: smsOptIn ? "user_dashboard" : null,
+    sms_opt_in_phone: smsOptIn ? phone : null,
+    updated_at: now,
+  };
 
   const { data, error } = await supabase
     .from("user_profiles")
-    .upsert({ id: user.id, email: user.email, ...safe }, { onConflict: "id" })
-    .select("*")
+    .upsert(payload, { onConflict: "user_id" })
+    .select("preferred_name,city,birthday_month,mobile_number,sms_opt_in")
     .single();
 
-  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+  if (error) return NextResponse.json({ success: false, error: "Could not update your profile." }, { status: 400 });
   return NextResponse.json({ success: true, profile: data });
 }
