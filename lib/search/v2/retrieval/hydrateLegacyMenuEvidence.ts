@@ -13,7 +13,7 @@ function normalizeTerm(value: unknown) {
 
 export function needsLegacyMenuEvidenceHydration(request: RetrievalRequest) {
   const restaurantRole = request.desiredRole === "restaurant" || request.desiredRole.endsWith("_restaurant");
-  if (!restaurantRole) return false;
+  if (!restaurantRole || request.allowLowLevel) return false;
   return request.foods.some((term) => normalizeTerm(term).includes(" "));
 }
 

@@ -144,11 +144,7 @@ export async function buildPairs({ plan, restaurants, activities, trace }: { pla
     return [];
   }
 
-  const bestTierPairs = () => {
-    const sorted = [...pairs].sort((a, b) => geoTierRank(a.geoTier) - geoTierRank(b.geoTier) || b.scores.total - a.scores.total);
-    const bestRank = sorted.length ? geoTierRank(sorted[0].geoTier) : Number.POSITIVE_INFINITY;
-    return sorted.filter((pair) => geoTierRank(pair.geoTier) === bestRank);
-  };
+  const rankedPairs = () => [...pairs].sort((a, b) => geoTierRank(a.geoTier) - geoTierRank(b.geoTier) || b.scores.total - a.scores.total);
 
   const evaluateFrontier = (restaurantLimit: number, activityLimit: number, phase: "initial" | "adaptive") => {
     const frontier: Array<{ restaurant: ScoredCandidate; activity: ScoredCandidate; key: string; upperBound: number }> = [];
@@ -188,7 +184,7 @@ export async function buildPairs({ plan, restaurants, activities, trace }: { pla
       const total = (restaurant.scores.total + activity.scores.total) * 0.4 + distanceScore * 0.2 + mlPairBoost + dateOccasionAdjustment - tierRank * 12;
       pairs.push({ restaurant, activity, distanceMiles: distance, walkingMinutes: walking, walkingMinutesSource: walking == null ? "unavailable" : "estimated", geoTier, isFallbackPair: geoTier !== "exact_locality", scores: { restaurant: restaurant.scores.total, activity: activity.scores.total, distance: distanceScore, combinedQuality: (restaurant.scores.quality + activity.scores.quality) / 2, sequence: 100, mlPairBoost, total }, reasons: [sameVenue ? "both roles at one venue" : tierReason(geoTier), dateOccasionAdjustment > 0 ? `restaurant date-night fit +${dateOccasionAdjustment.toFixed(1)}` : dateOccasionAdjustment < 0 ? `restaurant date-night fit ${dateOccasionAdjustment.toFixed(1)}` : null, walking == null ? "walking time unavailable" : `about ${walking} minutes walking`].filter(Boolean) as string[] });
       if (pairs.length >= qualityFrontierMin) {
-        const diversified = diversifyPairs(bestTierPairs(), targetPairCount);
+        const diversified = diversifyPairs(rankedPairs(), targetPairCount);
         const next = frontier[index + 1];
         const floor = diversified.length >= targetPairCount ? diversified[diversified.length - 1].scores.total : Number.NEGATIVE_INFINITY;
         if (diversified.length >= targetPairCount && (!next || next.upperBound <= floor)) {
@@ -201,7 +197,7 @@ export async function buildPairs({ plan, restaurants, activities, trace }: { pla
   };
 
   evaluateFrontier(initialRestaurantLimit, initialActivityLimit, "initial");
-  const initialDiversified = diversifyPairs(bestTierPairs(), targetPairCount);
+  const initialDiversified = diversifyPairs(rankedPairs(), targetPairCount);
   const canExpand = adaptiveRestaurantLimit > initialRestaurantLimit || adaptiveActivityLimit > initialActivityLimit;
   if (initialDiversified.length < targetPairCount && canExpand) {
     debug.adaptiveExpansionApplied = true;
@@ -211,7 +207,7 @@ export async function buildPairs({ plan, restaurants, activities, trace }: { pla
   debug.pairCandidatesSkipped = Math.max(0, theoreticalPairCandidates - debug.pairCandidatesEvaluated);
   debug.validPairCountBeforeRender = pairs.length;
   debug.validPairCountAfterConstraints = pairs.length;
-  const diversified = diversifyPairs(bestTierPairs(), targetPairCount);
+  const diversified = diversifyPairs(rankedPairs(), targetPairCount);
   debug.validPairCountAfterDiversification = diversified.length;
   debug.renderEligiblePairCount = diversified.length;
   debug.finalEligiblePairs = diversified.map(pairTrace);

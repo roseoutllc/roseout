@@ -147,9 +147,6 @@ export function buildProfileRpcAttempts(request: RetrievalRequest, limit = 60, a
   if (hasCoordinates) geoAttempts.push(base);
   geoAttempts.push(textualAttempt(base, { p_neighborhood: geo.neighborhood ?? null, p_city: geo.city ?? null, p_borough: geo.borough ?? null, p_county: geo.county ?? null, p_market: normalizedMarket(geo.market) }));
   if (allowBroaderGeo) {
-    // For NYC neighborhoods, borough is the next meaningful locality boundary.
-    // `city = New York` is much broader and can prematurely stop retrieval on
-    // Manhattan candidates before a Queens/Brooklyn/Bronx/Staten Island attempt.
     if (geo.borough) geoAttempts.push(textualAttempt(base, { p_borough: geo.borough, p_market: normalizedMarket(geo.market) }));
     if (geo.city) geoAttempts.push(textualAttempt(base, { p_city: geo.city, p_county: geo.county ?? null, p_market: normalizedMarket(geo.market) }));
     if (geo.county) geoAttempts.push(textualAttempt(base, { p_county: geo.county, p_market: normalizedMarket(geo.market) }));
@@ -182,6 +179,11 @@ export async function retrieveProfileLocations(
   allowBroaderGeo = true,
   onAttempt?: (attempt: ProfileRetrievalAttempt) => void,
 ): Promise<EnterpriseLocation[]> {
+  // Explicit quick-bite/takeout intent belongs to the low-level unified inventory.
+  // Skipping the canonical destination-profile scout avoids a guaranteed empty
+  // RPC/hydration pass before the legacy low-level lane is queried.
+  if (request.allowLowLevel) return [];
+
   const attempts = buildProfileRpcAttempts(request, limit, allowBroaderGeo);
   let lastError: string | null = null;
   for (let index = 0; index < attempts.length; index += 1) {

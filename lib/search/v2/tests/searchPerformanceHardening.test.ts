@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { buildPairs } from "../pairing/buildPairs";
 import { createSearchTrace, recordTiming } from "../observability/searchTrace";
 
-function candidate(id:string,role:"restaurant"|"activity",score:number,index:number):any {
-  return { candidate:{ candidate:{ location:{ id, latitude:40.75+index*.0001, longitude:-73.99+index*.0001, location_type:role, quality_score:90 }, geoMatch:{ tier:"exact_locality" } } }, scores:{ total:score, quality:90 } };
+function candidate(id:string,role:"restaurant"|"activity",score:number,index:number,tier:"exact_locality"|"nearby_radius"="exact_locality"):any {
+  return { candidate:{ candidate:{ location:{ id, latitude:40.75+index*.0001, longitude:-73.99+index*.0001, location_type:role, quality_score:90 }, geoMatch:{ tier } } }, scores:{ total:score, quality:90 } };
 }
 const plan:any={rawQuery:"Italian dinner then live music in Manhattan",restaurant:{required:true},activity:{required:true},travel:{constraint:"soft"},pairing:{requireWalkable:false,maxWalkingMinutes:null,maxDrivingMinutes:null,maxDistanceMiles:null,sameVenueRequired:false}};
 
@@ -31,6 +31,18 @@ describe("V2 search performance hardening",()=>{
     expect(trace.pairingDebug?.theoreticalPairCandidates).toBe(720);
     expect(trace.pairingDebug?.pairCandidatesEvaluated).toBeLessThanOrEqual(360);
     expect(trace.pairingDebug?.pairCandidatesSkipped).toBeGreaterThanOrEqual(360);
+    expect(trace.pairingDebug?.adaptiveExpansionApplied).toBe(false);
+    expect(trace.pairingDebug?.eligibilityContractValid).toBe(true);
+  });
+
+  it("fills the initial diverse target across accepted geo tiers before expanding",async()=>{
+    const restaurants=Array.from({length:40},(_,i)=>candidate(`r-tier-${i}`,"restaurant",100-i,i,i<10||i>=20?"exact_locality":"nearby_radius"));
+    const activities=Array.from({length:18},(_,i)=>candidate(`a-tier-${i}`,"activity",100-i,i));
+    const trace=createSearchTrace("tiered-asymmetric-performance-regression");
+    const pairs=await buildPairs({plan,restaurants,activities,trace});
+    expect(pairs).toHaveLength(18);
+    expect(pairs.slice(0,10).every((pair)=>pair.geoTier==="exact_locality")).toBe(true);
+    expect(trace.pairingDebug?.pairCandidatesEvaluated).toBeLessThanOrEqual(360);
     expect(trace.pairingDebug?.adaptiveExpansionApplied).toBe(false);
     expect(trace.pairingDebug?.eligibilityContractValid).toBe(true);
   });
