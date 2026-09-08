@@ -1,6 +1,7 @@
 import Link from "next/link";
 import UserDashboardShell, { DashboardCard } from "@/components/user/UserDashboardShell";
 import { getCurrentUserDashboardContext } from "@/lib/user-dashboard";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,11 @@ export default async function Page() {
   const upcoming = ctx.bookedOutings || [];
   const completed = ctx.completedOutings || [];
   const profileIncomplete = !ctx.profile?.preferred_name || !ctx.profile?.city || !ctx.profile?.birthday_month;
+  const { data: supportTickets } = await supabaseAdmin.from("support_tickets")
+    .select("id,ticket_number,subject,category,status,updated_at,created_at")
+    .eq("user_id", ctx.user.id)
+    .order("updated_at", { ascending: false })
+    .limit(4);
 
   return (
     <UserDashboardShell isBeta={ctx.isBeta}>
@@ -54,7 +60,7 @@ export default async function Page() {
           <div>
             <p className="text-xs font-black uppercase tracking-[.3em] text-rose-200">TheOutHaven Portal {ctx.isBeta ? <span className="ml-2 rounded-full bg-rose-500/20 px-2 py-1">Beta Member</span> : null}</p>
             <h1 className="mt-3 text-4xl font-black md:text-5xl">Welcome back, {displayName(ctx)}</h1>
-            <p className="mt-3 text-white/65">Your saved plans, upcoming outings, and completed nights stay organized here.</p>
+            <p className="mt-3 text-white/65">Your saved plans, upcoming outings, completed nights, and support requests stay organized here.</p>
           </div>
           <div className="flex gap-3">
             <Link href="/create" className="rounded-full bg-rose-600 px-5 py-3 text-sm font-black">Create an Outing</Link>
@@ -87,13 +93,23 @@ export default async function Page() {
           <OutingList items={completed} empty="Completed outings will appear here after you mark an outing complete." />
         </DashboardCard>
 
-        {ctx.isBeta ? <DashboardCard><p className="text-xs font-black uppercase tracking-[.24em] text-rose-200">Beta Testing</p><h2 className="mt-2 text-2xl font-black">Beta tasks</h2><p className="mt-2 text-sm text-white/60">Continue testing, submit feedback, and report bugs.</p><Link href="/user/dashboard/beta" className="mt-4 inline-flex rounded-full bg-rose-600 px-4 py-2 text-xs font-black">Open Beta Dashboard</Link></DashboardCard> : null}
-
         <DashboardCard>
-          <p className="text-xs font-black uppercase tracking-[.24em] text-rose-200">Support</p>
-          <h2 className="mt-2 text-2xl font-black">Need help?</h2>
-          <Link href="/support" className="mt-4 inline-flex rounded-full border border-white/15 px-4 py-2 text-xs font-black">Contact support</Link>
+          <div className="flex items-start justify-between gap-3">
+            <div><p className="text-xs font-black uppercase tracking-[.24em] text-rose-200">Support</p><h2 className="mt-2 text-2xl font-black">Your tickets</h2></div>
+            <Link href="/user/dashboard/support" className="text-xs font-black text-rose-100">View all</Link>
+          </div>
+          <div className="mt-4 grid gap-2">
+            {(supportTickets || []).length ? (supportTickets || []).map((ticket: any) => (
+              <Link key={ticket.id} href={`/user/dashboard/support/${ticket.id}`} className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                <div className="flex items-center justify-between gap-3"><span className="line-clamp-1 text-sm font-black">{ticket.subject}</span><span className="text-[11px] font-bold uppercase text-rose-100">{ticket.status}</span></div>
+                <p className="mt-1 text-xs text-white/40">{ticket.ticket_number || "Support ticket"} · {ticket.category || "Other"}</p>
+              </Link>
+            )) : <p className="text-sm text-white/55">No support tickets yet.</p>}
+          </div>
+          <Link href="/user/dashboard/support" className="mt-4 inline-flex rounded-full border border-white/15 px-4 py-2 text-xs font-black">Open support</Link>
         </DashboardCard>
+
+        {ctx.isBeta ? <DashboardCard><p className="text-xs font-black uppercase tracking-[.24em] text-rose-200">Beta Testing</p><h2 className="mt-2 text-2xl font-black">Beta tasks</h2><p className="mt-2 text-sm text-white/60">Continue testing, submit feedback, and report bugs.</p><Link href="/user/dashboard/beta" className="mt-4 inline-flex rounded-full bg-rose-600 px-4 py-2 text-xs font-black">Open Beta Dashboard</Link></DashboardCard> : null}
       </div>
     </UserDashboardShell>
   );
