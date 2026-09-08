@@ -6,7 +6,11 @@ const adminRoot = path.join(root, 'app', 'admin', 'dashboard');
 const componentRoot = path.join(root, 'components', 'admin');
 
 const reviewedHiddenOperationalRoutes = new Set([
+  '/admin/dashboard/careers/internships/active',
+  '/admin/dashboard/careers/internships/assignments',
+  '/admin/dashboard/careers/internships/compliance',
   '/admin/dashboard/communication',
+  '/admin/dashboard/crm/claim-codes',
   '/admin/dashboard/experiences',
   '/admin/dashboard/marketing/analytics',
   '/admin/dashboard/reviews',
@@ -103,7 +107,9 @@ function classifyRoute(route, file) {
 
   const compact = text.replace(/\s+/g, ' ');
   const hasRedirect = /\bredirect\s*\(/.test(text);
+  const hasDefaultReexport = /export\s*\{\s*default\s*\}\s*from\s*["'`]/.test(text);
   const hasMeaningfulUi = /<(?:main|section|article|AdminPageShell|AdminSectionCard|div)\b/.test(text);
+  if (hasDefaultReexport) return 'redirect_alias';
   if (hasRedirect && (!hasMeaningfulUi || compact.length < 1800)) return 'redirect_alias';
   if (refs > 0) return 'hidden_operational_tool';
   return 'orphan_candidate';
