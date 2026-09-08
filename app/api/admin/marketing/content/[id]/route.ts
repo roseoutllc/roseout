@@ -5,13 +5,28 @@ import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import {
   cancelPendingApprovalForEdit,
   isMeaningfulContentPatch,
-  loadMarketingContent,
   normalizePlatforms,
   type MarketingContentRow,
 } from "@/lib/marketing/content-operations";
 import type { TaskActor } from "@/lib/crm/tasks/types";
 
 export const dynamic = "force-dynamic";
+
+const CONTENT_ITEM_FIELDS = "id,scope,campaign_id,location_id,organization_id,source_type,source_id,title,content_type,occasion,market,neighborhood,budget_category,owner_user_id,status,priority,due_at,publish_at,approval_status,approved_by,approved_at,approved_version,current_version,selected_platforms,media_urls,caption,platform_copy,auto_publish,approval_hash,hook,script,voiceover,cta,metadata,created_by,created_at,updated_at,last_submitted_at";
+const SOCIAL_POST_FIELDS = "id,campaign_id,content_item_id,platform,caption,title,description,hashtags,voiceover_script,cta,location_promo_text,media_url,status,scheduled_at,posted_at,platform_permalink,last_metrics_sync_at,created_at,updated_at";
+const APPROVAL_FIELDS = "id,content_item_id,version,requested_by,assigned_to,crm_task_id,status,decision_notes,decided_by,decided_at,created_at,updated_at";
+const ASSET_LINK_FIELDS = "sort_order,marketing_assets(id,asset_type,storage_path,display_name,source,rights_status,allow_theouthaven_feature,allowed_platforms,rights_expires_at,tags,created_at,updated_at)";
+
+async function loadContentItem(id: string) {
+  const { data, error } = await supabaseAdmin
+    .from("marketing_content_items")
+    .select(CONTENT_ITEM_FIELDS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Marketing content not found.");
+  return data as unknown as MarketingContentRow;
+}
 
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -85,11 +100,11 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   if (auth.error) return auth.error;
   try {
     const { id } = await context.params;
-    const item = await loadMarketingContent(id);
+    const item = await loadContentItem(id);
     const [{ data: posts }, { data: approvals }, { data: assets }] = await Promise.all([
-      supabaseAdmin.from("social_posts").select("*").eq("content_item_id", id).order("platform"),
-      supabaseAdmin.from("marketing_approvals").select("*").eq("content_item_id", id).order("created_at", { ascending: false }),
-      supabaseAdmin.from("marketing_content_asset_links").select("sort_order,marketing_assets(*)").eq("content_item_id", id).order("sort_order"),
+      supabaseAdmin.from("social_posts").select(SOCIAL_POST_FIELDS).eq("content_item_id", id).order("platform"),
+      supabaseAdmin.from("marketing_approvals").select(APPROVAL_FIELDS).eq("content_item_id", id).order("created_at", { ascending: false }),
+      supabaseAdmin.from("marketing_content_asset_links").select(ASSET_LINK_FIELDS).eq("content_item_id", id).order("sort_order"),
     ]);
     return NextResponse.json({ success: true, item, posts: posts || [], approvals: approvals || [], assets: assets || [] });
   } catch (error) {
@@ -103,7 +118,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
   try {
     const { id } = await context.params;
-    const before = await loadMarketingContent(id);
+    const before = await loadContentItem(id);
     const body = await req.json();
     const patch = buildPatch(body as Record<string, unknown>);
     if (!Object.keys(patch).length) {
@@ -151,7 +166,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       .from("marketing_content_items")
       .update(next)
       .eq("id", id)
-      .select("*")
+      .select(CONTENT_ITEM_FIELDS)
       .single();
     if (error || !data) throw error || new Error("Could not save content.");
 
@@ -162,7 +177,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       );
     }
 
-    return NextResponse.json({ success: true, item: data as MarketingContentRow, reapproval_required: meaningful && ["pending", "approved"].includes(before.approval_status) });
+    return NextResponse.json({ success: true, item: data as unknown as MarketingContentRow, reapproval_required: meaningful && ["pending", "approved"].includes(before.approval_status) });
   } catch (error) {
     console.error("Marketing content update failed", error);
     return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Could not save content." }, { status: 500 });
