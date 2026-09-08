@@ -30,7 +30,7 @@ describe("location workspace E2E navigation", () => {
       "/locations/dashboard/settings",
     ];
     for (const route of primaryRoutes) expect(nav).toContain(`href: "${route}"`);
-    expect(nav.match(/\bicon: /g) || []).toHaveLength(17);
+    expect(nav.match(/\bicon: [A-Z]/g) || []).toHaveLength(17);
   });
 
   it("keeps consolidated child tools reachable and highlights their parent hubs", () => {
