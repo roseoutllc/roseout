@@ -10,6 +10,7 @@ const PAGE_SIZES = new Set([25, 50, 100]);
 const BLOCKING_RUN_STATUSES = new Set(["planned", "queued", "running"]);
 const RESERVATION_DISCOVERY_EXHAUSTED = new Set(["not_found", "no_website"]);
 const HOURS_DISCOVERY_EXHAUSTED = new Set(["website_no_hours"]);
+const ENRICHMENT_RUN_FIELDS = "id,status,mode,source_table,stale_days,batch_size,enable_food_probe,max_food_probes_per_row,max_api_calls,estimated_records,estimated_api_calls,processed_records,matched_records,review_records,no_match_records,failed_records,actual_api_calls,batches_completed,settings,before_quality,after_quality,last_batch,created_at,started_at,paused_at,completed_at,updated_at,enriched_records,unchanged_records,skipped_records,profiles_queued_records,photos_cached_records,cursor_location_id" as const;
 
 function text(value: unknown) {
   return String(value ?? "").trim();
@@ -50,6 +51,12 @@ function healthScore(issueCount: number) {
 
 function isCrmLocationHealthRun(run: any) {
   return run?.settings?.createdFrom === "crm-location-health";
+}
+
+function visibleRun(run: any, reviewCount: number) {
+  if (!run) return null;
+  const { settings: _settings, ...visible } = run;
+  return { ...visible, review_records: reviewCount };
 }
 
 export async function GET(request: Request) {
@@ -94,7 +101,7 @@ export async function GET(request: Request) {
   const [locationsResult, duplicateResult, runsResult] = await Promise.all([
     query.range(start, end),
     supabaseAdmin.from("location_duplicate_review").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    supabaseAdmin.from("location_enrichment_runs").select("*").order("created_at", { ascending: false }).limit(25),
+    supabaseAdmin.from("location_enrichment_runs").select(ENRICHMENT_RUN_FIELDS).order("created_at", { ascending: false }).limit(25),
   ]);
 
   if (locationsResult.error) return Response.json({ success: false, error: locationsResult.error.message }, { status: 500 });
@@ -168,9 +175,6 @@ export async function GET(request: Request) {
     });
   }
 
-  const visibleActiveRun = activeRun ? { ...activeRun, review_records: reviewItems.length } : null;
-  const visibleLatestRun = latestRun ? { ...latestRun, review_records: reviewItems.length } : null;
-
   return Response.json({
     success: true,
     rows,
@@ -179,8 +183,8 @@ export async function GET(request: Request) {
     pageSize,
     totalPages: Math.max(1, Math.ceil((locationsResult.count || 0) / pageSize)),
     duplicateCount: duplicateResult.count || 0,
-    activeRun: visibleActiveRun,
-    latestRun: visibleLatestRun,
+    activeRun: visibleRun(activeRun, reviewItems.length),
+    latestRun: visibleRun(latestRun, reviewItems.length),
     reviewItems,
     ownerUpdateCount,
   });
