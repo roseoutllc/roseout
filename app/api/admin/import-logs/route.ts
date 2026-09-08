@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { requireAdminApiRole } from "@/lib/admin-api-auth";
+import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 function numberFrom(value: unknown) {
@@ -40,6 +42,9 @@ async function getPhotoBacklog() {
 }
 
 export async function GET() {
+  const { error: authError } = await requireAdminApiRole(ADMIN_PAGE_ACCESS.import);
+  if (authError) return authError;
+
   const [{ data, error }, photoBacklogResult] = await Promise.all([
     supabaseAdmin
       .from("import_logs")
