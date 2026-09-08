@@ -7,8 +7,8 @@ export const maxDuration = 300;
 
 const PUBLIC_SEARCH_PATH = "/api/generate";
 const TEST_TIMEZONE = "America/New_York";
-const REQUEST_DELAY_MS = 300;
-const MAX_RATE_LIMIT_RETRIES = 3;
+const REQUEST_DELAY_MS = 1500;
+const MAX_RATE_LIMIT_RETRIES = 6;
 
 const GOLD_QUERIES = [
   "Plan a restaurant and activity outing. dinner and comedy show near me. Return the best options, ranked by fit.",
@@ -121,8 +121,9 @@ async function runPublicSearch(origin: string, query: string) {
     rateLimitRetries += 1;
     if (attempt < MAX_RATE_LIMIT_RETRIES) {
       const retryAfter = Number(response.headers.get("retry-after"));
-      const backoff = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt;
-      await sleep(Math.min(4000, backoff));
+      const fallbackBackoff = 1500 * 2 ** attempt;
+      const backoff = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : fallbackBackoff;
+      await sleep(Math.min(15000, backoff));
     }
   }
   return { payload: lastPayload, status: lastStatus, rateLimitRetries };
