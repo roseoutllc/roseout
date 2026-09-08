@@ -17,8 +17,13 @@ import {
 import { profileUpdateWithSearchDocument } from "@/lib/location-profile-fields";
 
 type RequestBody = { table?: unknown; id?: unknown; updates?: unknown };
-
 type NormalizedUpdate = { ok: true; value: EnhancementFormState[keyof EnhancementFormState] } | { ok: false; error: string };
+
+const SEARCH_DOCUMENT_FIELDS: Record<LocationTableName, readonly string[]> = {
+  locations: ["name","restaurant_name","activity_name","location_type","category","primary_category","cuisine","description","primary_tag","semantic_tags","best_for_tags","best_for","review_keywords","tags","search_keywords","intent_tags","vibe_tags","date_style_tags","special_features","semantic_search_text"],
+  restaurants: ["name","restaurant_name","location_type","primary_category","cuisine","description","primary_tag","best_for_tags","best_for","review_keywords","tags","search_keywords","mood_tags","date_style_tags","special_features"],
+  activities: ["name","activity_name","location_type","primary_category","cuisine","description","primary_tag","best_for_tags","best_for","review_keywords","tags","search_keywords","vibe_tags","date_style_tags","special_features"],
+};
 
 function normalizeUpdateValue(field: string, value: unknown): NormalizedUpdate {
   if (!isEnhancementFieldName(field)) return { ok: false, error: `Unknown field: ${field}` };
@@ -32,7 +37,7 @@ function normalizeUpdateValue(field: string, value: unknown): NormalizedUpdate {
     if (value === null || Array.isArray(value) || (typeof value === "object" && value !== null)) return { ok: true, value: value as EnhancementFormState[keyof EnhancementFormState] };
     return { ok: false, error: `${field} must be valid JSON.` };
   }
-  const text = String(value ?? "").trim();
+  const text = String(value ?? "").trim().slice(0, 12000);
   return { ok: true, value: text || null };
 }
 
@@ -40,7 +45,7 @@ export async function PATCH(request: NextRequest) {
   const auth = await requireAdminApiRole(ADMIN_PAGE_ACCESS.crmEdit);
   if (auth.error) return auth.error;
 
-  const body = (await request.json()) as RequestBody;
+  const body = (await request.json().catch(() => ({}))) as RequestBody;
   if (!isLocationTableName(body.table)) return NextResponse.json({ success: false, error: "Unknown location table." }, { status: 400 });
 
   const table: LocationTableName = body.table;
@@ -50,7 +55,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Updates must be an object." }, { status: 400 });
   }
 
-  const allowed = new Set(getEnhancementFieldsForTable(table));
+  const allowedFields = getEnhancementFieldsForTable(table);
+  const allowed = new Set(allowedFields);
   const updates: EnhancementFormState & { updated_at?: string } = {};
   for (const [field, rawValue] of Object.entries(body.updates as Record<string, unknown>)) {
     if (!isEnhancementFieldName(field) || !allowed.has(field)) {
@@ -60,13 +66,23 @@ export async function PATCH(request: NextRequest) {
     if (!normalized.ok) return NextResponse.json({ success: false, error: normalized.error }, { status: 400 });
     updates[field] = normalized.value;
   }
-  updates.updated_at = new Date().toISOString();
+  if (!Object.keys(updates).length) return NextResponse.json({ success: false, error: "No supported fields to update." }, { status: 400 });
+  if (table !== "activities") updates.updated_at = new Date().toISOString();
 
   const supabaseAdmin = getSupabaseAdminClient();
-  const existing = await supabaseAdmin.from(table).select("*").eq("id", id).maybeSingle();
+  const existingFields = Array.from(new Set(["id", ...SEARCH_DOCUMENT_FIELDS[table], ...allowedFields]));
+  const existing = await supabaseAdmin.from(table).select(existingFields.join(",")).eq("id", id).maybeSingle();
   if (existing.error) return NextResponse.json({ success: false, error: existing.error.message }, { status: 500 });
-  const updatesWithSearchDocument = profileUpdateWithSearchDocument((existing.data || {}) as Record<string, unknown>, updates);
-  const { data, error } = await supabaseAdmin.from(table).update(updatesWithSearchDocument).eq("id", id).select("*").maybeSingle();
+  if (!existing.data) return NextResponse.json({ success: false, error: "Location not found." }, { status: 404 });
+
+  const updatesWithSearchDocument = profileUpdateWithSearchDocument(existing.data as unknown as Record<string, unknown>, updates);
+  const responseFields = Array.from(new Set(["id", ...allowedFields, "search_document"]));
+  const { data, error } = await supabaseAdmin
+    .from(table)
+    .update(updatesWithSearchDocument)
+    .eq("id", id)
+    .select(responseFields.join(","))
+    .maybeSingle();
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   return NextResponse.json({ success: true, data });
 }
