@@ -6,12 +6,14 @@ on:
       - 'infra/aws/edge-runtime/schedules.json'
       - 'infra/aws/edge-runtime/activation.json'
       - 'infra/aws/edge-runtime/dr-schedules.json'
+      - 'infra/aws/edge-runtime/dr-lost-slot-recovery.json'
       - '.github/workflows/aws-dr-scheduler-activation.yml'
       - 'infra/aws/edge-runtime/main/index.ts'
   push:
     branches: [main]
     paths:
       - '.github/workflows/aws-dr-scheduler-activation.yml'
+      - 'infra/aws/edge-runtime/dr-lost-slot-recovery.json'
   workflow_run:
     workflows: ['AWS scheduler activation', 'AWS scheduler manifest activation']
     branches: [main]
@@ -108,6 +110,15 @@ jobs:
           esac
           echo "dr_mode=$mode" >> "$GITHUB_OUTPUT"
 
+      - name: Require disarmed lost-slot recovery for Virginia primary
+        if: steps.mode.outputs.dr_mode == 'virginia_primary'
+        run: |
+          set -euo pipefail
+          jq -e '.enabled == false' infra/aws/edge-runtime/dr-lost-slot-recovery.json >/dev/null || {
+            echo 'Forward DR schedules remain fail-closed while lost-slot recovery is armed.' >&2
+            exit 1
+          }
+
       - name: Refresh isolated DR runtime secret for Virginia primary
         if: steps.mode.outputs.dr_mode == 'virginia_primary'
         env:
@@ -158,7 +169,7 @@ jobs:
           invoker="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='SchedulerInvokerFunctionName'].OutputValue" --output text)"
           printf '%s' '{"function":"dr-standby-reconciler","body":{"operation":"status","dryRun":true}}' > "$RUNNER_TEMP/status-input.json"
           aws lambda invoke --function-name "$invoker" --cli-binary-format raw-in-base64-out --payload "fileb://$RUNNER_TEMP/status-input.json" "$RUNNER_TEMP/status-output.json" >/dev/null
-          jq -e '.ok==true and .status<400 and .response.success==true and .response.guard.sourceCronJobs==0 and .response.guard.sourceActiveSlots==1 and .response.guard.targetActiveCronJobs==0 and .response.guard.targetReadyTables==462 and .response.guard.targetConnectedWorkers>=1 and .response.auth.parity==true and .response.storage.parity==true' "$RUNNER_TEMP/status-output.json" >/dev/null
+          jq -e '.ok==true and .status<400 and .response.success==true and .response.guard.sourceCronJobs==0 and .response.guard.sourceActiveSlots==1 and .response.guard.sourceSlotLagBytes>=0 and .response.guard.sourceSlotLagBytes<=67108864 and .response.guard.sourcePublishedTables>0 and .response.guard.targetActiveCronJobs==0 and .response.guard.targetTotalTables==.response.guard.sourcePublishedTables and .response.guard.targetReadyTables==.response.guard.sourcePublishedTables and .response.guard.targetConnectedWorkers>=1 and .response.auth.parity==true and .response.storage.parity==true' "$RUNNER_TEMP/status-output.json" >/dev/null
 
       - name: Enter DR schedule mutation boundary
         id: mutation_boundary
