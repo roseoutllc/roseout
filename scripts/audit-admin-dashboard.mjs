@@ -25,6 +25,42 @@ function pageFileToRoute(file) {
   return `/${rel(file).replace(/^app\//, '').replace(/\/page\.tsx$/, '')}`;
 }
 
+function countAwaits(text) {
+  return (text.match(/\bawait\b/g) || []).length;
+}
+
+function getDefaultPageFunction(text) {
+  const match = text.match(/export\s+default\s+async\s+function\s+[A-Za-z0-9_$]*\s*\(/);
+  if (!match || match.index == null) return '';
+
+  const start = match.index;
+  const bodyStart = text.indexOf('{', start + match[0].length);
+  if (bodyStart < 0) return text.slice(start);
+
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  for (let i = bodyStart; i < text.length; i += 1) {
+    const char = text[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+      continue;
+    }
+    if (char === '{') depth += 1;
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return text.slice(start);
+}
+
 const pages = walk(adminRoot).filter((file) => file.endsWith('/page.tsx'));
 const tsFiles = walk(root).filter((file) => /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file) && !file.includes('/node_modules/'));
 const sourceCache = new Map(tsFiles.map((file) => [file, read(file)]));
@@ -48,12 +84,41 @@ for (const [file, text] of sourceCache) {
   }
 }
 
-const orphanReviewCandidates = [...pageRoutes.keys()]
-  .filter((route) => route !== '/admin/dashboard')
-  .filter((route) => !navigationEntrypoints.includes(route))
-  .filter((route) => !route.includes('['))
-  .filter((route) => (routeReferenceCounts.get(route) || 0) === 0)
-  .sort();
+function classifyRoute(route, file) {
+  const text = sourceCache.get(file) || '';
+  const refs = routeReferenceCounts.get(route) || 0;
+  if (route === '/admin/dashboard' || navigationEntrypoints.includes(route)) return 'navigation_entrypoint';
+  if (/\/(?:print|export)(?:\/|$)/.test(route)) return 'print_export';
+  if (route.includes('[')) return 'dynamic_detail_workflow';
+
+  const compact = text.replace(/\s+/g, ' ');
+  const hasRedirect = /\bredirect\s*\(/.test(text);
+  const hasMeaningfulUi = /<(?:main|section|article|AdminPageShell|AdminSectionCard|div)\b/.test(text);
+  if (hasRedirect && (!hasMeaningfulUi || compact.length < 1800)) return 'redirect_alias';
+  if (refs > 0) return 'hidden_operational_tool';
+  return 'orphan_candidate';
+}
+
+const routeClassifications = [...pageRoutes.entries()]
+  .map(([route, file]) => ({
+    route,
+    classification: classifyRoute(route, file),
+    references: routeReferenceCounts.get(route) || 0,
+  }))
+  .sort((a, b) => a.route.localeCompare(b.route));
+
+const routesByClassification = Object.fromEntries(
+  [...new Set(routeClassifications.map((item) => item.classification))]
+    .sort()
+    .map((classification) => [
+      classification,
+      routeClassifications.filter((item) => item.classification === classification).map((item) => item.route),
+    ]),
+);
+
+const orphanReviewCandidates = routeClassifications
+  .filter((item) => item.classification === 'orphan_candidate')
+  .map((item) => item.route);
 
 const awaitHotspots = [];
 const responsiveRisk = [];
@@ -61,8 +126,11 @@ const themeRisk = [];
 
 for (const file of pages) {
   const text = sourceCache.get(file) || '';
-  const awaits = (text.match(/\bawait\b/g) || []).length;
-  if (awaits >= 8) awaitHotspots.push({ file: rel(file), awaits });
+  const totalAwaits = countAwaits(text);
+  const renderAwaits = countAwaits(getDefaultPageFunction(text));
+  if (renderAwaits >= 5 || totalAwaits >= 8) {
+    awaitHotspots.push({ file: rel(file), renderAwaits, totalAwaits });
+  }
   if (/min-w-\[|w-\[(?:[7-9]\d\d|\d{4,})px\]|grid-cols-\[[^\]]{40,}\]/.test(text)) {
     responsiveRisk.push(rel(file));
   }
@@ -71,7 +139,7 @@ for (const file of pages) {
   }
 }
 
-awaitHotspots.sort((a, b) => b.awaits - a.awaits || a.file.localeCompare(b.file));
+awaitHotspots.sort((a, b) => b.renderAwaits - a.renderAwaits || b.totalAwaits - a.totalAwaits || a.file.localeCompare(b.file));
 
 const unusedAdminComponents = [];
 const adminComponents = walk(componentRoot).filter((file) => /\.(?:ts|tsx)$/.test(file) && !/\.test\.(?:ts|tsx)$/.test(file));
@@ -112,6 +180,11 @@ const report = {
   navigationEntrypoints,
   navigationRoutesWithPages,
   navigationRoutesMissingPages,
+  routeClassificationCounts: Object.fromEntries(
+    Object.entries(routesByClassification).map(([classification, routes]) => [classification, routes.length]),
+  ),
+  routesByClassification,
+  routeClassifications,
   orphanReviewCandidateCount: orphanReviewCandidates.length,
   orphanReviewCandidates,
   awaitHotspots,
@@ -126,10 +199,11 @@ const report = {
 console.log(JSON.stringify(report, null, 2));
 
 if (process.env.GITHUB_STEP_SUMMARY) {
-  const topAwait = awaitHotspots.slice(0, 12).map((item) => `| \`${item.file}\` | ${item.awaits} |`).join('\n') || '| None | 0 |';
+  const topAwait = awaitHotspots.slice(0, 12).map((item) => `| \`${item.file}\` | ${item.renderAwaits} | ${item.totalAwaits} |`).join('\n') || '| None | 0 | 0 |';
   const unused = unusedAdminComponents.slice(0, 20).map((file) => `- \`${file}\``).join('\n') || '- None';
   const orphans = orphanReviewCandidates.slice(0, 30).map((route) => `- \`${route}\``).join('\n') || '- None';
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Responsive-risk pages: **${responsiveRisk.length}**\n- Theme-risk pages: **${themeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Filesystem route count is not the number of admin pages actively used. Navigation entry points represent the intentional top-level admin surface; child/detail routes are evaluated separately.\n\n#### Highest await counts\n\n| Route | awaits |\n| --- | ---: |\n${topAwait}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
+  const classifications = Object.entries(routesByClassification).map(([classification, routes]) => `- ${classification.replaceAll('_', ' ')}: **${routes.length}**`).join('\n');
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Admin dashboard hardening audit\n\n- Filesystem routes: **${pages.length}**\n- Primary navigation entry points: **${navigationEntrypoints.length}**\n- Static orphan review candidates: **${orphanReviewCandidates.length}**\n- Responsive-risk pages: **${responsiveRisk.length}**\n- Theme-risk pages: **${themeRisk.length}**\n- Unused admin component candidates: **${unusedAdminComponents.length}**\n\n> Filesystem route count is not the number of admin pages actively used. Navigation entry points represent the intentional top-level admin surface; child/detail routes are classified separately. Orphan candidates remain review-only until replacement parity and business-logic ownership are proven.\n\n#### Route classification\n${classifications}\n\n#### Highest await counts\n\n| Route | render awaits | total file awaits |\n| --- | ---: | ---: |\n${topAwait}\n\n#### Static orphan review candidates\n${orphans}\n\n#### Unused component candidates\n${unused}\n`);
 }
 
 const failed = Object.entries(structuralChecks).filter(([, ok]) => !ok);
