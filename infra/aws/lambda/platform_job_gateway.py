@@ -235,6 +235,18 @@ def _credential_summary(environment):
     return {"ok": True, "providers": [_credential_status(environment, provider) for provider in sorted(ALLOWED_PROVIDERS)]}
 
 
+def _credential_runtime_snapshot(environment):
+    providers = {}
+    for provider, allowed in ALLOWED_PROVIDERS.items():
+        value, _, _ = _read_credential(environment, provider)
+        providers[provider] = {
+            key: item.strip()
+            for key, item in value.items()
+            if key in allowed and isinstance(item, str) and item.strip()
+        }
+    return {"ok": True, "environment": environment, "providers": providers}
+
+
 def _validate_credential_payload(provider, payload):
     values = payload.get("values") or {}
     clear_fields = payload.get("clearFields") or []
@@ -376,6 +388,10 @@ def _credential_route(event, method, path, body):
     if method == "GET" and path == "/v1/credentials":
         environment = _credential_environment((_query(event).get("environment") or [ENVIRONMENT])[0])
         return _response(200, _credential_summary(environment))
+
+    if method == "GET" and path == "/v1/credentials/runtime":
+        environment = _credential_environment((_query(event).get("environment") or [ENVIRONMENT])[0])
+        return _response(200, _credential_runtime_snapshot(environment))
 
     match = re.match(r"^/v1/credentials/([a-z0-9-]+)(/test)?$", path)
     if not match:
