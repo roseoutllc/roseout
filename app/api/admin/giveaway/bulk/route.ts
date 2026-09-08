@@ -6,6 +6,8 @@ import { repairBetaAccessForEmail } from "@/lib/beta/programAccess";
 import { getBetaGiveawayEligibilityForEmail } from "@/lib/beta-giveaway-eligibility";
 import { getBetaAccountReadinessForEmail } from "@/lib/beta/accountReadiness";
 
+const GIVEAWAY_BULK_FIELDS = "id,full_name,email,phone,wants_giveaway,giveaway_status,giveaway_verified_at,giveaway_verified_by,giveaway_notes,email_verified,duplicate_flag,duplicate_reason,tester_type,beta_application_status,beta_application_id,prize_rules_confirmed,age_18_confirmed,giveaway_rules_agreed,weekly_task_eligibility_status" as const;
+
 const allowedActions = new Set([
   "resend_setup_email",
   "repair_beta_access",
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
 
   const { data: entries, error } = await supabaseAdmin
     .from("launch_waitlist_signups")
-    .select("*")
+    .select(GIVEAWAY_BULK_FIELDS)
     .in("id", ids);
   if (error)
     return NextResponse.json(
@@ -141,11 +143,10 @@ export async function POST(request: Request) {
           summary: `Bulk giveaway action: ${action}`,
           metadata: { selectedCount: ids.length },
         });
-      results.push({ id: entry.id, email: entry.email, success: true });
+      results.push({ id: entry.id, success: true });
     } catch (error) {
       results.push({
         id: entry.id,
-        email: entry.email,
         success: false,
         error: error instanceof Error ? error.message : "Action failed.",
       });

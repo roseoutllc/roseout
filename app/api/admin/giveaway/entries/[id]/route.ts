@@ -13,6 +13,8 @@ import { sendRawBrandedEmail } from "@/lib/email/sender";
 import { buildSiteUrl } from "@/lib/site-url";
 import type { AdminRole } from "@/lib/users/roles";
 
+const GIVEAWAY_ENTRY_FIELDS = "id,full_name,email,phone,social_handle,social_platform,usually_go_out_area,wants_giveaway,followed_social,tagged_two_friends,giveaway_status,giveaway_verified_at,giveaway_verified_by,giveaway_notes,giveaway_post_url,email_verified,email_verified_at,duplicate_flag,duplicate_reason,duplicate_checked_at,created_at,updated_at,beta_interest,tester_type,beta_application_status,beta_application_id,beta_approved_at,beta_approved_by,prize_rules_confirmed,age_18_confirmed,followed_social_verified_at,followed_social_verified_by,tagged_friends_verified_at,tagged_friends_verified_by,giveaway_rules_agreed,weekly_beta_tasks_required_for_giveaway,weekly_task_eligibility_status" as const;
+
 const allowedStatuses = new Set([
   "pending_verification",
   "verified",
@@ -38,6 +40,10 @@ type PatchBody = {
   duplicate_reason?: unknown;
 };
 
+function boundedText(value: unknown, max = 2000) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -48,7 +54,7 @@ export async function PATCH(
   const body = (await request.json().catch(() => ({}))) as PatchBody;
   const { data: entry, error: loadError } = await supabaseAdmin
     .from("launch_waitlist_signups")
-    .select("*")
+    .select(GIVEAWAY_ENTRY_FIELDS)
     .eq("id", id)
     .maybeSingle();
   if (loadError || !entry)
@@ -57,7 +63,7 @@ export async function PATCH(
       { status: 404 },
     );
 
-  const updates: Record<string, any> = {
+  const updates: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   };
 
@@ -65,7 +71,7 @@ export async function PATCH(
     const email = String(entry.email || "").trim().toLowerCase();
     const testerType = ["user", "location_owner", "ambassador", "experience_team", "admin", "superadmin"].includes(String(entry.tester_type)) ? entry.tester_type : "user";
     try {
-      const sync = await syncUserBetaAccess({ email, name: entry.full_name, phone: entry.phone, testerType, applicationId: entry.beta_application_id ?? null, requestedBetaStatus: "approved", source: "giveaway_admin", adminUserId: auth.adminUser?.user_id ?? null, actor: auth.adminUser });
+      await syncUserBetaAccess({ email, name: entry.full_name, phone: entry.phone, testerType, applicationId: entry.beta_application_id ?? null, requestedBetaStatus: "approved", source: "giveaway_admin", adminUserId: auth.adminUser?.user_id ?? null, actor: auth.adminUser });
       return NextResponse.json({
         success: true,
         message: "Applicant approved and beta access synced.",
@@ -75,8 +81,6 @@ export async function PATCH(
           beta_account_readiness: await getBetaAccountReadinessForEmail(entry),
           beta_giveaway_eligibility: await getBetaGiveawayEligibilityForEmail(email),
         },
-        beta: sync.tester,
-        sync,
       });
     } catch (error) {
       await supabaseAdmin.from("admin_audit_logs").insert({ actor_user_id: auth.adminUser?.user_id ?? null, target_email: email, action: "beta_approve_failed", entity_type: "launch_waitlist_signup", entity_id: id, summary: "Beta approval failed", metadata: { error: error instanceof Error ? error.message : "Unknown error" } });
@@ -92,7 +96,7 @@ export async function PATCH(
     ].includes(String(body.action))
   ) {
     try {
-      const repaired = await repairBetaAccessForEmail({
+      await repairBetaAccessForEmail({
         email: entry.email,
         fullName: entry.full_name,
         phone: entry.phone,
@@ -117,7 +121,6 @@ export async function PATCH(
             entry.email || "",
           ),
         },
-        repair: repaired,
       });
     } catch (error) {
       return NextResponse.json(
@@ -133,13 +136,13 @@ export async function PATCH(
     }
   }
   if (body.action === "reject_beta") {
+    const rejectionReason = boundedText(body.rejection_reason);
     await supabaseAdmin
       .from("launch_waitlist_signups")
       .update({
         beta_application_status: "rejected",
-        giveaway_notes: String(
-          body.rejection_reason || entry.giveaway_notes || "",
-        ),
+        giveaway_notes: rejectionReason || entry.giveaway_notes || "",
+        updated_at: new Date().toISOString(),
       })
       .eq("id", id);
     if (entry.beta_application_id)
@@ -149,7 +152,7 @@ export async function PATCH(
           status: "rejected",
           reviewed_by: auth.adminUser?.user_id ?? null,
           reviewed_at: new Date().toISOString(),
-          notes: String(body.rejection_reason || ""),
+          notes: rejectionReason,
         })
         .eq("id", entry.beta_application_id);
     await supabaseAdmin
@@ -163,7 +166,7 @@ export async function PATCH(
         entity_type: "beta_application",
         entity_id: entry.beta_application_id || id,
         summary: "Rejected beta application",
-        metadata: { reason: String(body.rejection_reason || "") },
+        metadata: { reason: rejectionReason },
       });
     return NextResponse.json({
       success: true,
@@ -179,9 +182,8 @@ export async function PATCH(
     ].includes(String(body.action))
   ) {
     updates.followed_social = true;
-    updates.followed_social_verified_at = new Date().toISOString() as any;
-    updates.followed_social_verified_by =
-      auth.adminUser?.user_id ?? (null as any);
+    updates.followed_social_verified_at = new Date().toISOString();
+    updates.followed_social_verified_by = auth.adminUser?.user_id ?? null;
     await supabaseAdmin
       .from("admin_audit_logs")
       .insert({
@@ -197,13 +199,13 @@ export async function PATCH(
   }
 
   if (typeof body.giveaway_notes === "string")
-    updates.giveaway_notes = body.giveaway_notes;
+    updates.giveaway_notes = boundedText(body.giveaway_notes);
   if (typeof body.duplicate_flag === "boolean") {
     updates.duplicate_flag = body.duplicate_flag;
     updates.duplicate_checked_at = new Date().toISOString();
   }
   if (typeof body.duplicate_reason === "string")
-    updates.duplicate_reason = body.duplicate_reason || null;
+    updates.duplicate_reason = boundedText(body.duplicate_reason, 1000) || null;
 
   if (typeof body.giveaway_status === "string") {
     if (!allowedStatuses.has(body.giveaway_status))
@@ -253,9 +255,7 @@ export async function PATCH(
       );
     }
     updates.giveaway_status = body.giveaway_status;
-    updates.weekly_task_eligibility_status = (
-      await getBetaGiveawayEligibilityForEmail(entry.email || "")
-    ).eligibilityStatus;
+    updates.weekly_task_eligibility_status = betaEligibility.eligibilityStatus;
     if (
       body.giveaway_status === "verified" ||
       body.giveaway_status === "winner"
@@ -273,7 +273,7 @@ export async function PATCH(
     .from("launch_waitlist_signups")
     .update(updates)
     .eq("id", id)
-    .select("*")
+    .select(GIVEAWAY_ENTRY_FIELDS)
     .single();
   if (error)
     return NextResponse.json(
