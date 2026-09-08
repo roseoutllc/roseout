@@ -54,11 +54,12 @@ export default async function DeviceManagementPage() {
       <AdminPageHeader
         eyebrow="TheOutHaven Admin / System"
         title="Device Management"
-        subtitle="Microsoft Intune inventory, compliance, ownership, enrollment, and safe remote controls for company-managed devices."
+        subtitle="Microsoft Intune inventory, compliance, ownership, Apple enrollment, and safe remote controls for company-managed devices."
         badge={overview ? <AdminStatusBadge tone="green">Intune connected</AdminStatusBadge> : <AdminStatusBadge tone="amber">Connection needs attention</AdminStatusBadge>}
         actions={
           <>
             <AdminActionButton href="/admin/dashboard/settings/microsoft-365">Microsoft 365 Settings</AdminActionButton>
+            <AdminActionButton href="/admin/dashboard/security/apple-devices">Apple Enrollment</AdminActionButton>
             <AdminActionButton href="/admin/dashboard/security">Security</AdminActionButton>
             <AdminActionButton href="/admin/dashboard/security/devices" variant="primary">Refresh</AdminActionButton>
           </>
@@ -151,7 +152,7 @@ export default async function DeviceManagementPage() {
                 <AdminEmptyState
                   title="Intune connected — no managed devices yet"
                   body="The connection is working. Once your iPad is assigned through Apple Business Manager and enrolls in Intune, it will appear here automatically."
-                  action={<AdminActionButton href="/admin/dashboard/settings/microsoft-365">Review Microsoft 365 Setup</AdminActionButton>}
+                  action={<AdminActionButton href="/admin/dashboard/security/apple-devices">Open Apple Enrollment</AdminActionButton>}
                 />
               </div>
             )}
