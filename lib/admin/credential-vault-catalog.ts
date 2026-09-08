@@ -13,13 +13,15 @@ export type CredentialProviderId =
   | "resend"
   | "twilio"
   | "telnyx"
+  | "threecx"
   | "stamps"
   | "meta"
   | "tiktok"
   | "apple"
   | "turnstile"
   | "expo"
-  | "domains";
+  | "domains"
+  | "platform";
 
 export type CredentialField = {
   key: string;
@@ -68,7 +70,10 @@ export const CREDENTIAL_PROVIDERS: readonly CredentialProvider[] = [
     { key: "webhookSecret", label: "Webhook signing secret", secret: true },
     { key: "connectWebhookSecret", label: "Connect webhook signing secret", secret: true },
   ] },
-  { id: "resend", label: "Resend", category: "Communications", description: "Resend API credentials for transactional email.", fields: [{ key: "apiKey", label: "API key", secret: true }] },
+  { id: "resend", label: "Resend", category: "Communications", description: "Resend API and webhook credentials for transactional email.", fields: [
+    { key: "apiKey", label: "API key", secret: true },
+    { key: "webhookSecret", label: "Webhook signing secret", secret: true },
+  ] },
   { id: "twilio", label: "Twilio", category: "Communications", description: "Twilio account credentials for SMS and phone workflows.", fields: [
     { key: "accountSid", label: "Account SID" }, { key: "authToken", label: "Auth token", secret: true },
   ] },
@@ -80,6 +85,9 @@ export const CREDENTIAL_PROVIDERS: readonly CredentialProvider[] = [
     { key: "supportApiKey", label: "Support API key", secret: true },
     { key: "marketingApiKey", label: "Marketing API key", secret: true },
     { key: "conciergeApiKey", label: "Concierge API key", secret: true },
+  ] },
+  { id: "threecx", label: "3CX", category: "Communications", description: "3CX CRM integration credential.", fields: [
+    { key: "crmApiKey", label: "CRM API key", secret: true },
   ] },
   { id: "stamps", label: "Stamps.com", category: "Communications", description: "Production USPS postage credentials for the Stamps.com SWS/IM v160 integration.", note: "For SWS/IM, use the Stamps API/partner username, not the email address used to sign in to the Stamps website. In Stamps.com, go to Manage Account > Profile > Personal Contact Info > Get Username. Credentials remain only in AWS Secrets Manager; connection validation is non-transactional and does not purchase postage.", fields: [
     { key: "integrationId", label: "Production Integration ID", secret: true, placeholder: "Production SWS/IM Integration ID" },
@@ -107,8 +115,28 @@ export const CREDENTIAL_PROVIDERS: readonly CredentialProvider[] = [
   { id: "expo", label: "Expo", category: "Communications", description: "Expo access token used for authenticated mobile push delivery.", fields: [
     { key: "accessToken", label: "Access token", secret: true },
   ] },
-  { id: "domains", label: "Domain Provider", category: "Domains", description: "Wholesale registrar / domain provider API credentials.", fields: [
-    { key: "apiKey", label: "API key", secret: true }, { key: "apiSecret", label: "API secret", secret: true }, { key: "accountId", label: "Account ID" },
+  { id: "domains", label: "Domain Provider", category: "Domains", description: "Wholesale registrar and domain gateway credentials.", fields: [
+    { key: "apiKey", label: "API key", secret: true },
+    { key: "apiSecret", label: "API secret", secret: true },
+    { key: "accountId", label: "Account ID" },
+    { key: "gatewaySecret", label: "Domain gateway shared secret", secret: true },
+  ] },
+  { id: "platform", label: "TheOutHaven Platform", category: "Security", description: "Internal service-to-service, webhook, cron, import, and cross-cloud shared secrets used by TheOutHaven runtimes.", note: "These are application credentials, not AWS IAM credentials. AWS IAM roles remain role-managed.", fields: [
+    { key: "cronSecret", label: "Cron secret", secret: true },
+    { key: "importSecret", label: "Import secret", secret: true },
+    { key: "internalImportSecret", label: "Internal import secret", secret: true },
+    { key: "outingReminderCronSecret", label: "Outing reminder cron secret", secret: true },
+    { key: "googleLocationEnrichmentCronSecret", label: "Google enrichment cron secret", secret: true },
+    { key: "adminApiSecret", label: "Admin API secret", secret: true },
+    { key: "adminDigestSecret", label: "Admin digest secret", secret: true },
+    { key: "notificationSecret", label: "Notification secret", secret: true },
+    { key: "supportEmailWebhookSecret", label: "Support email webhook secret", secret: true },
+    { key: "supportInboundSecret", label: "Support inbound secret", secret: true },
+    { key: "websiteHostingGatewaySecret", label: "Website hosting gateway secret", secret: true },
+    { key: "drGatewaySecret", label: "DR gateway secret", secret: true },
+    { key: "jobGatewaySecret", label: "Job gateway secret", secret: true },
+    { key: "integrationApiSecret", label: "Integration API secret", secret: true },
+    { key: "assistantApiSecret", label: "Assistant API secret", secret: true },
   ] },
 ] as const;
 
