@@ -7,49 +7,71 @@ type ProviderRuntimeMapping = { source: string; fields: readonly RuntimeFieldSou
 
 const RUNTIME_MAPPINGS: Partial<Record<CredentialProviderId, ProviderRuntimeMapping>> = {
   aws: { source: "AWS IAM role / OIDC", roleManaged: true, fields: [] },
-  google: { source: "Vercel runtime environment", fields: [
+  google: { source: "Runtime environment", fields: [
     { field: "apiKey", env: ["GOOGLE_PLACES_API_KEY", "GOOGLE_GEOCODING_API_KEY"] },
     { field: "clientId", env: ["GOOGLE_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_ID"] },
     { field: "clientSecret", env: ["GOOGLE_CLIENT_SECRET", "GOOGLE_OAUTH_CLIENT_SECRET"] },
   ] },
-  supabase: { source: "Vercel runtime environment", fields: [
+  supabase: { source: "Runtime environment", fields: [
     { field: "url", env: ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"] },
     { field: "publishableKey", env: ["NEXT_PUBLIC_SUPABASE_ANON_KEY"] },
     { field: "serviceRoleKey", env: ["SUPABASE_SERVICE_ROLE_KEY"] },
   ] },
-  microsoft: { source: "Vercel runtime environment", fields: [
-    { field: "tenantId", env: ["AZURE_TENANT_ID", "MICROSOFT_TENANT_ID"] },
-    { field: "clientId", env: ["AZURE_CLIENT_ID", "MICROSOFT_CLIENT_ID"] },
-    { field: "clientSecret", env: ["AZURE_CLIENT_SECRET", "MICROSOFT_CLIENT_SECRET"] },
+  microsoft: { source: "Runtime environment", fields: [
+    { field: "tenantId", env: ["MICROSOFT_TENANT_ID", "AZURE_TENANT_ID", "M365_TENANT_ID"] },
+    { field: "clientId", env: ["MICROSOFT_CLIENT_ID", "AZURE_CLIENT_ID", "M365_CLIENT_ID"] },
+    { field: "clientSecret", env: ["MICROSOFT_CLIENT_SECRET", "AZURE_CLIENT_SECRET", "M365_CLIENT_SECRET"] },
   ] },
-  huggingface: { source: "Vercel runtime environment", fields: [{ field: "token", env: ["SEARCH_HF_ML_TOKEN", "HF_TOKEN", "HUGGINGFACE_TOKEN"] }] },
-  resend: { source: "Vercel runtime environment", fields: [{ field: "apiKey", env: ["RESEND_API_KEY"] }] },
-  twilio: { source: "Vercel runtime environment", fields: [
+  openai: { source: "Runtime environment", fields: [{ field: "apiKey", env: ["OPENAI_API_KEY"] }] },
+  huggingface: { source: "Runtime environment", fields: [{ field: "token", env: ["SEARCH_HF_ML_TOKEN", "HF_TOKEN", "HUGGINGFACE_TOKEN"] }] },
+  brave: { source: "Runtime environment", fields: [{ field: "apiKey", env: ["BRAVE_SEARCH_API_KEY"] }] },
+  serpapi: { source: "Runtime environment", fields: [{ field: "apiKey", env: ["SERPAPI_API_KEY"] }] },
+  stripe: { source: "Runtime environment / AWS integration secret", fields: [
+    { field: "secretKey", env: ["STRIPE_SECRET_KEY"] },
+    { field: "webhookSecret", env: ["STRIPE_WEBHOOK_SECRET"] },
+    { field: "connectWebhookSecret", env: ["STRIPE_CONNECT_WEBHOOK_SECRET"] },
+  ] },
+  resend: { source: "Runtime environment", fields: [{ field: "apiKey", env: ["RESEND_API_KEY"] }] },
+  twilio: { source: "Runtime environment", fields: [
     { field: "accountSid", env: ["TWILIO_ACCOUNT_SID"] }, { field: "authToken", env: ["TWILIO_AUTH_TOKEN"] },
   ] },
-  meta: { source: "Vercel runtime environment", fields: [
+  telnyx: { source: "Runtime environment / AWS integration secret", fields: [
+    { field: "publicKey", env: ["TELNYX_PUBLIC_KEY"] },
+    { field: "transactionalApiKey", env: ["TELNYX_TRANSACTIONAL_API_KEY", "TELNYX_API_KEY"] },
+    { field: "reservationsApiKey", env: ["TELNYX_RESERVATIONS_API_KEY"] },
+    { field: "crmApiKey", env: ["TELNYX_CRM_API_KEY"] },
+    { field: "supportApiKey", env: ["TELNYX_SUPPORT_API_KEY"] },
+    { field: "marketingApiKey", env: ["TELNYX_MARKETING_API_KEY"] },
+    { field: "conciergeApiKey", env: ["TELNYX_CONCIERGE_API_KEY"] },
+  ] },
+  meta: { source: "Runtime environment", fields: [
     { field: "appId", env: ["META_APP_ID", "FACEBOOK_APP_ID"] },
     { field: "appSecret", env: ["META_APP_SECRET", "FACEBOOK_APP_SECRET"] },
     { field: "instagramAppId", env: ["INSTAGRAM_APP_ID", "META_INSTAGRAM_APP_ID"] },
     { field: "instagramAppSecret", env: ["INSTAGRAM_APP_SECRET", "META_INSTAGRAM_APP_SECRET"] },
     { field: "graphVersion", env: ["META_GRAPH_VERSION"] },
     { field: "loginConfigurationId", env: ["META_LOGIN_CONFIGURATION_ID"] },
+    { field: "accessToken", env: ["META_ACCESS_TOKEN", "FACEBOOK_ACCESS_TOKEN"] },
   ] },
-  tiktok: { source: "Vercel runtime environment", fields: [
+  tiktok: { source: "Runtime environment", fields: [
     { field: "clientKey", env: ["TIKTOK_CLIENT_KEY"] }, { field: "clientSecret", env: ["TIKTOK_CLIENT_SECRET"] },
   ] },
-  apple: { source: "Vercel runtime environment", fields: [
+  apple: { source: "Runtime environment", fields: [
     { field: "issuerId", env: ["APPLE_BUSINESS_API_CLIENT_ID", "APPLE_CLIENT_ID"] },
     { field: "keyId", env: ["APPLE_BUSINESS_API_KEY_ID", "APPLE_KEY_ID"] },
     { field: "privateKey", env: ["APPLE_BUSINESS_API_PRIVATE_KEY", "APPLE_PRIVATE_KEY"] },
   ] },
+  turnstile: { source: "Runtime environment", fields: [{ field: "secretKey", env: ["TURNSTILE_SECRET_KEY"] }] },
+  expo: { source: "Runtime environment", fields: [{ field: "accessToken", env: ["EXPO_ACCESS_TOKEN"] }] },
   vercel: { source: "Vercel account / project", fields: [
     { field: "token", env: ["VERCEL_TOKEN"] }, { field: "teamId", env: ["VERCEL_TEAM_ID", "VERCEL_ORG_ID"] },
   ] },
   github: { source: "GitHub Actions / GitHub App", fields: [
     { field: "token", env: ["GITHUB_TOKEN"] }, { field: "appId", env: ["GITHUB_APP_ID"] }, { field: "privateKey", env: ["GITHUB_APP_PRIVATE_KEY"] },
   ] },
-  domains: { source: "AWS / registrar gateway", fields: [] },
+  domains: { source: "AWS / registrar gateway", fields: [
+    { field: "apiKey", env: ["DOMAIN_PROVIDER_API_KEY"] }, { field: "apiSecret", env: ["DOMAIN_PROVIDER_API_SECRET"] }, { field: "accountId", env: ["DOMAIN_PROVIDER_ACCOUNT_ID"] },
+  ] },
 };
 
 function firstValue(names: readonly string[]) {
