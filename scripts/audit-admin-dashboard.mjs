@@ -21,6 +21,13 @@ const reviewedHiddenOperationalRoutes = new Set([
   '/admin/dashboard/search-anchors/verification',
   '/admin/dashboard/seo-tools',
   '/admin/dashboard/sms',
+  '/admin/dashboard/team/escalations',
+  '/admin/dashboard/team/location-change-requests',
+  '/admin/dashboard/team/password-reset-audit',
+  '/admin/dashboard/team/performance',
+  '/admin/dashboard/team/proof-review',
+  '/admin/dashboard/team/settings',
+  '/admin/dashboard/team/tasks',
 ]);
 
 function walk(dir) {
@@ -184,6 +191,16 @@ const rolesPage = read(path.join(root, 'app', 'admin', 'dashboard', 'roles', 'pa
 const roleMembersRoute = read(path.join(root, 'app', 'api', 'admin', 'system', 'role-members', 'route.ts'));
 const roleMemberRoute = read(path.join(root, 'app', 'api', 'admin', 'system', 'role-members', '[adminId]', 'route.ts'));
 const searchAnchorsLayout = read(path.join(root, 'app', 'admin', 'dashboard', 'search-anchors', 'layout.tsx'));
+const adminPermissions = read(path.join(root, 'lib', 'admin-permissions.ts'));
+const teamManagerPages = [
+  'escalations',
+  'location-change-requests',
+  'performance',
+  'proof-review',
+  'settings',
+  'tasks',
+].map((name) => read(path.join(root, 'app', 'admin', 'dashboard', 'team', name, 'page.tsx')));
+const passwordResetAuditPage = read(path.join(root, 'app', 'admin', 'dashboard', 'team', 'password-reset-audit', 'page.tsx'));
 
 const structuralChecks = {
   responsiveLayerImported: layout.includes('./admin-responsive.css'),
@@ -193,6 +210,10 @@ const structuralChecks = {
   roleCreateRequiresSuperadmin: roleMembersRoute.includes('requireSuperAdmin()'),
   roleMutationRequiresSuperadmin: roleMemberRoute.includes('requireSuperAdmin()'),
   searchAnchorsWorkspaceProtected: searchAnchorsLayout.includes('requireAdminRole(ADMIN_PAGE_ACCESS.dataQuality)'),
+  teamManagementPermissionDefined: adminPermissions.includes('teamManagement: ["superadmin", "admin", "manager"]'),
+  teamSecurityAuditPermissionDefined: adminPermissions.includes('teamSecurityAudit: ["superadmin", "admin"]'),
+  teamManagerPagesProtected: teamManagerPages.every((text) => text.includes('requireAdminRole(ADMIN_PAGE_ACCESS.teamManagement)')),
+  passwordResetAuditProtected: passwordResetAuditPage.includes('requireAdminRole(ADMIN_PAGE_ACCESS.teamSecurityAudit)'),
   navigationEntrypointsResolve: navigationRoutesMissingPages.length === 0,
   reviewedHiddenOperationalRoutesResolve: [...reviewedHiddenOperationalRoutes].every((route) => pageRoutes.has(route)),
 };
