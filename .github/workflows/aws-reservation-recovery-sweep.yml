@@ -1,0 +1,116 @@
+name: AWS reservation recovery sweep
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/aws-reservation-recovery-sweep.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aws-reservation-recovery-sweep.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-reservation-recovery-sweep-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: '742020474738'
+  STACK_NAME: theouthaven-edge-runtime-production
+  SCHEDULE_GROUP: toh-production-reservation-recovery
+  SCHEDULE_NAME: reservation-recovery-backlog-5m
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate sweep contract
+        run: |
+          set -euo pipefail
+          grep -F 'rate(5 minutes)' .github/workflows/aws-reservation-recovery-sweep.yml >/dev/null
+          grep -F '"function":"reservation-recovery"' .github/workflows/aws-reservation-recovery-sweep.yml >/dev/null
+          grep -F '"limit":50' .github/workflows/aws-reservation-recovery-sweep.yml >/dev/null
+          grep -F '"concurrency":8' .github/workflows/aws-reservation-recovery-sweep.yml >/dev/null
+          grep -F '"statuses":["not_found"]' .github/workflows/aws-reservation-recovery-sweep.yml >/dev/null
+          grep -F '"googleCalls":0' .github/workflows/aws-reservation-recovery-sweep.yml >/dev/null
+
+  deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PLATFORM_DEPLOY_ROLE_ARN || 'arn:aws:iam::742020474738:role/TheOutHavenGitHubPlatformDeployRole' }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ env.AWS_ACCOUNT_ID }}
+
+      - name: Upsert temporary five-minute reservation sweep
+        run: |
+          set -euo pipefail
+          test "$(aws sts get-caller-identity --query Account --output text)" = "$AWS_ACCOUNT_ID"
+
+          if ! aws scheduler get-schedule-group --name "$SCHEDULE_GROUP" >/dev/null 2>&1; then
+            aws scheduler create-schedule-group --name "$SCHEDULE_GROUP" >/dev/null
+          fi
+
+          INVOKER_ARN="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='SchedulerInvokerFunctionArn'].OutputValue" --output text)"
+          SCHEDULER_ROLE="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='EventBridgeSchedulerRoleArn'].OutputValue" --output text)"
+          test -n "$INVOKER_ARN" && test "$INVOKER_ARN" != 'None'
+          test -n "$SCHEDULER_ROLE" && test "$SCHEDULER_ROLE" != 'None'
+
+          INPUT='{"function":"reservation-recovery","body":{"source":"aws_eventbridge_backlog","limit":50,"concurrency":8,"force":true,"statuses":["not_found"],"googleCalls":0}}'
+          TARGET="$(jq -nc --arg arn "$INVOKER_ARN" --arg role "$SCHEDULER_ROLE" --arg input "$INPUT" '{Arn:$arn,RoleArn:$role,Input:$input,RetryPolicy:{MaximumEventAgeInSeconds:900,MaximumRetryAttempts:1}}')"
+          END_DATE="$(date -u -d '+12 hours' '+%Y-%m-%dT%H:%M:%SZ')"
+
+          if aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$SCHEDULE_NAME" >/dev/null 2>&1; then
+            aws scheduler update-schedule \
+              --group-name "$SCHEDULE_GROUP" \
+              --name "$SCHEDULE_NAME" \
+              --description 'Temporary TheOutHaven reservation recovery backlog sweep; zero Google calls.' \
+              --schedule-expression 'rate(5 minutes)' \
+              --flexible-time-window '{"Mode":"OFF"}' \
+              --state ENABLED \
+              --end-date "$END_DATE" \
+              --action-after-completion DELETE \
+              --target "$TARGET" >/dev/null
+          else
+            aws scheduler create-schedule \
+              --group-name "$SCHEDULE_GROUP" \
+              --name "$SCHEDULE_NAME" \
+              --description 'Temporary TheOutHaven reservation recovery backlog sweep; zero Google calls.' \
+              --schedule-expression 'rate(5 minutes)' \
+              --flexible-time-window '{"Mode":"OFF"}' \
+              --state ENABLED \
+              --end-date "$END_DATE" \
+              --action-after-completion DELETE \
+              --target "$TARGET" >/dev/null
+          fi
+
+          test "$(aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$SCHEDULE_NAME" --query State --output text)" = 'ENABLED'
+          test "$(aws scheduler get-schedule --group-name "$SCHEDULE_GROUP" --name "$SCHEDULE_NAME" --query ScheduleExpression --output text)" = 'rate(5 minutes)'
+          echo "Reservation recovery sweep enabled through $END_DATE UTC."
+
+      - name: Sweep summary
+        run: |
+          {
+            echo '### Reservation recovery sweep'
+            echo ''
+            echo '- Frequency: every 5 minutes'
+            echo '- Batch size: 50'
+            echo '- Concurrency: 8'
+            echo '- Status: not_found only'
+            echo '- Google calls: 0'
+            echo '- Isolation: separate EventBridge schedule group; canonical 65-schedule fleet unchanged'
+            echo '- Safety cap: schedule auto-deletes after 12 hours'
+          } >> "$GITHUB_STEP_SUMMARY"
