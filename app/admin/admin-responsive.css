@@ -1,0 +1,126 @@
+/* Shared responsive hardening for the authenticated admin workspace.
+ * Keep this file layout-only: no route-specific business logic belongs here.
+ */
+
+.admin-page-shell,
+.admin-page-shell > *,
+.admin-page-shell main,
+.admin-page-shell section,
+.admin-page-shell article,
+.admin-page-shell form,
+.admin-page-shell fieldset {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-page-shell img,
+.admin-page-shell video,
+.admin-page-shell canvas,
+.admin-page-shell svg {
+  max-width: 100%;
+}
+
+.admin-page-shell input,
+.admin-page-shell textarea,
+.admin-page-shell select,
+.admin-page-shell button {
+  min-width: 0;
+}
+
+.admin-page-shell [class*="recharts-wrapper"],
+.admin-page-shell [class*="recharts-surface"],
+.admin-page-shell [data-chart],
+.admin-page-shell [data-admin-chart] {
+  max-width: 100% !important;
+}
+
+.admin-page-shell [role="dialog"] {
+  max-width: 100vw;
+}
+
+.admin-page-shell [role="dialog"] > :not(button.absolute.inset-0) {
+  max-width: min(100%, calc(100vw - 2rem));
+}
+
+/* Wide operational data remains horizontally inspectable instead of widening the entire page. */
+.admin-page-shell .admin-table-scroll,
+.admin-page-shell [data-admin-table-scroll] {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 1023px) {
+  .admin-page-shell {
+    overflow-x: clip;
+  }
+
+  .admin-page-shell table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-page-shell thead,
+  .admin-page-shell tbody,
+  .admin-page-shell tfoot {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .admin-page-shell [class*="fixed"] [role="dialog"],
+  .admin-page-shell [role="dialog"] {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+
+  .admin-page-shell [class*="max-w-["],
+  .admin-page-shell [class*="w-["] {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-page-shell main {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .admin-page-shell input:not([type="checkbox"]):not([type="radio"]),
+  .admin-page-shell textarea,
+  .admin-page-shell select {
+    width: 100%;
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  .admin-page-shell [role="dialog"] > :not(button.absolute.inset-0) {
+    width: min(100%, calc(100vw - 1.5rem));
+    max-height: calc(100dvh - 1.5rem);
+    overflow-y: auto;
+  }
+
+  .admin-page-shell .admin-mobile-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-page-shell .admin-mobile-actions > * {
+    width: 100%;
+  }
+}
+
+@media (pointer: coarse) {
+  .admin-page-shell button,
+  .admin-page-shell a[role="button"],
+  .admin-page-shell input[type="button"],
+  .admin-page-shell input[type="submit"] {
+    min-height: 44px;
+  }
+}
