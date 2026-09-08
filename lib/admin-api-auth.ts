@@ -6,18 +6,6 @@ import { adminIdentitySatisfiesPolicy } from "@/lib/admin-identity-policy";
 import { permissionKeyForAdminRoleList } from "@/lib/admin-permissions";
 import { adminRoleHasPermission } from "@/lib/admin-role-policy";
 
-type FallbackRoleLookup = {
-  table: string;
-  column: string;
-};
-
-const FALLBACK_ROLE_LOOKUPS: readonly FallbackRoleLookup[] = [
-  { table: "profiles", column: "id" },
-  { table: "user_profiles", column: "id" },
-  { table: "user_profiles", column: "user_id" },
-  { table: "users", column: "id" },
-];
-
 function normalizeAdminRole(role: unknown): AdminRole | null {
   if (typeof role !== "string") return null;
   const normalized = normalizeRole(role);
@@ -41,53 +29,6 @@ async function providerPolicyFailure(supabase: Awaited<ReturnType<typeof createC
     adminUser: null,
     supabase,
   };
-}
-
-async function findFallbackRole(userId: string) {
-  for (const lookup of FALLBACK_ROLE_LOOKUPS) {
-    const { data, error } = await supabaseAdmin
-      .from(lookup.table)
-      .select("role")
-      .eq(lookup.column, userId)
-      .maybeSingle();
-
-    if (error) continue;
-    const role = normalizeAdminRole(data?.role);
-    if (role) return role;
-  }
-
-  return null;
-}
-
-async function ensureAdminUser({
-  userId,
-  email,
-  fullName,
-  role,
-}: {
-  userId: string;
-  email: string | null | undefined;
-  fullName?: unknown;
-  role: AdminRole;
-}) {
-  if (!email) {
-    console.warn("Skipping admin_users backfill because authenticated user has no email", { userId, role });
-    return;
-  }
-
-  const { error } = await supabaseAdmin.from("admin_users").upsert(
-    {
-      user_id: userId,
-      email,
-      full_name: typeof fullName === "string" ? fullName : null,
-      role,
-    },
-    { onConflict: "user_id" },
-  );
-
-  if (error) {
-    console.error("Failed to backfill admin_users role", { userId, email, role, error: error.message });
-  }
 }
 
 function buildAdminUser({
@@ -128,6 +69,9 @@ export async function requireAdminApiRole(allowedRoles: readonly AdminRole[]) {
     };
   }
 
+  // Admin API authorization is intentionally anchored to the protected admin_users
+  // row for the exact authenticated user id. Do not fall back to user-editable
+  // metadata, general profile role columns, or email-only rebinding.
   const { data: adminUser, error: adminError } = await supabaseAdmin
     .from("admin_users")
     .select("user_id, email, full_name, role")
@@ -136,96 +80,26 @@ export async function requireAdminApiRole(allowedRoles: readonly AdminRole[]) {
 
   const adminUserRole = normalizeAdminRole(adminUser?.role);
 
-  if (adminUser && adminUserRole && await roleAllowed(adminUserRole)) {
-    if (!adminIdentitySatisfiesPolicy(adminUserRole, user)) {
-      return providerPolicyFailure(supabase);
-    }
-
+  if (adminError || !adminUser || !adminUserRole || !(await roleAllowed(adminUserRole))) {
     return {
-      error: null,
-      adminUser: buildAdminUser({
-        userId: adminUser.user_id,
-        email: adminUser.email,
-        fullName: adminUser.full_name,
-        role: adminUserRole,
-      }),
+      error: authJson("Forbidden", 403),
+      adminUser: null,
       supabase,
     };
   }
 
-  if (!adminUser && user.email) {
-    const { data: adminUserByEmail } = await supabaseAdmin
-      .from("admin_users")
-      .select("user_id, email, full_name, role")
-      .eq("email", user.email)
-      .maybeSingle();
-
-    const adminUserByEmailRole = normalizeAdminRole(adminUserByEmail?.role);
-
-    if (adminUserByEmail && adminUserByEmailRole && await roleAllowed(adminUserByEmailRole)) {
-      if (!adminIdentitySatisfiesPolicy(adminUserByEmailRole, user)) {
-        return providerPolicyFailure(supabase);
-      }
-
-      if (adminUserByEmail.user_id !== user.id) {
-        const { error: updateError } = await supabaseAdmin
-          .from("admin_users")
-          .update({ user_id: user.id })
-          .eq("email", user.email);
-
-        if (updateError) {
-          console.error("Failed to refresh admin_users user_id from email lookup", {
-            userId: user.id,
-            email: user.email,
-            error: updateError.message,
-          });
-        }
-      }
-
-      return {
-        error: null,
-        adminUser: buildAdminUser({
-          userId: user.id,
-          email: adminUserByEmail.email,
-          fullName: adminUserByEmail.full_name,
-          role: adminUserByEmailRole,
-        }),
-        supabase,
-      };
-    }
-  }
-
-  if (!adminError && !adminUser) {
-    const fallbackRole = await findFallbackRole(user.id);
-
-    if (fallbackRole && await roleAllowed(fallbackRole)) {
-      if (!adminIdentitySatisfiesPolicy(fallbackRole, user)) {
-        return providerPolicyFailure(supabase);
-      }
-
-      await ensureAdminUser({
-        userId: user.id,
-        email: user.email,
-        fullName: user.user_metadata?.full_name,
-        role: fallbackRole,
-      });
-
-      return {
-        error: null,
-        adminUser: buildAdminUser({
-          userId: user.id,
-          email: user.email,
-          fullName: user.user_metadata?.full_name,
-          role: fallbackRole,
-        }),
-        supabase,
-      };
-    }
+  if (!adminIdentitySatisfiesPolicy(adminUserRole, user)) {
+    return providerPolicyFailure(supabase);
   }
 
   return {
-    error: authJson("Forbidden", 403),
-    adminUser: null,
+    error: null,
+    adminUser: buildAdminUser({
+      userId: adminUser.user_id,
+      email: adminUser.email || user.email,
+      fullName: adminUser.full_name,
+      role: adminUserRole,
+    }),
     supabase,
   };
 }
