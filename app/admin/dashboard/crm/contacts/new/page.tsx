@@ -19,6 +19,7 @@ export default async function NewCrmContactPage({
   const params = await searchParams;
   const returnTo = safeReturnTo(params.return_to);
   const phone = params.phone || "";
+  const locationId = params.location_id || "";
 
   return (
     <CrmWorkspaceShell>
@@ -26,11 +27,16 @@ export default async function NewCrmContactPage({
         <header>
           <p className="text-xs font-bold uppercase tracking-widest text-rose-300">CRM Contact</p>
           <h1 className="mt-1 text-3xl font-black">Create contact</h1>
-          <p className="mt-2 text-sm text-white/55">Save the person behind this conversation. The phone number is carried over from the SMS thread.</p>
+          <p className="mt-2 text-sm text-white/55">
+            {locationId
+              ? "Add an owner, manager, or other verified business contact for this location. The contact will be linked to the location’s active CRM account before SMS can be sent."
+              : "Save the person behind this conversation. The phone number can be carried over from an SMS thread."}
+          </p>
         </header>
 
         <form action={createCrmContactAction} className="space-y-5 rounded-3xl border border-white/10 bg-white/[0.04] p-6">
           <input type="hidden" name="return_to" value={returnTo} />
+          <input type="hidden" name="location_id" value={locationId} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2 text-sm font-bold">
@@ -78,6 +84,12 @@ export default async function NewCrmContactPage({
               <option value="other">Other</option>
             </select>
           </label>
+
+          {locationId ? (
+            <div className="rounded-2xl border border-sky-300/20 bg-sky-500/10 p-4 text-sm text-sky-50/80">
+              This contact will be attached to the selected location’s active CRM account. SMS remains blocked until a valid mobile number exists and the contact is not opted out or marked do-not-contact.
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap gap-3 border-t border-white/10 pt-5">
             <button type="submit" className="rounded-xl bg-rose-600 px-5 py-3 text-sm font-black text-white hover:bg-rose-500">Create contact</button>
