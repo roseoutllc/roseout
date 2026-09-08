@@ -43,7 +43,7 @@ const RESERVATION_SENSITIVE = /\b(reservation|booking|deposit|party size|confirm
 const ACCOUNT_SENSITIVE = /\b(account|email|phone|support history|ownership)\b/i;
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 const OTP_PATTERN = /^\s*(\d{6})\s*$/;
-const RESERVATION_CODE_PATTERN = /(?:confirmation|reservation|booking)?\s*(?:code|number|#)?\s*[:#-]?\s*([A-Z0-9]{6,16})\b/i;
+const RESERVATION_CODE_PATTERN = /\b(?:confirmation|reservation|booking)\s*(?:code|number|#)\s*[:#-]?\s*([A-Z0-9]{6,16})\b/i;
 
 function clean(value: unknown) {
   return String(value || "").trim();
@@ -321,13 +321,14 @@ export async function getSupportIdentityGateDecision(params: {
   const latestMessage = params.latestMessage.trim();
   if (!latestMessage) return null;
 
+  const otp = latestMessage.match(OTP_PATTERN)?.[1];
+  if (!otp && !isSensitiveSupportRequest(latestMessage)) return null;
+
   const ticket = await loadTicket(params.ticketId);
   if (!ticket) return null;
   const state = metadataState(ticket.metadata);
 
-  const otp = latestMessage.match(OTP_PATTERN)?.[1];
   if (otp && state?.state === "pending") return verifyPendingCode(ticket, state, otp);
-
   if (!isSensitiveSupportRequest(latestMessage)) return null;
 
   if (state?.state === "verified" && isFuture(state.verified_until)) {
