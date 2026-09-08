@@ -4,7 +4,10 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export type DashboardUserContext = Awaited<ReturnType<typeof getCurrentUserDashboardContext>>;
 
-async function maybeSingle(table: string, select = "*", col = "id", value?: string | null) {
+const PROFILE_SELECT = "preferred_name,city,birthday_month,mobile_number,sms_opt_in,preferences,age_range";
+const OUTING_SELECT = "id,status,plan_title,source_query,restaurant_location_id,activity_location_id,saved_at,reservation_clicked_at,call_clicked_at,completed_at,external_booking_started_at,external_booking_confirmed_at,external_reservation_url,metadata,created_at,updated_at";
+
+async function maybeSingle(table: string, select: string, col: string, value?: string | null) {
   if (!value) return null;
   try {
     const { data } = await supabaseAdmin.from(table).select(select).eq(col, value).maybeSingle();
@@ -14,9 +17,26 @@ async function maybeSingle(table: string, select = "*", col = "id", value?: stri
   }
 }
 
-async function listLegacy(table: string, userId: string, limit = 20) {
+async function listLegacySaved(userId: string, limit = 20) {
   try {
-    const { data } = await supabaseAdmin.from(table).select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(limit);
+    const { data } = await supabaseAdmin.from("saved_plans")
+      .select("id,title,summary,status,plan_data,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return data || [];
+  } catch {
+    return [];
+  }
+}
+
+async function listLegacyBooked(userId: string, limit = 20) {
+  try {
+    const { data } = await supabaseAdmin.from("user_outings")
+      .select("id,status,title,restaurant_name,restaurant_address,restaurant_url,activity_name,activity_address,activity_url,booked_at,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
     return data || [];
   } catch {
     return [];
@@ -27,7 +47,7 @@ async function listCanonicalOutings(userId: string, limit = 50) {
   try {
     const { data } = await supabaseAdmin
       .from("outings")
-      .select("*")
+      .select(OUTING_SELECT)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -55,17 +75,22 @@ export function normalizeCanonicalOuting(outing: any) {
   const restaurant = selectedLocation(outing, "restaurant");
   const activity = selectedLocation(outing, "activity");
   return {
-    ...outing,
+    id: outing.id,
+    status: outing.status,
     lifecycle_stage: lifecycleStage(outing),
-    title: outing?.plan_title || outing?.title || [restaurant?.restaurant_name || restaurant?.name, activity?.activity_name || activity?.name].filter(Boolean).join(" + ") || "TheOutHaven Outing",
-    summary: outing?.source_query || outing?.summary || null,
-    restaurant_name: restaurant?.restaurant_name || restaurant?.name || outing?.restaurant_name || null,
-    restaurant_address: restaurant?.address || outing?.restaurant_address || null,
+    title: outing?.plan_title || [restaurant?.restaurant_name || restaurant?.name, activity?.activity_name || activity?.name].filter(Boolean).join(" + ") || "TheOutHaven Outing",
+    summary: outing?.source_query || null,
+    restaurant_name: restaurant?.restaurant_name || restaurant?.name || null,
+    restaurant_address: restaurant?.address || null,
     restaurant_url: restaurant?.external_reservation_url || restaurant?.reservation_url || restaurant?.website || outing?.external_reservation_url || null,
-    activity_name: activity?.activity_name || activity?.name || outing?.activity_name || null,
-    activity_address: activity?.address || outing?.activity_address || null,
-    activity_url: activity?.website || outing?.activity_url || null,
+    activity_name: activity?.activity_name || activity?.name || null,
+    activity_address: activity?.address || null,
+    activity_url: activity?.website || null,
     booked_at: outing?.external_booking_confirmed_at || outing?.external_booking_started_at || outing?.reservation_clicked_at || outing?.call_clicked_at || null,
+    saved_at: outing?.saved_at || outing?.created_at || null,
+    completed_at: outing?.completed_at || null,
+    created_at: outing?.created_at || null,
+    legacy_source: null,
   };
 }
 
@@ -77,29 +102,41 @@ export async function requireUserForDashboard(next = "/user/dashboard", loginPat
 }
 
 export async function getUserProfileForDashboard(userId: string) {
-  const [profile, legacy] = await Promise.all([
-    maybeSingle("user_profiles", "*", "id", userId),
-    maybeSingle("users", "*", "id", userId),
-  ]);
-  return { profile, legacy, merged: { ...((legacy as any) || {}), ...((profile as any) || {}) } };
+  const profile = await maybeSingle("user_profiles", PROFILE_SELECT, "user_id", userId);
+  return { profile, merged: profile || {} };
 }
 
 export async function getUserBetaStatus(userId: string, email?: string | null) {
   try {
-    const normalizedEmail = String(email || "").trim().toLowerCase();
-    const byUser = await supabaseAdmin.from("beta_testers").select("*").eq("user_id", userId).in("status", ["active", "approved"]).maybeSingle();
+    const byUser = await supabaseAdmin.from("beta_testers")
+      .select("id,user_id,status")
+      .eq("user_id", userId)
+      .in("status", ["active", "approved"])
+      .maybeSingle();
     if (byUser.data) return byUser.data;
+
+    const normalizedEmail = String(email || "").trim().toLowerCase();
     if (!normalizedEmail) return null;
-    const byEmail = await supabaseAdmin.from("beta_testers").select("*").eq("email", normalizedEmail).in("status", ["active", "approved"]).maybeSingle();
-    if (byEmail.data) {
-      if (!byEmail.data.user_id) {
-        await supabaseAdmin.from("beta_testers").update({ user_id: userId }).eq("id", byEmail.data.id);
-        await supabaseAdmin.from("admin_audit_logs").insert({ action: "beta_user_linked", entity_type: "beta_tester", entity_id: byEmail.data.id, target_email: normalizedEmail, target_user_id: userId, summary: "Beta tester user_id auto-linked from dashboard email match", metadata: { source: "getUserBetaStatus" } });
-        return { ...byEmail.data, user_id: userId };
-      }
-      return byEmail.data;
+    const byEmail = await supabaseAdmin.from("beta_testers")
+      .select("id,user_id,status")
+      .eq("email", normalizedEmail)
+      .in("status", ["active", "approved"])
+      .maybeSingle();
+    if (!byEmail.data) return null;
+
+    if (!byEmail.data.user_id) {
+      await supabaseAdmin.from("beta_testers").update({ user_id: userId }).eq("id", byEmail.data.id).is("user_id", null);
+      await supabaseAdmin.from("admin_audit_logs").insert({
+        action: "beta_user_linked",
+        entity_type: "beta_tester",
+        entity_id: byEmail.data.id,
+        target_user_id: userId,
+        summary: "Beta tester linked to authenticated user",
+        metadata: { source: "getUserBetaStatus" },
+      });
+      return { ...byEmail.data, user_id: userId };
     }
-    return null;
+    return byEmail.data.user_id === userId ? byEmail.data : null;
   } catch {
     return null;
   }
@@ -111,10 +148,9 @@ export async function getUserOutingHistory(userId: string, limit = 24) {
   const upcoming = canonical.filter((outing: any) => outing.lifecycle_stage === "upcoming");
   const completed = canonical.filter((outing: any) => outing.lifecycle_stage === "completed");
 
-  // Preserve pre-canonical history for existing users without letting legacy tables drive new writes.
   const [legacySaved, legacyBooked] = await Promise.all([
-    saved.length < limit ? listLegacy("saved_plans", userId, Math.max(0, limit - saved.length)) : Promise.resolve([]),
-    upcoming.length + completed.length < limit ? listLegacy("user_outings", userId, Math.max(0, limit - upcoming.length - completed.length)) : Promise.resolve([]),
+    saved.length < limit ? listLegacySaved(userId, Math.max(0, limit - saved.length)) : Promise.resolve([]),
+    upcoming.length + completed.length < limit ? listLegacyBooked(userId, Math.max(0, limit - upcoming.length - completed.length)) : Promise.resolve([]),
   ]);
   const legacyUpcoming = legacyBooked.filter((outing: any) => !String(outing?.status || "").toLowerCase().includes("complete"));
   const legacyCompleted = legacyBooked.filter((outing: any) => String(outing?.status || "").toLowerCase().includes("complete"));
@@ -138,7 +174,11 @@ export async function getUserCompletedOutings(userId: string, limit = 12) {
 
 export async function getUserInternalReservations(userId: string, limit = 5) {
   try {
-    const { data } = await supabaseAdmin.from("location_reservations").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(limit);
+    const { data } = await supabaseAdmin.from("location_reservations")
+      .select("id,status,location_id,reservation_date,reservation_time,party_size,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
     return data || [];
   } catch {
     return [];
@@ -147,7 +187,7 @@ export async function getUserInternalReservations(userId: string, limit = 5) {
 
 export async function getUserSearchPlan(userId: string, beta: boolean) {
   if (beta) return { planKey: "beta", label: "Beta Tester", unlimited: true };
-  const sub = await maybeSingle("customer_subscriptions", "*", "user_id", userId);
+  const sub = await maybeSingle("customer_subscriptions", "plan_key", "user_id", userId);
   const key = (sub as any)?.plan_key || "free";
   return { planKey: key, label: key === "unlimited" ? "TheOutHaven Plus" : "Free Account", unlimited: ["unlimited", "comped", "admin"].includes(key) };
 }
@@ -175,7 +215,6 @@ async function buildDashboardContext(user: Awaited<ReturnType<typeof requireUser
     user,
     profile: profiles.merged,
     userProfile: profiles.profile,
-    usersRow: profiles.legacy,
     savedOutings: history.saved,
     bookedOutings: history.upcoming,
     completedOutings: history.completed,
