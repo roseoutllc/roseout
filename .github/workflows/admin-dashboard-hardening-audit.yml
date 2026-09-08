@@ -11,6 +11,7 @@ on:
       - 'scripts/audit-admin-demo-boundaries.mjs'
       - 'scripts/audit-admin-dashboard-security.mjs'
       - 'scripts/audit-admin-careers-pii.mjs'
+      - 'scripts/audit-admin-beta-pii.mjs'
       - '.github/workflows/admin-dashboard-hardening-audit.yml'
   push:
     branches: [main]
@@ -23,6 +24,7 @@ on:
       - 'scripts/audit-admin-demo-boundaries.mjs'
       - 'scripts/audit-admin-dashboard-security.mjs'
       - 'scripts/audit-admin-careers-pii.mjs'
+      - 'scripts/audit-admin-beta-pii.mjs'
       - '.github/workflows/admin-dashboard-hardening-audit.yml'
 
 permissions:
@@ -45,3 +47,5 @@ jobs:
         run: node scripts/audit-admin-dashboard-security.mjs
       - name: Audit careers PII and mutation boundaries
         run: node scripts/audit-admin-careers-pii.mjs
+      - name: Audit beta PII and mutation boundaries
+        run: node scripts/audit-admin-beta-pii.mjs
