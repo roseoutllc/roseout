@@ -1,39 +1,19 @@
 import { NextResponse } from "next/server";
-
+import { requireAdminApiRole } from "@/lib/admin-api-auth";
+import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import {
   platformCoreApiConfigured,
   readCrmSmsRecipientsViaCoreApi,
 } from "@/lib/aws/core-api";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { createClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/sms/telnyx";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const READ_ROLES = new Set([
-  "superadmin",
-  "admin",
-  "manager",
-  "editor",
-  "reviewer",
-  "viewer",
-  "ambassador",
-  "partner_ambassador",
-  "experience",
-  "experience_team",
-]);
-
-async function authorized() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.id) return false;
-  const { data } = await supabaseAdmin.from("admin_users").select("role").eq("user_id", user.id).maybeSingle();
-  return Boolean(data?.role && READ_ROLES.has(String(data.role)));
-}
-
 export async function GET(req: Request) {
-  if (!(await authorized())) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  const { error: authError } = await requireAdminApiRole(ADMIN_PAGE_ACCESS.communicationOneToOne);
+  if (authError) return authError;
 
   const locationId = new URL(req.url).searchParams.get("locationId")?.trim();
   if (!locationId) return NextResponse.json({ error: "locationId is required" }, { status: 400 });

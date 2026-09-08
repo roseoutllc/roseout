@@ -24,16 +24,13 @@ export async function getInternalDemoViewer() {
 
   if (!user?.id) return null;
 
-  const [{ data: adminUser }, { data: userProfile }] = await Promise.all([
-    supabaseAdmin
-      .from("admin_users")
-      .select("role")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabaseAdmin.from("users").select("role").eq("id", user.id).maybeSingle(),
-  ]);
+  const { data: adminUser } = await supabaseAdmin
+    .from("admin_users")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  const role = normalizeRole(adminUser?.role || userProfile?.role);
+  const role = normalizeRole(adminUser?.role);
   if (!role || !INTERNAL_DEMO_ROLES.has(role)) return null;
 
   return { user, role };

@@ -1,9 +1,13 @@
 import { createClaimQr } from "@/lib/claimQrServer";
 import { normalizeAddressForSave } from "@/lib/address-utils";
+import { requireAdminApiRole } from "@/lib/admin-api-auth";
+import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
-
 export async function POST(req: Request) {
+  const { error: authError } = await requireAdminApiRole(ADMIN_PAGE_ACCESS.locationsCreate);
+  if (authError) return authError;
+
   try {
     const body = await req.json();
 
@@ -36,9 +40,7 @@ export async function POST(req: Request) {
         longitude: body.longitude === "" || body.longitude === undefined ? null : Number(body.longitude),
         google_place_id: body.google_place_id || null,
         formatted_address: body.formatted_address || null,
-
         status: "approved",
-
         ...claimQr,
       })
       .select()

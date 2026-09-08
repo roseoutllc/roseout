@@ -1,46 +1,17 @@
 import { NextResponse } from "next/server";
 
+import { requireAdminApiRole } from "@/lib/admin-api-auth";
+import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { createClient } from "@/lib/supabase-server";
 import { normalizePhone, sendCrmSms } from "@/lib/sms/telnyx";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SEND_ROLES = new Set([
-  "superadmin",
-  "admin",
-  "manager",
-  "editor",
-  "ambassador",
-  "partner_ambassador",
-  "experience",
-  "experience_team",
-]);
-
 const CRM_MAIN_NUMBER = "+15162000701";
 
 function jsonError(error: string, status: number) {
   return NextResponse.json({ success: false, error }, { status });
-}
-
-async function requireCrmSender() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user?.id) return null;
-
-  const { data: admin } = await supabaseAdmin
-    .from("admin_users")
-    .select("user_id,role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!admin?.role || !SEND_ROLES.has(String(admin.role))) return null;
-  return { userId: user.id, role: String(admin.role) };
 }
 
 async function getOrCreateConversation(params: {
@@ -85,8 +56,9 @@ async function getOrCreateConversation(params: {
 }
 
 export async function POST(req: Request) {
-  const sender = await requireCrmSender();
-  if (!sender) return jsonError("You are not authorized to send CRM text messages.", 403);
+  const { adminUser, error: authError } = await requireAdminApiRole(ADMIN_PAGE_ACCESS.smsOneToOne);
+  if (authError || !adminUser) return authError || jsonError("You are not authorized to send CRM text messages.", 403);
+  const sender = { userId: adminUser.user_id, role: adminUser.role };
 
   let input: any;
   try {
