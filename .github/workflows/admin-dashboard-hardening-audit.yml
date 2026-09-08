@@ -8,6 +8,7 @@ on:
       - 'components/admin/**'
       - 'lib/admin-*.ts'
       - 'scripts/audit-admin-dashboard.mjs'
+      - 'scripts/audit-admin-demo-boundaries.mjs'
       - '.github/workflows/admin-dashboard-hardening-audit.yml'
   push:
     branches: [main]
@@ -17,6 +18,7 @@ on:
       - 'components/admin/**'
       - 'lib/admin-*.ts'
       - 'scripts/audit-admin-dashboard.mjs'
+      - 'scripts/audit-admin-demo-boundaries.mjs'
       - '.github/workflows/admin-dashboard-hardening-audit.yml'
 
 permissions:
@@ -33,3 +35,5 @@ jobs:
           node-version: '24'
       - name: Audit admin routes
         run: node scripts/audit-admin-dashboard.mjs
+      - name: Audit admin demo boundaries
+        run: node scripts/audit-admin-demo-boundaries.mjs
