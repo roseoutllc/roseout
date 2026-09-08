@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getCurrentAdmin } from "@/lib/admin-auth";
 import { sanitizeIntendedPath } from "@/lib/auth-redirect";
+import { getMicrosoft365Config } from "@/lib/microsoft-365/config";
 import { encryptMicrosoftToken } from "@/lib/microsoft-365/crypto";
 import { microsoftGraphFetch } from "@/lib/microsoft-365/graph";
 import { exchangeMicrosoft365Code } from "@/lib/microsoft-365/oauth";
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const config = getMicrosoft365Config();
     const token = await exchangeMicrosoft365Code(code, verifier);
     if (!token.refresh_token) throw new Error("Microsoft did not return an offline refresh token.");
 
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
     const expiresAt = new Date(Date.now() + Math.max(60, token.expires_in - 120) * 1000).toISOString();
     const provisional = {
       user_id: admin.user_id,
-      tenant_id: process.env.M365_TENANT_ID!,
+      tenant_id: config.tenantId,
       microsoft_user_id: admin.user_id,
       email: admin.email || "pending@theouthaven.com",
       granted_scopes: (token.scope || "").split(" ").filter(Boolean),
