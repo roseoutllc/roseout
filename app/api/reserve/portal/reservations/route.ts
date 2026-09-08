@@ -20,18 +20,8 @@ const allowedStatuses = [
   "no_show",
 ];
 
-const RESERVATION_VIEW_FIELDS = [
-  "id", "location_id", "location_type", "bookable_item_id", "bookable_item_name", "bookable_item_type",
-  "customer_name", "customer_email", "customer_phone", "reservation_date", "reservation_time", "party_size", "status",
-  "special_request", "source", "created_at", "updated_at", "customer_confirmed_at", "customer_cancelled_at", "arrived_at", "seated_at",
-  "duration_minutes", "turn_time_minutes", "guest_notes", "vip_tag", "special_requests", "confirmation_code", "locked_until", "checked_in_at",
-  "completed_at", "cancelled_at", "waitlist_position", "deposit_required", "deposit_amount", "deposit_status", "deposit_paid_at", "refund_status",
-  "deposit_platform_fee_cents", "deposit_refunded_at", "converted_experience_id", "converted_to_experience_at", "experience_booking_id", "booking_kind",
-  "occasion", "prix_fixe_interest", "group_booking_notes", "guarantee_required", "guarantee_status", "guarantee_cancel_cutoff_hours",
-  "guarantee_late_cancel_fee_type", "guarantee_late_cancel_fee_cents", "guarantee_no_show_fee_type", "guarantee_no_show_fee_cents",
-  "guarantee_authorized_at", "guarantee_released_at", "guarantee_charged_at", "large_group_payment_mode", "no_show_grace_minutes",
-].join(",");
-const RESERVATION_GUARANTEE_FIELDS = `${RESERVATION_VIEW_FIELDS},stripe_payment_method_id`;
+const RESERVATION_VIEW_FIELDS = "id,location_id,location_type,bookable_item_id,bookable_item_name,bookable_item_type,customer_name,customer_email,customer_phone,reservation_date,reservation_time,party_size,status,special_request,source,created_at,updated_at,customer_confirmed_at,customer_cancelled_at,arrived_at,seated_at,duration_minutes,turn_time_minutes,guest_notes,vip_tag,special_requests,confirmation_code,locked_until,checked_in_at,completed_at,cancelled_at,waitlist_position,deposit_required,deposit_amount,deposit_status,deposit_paid_at,refund_status,deposit_platform_fee_cents,deposit_refunded_at,converted_experience_id,converted_to_experience_at,experience_booking_id,booking_kind,occasion,prix_fixe_interest,group_booking_notes,guarantee_required,guarantee_status,guarantee_cancel_cutoff_hours,guarantee_late_cancel_fee_type,guarantee_late_cancel_fee_cents,guarantee_no_show_fee_type,guarantee_no_show_fee_cents,guarantee_authorized_at,guarantee_released_at,guarantee_charged_at,large_group_payment_mode,no_show_grace_minutes" as const;
+const RESERVATION_GUARANTEE_FIELDS = `${RESERVATION_VIEW_FIELDS},stripe_payment_method_id` as const;
 
 type ReservationUpdatePayload = {
   status: string;

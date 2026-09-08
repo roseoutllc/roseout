@@ -21,6 +21,11 @@ function read(file) {
 }
 
 function constantArrayBlock(text, name) {
+  const literalStart = text.indexOf(`const ${name} = "`);
+  if (literalStart >= 0) {
+    const literalEnd = text.indexOf('" as const;', literalStart);
+    if (literalEnd >= 0) return text.slice(literalStart, literalEnd + 11);
+  }
   const start = text.indexOf(`const ${name} = [`);
   if (start < 0) return "";
   const end = text.indexOf('].join(",")', start);

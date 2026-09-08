@@ -24,6 +24,8 @@ async function requireLocationContext() {
 
 export async function createLocationSupportTicketAction(formData: FormData) {
   const { user, location } = await requireLocationContext();
+  const userEmail = user.email;
+  if (!userEmail) throw new Error("A verified email is required for location support.");
   const category = String(formData.get("category") || "Location Support").trim().slice(0, 80);
   const subject = String(formData.get("subject") || "").trim().slice(0, 160);
   const message = String(formData.get("message") || "").trim().slice(0, 4000);
@@ -32,7 +34,7 @@ export async function createLocationSupportTicketAction(formData: FormData) {
   const locationName = String(location.name || location.restaurant_name || location.activity_name || "Location");
   const ticket = await createSupportTicket({
     name: locationName,
-    email: user.email,
+    email: userEmail,
     phone: "",
     topic: category,
     subject,
@@ -63,6 +65,8 @@ export async function createLocationSupportTicketAction(formData: FormData) {
 
 export async function replyToLocationSupportTicketAction(formData: FormData) {
   const { user, location } = await requireLocationContext();
+  const userEmail = user.email;
+  if (!userEmail) throw new Error("A verified email is required for location support.");
   const ticketId = String(formData.get("ticket_id") || "").trim();
   const message = String(formData.get("message") || "").trim().slice(0, 4000);
   if (!ticketId || !message) throw new Error("Ticket and message are required.");
@@ -83,7 +87,7 @@ export async function replyToLocationSupportTicketAction(formData: FormData) {
     token: ticket.public_access_token,
     actorType: "creator",
     authorName: locationName,
-    authorEmail: user.email,
+    authorEmail: userEmail,
     message,
   });
 
