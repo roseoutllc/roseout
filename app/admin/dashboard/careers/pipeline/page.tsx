@@ -28,7 +28,7 @@ export default async function Page() {
   const closed = rows.filter((row) => ["not_selected", "withdrawn"].includes(row.stage));
 
   return <AdminPageShell>
-    <AdminPageHeader eyebrow="Careers CRM" title="Hiring Pipeline" subtitle="A single operational board from application review through employee handoff. Open a candidate to evaluate, interview, offer, hire, or move them to the talent pool." actions={<><AdminActionButton href="/admin/dashboard/careers/applications">Applications</AdminActionButton><AdminActionButton href="/admin/dashboard/careers/jobs/new" variant="primary">Create Job</AdminActionButton></>} />
+    <AdminPageHeader eyebrow="Careers CRM" title="Hiring" subtitle="One recruiting workspace from application review through interviews, offers, hiring, and employee handoff." actions={<><AdminActionButton href="/admin/dashboard/careers/applications">Applications</AdminActionButton><AdminActionButton href="/admin/dashboard/careers/interviews">Interviews</AdminActionButton><AdminActionButton href="/admin/dashboard/careers/offers">Offers</AdminActionButton><AdminActionButton href="/admin/dashboard/careers/jobs/new" variant="primary">Create Job</AdminActionButton></>} />
 
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Metric label="Active candidates" value={active.length} />
