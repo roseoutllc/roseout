@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { requireAdminApiRole } from "@/lib/admin-api-auth";
+import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-
 
 function calculateScore(item: any) {
   const rating = Number(item.rating || 0);
@@ -25,13 +26,16 @@ function calculateScore(item: any) {
 }
 
 export async function POST() {
+  const { error: authError } = await requireAdminApiRole(ADMIN_PAGE_ACCESS.dataQuality);
+  if (authError) return authError;
+
   const { data: restaurants } = await supabaseAdmin
     .from("restaurants")
-    .select("*");
+    .select("id,rating,review_count,view_count,click_count,claim_count,quality_score,popularity_score");
 
   const { data: activities } = await supabaseAdmin
     .from("activities")
-    .select("id, rating, review_count, view_count, click_count, claim_count, quality_score, popularity_score");
+    .select("id,rating,review_count,view_count,click_count,claim_count,quality_score,popularity_score");
 
   for (const restaurant of restaurants || []) {
     await supabaseAdmin
