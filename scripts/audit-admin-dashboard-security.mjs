@@ -71,13 +71,24 @@ const supportToolLayer = read(path.join(root, "lib", "support", "tool-layer.ts")
 const supportIdentity = read(path.join(root, "lib", "support", "identity-verification.ts"));
 const crmSmsComposer = read(path.join(root, "app", "admin", "dashboard", "crm", "[id]", "CrmSmsComposer.tsx"));
 const crmContactCreate = read(path.join(root, "app", "admin", "dashboard", "crm", "contacts", "new", "actions.ts"));
+const careerApplications = read(path.join(root, "app", "api", "admin", "careers", "applications", "route.ts"));
+const careerTalentPool = read(path.join(root, "app", "api", "admin", "careers", "talent-pool", "route.ts"));
+const giveawayEntries = read(path.join(root, "app", "api", "admin", "giveaway", "entries", "route.ts"));
+const marketingAudience = read(path.join(root, "app", "api", "admin", "marketing", "audience", "route.ts"));
+const teamMembers = read(path.join(root, "app", "api", "admin", "team", "members", "route.ts"));
+const trustVerification = read(path.join(root, "app", "api", "admin", "trust", "verification", "route.ts"));
 
 const usersGuardIndex = usersRoute.indexOf("requireAdminApiRole(ADMIN_PAGE_ACCESS.adminUsers)");
 const customerBranchIndex = usersRoute.indexOf('url.searchParams.get("customer")');
 const canonicalOnly = (text) => text.includes('.from("admin_users")') && text.includes('.eq("user_id", user.id)') && !text.includes("user_metadata?.role") && !text.includes("user_metadata?.admin_role") && !text.includes('.eq("email", user.email)') && !text.includes('.ilike("email", user.email)');
 const noBroadSelect = (text) => !broadSelectPattern.test(text);
 const reservationViewBlock = constantArrayBlock(reservePortalReservations, "RESERVATION_VIEW_FIELDS");
+const giveawayEntryBlock = constantArrayBlock(giveawayEntries, "GIVEAWAY_ENTRY_FIELDS");
+const giveawayDuplicateBlock = constantArrayBlock(giveawayEntries, "GIVEAWAY_DUPLICATE_EVENT_FIELDS");
+const marketingSubscriberBlock = constantArrayBlock(marketingAudience, "MARKETING_SUBSCRIBER_FIELDS");
 const sensitiveReservationFields = /customer_token|stripe_payment_method_id|stripe_setup_intent_id|stripe_payment_intent_id|deposit_connected_account_id|deposit_refund_id|guarantee_charge_payment_intent_id/;
+const sensitiveGiveawayFields = /email_verification_token_hash|consent_ip_address|consent_user_agent|\bip_address\b|\buser_agent\b|\bmetadata\b|marketing_consent_text|sms_consent_text|email_consent_text/;
+const sensitiveMarketingFields = /unsubscribe_token|\bmetadata\b/;
 
 const checks = {
   adminLayoutRequiresAuthenticatedAdmin: adminLayout.includes("requireAdminRole(ADMIN_PAGE_ACCESS.dashboard)"),
@@ -89,6 +100,10 @@ const checks = {
   allAdminApiRoutesHaveAuthGuard: unguardedAdminRoutes.length === 0,
   allServiceRoleAdminMutationsHaveAuthGuard: unguardedServiceRoleMutations.length === 0,
   highRiskPiiRoutesAvoidBroadSelect: [betaApplications, betaTesters, supportList, supportDetail, supportReply, emailLogs].every(noBroadSelect),
+  secondWavePiiRoutesAvoidBroadSelect: [careerApplications, careerTalentPool, giveawayEntries, marketingAudience, teamMembers, trustVerification].every(noBroadSelect),
+  careersWritesUseExplicitAllowlists: !careerApplications.includes("...body") && !careerTalentPool.includes("...body") && careerApplications.includes("const payload =") && careerTalentPool.includes("const payload ="),
+  giveawayListHidesSensitiveTelemetryAndTokens: Boolean(giveawayEntryBlock) && Boolean(giveawayDuplicateBlock) && !sensitiveGiveawayFields.test(giveawayEntryBlock) && !sensitiveGiveawayFields.test(giveawayDuplicateBlock),
+  marketingAudienceHidesUnsubscribeTokenAndRawMetadata: Boolean(marketingSubscriberBlock) && !sensitiveMarketingFields.test(marketingSubscriberBlock),
   smsSendBindsRecipientToLocationRelationship: smsSend.includes('.from("crm_account_locations")') && smsSend.includes('.from("crm_account_contacts")') && smsSend.includes('.in("id", contactIds)') && smsSend.includes('.eq("phone_e164", to)') && smsSend.includes("not an active CRM contact for the selected location"),
   smsSendDoesNotPersistRawProviderPayload: !smsSend.includes("sent.raw"),
   crmNoNumberFlowLinksContactToLocationAccount: crmSmsComposer.includes("Add / verify SMS contact") && crmContactCreate.includes('.from("crm_account_locations")') && crmContactCreate.includes('.from("crm_account_contacts")') && crmContactCreate.includes("phone_e164"),
