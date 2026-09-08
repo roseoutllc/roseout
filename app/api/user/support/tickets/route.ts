@@ -1,1 +1,86 @@
-import{NextResponse}from"next/server";import{createClient}from"@/lib/supabase-server";import{supabaseAdmin}from"@/lib/supabase-admin";function num(){return`TOH-${Date.now().toString().slice(-8)}`}async function user(){const s=await createClient();const{data:{user}}=await s.auth.getUser();return user}export async function GET(){const u=await user();if(!u)return NextResponse.json({success:false,error:"Unauthorized"},{status:401});const{data}=await supabaseAdmin.from("support_tickets").select("*").or(`user_id.eq.${u.id},requester_email.eq.${u.email}`).order("updated_at",{ascending:false});return NextResponse.json({success:true,tickets:data||[]})}export async function POST(req:Request){const u=await user();if(!u)return NextResponse.json({success:false,error:"Unauthorized"},{status:401});const b=await req.json();if(!b.subject||!b.message)return NextResponse.json({success:false,error:"Subject and message are required."},{status:400});const{data,error}=await supabaseAdmin.from("support_tickets").insert({ticket_number:num(),user_id:u.id,email:u.email,requester_email:u.email,requester_name:b.name||u.user_metadata?.full_name||null,subject:String(b.subject).slice(0,160),category:b.category||"other",status:"open",priority:"normal",source:"user_dashboard",related_outing_id:b.related_outing_id||null,related_reservation_id:b.related_reservation_id||null,related_saved_plan_id:b.related_saved_plan_id||null}).select("*").single();if(error)return NextResponse.json({success:false,error:error.message},{status:400});await supabaseAdmin.from("support_ticket_messages").insert({ticket_id:data.id,direction:"inbound",sender_user_id:u.id,sender_role:"user",from_address:u.email,body:String(b.message).slice(0,4000)});return NextResponse.json({success:true,ticket:data})}
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+
+const TICKET_SELECT = "id,ticket_number,subject,category,status,priority,source,related_outing_id,related_reservation_id,related_saved_plan_id,created_at,updated_at,last_message_at";
+
+function ticketNumber() {
+  return `TOH-${Date.now().toString().slice(-8)}`;
+}
+
+function clean(value: unknown, max: number) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+async function currentUser() {
+  const session = await createClient();
+  const { data: { user } } = await session.auth.getUser();
+  return user;
+}
+
+async function ownsRelated(userId: string, table: string, id: unknown) {
+  const value = clean(id, 80);
+  if (!value) return null;
+  const { data } = await supabaseAdmin.from(table).select("id").eq("id", value).eq("user_id", userId).maybeSingle();
+  return data?.id ? value : false;
+}
+
+export async function GET() {
+  const user = await currentUser();
+  if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+  const { data, error } = await supabaseAdmin.from("support_tickets")
+    .select(TICKET_SELECT)
+    .eq("user_id", user.id)
+    .order("updated_at", { ascending: false });
+  if (error) return NextResponse.json({ success: false, error: "Could not load support tickets." }, { status: 500 });
+  return NextResponse.json({ success: true, tickets: data || [] });
+}
+
+export async function POST(req: Request) {
+  const user = await currentUser();
+  if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const subject = clean(body.subject, 160);
+  const message = clean(body.message, 4000);
+  if (!subject || !message) return NextResponse.json({ success: false, error: "Subject and message are required." }, { status: 400 });
+
+  const [relatedOuting, relatedReservation, relatedSavedPlan] = await Promise.all([
+    ownsRelated(user.id, "outings", body.related_outing_id),
+    ownsRelated(user.id, "location_reservations", body.related_reservation_id),
+    ownsRelated(user.id, "saved_plans", body.related_saved_plan_id),
+  ]);
+  if (relatedOuting === false || relatedReservation === false || relatedSavedPlan === false) {
+    return NextResponse.json({ success: false, error: "A related record could not be verified." }, { status: 400 });
+  }
+
+  const category = clean(body.category, 60) || "other";
+  const { data, error } = await supabaseAdmin.from("support_tickets").insert({
+    ticket_number: ticketNumber(),
+    user_id: user.id,
+    email: user.email || null,
+    requester_email: user.email || null,
+    requester_name: null,
+    subject,
+    category,
+    status: "open",
+    priority: "normal",
+    source: "user_dashboard",
+    related_outing_id: relatedOuting || null,
+    related_reservation_id: relatedReservation || null,
+    related_saved_plan_id: relatedSavedPlan || null,
+  }).select(TICKET_SELECT).single();
+
+  if (error || !data) return NextResponse.json({ success: false, error: "Could not create support ticket." }, { status: 400 });
+
+  await supabaseAdmin.from("support_ticket_messages").insert({
+    ticket_id: data.id,
+    direction: "inbound",
+    sender_user_id: user.id,
+    sender_role: "user",
+    body: message,
+  });
+
+  return NextResponse.json({ success: true, ticket: data });
+}
