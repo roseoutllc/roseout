@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const config = getMicrosoft365Config();
+    const config = await getMicrosoft365Config();
     const token = await exchangeMicrosoft365Code(code, verifier);
     if (!token.refresh_token) throw new Error("Microsoft did not return an offline refresh token.");
 
