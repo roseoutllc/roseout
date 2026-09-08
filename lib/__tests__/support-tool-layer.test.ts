@@ -1,3 +1,4 @@
+import { isSensitiveSupportRequest } from "@/lib/support/identity-verification";
 import { compactSmsMessage, extractClaimSearchContext, getSupportToolDecision, isResolutionMessage } from "@/lib/support/tool-layer";
 
 describe("support tool layer", () => {
@@ -58,6 +59,15 @@ describe("support tool layer", () => {
     });
     expect(decision?.message).toContain("/login");
     expect(decision?.message).toContain("/forgot-password");
+  });
+
+  test("keeps general support open while classifying private support actions for verification", () => {
+    expect(isSensitiveSupportRequest("How do I claim my business?")).toBe(false);
+    expect(isSensitiveSupportRequest("What are your support hours?")).toBe(false);
+    expect(isSensitiveSupportRequest("What is the status of my reservation?")).toBe(true);
+    expect(isSensitiveSupportRequest("Cancel my booking")).toBe(true);
+    expect(isSensitiveSupportRequest("What email is on my account?")).toBe(true);
+    expect(isSensitiveSupportRequest("Refund my deposit")).toBe(true);
   });
 
   test("keeps support SMS under two concatenated GSM segments when possible", () => {
