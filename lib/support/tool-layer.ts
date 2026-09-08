@@ -1,5 +1,6 @@
 import { cleanSearchTerm, rankOnboardingLocation, toOnboardingLocation, type OnboardingLocation } from "@/lib/locations/onboarding";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupportIdentityGateDecision } from "@/lib/support/identity-verification";
 import { inferExplicitSupportTopic } from "@/lib/support/topic-context";
 
 export type SupportToolDecision = {
@@ -229,6 +230,9 @@ async function claimLocationDecision(latestMessage: string, conversation: Conver
 export async function getSupportToolDecision(params: { ticketId: string; latestMessage: string }): Promise<SupportToolDecision | null> {
   const latestMessage = params.latestMessage.trim();
   if (!latestMessage) return null;
+
+  const identityGate = await getSupportIdentityGateDecision({ ticketId: params.ticketId, latestMessage });
+  if (identityGate) return identityGate;
 
   if (isResolutionMessage(latestMessage)) {
     return {
