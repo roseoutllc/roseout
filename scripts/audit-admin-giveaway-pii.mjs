@@ -43,6 +43,7 @@ const checks = {
       !source.entries.match(new RegExp(`GIVEAWAY_ENTRY_FIELDS[^;]*${field}`)) &&
       !source.entryDetail.match(new RegExp(`GIVEAWAY_ENTRY_FIELDS[^;]*${field}`)) &&
       !source.bulk.match(new RegExp(`GIVEAWAY_BULK_FIELDS[^;]*${field}`)),
+  ),
   detailDoesNotReturnInternalRepairPayloads:
     !source.entryDetail.includes("beta: sync.tester") &&
     !source.entryDetail.includes("sync,") &&
