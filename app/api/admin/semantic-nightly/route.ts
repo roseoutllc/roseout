@@ -9,14 +9,15 @@ export const maxDuration = 300;
 
 const DEFAULT_BATCH_SIZE = 200;
 const LOCATION_SAFE_ORDER_COLUMN = "id";
+const LOCATION_SEMANTIC_FIELDS = [
+  "id","name","restaurant_name","activity_name","description","address","city","state","cuisine","cuisine_type",
+  "category","primary_category","activity_type","primary_tag","source_table","tags","vibe_tags","best_for_tags","google_types",
+  "location_type","phone","website","google_place_id","reservation_link","reservation_url","external_reservation_url","booking_url",
+  "rating","reservation_enabled","is_promoted","subscription_plan","needs_semantic_refresh",
+].join(",");
+const ANALYTICS_FIELDS = "location_id,views,clicks,saves,bookings,skips";
 const OPTIONAL_UPDATE_COLUMNS = new Set([
-  "semantic_search_text",
-  "semantic_tags",
-  "intent_tags",
-  "quality_score",
-  "recommendation_score",
-  "analytics_score",
-  "needs_semantic_refresh",
+  "semantic_search_text","semantic_tags","intent_tags","quality_score","recommendation_score","analytics_score","needs_semantic_refresh",
 ]);
 
 const NIGHTLIFE_TERMS = ["lounge", "bar", "hookah", "nightclub", "nightlife", "cocktail", "club"];
@@ -70,31 +71,12 @@ function uniqueTags(tags: string[]) {
 
 function buildSemanticSearchText(location: Record<string, unknown>) {
   const parts = [
-    location.name,
-    location.restaurant_name,
-    location.activity_name,
-    location.description,
-    location.address,
-    location.city,
-    location.state,
-    location.cuisine,
-    location.cuisine_type,
-    location.category,
-    location.primary_category,
-    location.activity_type,
-    location.primary_tag,
-    location.source_table,
-    ...toArray(location.tags),
-    ...toArray(location.vibe_tags),
-    ...toArray(location.best_for_tags),
-    ...toArray(location.google_types),
-  ]
-    .map((value) => cleanText(value))
-    .filter(Boolean);
-
+    location.name, location.restaurant_name, location.activity_name, location.description, location.address, location.city, location.state,
+    location.cuisine, location.cuisine_type, location.category, location.primary_category, location.activity_type, location.primary_tag,
+    location.source_table, ...toArray(location.tags), ...toArray(location.vibe_tags), ...toArray(location.best_for_tags), ...toArray(location.google_types),
+  ].map((value) => cleanText(value)).filter(Boolean);
   const joined = parts.join(" · ").slice(0, 7000);
   if (joined) return joined;
-
   const city = cleanText(location.city) || "Unknown city";
   const state = cleanText(location.state) || "Unknown state";
   const category = cleanText(location.source_table) || cleanText(location.location_type) || cleanText(location.category) || "general";
@@ -103,18 +85,9 @@ function buildSemanticSearchText(location: Record<string, unknown>) {
 
 function buildSemanticTags(location: Record<string, unknown>, semanticText: string) {
   return uniqueTags([
-    cleanText(location.location_type),
-    cleanText(location.primary_category),
-    cleanText(location.category),
-    cleanText(location.cuisine),
-    cleanText(location.cuisine_type),
-    cleanText(location.activity_type),
-    cleanText(location.primary_tag),
-    cleanText(location.source_table),
-    ...toArray(location.tags),
-    ...toArray(location.vibe_tags),
-    ...toArray(location.best_for_tags),
-    ...toArray(location.google_types),
+    cleanText(location.location_type), cleanText(location.primary_category), cleanText(location.category), cleanText(location.cuisine),
+    cleanText(location.cuisine_type), cleanText(location.activity_type), cleanText(location.primary_tag), cleanText(location.source_table),
+    ...toArray(location.tags), ...toArray(location.vibe_tags), ...toArray(location.best_for_tags), ...toArray(location.google_types),
     ...semanticText.split(/\s+/).filter((word) => word.length > 3).slice(0, 30),
   ]).slice(0, 80);
 }
@@ -123,18 +96,7 @@ function buildIntentTags(location: Record<string, unknown>, semanticText: string
   const tags: string[] = [];
   const sourceTable = cleanText(location.source_table).toLowerCase();
   const type = cleanText(location.location_type).toLowerCase();
-  const compositeText = [
-    semanticText,
-    cleanText(location.name),
-    cleanText(location.restaurant_name),
-    cleanText(location.activity_name),
-    cleanText(location.category),
-    cleanText(location.primary_category),
-    cleanText(location.activity_type),
-    ...toArray(location.tags),
-    ...toArray(location.google_types),
-  ].join(" ").toLowerCase();
-
+  const compositeText = [semanticText, cleanText(location.name), cleanText(location.restaurant_name), cleanText(location.activity_name), cleanText(location.category), cleanText(location.primary_category), cleanText(location.activity_type), ...toArray(location.tags), ...toArray(location.google_types)].join(" ").toLowerCase();
   if (sourceTable.includes("restaurant") || type.includes("restaurant") || cleanText(location.restaurant_name) || cleanText(location.cuisine)) tags.push("restaurant");
   if (sourceTable.includes("activity") || type.includes("activity") || cleanText(location.activity_name)) tags.push("activity");
   if (includesAny(compositeText, NIGHTLIFE_TERMS)) tags.push("nightlife");
@@ -143,27 +105,14 @@ function buildIntentTags(location: Record<string, unknown>, semanticText: string
   if (includesAny(compositeText, BIRTHDAY_TERMS)) tags.push("birthday");
   if (includesAny(compositeText, GROUP_TERMS)) tags.push("group");
   if (includesAny(compositeText, FAMILY_TERMS)) tags.push("family");
-
   const unique = uniqueTags(tags);
   if (unique.length > 0) return unique;
-
   const fallbackText = [sourceTable, cleanText(location.category), cleanText(location.primary_category)].join(" ").toLowerCase();
   return [includesAny(fallbackText, FOOD_TERMS) ? "restaurant" : "activity"];
 }
 
 function calculateQualityScore(location: Record<string, unknown>) {
-  const fields = [
-    location.name || location.restaurant_name || location.activity_name,
-    location.description,
-    location.address,
-    location.city,
-    location.state,
-    location.phone,
-    location.website,
-    location.google_place_id,
-    location.reservation_link || location.reservation_url || location.external_reservation_url || location.booking_url,
-    location.rating,
-  ];
+  const fields = [location.name || location.restaurant_name || location.activity_name, location.description, location.address, location.city, location.state, location.phone, location.website, location.google_place_id, location.reservation_link || location.reservation_url || location.external_reservation_url || location.booking_url, location.rating];
   return Number(((fields.filter((field) => cleanText(field).length > 0 || safeNumber(field) > 0).length / fields.length) * 100).toFixed(2));
 }
 
@@ -220,39 +169,26 @@ async function runSemanticNightly(request: NextRequest) {
   const missing = parseBoolean(body.missing ?? query.get("missing"));
   const repair = parseBoolean(body.repair ?? query.get("repair"));
 
-  let selector = supabaseAdmin
-    .from("locations")
-    .select("*", { count: "exact" })
-    .order(LOCATION_SAFE_ORDER_COLUMN, { ascending: true })
-    .range(offset, offset + limit - 1);
-
-  if (repair || missing) {
-    selector = selector.or("semantic_search_text.is.null,semantic_search_text.eq.,intent_tags.is.null,recommendation_score.is.null,analytics_score.is.null,intent_tags.eq.{}");
-  } else if (!all) {
-    selector = selector.eq("needs_semantic_refresh", true);
-  }
+  let selector = supabaseAdmin.from("locations").select(LOCATION_SEMANTIC_FIELDS, { count: "exact" }).order(LOCATION_SAFE_ORDER_COLUMN, { ascending: true }).range(offset, offset + limit - 1);
+  if (repair || missing) selector = selector.or("semantic_search_text.is.null,semantic_search_text.eq.,intent_tags.is.null,recommendation_score.is.null,analytics_score.is.null,intent_tags.eq.{}");
+  else if (!all) selector = selector.eq("needs_semantic_refresh", true);
 
   const { data: locations, error } = await selector;
-  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ success: false, error: "Unable to load semantic refresh locations." }, { status: 500 });
 
   const ids = (locations || []).map((location: any) => String(location.id)).filter(Boolean);
   const analyticsByLocation = new Map<string, Record<string, unknown>>();
   if (ids.length > 0) {
-    const { data: analytics } = await supabaseAdmin.from("location_analytics").select("*").in("location_id", ids);
+    const { data: analytics } = await supabaseAdmin.from("location_analytics").select(ANALYTICS_FIELDS).in("location_id", ids);
     (analytics || []).forEach((row: any) => analyticsByLocation.set(String(row.location_id), row));
   }
 
   let updated = 0;
   let skipped = 0;
   const failures: Array<{ id: string; error: string }> = [];
-
   for (const location of locations || []) {
     const id = String(location.id || "");
-    if (!id) {
-      skipped += 1;
-      continue;
-    }
-
+    if (!id) { skipped += 1; continue; }
     try {
       const semanticSearchText = buildSemanticSearchText(location);
       const qualityScore = calculateQualityScore(location);
@@ -267,15 +203,11 @@ async function runSemanticNightly(request: NextRequest) {
         recommendation_score: recommendationScore,
         needs_semantic_refresh: false,
       };
-
       const updateResult = await safeUpdateLocation(id, payload);
-      if (!updateResult.success) {
-        failures.push({ id, error: updateResult.error || "Update failed" });
-        continue;
-      }
+      if (!updateResult.success) { failures.push({ id, error: String(updateResult.error || "Update failed").slice(0, 500) }); continue; }
       updated += 1;
     } catch (locationError) {
-      failures.push({ id, error: locationError instanceof Error ? locationError.message : String(locationError) });
+      failures.push({ id, error: (locationError instanceof Error ? locationError.message : String(locationError)).slice(0, 500) });
     }
   }
 
@@ -287,14 +219,7 @@ async function runSemanticNightly(request: NextRequest) {
     supabaseAdmin.from("locations").select("id,name,restaurant_name,activity_name,source_table,location_type,city,state").or(missingFilter).limit(10),
   ]);
 
-  const sampleMissingLocations = (sampleMissingRes.data || []).map((row: any) => ({
-    id: row.id,
-    name: row.name || row.restaurant_name || row.activity_name || "Unnamed",
-    source_table: row.source_table || null,
-    type: row.location_type || null,
-    city: row.city || null,
-    state: row.state || null,
-  }));
+  const sampleMissingLocations = (sampleMissingRes.data || []).map((row: any) => ({ id: row.id, name: row.name || row.restaurant_name || row.activity_name || "Unnamed", source_table: row.source_table || null, type: row.location_type || null, city: row.city || null, state: row.state || null }));
 
   return NextResponse.json({
     success: failures.length === 0,
