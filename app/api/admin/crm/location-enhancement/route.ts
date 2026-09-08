@@ -75,7 +75,7 @@ export async function PATCH(request: NextRequest) {
   if (existing.error) return NextResponse.json({ success: false, error: existing.error.message }, { status: 500 });
   if (!existing.data) return NextResponse.json({ success: false, error: "Location not found." }, { status: 404 });
 
-  const updatesWithSearchDocument = profileUpdateWithSearchDocument(existing.data as Record<string, unknown>, updates);
+  const updatesWithSearchDocument = profileUpdateWithSearchDocument(existing.data as unknown as Record<string, unknown>, updates);
   const responseFields = Array.from(new Set(["id", ...allowedFields, "search_document"]));
   const { data, error } = await supabaseAdmin
     .from(table)
