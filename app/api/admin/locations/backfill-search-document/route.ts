@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminApiRole } from "@/lib/admin-api-auth";
 import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
+import { ADMIN_LOCATION_SEARCH_DOCUMENT_FIELDS } from "@/lib/admin/location-data-projections";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { buildLocationSearchDocument } from "@/lib/location-profile-fields";
 
@@ -13,12 +14,14 @@ export async function POST(request: Request) {
   const limit = Math.min(Math.max(Number(body.limit || 250), 1), 500);
   const cursor = typeof body.nextCursor === "string" && body.nextCursor ? body.nextCursor : null;
   const supabase = getSupabaseAdminClient();
-  let query = supabase.from("locations").select("*").order("id", { ascending: true }).limit(limit);
+  let query = supabase.from("locations").select(ADMIN_LOCATION_SEARCH_DOCUMENT_FIELDS).order("id", { ascending: true }).limit(limit);
   if (cursor) query = query.gt("id", cursor);
   if (mode === "missing_only") query = query.or("search_document.is.null,search_document.eq.");
   const { data, error } = await query;
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  let updated = 0, skipped = 0, failed = 0; const errors: string[] = []; let lastProcessedId: string | null = null;
+  let updated = 0, skipped = 0, failed = 0;
+  const errors: string[] = [];
+  let lastProcessedId: string | null = null;
   for (const row of data || []) {
     lastProcessedId = String(row.id);
     const doc = buildLocationSearchDocument(row as Record<string, unknown>);
