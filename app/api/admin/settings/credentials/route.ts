@@ -15,6 +15,7 @@ import {
 import {
   deleteCredentialVaultProvider,
   getCredentialVaultSummary,
+  requestCredentialVaultRuntimeSync,
   testCredentialVaultProvider,
   updateCredentialVaultProvider,
   type CredentialVaultEnvironment,
@@ -113,6 +114,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const result = await updateCredentialVaultProvider({ provider, environment, values, clearFields });
+    const runtimeSync = await requestCredentialVaultRuntimeSync(environment);
     await logAdminAuditEvent({
       actor: adminUser,
       action: "credential_vault.updated",
@@ -125,10 +127,11 @@ export async function PUT(request: NextRequest) {
         updatedFields: Object.keys(values),
         clearedFields: clearFields,
         configuredFields: result.configuredFields,
+        runtimeSync,
       },
       request,
     });
-    return Response.json(result, { headers: { "cache-control": "no-store" } });
+    return Response.json({ ...result, runtimeSync }, { headers: { "cache-control": "no-store" } });
   } catch (vaultError) {
     return Response.json({ ok: false, error: safeError(vaultError) }, { status: 502 });
   }
@@ -171,6 +174,7 @@ export async function POST(request: NextRequest) {
         migrated.push({ provider: definition.id, fields: result.configuredFields });
       }
 
+      const runtimeSync = await requestCredentialVaultRuntimeSync(environment);
       await logAdminAuditEvent({
         actor: adminUser,
         action: "credential_vault.runtime_imported_all",
@@ -181,10 +185,11 @@ export async function POST(request: NextRequest) {
           environment,
           migrated: migrated.map((item) => ({ provider: item.provider, fields: item.fields })),
           skipped,
+          runtimeSync,
         },
         request,
       });
-      return Response.json({ ok: true, migrated, skipped }, { headers: { "cache-control": "no-store" } });
+      return Response.json({ ok: true, migrated, skipped, runtimeSync }, { headers: { "cache-control": "no-store" } });
     }
 
     const provider = providerFrom(body?.provider);
@@ -198,6 +203,7 @@ export async function POST(request: NextRequest) {
         return Response.json({ ok: false, error: "runtime_credential_not_available" }, { status: 409 });
       }
       const result = await updateCredentialVaultProvider({ provider, environment, values });
+      const runtimeSync = await requestCredentialVaultRuntimeSync(environment);
       await logAdminAuditEvent({
         actor: adminUser,
         action: "credential_vault.runtime_imported",
@@ -209,10 +215,11 @@ export async function POST(request: NextRequest) {
           environment,
           importedFields: Object.keys(values),
           configuredFields: result.configuredFields,
+          runtimeSync,
         },
         request,
       });
-      return Response.json({ ...result, migrationState: "vault_managed" }, { headers: { "cache-control": "no-store" } });
+      return Response.json({ ...result, migrationState: "vault_managed", runtimeSync }, { headers: { "cache-control": "no-store" } });
     }
 
     if (provider === "stamps" && environment === "production" && !platformIntegrationApiConfigured()) {
@@ -254,16 +261,17 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const result = await deleteCredentialVaultProvider(provider, environment);
+    const runtimeSync = await requestCredentialVaultRuntimeSync(environment);
     await logAdminAuditEvent({
       actor: adminUser,
       action: "credential_vault.cleared",
       entityType: "credential_provider",
       entityId: `${environment}:${provider}`,
       summary: `Cleared ${provider} credentials for ${environment}`,
-      afterData: { provider, environment, configuredFields: [] },
+      afterData: { provider, environment, configuredFields: [], runtimeSync },
       request,
     });
-    return Response.json(result, { headers: { "cache-control": "no-store" } });
+    return Response.json({ ...result, runtimeSync }, { headers: { "cache-control": "no-store" } });
   } catch (vaultError) {
     return Response.json({ ok: false, error: safeError(vaultError) }, { status: 502 });
   }
