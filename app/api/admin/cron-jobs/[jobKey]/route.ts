@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminApiRole } from "@/lib/admin-api-auth";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+const CRON_JOB_FIELDS = "id,job_key,job_name,route_path,description,schedule_hint,is_active,is_manually_runnable,send_success_email,send_failure_email,email_recipients,last_status,last_started_at,last_completed_at,last_failed_at,last_duration_ms,last_message,source,include_in_daily_digest,created_at,updated_at";
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ jobKey: string }> }) {
@@ -31,7 +32,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ jo
     if (!Array.isArray(body.email_recipients)) {
       return NextResponse.json({ success: false, error: "email_recipients must be an array." }, { status: 400 });
     }
-    const emails = body.email_recipients.map((email: unknown) => String(email).trim()).filter(Boolean);
+    const emails = body.email_recipients.map((email: unknown) => String(email).trim()).filter(Boolean).slice(0, 20);
     if (emails.some((email: string) => !emailRe.test(email))) {
       return NextResponse.json({ success: false, error: "email_recipients contains an invalid email." }, { status: 400 });
     }
@@ -61,7 +62,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ jo
     .from("cron_jobs")
     .update(update)
     .eq("job_key", jobKey)
-    .select("*")
+    .select(CRON_JOB_FIELDS)
     .maybeSingle();
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 400 });

@@ -6,6 +6,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 
+const CRON_JOB_FIELDS = "id,job_key,job_name,route_path,description,schedule_hint,is_active,is_manually_runnable,send_success_email,send_failure_email,email_recipients,last_status,last_started_at,last_completed_at,last_failed_at,last_duration_ms,last_message,source,include_in_daily_digest,created_at,updated_at";
+
 type RunRow = {
   job_key: string | null;
   job_name?: string | null;
@@ -191,7 +193,7 @@ export async function GET() {
   if (auth.error) return auth.error;
 
   const [{ data: cronJobs, error }, { data: runs, error: runsError }, { data: pgSnapshot, error: pgError }] = await Promise.all([
-    supabaseAdmin.from("cron_jobs").select("*"),
+    supabaseAdmin.from("cron_jobs").select(CRON_JOB_FIELDS),
     supabaseAdmin
       .from("cron_job_runs")
       .select("job_key,job_name,function_name,source,status,created_at,completed_at,finished_at,duration_ms,error_message,checked_count,success_count,skipped_count,failed_count,details,metadata")
@@ -241,7 +243,7 @@ export async function GET() {
     });
 
   if (missing.length) {
-    const { data: inserted, error: insertError } = await supabaseAdmin.from("cron_jobs").insert(missing).select("*");
+    const { data: inserted, error: insertError } = await supabaseAdmin.from("cron_jobs").insert(missing).select(CRON_JOB_FIELDS);
     if (insertError) return NextResponse.json({ success: false, error: insertError.message }, { status: 400 });
     for (const row of inserted || []) existing.set(String(row.job_key), row);
   }
@@ -283,7 +285,7 @@ export async function GET() {
       job_key: jobKey,
       job_name: job.job_name,
       status: job.last_status,
-      details: job.last_details || {},
+      details: {},
     };
     const healthState = needs_attention_reason === "recovering_from_transient_failure"
       ? "recovering"
