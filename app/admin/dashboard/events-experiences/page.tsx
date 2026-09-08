@@ -37,8 +37,10 @@ function Metric({ label, value, detail }: { label: string; value: string | numbe
 }
 
 export default async function AdminEventsExperiencesPage({ searchParams }: { searchParams: Params }) {
-  await requireAdminRole(ADMIN_PAGE_ACCESS.events);
-  const params = await searchParams;
+  const [, params] = await Promise.all([
+    requireAdminRole(ADMIN_PAGE_ACCESS.events),
+    searchParams,
+  ]);
   const q = (first(params.q) || "").replace(/[%,]/g, " ").trim();
   const now = new Date().toISOString();
 
@@ -63,16 +65,6 @@ export default async function AdminEventsExperiencesPage({ searchParams }: { sea
   const activeExperiences = activeExperienceRows || [];
   const activeExperienceIds = activeExperiences.map((experience) => String(experience.id));
 
-  const { data: upcomingSlots, error: slotsError } = activeExperienceIds.length
-    ? await supabaseAdmin
-        .from("experience_slots")
-        .select("id,experience_id,starts_at,status")
-        .in("experience_id", activeExperienceIds)
-        .eq("status", "open")
-        .gte("starts_at", now)
-    : { data: [] as Array<{ id: string; experience_id: string; starts_at: string; status: string }>, error: null };
-  if (slotsError) throw slotsError;
-
   const locationSummary = new Map<string, OfferingSummary>();
   const organizationSummary = new Map<string, OfferingSummary>();
 
@@ -90,34 +82,51 @@ export default async function AdminEventsExperiencesPage({ searchParams }: { sea
   const activeLocationIds = [...locationSummary.keys()];
   const activeOrganizationIds = [...organizationSummary.keys()];
 
-  let locations: Array<{ id: string; name: string; city: string | null; state: string | null }> = [];
-  if (q) {
-    const { data, error } = await supabaseAdmin
-      .from("locations")
-      .select("id,name,city,state")
-      .ilike("name", `%${q}%`)
-      .order("name", { ascending: true })
-      .limit(50);
-    if (error) throw error;
-    locations = (data || []).map((location) => ({ ...location, id: String(location.id) }));
-  } else if (activeLocationIds.length) {
-    const { data, error } = await supabaseAdmin
-      .from("locations")
-      .select("id,name,city,state")
-      .in("id", activeLocationIds)
-      .order("name", { ascending: true });
-    if (error) throw error;
-    locations = (data || []).map((location) => ({ ...location, id: String(location.id) }));
-  }
+  const slotsPromise = activeExperienceIds.length
+    ? supabaseAdmin
+        .from("experience_slots")
+        .select("id,experience_id,starts_at,status")
+        .in("experience_id", activeExperienceIds)
+        .eq("status", "open")
+        .gte("starts_at", now)
+    : Promise.resolve({ data: [] as Array<{ id: string; experience_id: string; starts_at: string; status: string }>, error: null });
 
-  const { data: organizations, error: organizationsError } = !q && activeOrganizationIds.length
-    ? await supabaseAdmin
+  const locationsPromise = q
+    ? supabaseAdmin
+        .from("locations")
+        .select("id,name,city,state")
+        .ilike("name", `%${q}%`)
+        .order("name", { ascending: true })
+        .limit(50)
+    : activeLocationIds.length
+      ? supabaseAdmin
+          .from("locations")
+          .select("id,name,city,state")
+          .in("id", activeLocationIds)
+          .order("name", { ascending: true })
+      : Promise.resolve({ data: [] as Array<{ id: string; name: string; city: string | null; state: string | null }>, error: null });
+
+  const organizationsPromise = !q && activeOrganizationIds.length
+    ? supabaseAdmin
         .from("organizations")
         .select("id,name")
         .in("id", activeOrganizationIds)
         .order("name", { ascending: true })
-    : { data: [] as Array<{ id: string; name: string }>, error: null };
+    : Promise.resolve({ data: [] as Array<{ id: string; name: string }>, error: null });
+
+  const [
+    { data: upcomingSlots, error: slotsError },
+    { data: locationRows, error: locationsError },
+    { data: organizations, error: organizationsError },
+  ] = await Promise.all([slotsPromise, locationsPromise, organizationsPromise]);
+  if (slotsError) throw slotsError;
+  if (locationsError) throw locationsError;
   if (organizationsError) throw organizationsError;
+
+  const locations = (locationRows || []).map((location) => ({
+    ...location,
+    id: String(location.id),
+  }));
 
   const visibleLocationIds = locations.map((location) => location.id);
   if (q && visibleLocationIds.length) {
