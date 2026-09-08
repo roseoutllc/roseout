@@ -30,7 +30,6 @@ app_env_secret_region = os.environ.get("BACKGROUND_APP_ENV_SECRET_REGION", "us-w
 domain_queue_name = f"toh-{environment}-domain-lifecycle"
 background_cron_queue_name = f"toh-{environment}-background-cron"
 dr_namespace = "TheOutHaven/DR"
-expected_ready_tables = 462
 _cron_secret = None
 
 BACKGROUND_EDGE_TARGETS = {
@@ -77,7 +76,11 @@ def emit_dr_metrics(operation, parsed_body, success):
                 metric("TargetActiveCronJobs", guard.get("targetActiveCronJobs", 0)),
                 metric(
                     "ReadyTableGap",
-                    max(0, expected_ready_tables - numeric(guard.get("targetReadyTables", 0))),
+                    max(
+                        0,
+                        numeric(guard.get("sourcePublishedTables", 0))
+                        - numeric(guard.get("targetReadyTables", 0)),
+                    ),
                 ),
                 metric("ConnectedWorkers", guard.get("targetConnectedWorkers", 0)),
             ]

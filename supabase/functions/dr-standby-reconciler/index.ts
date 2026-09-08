@@ -23,7 +23,6 @@ const DEFAULT_MAX_STORAGE_COPIES = Number(Deno.env.get("DR_STORAGE_MAX_COPIES_PE
 const PUBLICATION = "theouthaven_dr_publication";
 const SUBSCRIPTION = "theouthaven_va_to_or_dr";
 const SLOT = "theouthaven_va_to_or_dr_slot";
-const EXPECTED_PUBLIC_TABLES = 462;
 
 const ddb = new DynamoDBClient({ region: AWS_REGION });
 
@@ -92,6 +91,7 @@ async function requirePassiveStandby() {
   const sourceSql = `select
     (select count(*) from cron.job) as cron_jobs,
     (select count(*) from pg_publication where pubname=${literal(PUBLICATION)}) as publications,
+    (select count(*) from pg_publication_tables where pubname=${literal(PUBLICATION)}) as published_tables,
     (select count(*) from pg_replication_slots where slot_name=${literal(SLOT)}) as slots,
     (select count(*) from pg_replication_slots where slot_name=${literal(SLOT)} and active) as active_slots,
     coalesce((select pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)::bigint from pg_replication_slots where slot_name=${literal(SLOT)}),0) as slot_lag_bytes;`;
@@ -111,17 +111,20 @@ async function requirePassiveStandby() {
     Number(source.publications) === 1 &&
     Number(source.slots) === 1 &&
     Number(source.active_slots) === 1 &&
+    Number(source.published_tables) > 0 &&
     Number(target.active_cron_jobs) === 0 &&
     Number(target.enabled_subscriptions) === 1 &&
-    Number(target.total_tables) === EXPECTED_PUBLIC_TABLES &&
-    Number(target.ready_tables) === EXPECTED_PUBLIC_TABLES &&
+    Number(target.total_tables) === Number(source.published_tables) &&
+    Number(target.ready_tables) === Number(source.published_tables) &&
     Number(target.connected_workers) >= 1;
   if (!healthy) throw new Error("passive_standby_guard_failed");
   return {
     sourceCronJobs: Number(source.cron_jobs),
     sourceActiveSlots: Number(source.active_slots),
     sourceSlotLagBytes: Number(source.slot_lag_bytes || 0),
+    sourcePublishedTables: Number(source.published_tables),
     targetActiveCronJobs: Number(target.active_cron_jobs),
+    targetTotalTables: Number(target.total_tables),
     targetReadyTables: Number(target.ready_tables),
     targetConnectedWorkers: Number(target.connected_workers),
   };
