@@ -7,7 +7,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   headers: { "content-type": "application/json", "cache-control": "no-store" },
 });
 
-const ALLOWED_STATUSES = new Set(["", "not_found", "failed", "blocked", "no_website"]);
+const ALLOWED_STATUSES = new Set(["", "pending", "not_found", "failed", "blocked", "no_website"]);
 
 function blank(value: unknown) {
   return value == null || (typeof value === "string" && !value.trim());
@@ -72,7 +72,7 @@ serve(async (req) => {
   const candidates = (data || [])
     .filter((row: any) => {
       if (row.is_demo === true || row.is_hidden === true) return false;
-      if (String(row.duplicate_status || "").toLowerCase() === "duplicate") return false;
+      if (["duplicate", "possible_duplicate"].includes(String(row.duplicate_status || "").toLowerCase())) return false;
       const alreadyHasReservation = [
         row.external_reservation_url,
         row.reservation_external_url,
