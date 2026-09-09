@@ -1,0 +1,66 @@
+import { ExternalLink, PlusCircle, RefreshCw, ScanLine, Smartphone, Wifi } from "lucide-react";
+
+import { AdminSectionCard, AdminStatusBadge } from "@/components/admin/AdminDesignSystem";
+
+type Props = {
+  appleConnected: boolean;
+  managementServiceName?: string | null;
+};
+
+export function AppleConfiguratorEnrollmentGuide({ appleConnected, managementServiceName }: Props) {
+  return (
+    <AdminSectionCard className="p-5 sm:p-6">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+        <div className="max-w-3xl">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-2xl border border-rose-300/20 bg-rose-500/10 p-2.5 text-rose-100">
+              <PlusCircle className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-200">Add a company device</p>
+              <h2 className="mt-1 text-lg font-black text-white">Enroll with Apple Configurator</h2>
+            </div>
+            <AdminStatusBadge tone={appleConnected ? "green" : "amber"}>
+              {appleConnected ? "Apple connected" : "Apple connection required"}
+            </AdminStatusBadge>
+          </div>
+          <p className="mt-3 text-sm font-semibold leading-6 text-white/55">
+            The physical iPhone or iPad must first be added to Apple Business Manager with Apple Configurator. As soon as Apple adds it to your organization, return here and refresh; TheOutHaven can then assign it to {managementServiceName || "your Intune management service"} and trigger the Intune sync.
+          </p>
+        </div>
+
+        <a
+          href="https://apps.apple.com/us/app/apple-configurator/id1588794674"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white transition hover:bg-white/10"
+        >
+          Open Apple Configurator <ExternalLink className="h-4 w-4" />
+        </a>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="flex items-center gap-2 text-white"><Smartphone className="h-4 w-4" /><p className="text-sm font-black">1. Start Setup Assistant</p></div>
+          <p className="mt-2 text-xs font-semibold leading-5 text-white/45">Erase or start the new company device and stop on the Wi-Fi selection screen.</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="flex items-center gap-2 text-white"><ScanLine className="h-4 w-4" /><p className="text-sm font-black">2. Pair with Configurator</p></div>
+          <p className="mt-2 text-xs font-semibold leading-5 text-white/45">Open Apple Configurator on the enrollment iPhone, sign in, bring it near the device, and scan the pairing image.</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="flex items-center gap-2 text-white"><Wifi className="h-4 w-4" /><p className="text-sm font-black">3. Wait for Apple</p></div>
+          <p className="mt-2 text-xs font-semibold leading-5 text-white/45">Configurator uploads the device into Apple Business Manager. This browser page cannot bypass that physical Apple step.</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="flex items-center gap-2 text-white"><RefreshCw className="h-4 w-4" /><p className="text-sm font-black">4. Refresh here</p></div>
+          <p className="mt-2 text-xs font-semibold leading-5 text-white/45">The new serial will appear below. Click Prepare for Intune and TheOutHaven handles assignment plus the Intune ADE sync.</p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-amber-300/15 bg-amber-500/5 px-4 py-3 text-xs font-semibold leading-5 text-amber-100/70">
+        Apple Configurator-added devices can have a provisional enrollment period. Do not hand the device to an employee until it is assigned to Intune and the required enrollment profile has been confirmed.
+      </div>
+    </AdminSectionCard>
+  );
+}
