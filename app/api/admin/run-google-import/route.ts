@@ -3,6 +3,7 @@ import { requireAdminApiRole } from "@/lib/admin-api-auth";
 import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import { runGoogleCuratedDiscovery } from "@/lib/location-growth/googleCuratedDiscovery";
 import { publishCuratedGoogleCandidates } from "@/lib/location-growth/googleCuratedPublisher";
+import { promoteStoredGoogleReviewCandidates } from "@/lib/location-growth/googleReviewPromotion";
 import type { GoogleDiscoveryKind } from "@/lib/location-growth/googleDiscoveryQuality";
 
 export const runtime = "nodejs";
@@ -41,6 +42,16 @@ async function runCanonicalImport(input: Record<string, unknown>) {
   const resultsPerPlan = bounded(input.resultsPerPlan ?? input.limit, 8, 1, 12);
   const maxCandidates = bounded(input.maxCandidates, 40, 1, 80);
   const maxRuntimeMs = bounded(input.maxRuntimeMs, 150_000, 30_000, 180_000);
+
+  // Recover already-paid-for Google review candidates first. This uses only
+  // stored staging/raw_payload evidence and intentionally makes zero Google API
+  // calls. Rows still requiring human review remain untouched.
+  const storedReviewRecovery = autoPublish
+    ? await promoteStoredGoogleReviewCandidates({
+        limit: bounded(input.reviewRecoveryLimit, 200, 1, 500),
+        publish: true,
+      })
+    : null;
 
   const runs = [];
   for (const kind of kinds) {
@@ -87,8 +98,15 @@ async function runCanonicalImport(input: Record<string, unknown>) {
     success: true,
     pipeline: "google_curated_discovery",
     legacyImporterRemoved: true,
+    storedReviewRecovery,
     runs,
-    counts: totals,
+    counts: {
+      ...totals,
+      storedReviewsScanned: storedReviewRecovery?.scanned || 0,
+      storedReviewsPromoted: storedReviewRecovery?.promoted || 0,
+      storedReviewsPublished: storedReviewRecovery?.markedPublished || 0,
+      storedReviewGoogleApiCalls: storedReviewRecovery?.googleApiCalls || 0,
+    },
   };
 }
 
