@@ -26,6 +26,17 @@ describe("stored Google review promotion", () => {
     expect(promotion).toContain("publishReadyStagedLocations");
   });
 
+  it("persists actionable reasons for rows retained in manual review", () => {
+    expect(promotion).toContain("REVIEW_ATTENTION_REASONS");
+    expect(promotion).toContain("reviewReasonFor(quality)");
+    expect(promotion).toContain("rejection_reason: reviewReason");
+    expect(promotion).toContain('source_quality_status: "curated_google_review"');
+    expect(promotion).toContain("retainedReasonCounts");
+    expect(promotion).toContain('"needs_website"');
+    expect(promotion).toContain('"needs_hours"');
+    expect(promotion).toContain('"weak_outing_evidence"');
+  });
+
   it("runs recovery before new paid Google discovery", () => {
     const recovery = importRoute.indexOf("promoteStoredGoogleReviewCandidates");
     const discovery = importRoute.indexOf("await runGoogleCuratedDiscovery");
