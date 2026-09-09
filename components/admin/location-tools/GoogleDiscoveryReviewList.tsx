@@ -40,20 +40,33 @@ function num(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function label(candidate: Candidate) {
+function decisionLabel(candidate: Candidate) {
   if (candidate.import_status === "published") return "Published";
-  if (candidate.import_status === "hidden") return "Kept hidden";
-  if (candidate.import_status === "duplicate") return "Duplicate";
+  if (candidate.import_status === "hidden") return "Hidden";
+  if (candidate.import_status === "duplicate" || candidate.duplicate_status === "duplicate" || candidate.duplicate_status === "possible_duplicate") return "Duplicate review";
   if (candidate.import_status === "rejected") return "Rejected";
-  if (candidate.quality_status === "publish_ready") return "Approved · ready to publish";
-  if (candidate.quality_status === "needs_photo") return "Review · photo needed";
-  return "Manual review";
+  if (candidate.quality_status === "publish_ready") return "Ready";
+  if (candidate.quality_status === "needs_photo") return "Needs photo";
+  return "Needs review";
+}
+
+function attentionSummary(candidate: Candidate) {
+  const reasons: string[] = [];
+  if (candidate.duplicate_status === "possible_duplicate") reasons.push("Possible duplicate");
+  if (candidate.duplicate_status === "duplicate") reasons.push("Confirmed duplicate");
+  if (!candidate.has_photos || candidate.quality_status === "needs_photo") reasons.push("Photo needed");
+  if (!candidate.website) reasons.push("Website missing");
+  if (!candidate.address || !candidate.city || !candidate.state) reasons.push("Location details incomplete");
+  if (String(candidate.import_confidence || "").toLowerCase() === "low") reasons.push("Low confidence");
+  if (String(candidate.public_visibility_tier || "").toLowerCase() !== "standard" && candidate.public_visibility_tier) reasons.push("Not public-ready");
+  if (candidate.rejection_reason) reasons.push(candidate.rejection_reason.replace(/_/g, " "));
+  return Array.from(new Set(reasons)).slice(0, 3);
 }
 
 function tone(candidate: Candidate) {
-  if (candidate.import_status === "published") return "border-emerald-400/20 bg-emerald-500/[0.07]";
+  if (candidate.import_status === "published" || candidate.quality_status === "publish_ready") return "border-emerald-400/20 bg-emerald-500/[0.07]";
   if (candidate.import_status === "hidden") return "border-white/10 bg-white/[0.04]";
-  if (candidate.import_status === "rejected" || candidate.import_status === "duplicate") return "border-red-400/15 bg-red-500/[0.05]";
+  if (candidate.import_status === "rejected" || candidate.import_status === "duplicate" || candidate.duplicate_status === "duplicate") return "border-red-400/15 bg-red-500/[0.05]";
   return "border-amber-300/15 bg-amber-400/[0.06]";
 }
 
@@ -99,7 +112,9 @@ export function GoogleDiscoveryReviewList({ candidates }: { candidates: Candidat
         const google = candidate.raw_payload && typeof candidate.raw_payload === "object"
           ? ((candidate.raw_payload as Record<string, unknown>).google as Record<string, unknown> | undefined)
           : undefined;
-        const canReview = !["published", "duplicate", "rejected"].includes(candidate.import_status || "");
+        const duplicateNeedsReview = candidate.duplicate_status === "possible_duplicate";
+        const canReview = !["published", "duplicate", "rejected"].includes(candidate.import_status || "") && !duplicateNeedsReview;
+        const blockers = attentionSummary(candidate);
 
         return (
           <article key={candidate.id} className={`overflow-hidden rounded-2xl border ${tone(candidate)}`}>
@@ -110,45 +125,54 @@ export function GoogleDiscoveryReviewList({ candidates }: { candidates: Candidat
               aria-expanded={expanded}
             >
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div>
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-black text-white">{candidate.name || "Unnamed Google candidate"}</h3>
-                    <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white/65">{label(candidate)}</span>
-                    <span className="text-xs font-black text-white/35">{expanded ? "Hide details" : "Review details"}</span>
+                    <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white/70">{decisionLabel(candidate)}</span>
                   </div>
                   <p className="mt-1 text-sm font-bold text-white/50">
                     {[candidate.city, candidate.state, candidate.primary_category].filter(Boolean).join(" · ") || "Location/category unavailable"}
                   </p>
-                  {candidate.rejection_reason ? <p className="mt-2 text-xs font-bold text-amber-100/75">Reason: {candidate.rejection_reason.replace(/_/g, " ")}</p> : null}
+                  {blockers.length ? (
+                    <p className="mt-2 text-xs font-bold text-amber-100/75">Needs attention: {blockers.join(" · ")}</p>
+                  ) : (
+                    <p className="mt-2 text-xs font-bold text-emerald-200/70">No obvious quality blockers in this review record.</p>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-2 text-xs font-black text-white/65">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-black text-white/65">
                   <span className="rounded-full bg-black/25 px-3 py-1.5">★ {num(candidate.rating).toFixed(1)}</span>
                   <span className="rounded-full bg-black/25 px-3 py-1.5">{num(candidate.review_count).toLocaleString()} reviews</span>
-                  <span className="rounded-full bg-black/25 px-3 py-1.5">Score {num(candidate.quality_score)}</span>
+                  <span className="rounded-full border border-white/10 px-3 py-1.5 text-white/45">{expanded ? "Hide" : "Review"}</span>
                 </div>
               </div>
             </button>
 
             {expanded ? (
               <div className="border-t border-white/10 bg-black/15 p-4">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   <Detail title="Address" value={[candidate.address, candidate.city, candidate.state, candidate.zip_code].filter(Boolean).join(", ")} />
-                  <Detail title="Type" value={candidate.location_type} />
                   <Detail title="Category" value={candidate.primary_category || candidate.cuisine || candidate.activity_type} />
-                  <Detail title="Duplicate status" value={candidate.duplicate_status} />
-                  <Detail title="Phone" value={candidate.phone} />
+                  <Detail title="Duplicate check" value={candidate.duplicate_status || "unknown"} />
                   <Detail title="Website" value={candidate.website} />
-                  <Detail title="Photo status" value={candidate.photo_status || (candidate.has_photos ? "has photo" : "missing photo")} />
-                  <Detail title="Import confidence" value={candidate.import_confidence} />
-                  <Detail title="Source quality" value={candidate.source_quality_status} />
-                  <Detail title="Visibility" value={candidate.public_visibility_tier} />
+                  <Detail title="Photo" value={candidate.photo_status || (candidate.has_photos ? "has photo" : "missing photo")} />
                   <Detail title="Google business status" value={google?.business_status || google?.businessStatus} />
-                  <Detail title="Google primary type" value={google?.primaryType} />
-                  <Detail title="Coordinates" value={candidate.latitude != null && candidate.longitude != null ? `${candidate.latitude}, ${candidate.longitude}` : null} />
-                  <Detail title="Quality status" value={candidate.quality_status} />
-                  <Detail title="Import status" value={candidate.import_status} />
-                  <Detail title="Review decision" value={message[candidate.id] || "No manual decision yet"} />
                 </div>
+
+                <details className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                  <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.14em] text-white/55">Advanced data</summary>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <Detail title="Type" value={candidate.location_type} />
+                    <Detail title="Phone" value={candidate.phone} />
+                    <Detail title="Import confidence" value={candidate.import_confidence} />
+                    <Detail title="Source quality" value={candidate.source_quality_status} />
+                    <Detail title="Visibility" value={candidate.public_visibility_tier} />
+                    <Detail title="Google primary type" value={google?.primaryType} />
+                    <Detail title="Coordinates" value={candidate.latitude != null && candidate.longitude != null ? `${candidate.latitude}, ${candidate.longitude}` : null} />
+                    <Detail title="Quality status" value={candidate.quality_status} />
+                    <Detail title="Import status" value={candidate.import_status} />
+                    <Detail title="Quality score" value={candidate.quality_score} />
+                  </div>
+                </details>
 
                 <div className="mt-4 flex flex-wrap gap-3">
                   {candidate.source_url ? (
@@ -165,6 +189,8 @@ export function GoogleDiscoveryReviewList({ candidates }: { candidates: Candidat
                         Keep Hidden
                       </button>
                     </>
+                  ) : duplicateNeedsReview ? (
+                    <p className="rounded-xl border border-amber-300/15 bg-amber-400/[0.06] px-4 py-2.5 text-sm font-bold text-amber-100/80">Resolve the possible duplicate before publishing.</p>
                   ) : null}
                 </div>
 
