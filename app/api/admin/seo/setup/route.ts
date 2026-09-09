@@ -1,3 +1,39 @@
-import { NextResponse } from 'next/server'; import { supabaseAdmin } from '@/lib/supabase-admin'; import { requireAdminApiRole } from '@/lib/admin-api-auth';
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAdminApiRole } from "@/lib/admin-api-auth";
 import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
-export async function POST(){const a=await requireAdminApiRole(ADMIN_PAGE_ACCESS.seoEdit); if(a.error)return a.error; const {data}=await supabaseAdmin.from('seo_audit_runs').insert({run_type:'setup',status:'completed',completed_at:new Date().toISOString(),metadata:{result:'Baseline verified; no destructive overwrite performed'}}).select('*').single(); return NextResponse.json({run:data});}
+
+const SETUP_RUN_FIELDS = [
+  "id",
+  "run_type",
+  "status",
+  "completed_at",
+  "created_at",
+].join(",");
+
+export async function POST() {
+  const auth = await requireAdminApiRole(ADMIN_PAGE_ACCESS.seoEdit);
+  if (auth.error) return auth.error;
+
+  const { data, error } = await supabaseAdmin
+    .from("seo_audit_runs")
+    .insert({
+      run_type: "setup",
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      metadata: {
+        result: "Baseline verified; no destructive overwrite performed",
+      },
+    })
+    .select(SETUP_RUN_FIELDS)
+    .single();
+
+  if (error) {
+    return NextResponse.json(
+      { error: "Could not record SEO setup verification." },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ run: data });
+}
