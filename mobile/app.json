@@ -6,11 +6,12 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.theouthaven.app",
-      "associatedDomains": ["applinks:outhvn.com"]
+      "associatedDomains": [
+        "applinks:outhvn.com"
+      ]
     },
     "android": {
       "package": "com.theouthaven.app",
@@ -25,7 +26,10 @@
               "pathPrefix": "/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -36,7 +40,8 @@
         {
           "defaultChannel": "outing-reminders"
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true
