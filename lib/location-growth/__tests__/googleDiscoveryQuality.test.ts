@@ -165,4 +165,77 @@ describe("curated Google discovery quality", () => {
     expect(result.decision).toBe("auto_import");
     expect(result.reasons).toContain("hookah_destination");
   });
+
+  it("rejects an obvious retail mismatch returned for an arcade search", () => {
+    const result = evaluateGoogleDiscoveryCandidate(candidate({
+      kind: "activity",
+      name: "Retro Toy Warehouse",
+      query: "arcade bar in Smithtown NY",
+      category: "arcade",
+      rating: 4.8,
+      reviewCount: 300,
+      types: ["toy_store", "store", "point_of_interest", "establishment"],
+    }));
+    expect(result.decision).toBe("reject");
+    expect(result.categoryEvidence).toBe("mismatch");
+    expect(result.reasons).toContain("category_mismatch");
+  });
+
+  it("rejects a shopping mall that Google returned for an arcade search", () => {
+    const result = evaluateGoogleDiscoveryCandidate(candidate({
+      kind: "activity",
+      name: "Downtown Shopping Plaza",
+      query: "arcade bar in Edgewater NJ",
+      category: "arcade",
+      rating: 4.7,
+      reviewCount: 2400,
+      types: ["shopping_mall", "point_of_interest", "establishment"],
+    }));
+    expect(result.decision).toBe("reject");
+    expect(result.reasons).toContain("category_mismatch");
+  });
+
+  it("keeps a bar without arcade proof in review instead of auto-publishing it as an arcade", () => {
+    const result = evaluateGoogleDiscoveryCandidate(candidate({
+      kind: "activity",
+      name: "Neighborhood Tavern",
+      query: "arcade bar in Rockville Centre NY",
+      category: "arcade",
+      rating: 4.7,
+      reviewCount: 500,
+      types: ["bar", "restaurant", "point_of_interest"],
+      editorialSummary: null,
+    }));
+    expect(result.decision).toBe("review");
+    expect(result.categoryEvidence).toBe("missing");
+    expect(result.reasons).toContain("category_evidence_missing");
+  });
+
+  it("allows an actual video arcade to follow normal auto-import rules", () => {
+    const result = evaluateGoogleDiscoveryCandidate(candidate({
+      kind: "activity",
+      name: "Pixel Palace",
+      query: "arcade bar in Queens",
+      category: "arcade",
+      rating: 4.7,
+      reviewCount: 450,
+      types: ["video_arcade", "amusement_center", "point_of_interest"],
+    }));
+    expect(result.categoryEvidence).toBe("supported");
+    expect(result.decision).toBe("auto_import");
+  });
+
+  it("allows an arcade bar when the venue name itself supplies the missing category evidence", () => {
+    const result = evaluateGoogleDiscoveryCandidate(candidate({
+      kind: "activity",
+      name: "Downtown Barcade",
+      query: "arcade bar in Manhattan",
+      category: "arcade",
+      rating: 4.7,
+      reviewCount: 500,
+      types: ["bar", "restaurant", "point_of_interest"],
+    }));
+    expect(result.categoryEvidence).toBe("supported");
+    expect(result.decision).toBe("auto_import");
+  });
 });
