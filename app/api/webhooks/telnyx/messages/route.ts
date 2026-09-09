@@ -27,6 +27,7 @@ import { CRM_MAIN_NUMBER, routeInboundCrmSms } from "@/lib/crm/inbound-sms-routi
 import { routeSupportFromSmsChannel } from "@/lib/support/cross-channel-sms";
 import { activateSupportSmsOwnership } from "@/lib/support/sms-owner";
 import { processReservationSmsAction } from "@/lib/reservations/sms-actions";
+import { processReservationLateArrival } from "@/lib/reservations/sms-late-arrival";
 import { routeReservationFromSmsChannel } from "@/lib/reservations/cross-channel-handoff";
 import { cancelSmsReviewConversation, processSmsReviewReply } from "@/lib/reviews/sms-review-conversation";
 import { processInternalReservationReviewConsentReply } from "@/lib/reviews/internal-reservation-review-consent";
@@ -378,7 +379,7 @@ export async function POST(req: Request) {
 
       if (firstDelivery && channel === "concierge") await sendConciergeSms({ to: from, body: "TheOutHaven Concierge texts are enabled. Just text naturally for outing help, directions, hours, recommendations, booking follow-ups, or reviews. Reply HELP for options or STOP to stop messages." });
       if (firstDelivery && channel === "crm") await sendCrmSms({ to: from, body: "TheOutHaven CRM texts are enabled. Reply naturally with your question or update and our team will keep it with your conversation. Reply HELP for options or STOP to stop messages." });
-      if (firstDelivery && channel === "reservations") await sendReservationSms({ to: from, body: "TheOutHaven reservation texts are enabled. Reply naturally to reschedule, change date/time or guest count, review details, or cancel. Reply HELP for options or STOP to stop messages." });
+      if (firstDelivery && channel === "reservations") await sendReservationSms({ to: from, body: "TheOutHaven reservation texts are enabled. Reply naturally to reschedule, change date/time or guest count, report that you're running late, review details, or cancel. Reply HELP for options or STOP to stop messages." });
       if (firstDelivery && channel === "support") await sendSupportSms({ to: from, body: "TheOutHaven support texts are enabled. Send your question naturally here and it will stay with your support conversation. Reply HELP for options or STOP to stop messages." });
       if (firstDelivery && channel === "marketing") await sendMarketingSms({ to: from, body: "TheOutHaven updates are enabled. You can reply naturally with a question or request, HELP for options, or STOP to opt out." });
 
@@ -554,8 +555,30 @@ export async function POST(req: Request) {
 
     if (channel === "reservations") {
       if (text === "HELP") {
-        await sendReservationSms({ to: from, body: "TheOutHaven Reservations: just text naturally to reschedule, change date/time or guest count, review details, or cancel. For example: “move it to 8,” “make it for 4,” or “cancel my reservation.” Reply STOP to stop SMS updates." });
+        await sendReservationSms({ to: from, body: "TheOutHaven Reservations: just text naturally to reschedule, change date/time or guest count, report that you're running late, review details, or cancel. For example: “move it to 8,” “we’re running 10 minutes late,” “make it for 4,” or “cancel my reservation.” Reply STOP to stop SMS updates." });
         return NextResponse.json({ received: true, action: "reservation_help" });
+      }
+
+      const lateArrivalResult = await processReservationLateArrival({
+        from,
+        text: conversationalText,
+        providerMessageId,
+        eventId,
+        to,
+      });
+      if (lateArrivalResult.handled) {
+        await supabaseAdmin.from("sms_logs").insert({
+          location_id: lateArrivalResult.locationId || null,
+          reservation_id: lateArrivalResult.reservationId || null,
+          customer_phone: from,
+          message_type: `incoming_reservation_${lateArrivalResult.action || "late_arrival"}`,
+          message_body: rawText,
+          provider: "telnyx",
+          provider_message_id: providerMessageId,
+          status: "received",
+          created_at: new Date().toISOString(),
+        });
+        return NextResponse.json({ received: true, ...lateArrivalResult });
       }
 
       const actionResult = await processReservationSmsAction({
@@ -596,7 +619,7 @@ export async function POST(req: Request) {
       await sendReservationSms({
         to: from,
         body: reservation
-          ? "I received your message, but I’m not sure what you want to change. You can reply CHANGE, CANCEL, DETAILS, or tell me the new date, time, or party size in your own words."
+          ? "I received your message, but I’m not sure what you want to do. You can reply CHANGE, CANCEL, DETAILS, tell me the new date/time/party size, or tell me if you’re running late."
           : "I received your message, but I couldn’t match this phone number to an active reservation. Reply HELP for assistance.",
       });
 
