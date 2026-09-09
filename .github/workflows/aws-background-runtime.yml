@@ -48,10 +48,6 @@ env:
   APP_ENV_SECRET_REGION: us-west-2
   AWS_SERVICE_ROLE_SECRET: /theouthaven/production/supabase/service-role
   VIRGINIA_SUPABASE_URL: https://ftdsltatyqhtllyyefzp.supabase.co
-  VERCEL_PROJECT_ID: prj_G4nFS7P3F4cW3PQn4oQAx6Vf3GIN
-  VERCEL_TEAM_ID: team_TzlwC4vdLZiT8kFGuXSoj1em
-  VERCEL_ORG_ID: team_TzlwC4vdLZiT8kFGuXSoj1em
-  VERCEL_TEAM_SLUG: roseout-ventures-projects
 
 jobs:
   validate:
@@ -88,19 +84,21 @@ jobs:
           grep -F 'ftdsltatyqhtllyyefzp.supabase.co' "$FILE" >/dev/null
           grep -F 'Authoritative Virginia service-role credential failed validation' "$FILE" >/dev/null
           grep -F "current['SUPABASE_SERVICE_ROLE_KEY'] = key" "$FILE" >/dev/null
-          grep -F "if not (line.startswith('SUPABASE_SERVICE_ROLE_KEY=') or line.startswith('NEXT_PUBLIC_SUPABASE_URL='))" "$FILE" >/dev/null
+          grep -F "current['NEXT_PUBLIC_SUPABASE_URL'] = os.environ['VIRGINIA_SUPABASE_URL']" "$FILE" >/dev/null
+          grep -F 'BACKGROUND_APP_ENV_JSON=' "$FILE" >/dev/null
+          grep -F 'Prepare production build environment from AWS app environment' "$FILE" >/dev/null
+          if grep -F 'vercel env pull' "$FILE" >/dev/null; then
+            echo 'AWS background runtime build must not depend on a Vercel CLI credential.' >&2
+            exit 1
+          fi
+          if grep -F 'VERCEL_TOKEN' "$FILE" >/dev/null; then
+            echo 'AWS background runtime build must not depend on VERCEL_TOKEN.' >&2
+            exit 1
+          fi
           grep -F 'for attempt in 1 2 3 4; do' "$FILE" >/dev/null
           grep -F 'Background runtime failed Virginia health after 4 attempts.' "$FILE" >/dev/null
           grep -F 'supabaseAdmin.from("locations").select("id").limit(1)' app/api/health/background-runtime/route.ts >/dev/null
           grep -F 'database: databaseOk ? "ok" : "unavailable"' app/api/health/background-runtime/route.ts >/dev/null
-
-      - name: Validate Vercel project targeting
-        run: |
-          set -euo pipefail
-          FILE='.github/workflows/aws-background-runtime.yml'
-          grep -F 'VERCEL_TEAM_SLUG: roseout-ventures-projects' "$FILE" >/dev/null
-          grep -F -- '--scope "$VERCEL_TEAM_SLUG"' "$FILE" >/dev/null
-          grep -F -- '--project "$VERCEL_PROJECT_ID"' "$FILE" >/dev/null
 
       - name: Validate scheduler isolation canary is non-mutating
         run: |
@@ -182,43 +180,53 @@ jobs:
             --query VersionId \
             --output text >/dev/null
 
-          rm -f "$CURRENT_APP_ENV" "$REPAIRED_APP_ENV"
+          rm -f "$CURRENT_APP_ENV"
           echo "VIRGINIA_SERVICE_ROLE_FILE=$KEY_FILE" >> "$GITHUB_ENV"
+          echo "BACKGROUND_APP_ENV_JSON=$REPAIRED_APP_ENV" >> "$GITHUB_ENV"
           echo 'AWS shared app environment repaired from the authoritative Virginia service-role secret.'
 
-      - name: Pull production build environment and pin Virginia credential
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Prepare production build environment from AWS app environment
         run: |
           set -euo pipefail
-          test -n "$VERCEL_TOKEN" || { echo 'VERCEL_TOKEN is required for background runtime builds.' >&2; exit 1; }
-          rm -rf .vercel
+          test -s "$BACKGROUND_APP_ENV_JSON"
           ENV_FILE="$RUNNER_TEMP/background-production.env"
-          npx --yes vercel@59.3.0 env pull "$ENV_FILE" --environment=production --yes --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM_SLUG" --project "$VERCEL_PROJECT_ID" >/dev/null
-          test -s "$ENV_FILE"
-          chmod 600 "$ENV_FILE"
 
-          ENV_FILE="$ENV_FILE" KEY_FILE="$VIRGINIA_SERVICE_ROLE_FILE" VIRGINIA_SUPABASE_URL="$VIRGINIA_SUPABASE_URL" python <<'PY'
+          APP_ENV_JSON="$BACKGROUND_APP_ENV_JSON" ENV_FILE="$ENV_FILE" python <<'PY'
           import json
           import os
+          import re
           from pathlib import Path
 
-          path = Path(os.environ['ENV_FILE'])
-          with open(os.environ['KEY_FILE'], encoding='utf-8') as fh:
-              key = fh.read().strip()
-          lines = [
-              line for line in path.read_text(encoding='utf-8').splitlines()
-              if not (line.startswith('SUPABASE_SERVICE_ROLE_KEY=') or line.startswith('NEXT_PUBLIC_SUPABASE_URL='))
-          ]
-          lines.extend([
-              f"NEXT_PUBLIC_SUPABASE_URL={json.dumps(os.environ['VIRGINIA_SUPABASE_URL'])}",
-              f"SUPABASE_SERVICE_ROLE_KEY={json.dumps(key)}",
-              'PLATFORM_RUNTIME_PROVIDER="aws-background"',
-              'INTERNAL_APP_ORIGIN="http://127.0.0.1:3000"',
-          ])
-          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          with open(os.environ['APP_ENV_JSON'], encoding='utf-8') as fh:
+              values = json.load(fh)
+          if not isinstance(values, dict):
+              raise SystemExit('AWS app environment secret must contain a JSON object.')
+
+          values['PLATFORM_RUNTIME_PROVIDER'] = 'aws-background'
+          values['INTERNAL_APP_ORIGIN'] = 'http://127.0.0.1:3000'
+          key_pattern = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+          lines = []
+          for key in sorted(values):
+              if not key_pattern.match(key):
+                  raise SystemExit(f'Invalid environment key in AWS app environment: {key!r}')
+              value = values[key]
+              if value is None:
+                  continue
+              if isinstance(value, str):
+                  text = value
+              elif isinstance(value, (dict, list)):
+                  text = json.dumps(value, separators=(',', ':'))
+              else:
+                  text = str(value)
+              lines.append(f'{key}={json.dumps(text)}')
+          Path(os.environ['ENV_FILE']).write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
-          echo 'Temporary build environment pinned to the authoritative Virginia credential.'
+
+          test -s "$ENV_FILE"
+          chmod 600 "$ENV_FILE"
+          grep -F 'NEXT_PUBLIC_SUPABASE_URL="https://ftdsltatyqhtllyyefzp.supabase.co"' "$ENV_FILE" >/dev/null
+          grep -F 'PLATFORM_RUNTIME_PROVIDER="aws-background"' "$ENV_FILE" >/dev/null
+          echo 'Temporary build environment generated from the authoritative AWS app environment.'
 
       - name: Ensure ECR repository
         run: |
@@ -243,7 +251,7 @@ jobs:
             -f infra/aws/background-runtime/Dockerfile \
             -t "$IMAGE_URI" .
           docker push "$IMAGE_URI"
-          rm -f "$ENV_FILE" "$VIRGINIA_SERVICE_ROLE_FILE"
+          rm -f "$ENV_FILE" "$VIRGINIA_SERVICE_ROLE_FILE" "$BACKGROUND_APP_ENV_JSON"
           echo "uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
       - name: Deploy background runtime stack
@@ -321,7 +329,7 @@ jobs:
             echo '- Public endpoint: none'
             echo '- Supabase credential authority: AWS Virginia service-role secret'
             echo '- Shared app environment: repaired from authoritative Virginia credential before every deploy'
-            echo '- Build environment: Vercel settings retained, Supabase URL/key overwritten with authoritative Virginia values'
+            echo '- Build environment: generated from the authoritative AWS app-environment secret; no Vercel CLI dependency'
             echo '- Runtime Virginia Data API probe: passed'
             echo '- Scheduler Node routing: smoke-tested against private health + database probe'
             echo '- Functional cron behavior: verified separately by each scheduler activation batch probe'
