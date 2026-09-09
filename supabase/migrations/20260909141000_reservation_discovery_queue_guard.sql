@@ -53,11 +53,12 @@ begin
     return new;
   end if;
 
-  -- New locations and newly supplied/changed websites must be checked promptly.
+  -- Empty status is the existing recovery-worker contract for an unchecked row.
+  -- Queue immediately instead of inventing a second pending state.
   if tg_op = 'INSERT'
      or website_changed
-     or lower(coalesce(new.reservation_discovery_status, '')) in ('', 'no_website') then
-    new.reservation_discovery_status := 'pending';
+     or lower(coalesce(new.reservation_discovery_status, '')) = 'no_website' then
+    new.reservation_discovery_status := '';
     new.reservation_discovery_next_retry_at := now();
     new.reservation_discovery_checked_at := null;
     new.reservation_discovery_notes := case
