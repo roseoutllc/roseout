@@ -162,15 +162,50 @@ export async function promoteStoredGoogleReviewCandidates({
 
   const promotedByBatch = new Map<string, number>();
   const retainedReasonCounts: Record<string, number> = {};
+  const rejectedReasonCounts: Record<string, number> = {};
   let scanned = 0;
   let promoted = 0;
+  let rejected = 0;
   let retainedForReview = 0;
   const errors: string[] = [];
 
   for (const candidate of (data || []) as Candidate[]) {
     scanned += 1;
     const quality = evaluateStoredCandidate(candidate);
-    if (quality.decision !== "auto_import") {
+
+    if (quality.decision === "reject") {
+      const rejectionReason = reviewReasonFor(quality);
+      rejectedReasonCounts[rejectionReason] = (rejectedReasonCounts[rejectionReason] || 0) + 1;
+      const { error: rejectUpdateError } = await supabaseAdmin
+        .from("location_import_staging")
+        .update({
+          import_status: "rejected",
+          quality_status: "reject",
+          quality_score: quality.score,
+          curation_tier: "rejected",
+          public_visibility_tier: "hidden",
+          source_quality_status: "curated_google_rejected",
+          rejection_reason: rejectionReason,
+          low_level_reason: rejectionReason,
+          low_level_detected_at: new Date().toISOString(),
+          low_level_source: SOURCE,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", candidate.id)
+        .eq("source", SOURCE)
+        .eq("import_status", "staged")
+        .eq("duplicate_status", "unique")
+        .eq("quality_status", "review");
+
+      if (rejectUpdateError) {
+        errors.push(`${candidate.name || candidate.source_id}: ${rejectUpdateError.message}`);
+      } else {
+        rejected += 1;
+      }
+      continue;
+    }
+
+    if (quality.decision === "review") {
       const reviewReason = reviewReasonFor(quality);
       retainedReasonCounts[reviewReason] = (retainedReasonCounts[reviewReason] || 0) + 1;
       const { error: reviewUpdateError } = await supabaseAdmin
@@ -236,6 +271,8 @@ export async function promoteStoredGoogleReviewCandidates({
   return {
     scanned,
     promoted,
+    rejected,
+    rejectedReasonCounts,
     retainedForReview,
     retainedReasonCounts,
     published,
