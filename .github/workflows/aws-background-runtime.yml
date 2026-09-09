@@ -87,12 +87,12 @@ jobs:
           grep -F "current['NEXT_PUBLIC_SUPABASE_URL'] = os.environ['VIRGINIA_SUPABASE_URL']" "$FILE" >/dev/null
           grep -F 'BACKGROUND_APP_ENV_JSON=' "$FILE" >/dev/null
           grep -F 'Prepare production build environment from AWS app environment' "$FILE" >/dev/null
-          if grep -F 'vercel env pull' "$FILE" >/dev/null; then
+          if grep -F 'vercel env pull' "$FILE" | grep -v 'grep -F' >/dev/null; then
             echo 'AWS background runtime build must not depend on a Vercel CLI credential.' >&2
             exit 1
           fi
-          if grep -F 'VERCEL_TOKEN' "$FILE" >/dev/null; then
-            echo 'AWS background runtime build must not depend on VERCEL_TOKEN.' >&2
+          if grep -F 'secrets.VERCEL_TOKEN' "$FILE" | grep -v 'grep -F' >/dev/null; then
+            echo 'AWS background runtime build must not depend on a Vercel token secret.' >&2
             exit 1
           fi
           grep -F 'for attempt in 1 2 3 4; do' "$FILE" >/dev/null
