@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trackClientEvent } from "@/lib/analytics/trackClientEvent";
 import { getLocationImage } from "@/lib/locationImage";
@@ -36,6 +36,11 @@ type LocationCard = Record<string, unknown> & PlacementFields & {
   review_count?: number | string | null;
   user_ratings_total?: number | string | null;
   google_review_count?: number | string | null;
+  price?: string | number | null;
+  price_level?: string | number | null;
+  price_range?: string | null;
+  reservation_url?: string | null;
+  booking_url?: string | null;
 };
 type PairCard = PlacementFields & { restaurant?: LocationCard | null; activity?: LocationCard | null; distanceMiles?: number | null; walkingMinutes?: number | null; whyMatched?: string | null; why_it_matched?: string | null; matchReasons?: string[] | null };
 type SearchPayload = {
@@ -60,28 +65,13 @@ const PLAN_KEY = "theouthaven_plan";
 const LOCATION_KEY = "theouthaven_user_location";
 const FLOW_VERSION = "guided_create_v1";
 const JOURNEY_VERSION = "four_step";
-const INTERNAL_REASON = /qualified\s+as|general[_\s-]?activity|nearby options? outside|outside the requested|fallback|candidate pool|search radius|classification|domain qualification|geo relaxation/i;
 const WALKING_INTENT = /\b(?:walk|walking|walkable|walkability)\b|\bon\s+foot\b/i;
+const INTERNAL_REASON = /qualified\s+as|general[_\s-]?activity|nearby options? outside|outside the requested|fallback|candidate pool|search radius|classification|domain qualification|geo relaxation/i;
 
 const LOADING_LINES: Record<PlanType, string[]> = {
-  outing: [
-    "Finding your perfect outing...",
-    "Matching restaurants and activities...",
-    "Checking distance, ratings, and fit...",
-    "Building your strongest complete picks...",
-  ],
-  restaurant: [
-    "Finding your perfect restaurant...",
-    "Matching the food, vibe, and area...",
-    "Checking ratings and fit...",
-    "Building your strongest restaurant picks...",
-  ],
-  activity: [
-    "Finding your perfect activity...",
-    "Matching the vibe, area, and experience...",
-    "Checking ratings and fit...",
-    "Building your strongest activity picks...",
-  ],
+  outing: ["Finding your perfect outing...", "Matching restaurants and activities...", "Checking distance, ratings, and fit...", "Building your strongest complete picks..."],
+  restaurant: ["Finding your perfect restaurant...", "Matching the food, vibe, and area...", "Checking ratings and fit..."],
+  activity: ["Finding your perfect activity...", "Matching the vibe, area, and experience...", "Checking ratings and fit..."],
 };
 
 function track(eventName: string, metadata: Record<string, unknown>) {
@@ -93,91 +83,32 @@ function nameFor(location: LocationCard | null | undefined) { return location ? 
 function imageFor(location: LocationCard | null | undefined) { return location ? getLocationImage(location as never) : null; }
 function metaFor(location: LocationCard) { return [location.cuisine || location.cuisine_type || location.activity_type || location.primary_category, location.city, location.state].filter(Boolean).join(" · "); }
 function detailHref(location: LocationCard) { return getLocationDetailHref({ id: location.id, type: location.detail_location_type || location.location_type, sourceTable: location.source_table || location.sourceTable, location }); }
-function profileHref(location: LocationCard, returnToResults: string) {
-  const href = detailHref(location);
-  return `${href}${href.includes("?") ? "&" : "?"}from=${encodeURIComponent(returnToResults)}`;
-}
+function profileHref(location: LocationCard, returnToResults: string) { const href = detailHref(location); return `${href}${href.includes("?") ? "&" : "?"}from=${encodeURIComponent(returnToResults)}`; }
 function numeric(value: unknown) { const number = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN; return Number.isFinite(number) ? number : null; }
-function ratingFor(location: LocationCard) {
-  const rating = numeric(location.rating ?? location.google_rating ?? location.average_rating);
-  if (!rating || rating <= 0) return null;
-  const reviews = numeric(location.review_count ?? location.user_ratings_total ?? location.google_review_count);
-  return { value: rating.toFixed(1), reviews: reviews && reviews > 0 ? Math.round(reviews) : null };
+function ratingFor(location: LocationCard) { const value = numeric(location.rating ?? location.google_rating ?? location.average_rating); if (!value || value <= 0) return null; const reviews = numeric(location.review_count ?? location.user_ratings_total ?? location.google_review_count); return { value: value.toFixed(1), reviews: reviews && reviews > 0 ? Math.round(reviews) : null }; }
+function priceFor(location: LocationCard) {
+  if (typeof location.price_range === "string" && location.price_range.trim()) return location.price_range.trim();
+  if (typeof location.price === "string" && location.price.trim()) return location.price.trim();
+  const level = numeric(location.price_level ?? location.price);
+  if (!level || level <= 0) return null;
+  return "$".repeat(Math.max(1, Math.min(4, Math.round(level))));
 }
-function rawReasons(value: PairCard | LocationCard | null | undefined) {
-  if (!value) return [];
-  return [value.whyMatched, value.why_it_matched, ...(Array.isArray(value.matchReasons) ? value.matchReasons : [])]
-    .filter((reason): reason is string => typeof reason === "string" && Boolean(reason.trim()))
-    .flatMap((reason) => reason.split(/[;•]|\s+·\s+/).map((piece) => piece.trim()).filter(Boolean));
-}
-function humanTerm(value: string) {
-  return value
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-function requestedTerms(value: PairCard | LocationCard | null | undefined) {
-  const terms: string[] = [];
-  for (const piece of rawReasons(value)) {
-    const match = piece.match(/^(?:matched|matches?) requested (?:activity|restaurant|cuisine|food|experience|feature|amenity|vibe)?\s*terms?:\s*(.+)$/i)
-      || piece.match(/^(?:matched|matches?) (?:activity|restaurant|cuisine|food|experience|feature|amenity|vibe)?\s*(?:term|preference):\s*(.+)$/i);
-    if (!match?.[1]) continue;
-    match[1].split(",").map(humanTerm).filter(Boolean).forEach((term) => terms.push(term));
-  }
-  const unique = [...new Set(terms)].filter((term) => !terms.some((other) => other !== term && other.includes(term) && other.length > term.length));
-  return unique.slice(0, 2);
-}
+function reservationReady(location: LocationCard) { return Boolean(location.reservation_url || location.booking_url); }
 function cleanReason(value: unknown) {
   if (typeof value !== "string") return null;
-  const pieces = value
-    .split(/[;•]|\s+·\s+/)
-    .map((piece) => piece.trim())
-    .filter(Boolean)
-    .filter((piece) => !/requested locality|matched requested|matches? requested/i.test(piece))
-    .filter((piece) => !INTERNAL_REASON.test(piece));
-  return pieces.length ? pieces.slice(0, 1).join(" · ") : null;
+  const pieces = value.split(/[;•]|\s+·\s+/).map((part) => part.trim()).filter(Boolean).filter((part) => !/requested locality|matched requested|matches? requested/i.test(part)).filter((part) => !INTERNAL_REASON.test(part));
+  return pieces[0] || null;
 }
-function customerWhy(value: PairCard | LocationCard | null) {
+function customerWhy(value: PairCard | LocationCard | null | undefined) {
   if (!value) return null;
-  const direct = cleanReason(value.whyMatched) || cleanReason(value.why_it_matched);
-  if (direct) return direct;
-  const reasons = Array.isArray(value.matchReasons) ? value.matchReasons.map(cleanReason).filter((reason): reason is string => Boolean(reason)).slice(0, 1) : [];
-  return reasons.length ? reasons.join(" · ") : null;
-}
-function matchLabel(term: string) {
-  return term.replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-function pairMatchSummary(item: CompletePair) {
-  const terms = [...requestedTerms(item.pair), ...requestedTerms(item.restaurant), ...requestedTerms(item.activity)]
-    .filter((term, index, all) => all.indexOf(term) === index)
-    .filter((term, _, all) => !all.some((other) => other !== term && other.includes(term) && other.length > term.length))
-    .slice(0, 2);
-  const miles = Number(item.pair?.distanceMiles);
-  const walking = Number(item.pair?.walkingMinutes);
-  const distanceText = Number.isFinite(walking) && walking > 0 && walking <= 60
-    ? `${Math.round(walking)} min apart on foot`
-    : Number.isFinite(miles) && miles >= 0
-      ? `${miles.toFixed(1)} ${Math.abs(miles - 1) < 0.05 ? "mile" : "miles"} apart`
-      : null;
-  const termText = terms.map(matchLabel).join(" + ");
-  if (item.resultType === "same_venue") {
-    return termText ? `${termText}, together in one venue.` : "Dinner + activity together in one venue.";
-  }
-  if (termText && distanceText) return `${termText}, with both stops ${distanceText}.`;
-  if (termText) return `${termText}, matched together from what you asked for.`;
-  if (distanceText) return `Restaurant + activity, with both stops ${distanceText}.`;
-  return "Restaurant + activity, paired from your strongest search matches.";
+  return cleanReason(value.whyMatched) || cleanReason(value.why_it_matched) || (Array.isArray(value.matchReasons) ? value.matchReasons.map(cleanReason).find(Boolean) || null : null);
 }
 function distanceFor(pair: PairCard | null, walkingRequested: boolean) {
   if (!pair) return null;
-  if (walkingRequested) {
-    const walking = Number(pair.walkingMinutes);
-    if (Number.isFinite(walking) && walking > 0) return `${Math.round(walking)} min walk`;
-  }
-  const miles = Number(pair.distanceMiles);
-  if (!Number.isFinite(miles) || miles < 0) return null;
-  return `${miles.toFixed(1)} ${Math.abs(miles - 1) < 0.05 ? "mile" : "miles"} away`;
+  const walking = numeric(pair.walkingMinutes);
+  if (walkingRequested && walking && walking > 0) return `${Math.round(walking)} min walk`;
+  const miles = numeric(pair.distanceMiles);
+  return miles !== null && miles >= 0 ? `${miles.toFixed(1)} ${Math.abs(miles - 1) < 0.05 ? "mile" : "miles"} apart` : null;
 }
 function isSponsored(value: PlacementFields | null | undefined) { return Boolean(value?.sponsored || value?.isSponsored || value?.is_sponsored || String(value?.placement_type || "").toLowerCase() === "sponsored"); }
 function sponsoredPair(item: CompletePair) { return isSponsored(item.placement) || isSponsored(item.restaurant) || isSponsored(item.activity); }
@@ -188,125 +119,107 @@ function completePairs(payload: SearchPayload | null | undefined): CompletePair[
   const sameVenue = (payload.sameVenueResults || payload.same_venue_results || []).map((location) => ({ restaurant: location, activity: location, pair: null, resultType: "same_venue" as const, placement: location }));
   return [...pairs, ...sameVenue];
 }
-function readCoordinates() {
-  try { const raw = localStorage.getItem(LOCATION_KEY); if (!raw) return null; const parsed = JSON.parse(raw) as { latitude?: unknown; longitude?: unknown }; const latitude = Number(parsed.latitude); const longitude = Number(parsed.longitude); return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null; } catch { return null; }
-}
+function readCoordinates() { try { const raw = localStorage.getItem(LOCATION_KEY); if (!raw) return null; const parsed = JSON.parse(raw) as { latitude?: unknown; longitude?: unknown }; const latitude = Number(parsed.latitude); const longitude = Number(parsed.longitude); return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null; } catch { return null; } }
 function outingTimeFrom(payload: SearchPayload): OutingTimeValue {
   const time = payload.plannedTime || payload.planned_time || payload.searchV2?.plannedTime || null;
   const confidence = time?.confidence === "exact" || time?.confidence === "date_only" ? time.confidence : "none";
   return { plannedFor: time?.plannedFor || null, timezone: time?.timezone || "America/New_York", outingDateContext: time?.dateContext || null, outingTimeConfidence: confidence, remindersEnabled: Boolean(time?.shouldSchedulePreOutingReminders), nextMorningFollowupEnabled: Boolean(time?.nextMorningFollowupDate), nextMorningFollowupDate: time?.nextMorningFollowupDate || null, outingDateTimeText: payload.outingDateTimeText || null, outingDateLabel: payload.outingDateLabel || payload.parsedDateText || null, outingTimeLabel: payload.outingTimeLabel || payload.parsedTimeText || null };
 }
 
-function RatingBadge({ location }: { location: LocationCard }) {
-  const rating = ratingFor(location);
-  if (!rating) return null;
-  return <span className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/80 px-2.5 py-1.5 text-[10px] font-black text-white shadow-lg shadow-black/30 backdrop-blur-md"><span className="text-amber-300">★</span>{rating.value}{rating.reviews ? <span className="font-bold text-white/45">({rating.reviews.toLocaleString()})</span> : null}</span>;
-}
-
-function VenuePanel({ location, label, large = false }: { location: LocationCard; label: string; large?: boolean }) {
+function VenueRow({ location, label }: { location: LocationCard; label: string }) {
   const image = imageFor(location);
+  const rating = ratingFor(location);
+  const price = priceFor(location);
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#101010]">
-      <div className={`relative w-full overflow-hidden bg-white/[0.04] ${large ? "h-48 sm:h-56" : "h-36 sm:h-40"}`}>
-        {image ? <img src={image} alt={nameFor(location)} className="absolute inset-0 block h-full w-full object-cover object-center" /> : <div className="flex h-full w-full items-center justify-center text-4xl">📍</div>}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-transparent" />
-        <RatingBadge location={location} />
-        <span className="absolute bottom-3 left-3 rounded-full bg-black/75 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white/90 backdrop-blur-sm">{label}</span>
+    <div className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-3">
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-white/[0.05]">
+        {image ? <img src={image} alt={nameFor(location)} className="absolute inset-0 h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-2xl">📍</div>}
       </div>
-      <div className="p-3.5"><h3 className="truncate text-base font-black">{nameFor(location)}</h3>{metaFor(location) ? <p className="mt-1 truncate text-xs font-semibold text-white/45">{metaFor(location)}</p> : null}</div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#ff7188]">{label}</p>
+        <h3 className="mt-1 truncate text-base font-black">{nameFor(location)}</h3>
+        {metaFor(location) ? <p className="mt-1 truncate text-xs font-semibold text-white/45">{metaFor(location)}</p> : null}
+        <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-white/55">
+          {rating ? <span>★ {rating.value}{rating.reviews ? ` (${rating.reviews.toLocaleString()})` : ""}</span> : null}
+          {price ? <span>· {price}</span> : null}
+          {reservationReady(location) ? <span className="text-emerald-300">· Reservation link found</span> : null}
+        </div>
+      </div>
     </div>
   );
 }
 
-function PairCardView({ item, rank, premium, walkingRequested, planType, returnToResults, onUse }: { item: CompletePair; rank: number; premium: boolean; walkingRequested: boolean; planType: PlanType; returnToResults: string; onUse: () => void }) {
+function PairCardView({ item, rank, walkingRequested, returnToResults, onUse }: { item: CompletePair; rank: number; walkingRequested: boolean; returnToResults: string; onUse: () => void }) {
+  const best = rank === 1 && !sponsoredPair(item);
   const sponsored = sponsoredPair(item);
   const distance = distanceFor(item.pair, walkingRequested);
-  const reason = pairMatchSummary(item);
-  const placementGroup = sponsored ? "sponsored" : premium ? "top_pick" : "organic";
+  const why = customerWhy(item.pair) || customerWhy(item.restaurant) || customerWhy(item.activity) || (item.resultType === "same_venue" ? "Food and activity together in one venue." : "A strong restaurant + activity match for what you asked for.");
   const route = item.resultType === "pair" ? buildGoogleDirectionsUrl({ origin: item.restaurant, destination: item.activity, travelMode: walkingRequested ? "walking" : "driving" }) : null;
-  const trackProfile = (location: LocationCard, locationType: "restaurant" | "activity") => {
-    track("planner_profile_viewed", {
-      step: 3,
-      plan_type: planType,
-      rank,
-      result_type: item.resultType,
-      placement_group: placementGroup,
-      sponsored,
-      sponsor_id: sponsorId(item),
-      location_id: location.id || null,
-      location_type: locationType,
-      flow_version: FLOW_VERSION,
-      journey_version: JOURNEY_VERSION,
-    });
-  };
   return (
-    <article className={`flex h-full flex-col rounded-[1.5rem] border bg-[#0b0b0b] p-4 shadow-xl shadow-black/30 ${premium ? "border-[#e1062a]/35" : "border-white/10"}`}>
-      <div className="flex items-center justify-between gap-3"><span className={`rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] ${sponsored ? "bg-white text-black" : premium ? "bg-[#e1062a] text-white" : "border border-white/10 bg-white/[0.04] text-white/60"}`}>{sponsored ? "Sponsored" : premium ? "Top Pick" : `Plan ${rank}`}</span><div className="flex items-center gap-2 text-[10px] font-black text-white/40">{distance ? <span>{distance}</span> : null}<span className="text-white/20">#{rank}</span></div></div>
-      <div className="mt-4 grid gap-3">{item.resultType === "same_venue" ? <VenuePanel location={item.restaurant} label="Restaurant + Activity · Same venue" /> : <><VenuePanel location={item.restaurant} label="Restaurant" /><VenuePanel location={item.activity} label="Activity" /></>}</div>
-      <div className={`mt-3 grid gap-2 ${item.resultType === "same_venue" ? "grid-cols-1" : "grid-cols-2"}`}>
-        <Link href={profileHref(item.restaurant, returnToResults)} onClick={() => trackProfile(item.restaurant, "restaurant")} className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.08em] text-white/65 transition hover:border-white/20 hover:text-white">View {item.resultType === "same_venue" ? "Profile" : "Restaurant Profile"}</Link>
-        {item.resultType !== "same_venue" ? <Link href={profileHref(item.activity, returnToResults)} onClick={() => trackProfile(item.activity, "activity")} className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.08em] text-white/65 transition hover:border-white/20 hover:text-white">View Activity Profile</Link> : null}
+    <article className={`rounded-[1.5rem] border bg-[#0b0b0b] p-4 shadow-xl shadow-black/30 ${best ? "border-[#e1062a]/70 ring-1 ring-[#e1062a]/20 lg:p-5" : "border-white/10"}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className={`rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] ${sponsored ? "bg-white text-black" : best ? "bg-[#e1062a] text-white" : "border border-white/10 bg-white/[0.04] text-white/55"}`}>{sponsored ? "Sponsored" : best ? "Best Match" : `Option ${rank}`}</span>
+        {distance ? <span className="text-xs font-black text-white/55">{distance}</span> : null}
       </div>
-      <div className="mt-4 min-h-14 rounded-2xl border border-white/8 bg-white/[0.025] px-3.5 py-3"><p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#e1062a]">The match</p><p className="mt-1.5 text-sm font-semibold leading-5 text-white/58">{reason}</p></div>
-      <div className="mt-auto flex items-center gap-2 pt-5"><button type="button" onClick={onUse} className="flex-1 rounded-full bg-[#e1062a] px-5 py-3.5 text-xs font-black uppercase tracking-[0.1em] transition hover:bg-[#ff1744]">Use This Plan →</button>{route ? <a href={route} target="_blank" rel="noopener noreferrer" onClick={() => track("planner_pick_route_clicked", { step: 3, rank, placement_group: placementGroup, sponsored })} className="rounded-full border border-white/10 px-4 py-3 text-xs font-black text-white/65 hover:border-white/20 hover:text-white">Route</a> : null}</div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <VenueRow location={item.restaurant} label={item.resultType === "same_venue" ? "Restaurant + activity" : "Restaurant"} />
+        {item.resultType !== "same_venue" ? <VenueRow location={item.activity} label="Activity" /> : null}
+      </div>
+      <div className="mt-4 rounded-2xl border border-[#e1062a]/20 bg-[#e1062a]/[0.055] px-4 py-3">
+        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#ff7188]">Why it fits</p>
+        <p className="mt-1.5 text-sm font-semibold leading-5 text-white/70">{why}</p>
+      </div>
+      <button type="button" onClick={onUse} className={`mt-4 w-full rounded-full bg-[#e1062a] px-5 py-4 font-black uppercase tracking-[0.08em] transition hover:bg-[#ff1744] ${best ? "text-sm" : "text-xs"}`}>Choose this outing →</button>
+      <details className="mt-3 rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-3 text-sm">
+        <summary className="cursor-pointer list-none font-black text-white/55">More details <span className="float-right text-white/30">+</span></summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <Link href={profileHref(item.restaurant, returnToResults)} className="rounded-full border border-white/10 px-4 py-2.5 text-center text-xs font-black text-white/65">View restaurant</Link>
+          {item.resultType !== "same_venue" ? <Link href={profileHref(item.activity, returnToResults)} className="rounded-full border border-white/10 px-4 py-2.5 text-center text-xs font-black text-white/65">View activity</Link> : null}
+          {route ? <a href={route} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/10 px-4 py-2.5 text-center text-xs font-black text-white/65 sm:col-span-2">Open route</a> : null}
+        </div>
+      </details>
     </article>
   );
 }
 
-function BuilderVisualCard({ location, type, selected, onSelect }: { location: LocationCard; type: "restaurant" | "activity"; selected: boolean; onSelect: () => void }) {
+function SingleCard({ location, rank, planType, returnToResults, onUse }: { location: LocationCard; rank: number; planType: PlanType; returnToResults: string; onUse: () => void }) {
   const image = imageFor(location);
+  const rating = ratingFor(location);
+  const price = priceFor(location);
+  const best = rank === 1;
+  const why = customerWhy(location) || "A strong match for the outing you described.";
   return (
-    <button type="button" onClick={onSelect} aria-pressed={selected} className={`group w-full overflow-hidden rounded-[1.25rem] border text-left transition ${selected ? "border-[#e1062a]/75 bg-[#e1062a]/10 shadow-[0_0_0_1px_rgba(225,6,42,0.18),0_14px_34px_rgba(0,0,0,0.28)]" : "border-white/10 bg-[#101010] hover:border-white/22"}`}>
-      <div className="relative h-40 w-full overflow-hidden bg-white/[0.04] sm:h-44 xl:h-48">
-        {image ? <img src={image} alt={nameFor(location)} className="absolute inset-0 h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full items-center justify-center text-4xl">{type === "restaurant" ? "🍽️" : "✨"}</div>}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/0 to-black/10" />
-        <RatingBadge location={location} />
-        <span className={`absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-black backdrop-blur-md ${selected ? "border-[#e1062a] bg-[#e1062a] text-white" : "border-white/20 bg-black/65 text-transparent"}`}>✓</span>
-        <span className="absolute bottom-3 left-3 rounded-full bg-black/75 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white/90">{type}</span>
+    <article className={`overflow-hidden rounded-[1.5rem] border bg-[#0b0b0b] shadow-xl shadow-black/30 ${best ? "border-[#e1062a]/70 ring-1 ring-[#e1062a]/20" : "border-white/10"}`}>
+      <div className="relative h-48 bg-white/[0.04]">
+        {image ? <img src={image} alt={nameFor(location)} className="absolute inset-0 h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-4xl">📍</div>}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/10" />
+        <span className={`absolute left-3 top-3 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] ${best ? "bg-[#e1062a] text-white" : "bg-black/75 text-white/70"}`}>{best ? "Best Match" : `Option ${rank}`}</span>
+        <div className="absolute bottom-3 left-3 right-3"><h3 className="truncate text-lg font-black">{nameFor(location)}</h3><p className="mt-1 truncate text-xs font-semibold text-white/60">{metaFor(location)}</p></div>
       </div>
-      <div className="p-4"><h4 className="truncate text-base font-black text-white">{nameFor(location)}</h4><p className="mt-1 truncate text-xs font-semibold text-white/42">{metaFor(location)}</p><div className="mt-3 flex items-center justify-between"><span className={`text-[10px] font-black uppercase tracking-[0.12em] ${selected ? "text-[#ff7188]" : "text-white/35"}`}>{selected ? "Selected" : "Choose this stop"}</span><span className="text-sm text-white/30">→</span></div></div>
+      <div className="p-4">
+        <div className="flex flex-wrap gap-2 text-xs font-bold text-white/55">{rating ? <span>★ {rating.value}{rating.reviews ? ` (${rating.reviews.toLocaleString()})` : ""}</span> : null}{price ? <span>· {price}</span> : null}{reservationReady(location) ? <span className="text-emerald-300">· Reservation link found</span> : null}</div>
+        <div className="mt-3 rounded-2xl bg-white/[0.03] px-3.5 py-3"><p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#ff7188]">Why it fits</p><p className="mt-1.5 text-sm font-semibold leading-5 text-white/65">{why}</p></div>
+        <button type="button" onClick={onUse} className="mt-4 w-full rounded-full bg-[#e1062a] px-5 py-3.5 text-xs font-black uppercase tracking-[0.1em]">Choose this {planType} →</button>
+        <details className="mt-3 text-center text-xs font-black text-white/45"><summary className="cursor-pointer list-none">More details</summary><Link href={profileHref(location, returnToResults)} className="mt-3 inline-flex rounded-full border border-white/10 px-4 py-2.5 text-white/65">View profile</Link></details>
+      </div>
+    </article>
+  );
+}
+
+function BuilderChoice({ location, selected, label, onSelect }: { location: LocationCard; selected: boolean; label: string; onSelect: () => void }) {
+  const rating = ratingFor(location);
+  return (
+    <button type="button" onClick={onSelect} aria-pressed={selected} className={`w-full rounded-2xl border p-3 text-left transition ${selected ? "border-[#e1062a]/65 bg-[#e1062a]/10" : "border-white/10 bg-black/25 hover:border-white/20"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/35">{label}</p><p className="mt-1 truncate text-sm font-black">{nameFor(location)}</p><p className="mt-1 truncate text-[11px] font-semibold text-white/40">{metaFor(location)}</p></div>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${selected ? "bg-[#e1062a] text-white" : "bg-white/[0.05] text-white/45"}`}>{selected ? "✓" : rating ? `★ ${rating.value}` : "+"}</span>
+      </div>
     </button>
   );
 }
 
-function SelectedSummary({ location, label }: { location: LocationCard | null; label: string }) {
-  const image = imageFor(location);
-  return <div className="rounded-2xl border border-white/10 bg-black/30 p-3"><p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/35">{label}</p>{location ? <div className="mt-2 flex items-center gap-3"><div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/[0.05]">{image ? <img src={image} alt={nameFor(location)} className="absolute inset-0 h-full w-full object-cover" /> : null}</div><div className="min-w-0"><p className="truncate text-sm font-black">{nameFor(location)}</p><p className="mt-0.5 truncate text-[11px] font-semibold text-white/40">{metaFor(location)}</p></div></div> : <p className="mt-2 text-sm font-semibold text-white/35">Not selected yet</p>}</div>;
-}
-
-function LoadingResults({ planType, loadingIndex }: { planType: PlanType; loadingIndex: number }) {
-  const label = LOADING_LINES[planType][loadingIndex % LOADING_LINES[planType].length];
-  return (
-    <div className="w-full overflow-hidden rounded-[1.5rem] border border-white/15 bg-[radial-gradient(circle_at_top,rgba(225,6,42,0.13),transparent_34%),#090909] p-4 shadow-2xl shadow-black/45 sm:p-5">
-      <div className="mb-5 flex items-start gap-4 sm:mb-6">
-        <div className="relative mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#e1062a]/40 bg-[#e1062a]/10 shadow-[0_0_28px_rgba(225,6,42,0.18)]">
-          <span className="absolute inset-1.5 animate-ping rounded-full bg-[#e1062a]/15" />
-          <span className="relative h-2.5 w-2.5 animate-pulse rounded-full bg-[#e1062a]" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#e1062a]">TheOutHaven is searching</p>
-          <h2 className="mt-1.5 text-xl font-black tracking-[-0.035em] text-white sm:text-2xl">{label}</h2>
-          <p className="mt-2 max-w-2xl text-xs font-semibold leading-5 text-white/45 sm:text-sm">We’re comparing the best matches for the plan you just created. Your picks will appear here as soon as they’re ready.</p>
-        </div>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-3">
-        {[0, 1, 2, 3, 4, 5].map((item) => (
-          <div key={item} className="overflow-hidden rounded-[1.35rem] border border-white/15 bg-[#101010] shadow-lg shadow-black/25">
-            <div className="h-40 animate-pulse bg-white/[0.11] sm:h-44" />
-            <div className="space-y-3.5 p-4">
-              <div className="h-3 w-24 animate-pulse rounded-full bg-[#e1062a]/35" />
-              <div className="h-5 w-3/4 animate-pulse rounded-full bg-white/[0.16]" />
-              <div className="h-4 w-full animate-pulse rounded-full bg-white/[0.11]" />
-              <div className="h-4 w-4/5 animate-pulse rounded-full bg-white/[0.09]" />
-              <div className="h-24 animate-pulse rounded-2xl border border-white/5 bg-white/[0.075]" />
-              <div className="h-11 animate-pulse rounded-full bg-white/[0.12]" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function LoadingResults({ planType, index }: { planType: PlanType; index: number }) {
+  return <div className="rounded-[1.5rem] border border-white/10 bg-[#090909] p-5"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#e1062a]">TheOutHaven is searching</p><h2 className="mt-2 text-2xl font-black">{LOADING_LINES[planType][index % LOADING_LINES[planType].length]}</h2><div className="mt-6 grid gap-4 lg:grid-cols-2">{[0,1,2,3].map((item) => <div key={item} className="h-72 animate-pulse rounded-[1.4rem] border border-white/10 bg-white/[0.05]" />)}</div></div>;
 }
 
 export default function GuidedResultsPageV4() {
@@ -316,23 +229,18 @@ export default function GuidedResultsPageV4() {
   const planType = planTypeFrom(searchParams.get("planType"));
   const walkingRequested = WALKING_INTENT.test(prompt);
   const returnToResults = `/create${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
-  const builderRef = useRef<HTMLElement | null>(null);
   const [payload, setPayload] = useState<SearchPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingIndex, setLoadingIndex] = useState(0);
   const [error, setError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
-  const [showBuilder, setShowBuilder] = useState(false);
   const [selectedRestaurant, setSelectedRestaurant] = useState<LocationCard | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<LocationCard | null>(null);
 
   useEffect(() => {
     if (!loading) return;
-    setLoadingIndex(0);
-    const interval = window.setInterval(() => {
-      setLoadingIndex((current) => (current + 1) % LOADING_LINES[planType].length);
-    }, 1800);
-    return () => window.clearInterval(interval);
+    const timer = window.setInterval(() => setLoadingIndex((current) => (current + 1) % LOADING_LINES[planType].length), 1800);
+    return () => window.clearInterval(timer);
   }, [loading, planType]);
 
   useEffect(() => {
@@ -343,67 +251,53 @@ export default function GuidedResultsPageV4() {
     setLoading(true); setError("");
     fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ input: prompt, selectedSearchLane: laneFor(planType), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York", useCurrentLocation: Boolean(coordinates), userLatitude: coordinates?.latitude, userLongitude: coordinates?.longitude, guidedFlow: FLOW_VERSION }) })
       .then(async (response) => { const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.message || data.error || "We couldn’t build your picks right now."); return data as SearchPayload; })
-      .then((data) => {
-        if (controller.signal.aborted) return;
-        setPayload(data);
-        const result = data.searchV2 || data;
-        const pairs = completePairs(result).slice(0, 6);
-        track("planner_results_viewed", { step: 3, plan_type: planType, pair_count: completePairs(result).length, displayed_pair_count: planType === "outing" ? pairs.length : null, restaurant_count: result.restaurants?.length || 0, activity_count: result.activities?.length || 0, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION });
-        track("planner_pick_screen_viewed", { step: 3, plan_type: planType, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION });
-        if (planType === "outing") pairs.forEach((item, index) => { const sponsored = sponsoredPair(item); track("planner_pair_impression", { step: 3, rank: index + 1, placement_group: index < 3 ? (sponsored ? "sponsored" : "top_pick") : "organic", placement_slot: index + 1, sponsored, sponsor_id: sponsorId(item), restaurant_id: item.restaurant.id || null, activity_id: item.activity.id || null, restaurant_rating: ratingFor(item.restaurant)?.value || null, activity_rating: ratingFor(item.activity)?.value || null, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION }); });
-      })
+      .then((data) => { if (controller.signal.aborted) return; setPayload(data); const next = data.searchV2 || data; track("planner_results_viewed", { step: 3, plan_type: planType, pair_count: completePairs(next).length, restaurant_count: next.restaurants?.length || 0, activity_count: next.activities?.length || 0, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION }); track("planner_pick_screen_viewed", { step: 3, plan_type: planType, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION }); })
       .catch((err: unknown) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "We couldn’t build your picks right now."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [planType, prompt, retryKey]);
 
   const result = payload?.searchV2 || payload;
-  const displayedPairs = useMemo(() => completePairs(result).slice(0, 6), [result]);
-  const topPicks = displayedPairs.slice(0, 3);
-  const morePairs = displayedPairs.slice(3, 6);
+  const pairs = useMemo(() => completePairs(result).slice(0, 6), [result]);
   const restaurants = useMemo(() => (result?.restaurants || []).slice(0, 6), [result]);
   const activities = useMemo(() => (result?.activities || []).slice(0, 6), [result]);
   const singles = planType === "restaurant" ? restaurants : activities;
-  const hasResults = planType === "outing" ? displayedPairs.length > 0 : singles.length > 0;
+  const hasResults = planType === "outing" ? pairs.length > 0 : singles.length > 0;
 
-  function openPlan(restaurant: LocationCard | null, activity: LocationCard | null, pair: PairCard | null, rank: number | null, resultType: string, placementGroup: string, sponsored = false, sponsor: string | null = null) {
-    if (!restaurant && !activity) return;
+  function openPlan(restaurant: LocationCard | null, activity: LocationCard | null, pair: PairCard | null, rank: number | null, resultType: string, sponsored = false, sponsor: string | null = null) {
     const outingTime = outingTimeFrom(result || {});
     localStorage.setItem(PLAN_KEY, JSON.stringify({ restaurant, activity, locations: [restaurant, activity].filter(Boolean), distancePreference: walkingRequested ? "walking" : "miles", savedAt: Date.now(), outingTime, outingTiming: { outingDateLabel: outingTime.outingDateLabel, outingTimeLabel: outingTime.outingTimeLabel, outingDateTimeText: outingTime.outingDateTimeText, outingTimeConfidence: outingTime.outingTimeConfidence } }));
-    track("planner_plan_selected", { step: 3, plan_type: planType, rank, result_type: resultType, placement_group: placementGroup, sponsored, sponsor_id: sponsor, restaurant_id: restaurant?.id || null, activity_id: activity?.id || null, restaurant_rating: restaurant ? ratingFor(restaurant)?.value || null : null, activity_rating: activity ? ratingFor(activity)?.value || null : null, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION });
-    const params = new URLSearchParams({ q: prompt, guidedFlow: FLOW_VERSION, journey: JOURNEY_VERSION });
+    track("planner_plan_selected", { step: 3, plan_type: planType, rank, result_type: resultType, placement_group: sponsored ? "sponsored" : rank === 1 ? "best_match" : resultType === "custom_pair" ? "builder" : "organic", sponsored, sponsor_id: sponsor, restaurant_id: restaurant?.id || null, activity_id: activity?.id || null, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION });
+    const params = new URLSearchParams({ q: prompt, guidedFlow: FLOW_VERSION, journey: JOURNEY_VERSION, timezone: outingTime.timezone, outingTimeConfidence: outingTime.outingTimeConfidence });
     if (outingTime.plannedFor) params.set("plannedFor", outingTime.plannedFor);
-    params.set("timezone", outingTime.timezone);
     if (outingTime.outingDateContext) params.set("outingDateContext", outingTime.outingDateContext);
-    params.set("outingTimeConfidence", outingTime.outingTimeConfidence);
     if (outingTime.outingDateTimeText) params.set("outingDateTimeText", outingTime.outingDateTimeText);
     if (outingTime.outingDateLabel) params.set("outingDateLabel", outingTime.outingDateLabel);
     if (outingTime.outingTimeLabel) params.set("outingTimeLabel", outingTime.outingTimeLabel);
     router.push(`/plan?${params.toString()}`);
   }
 
-  function revealBuilder() { setShowBuilder(true); track("planner_build_own_opened", { step: 3, restaurant_count: restaurants.length, activity_count: activities.length, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION }); window.setTimeout(() => builderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 30); }
-  function useCustomPair() { if (!selectedRestaurant || !selectedActivity) return; track("planner_custom_pair_selected", { step: 3, restaurant_id: selectedRestaurant.id || null, activity_id: selectedActivity.id || null, restaurant_rating: ratingFor(selectedRestaurant)?.value || null, activity_rating: ratingFor(selectedActivity)?.value || null, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION }); openPlan(selectedRestaurant, selectedActivity, null, null, "custom_pair", "builder"); }
-
   return (
     <main className="min-h-screen bg-[#050505] pb-16 text-white">
       <GuidedJourneySteps activeStep={3} className="max-w-5xl" />
-      <section className="border-b border-white/10 bg-[radial-gradient(circle_at_top,rgba(225,6,42,0.14),transparent_36%),linear-gradient(180deg,#050505_0%,#090706_100%)] px-4 pb-7 pt-6 sm:px-6 sm:pb-9 sm:pt-8"><div className="mx-auto max-w-6xl"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">Step 3 of 4 · Pick</p><h1 className="mt-2 text-3xl font-black tracking-[-0.045em] sm:text-5xl">{planType === "outing" ? "Pick your complete outing." : planType === "restaurant" ? "Pick your restaurant." : "Pick your activity."}</h1><p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-white/50 sm:text-base">{planType === "outing" ? "Start with our strongest complete pairs. If none feel right, build your own combination." : "Choose the option that fits best and move straight to completing your outing."}</p></div><Link href="/create" className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-black text-white/65 hover:text-white">Start over</Link></div></div></section>
+      <section className="border-b border-white/10 px-4 pb-7 pt-6 sm:px-6 sm:pb-9 sm:pt-8"><div className="mx-auto max-w-6xl"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">Step 3 of 4 · Pick</p><h1 className="mt-2 text-3xl font-black tracking-[-0.045em] sm:text-5xl">{planType === "outing" ? "Choose your outing." : planType === "restaurant" ? "Choose your restaurant." : "Choose your activity."}</h1><p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/50 sm:text-base">Your strongest match is first. Compare only what matters, then choose and finish the plan.</p></div><Link href="/create" className="rounded-full border border-white/10 px-4 py-2.5 text-xs font-black text-white/60">Adjust plan</Link></div></div></section>
 
       <section className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-9">
-        {loading ? <LoadingResults planType={planType} loadingIndex={loadingIndex} /> : error ? <div className="rounded-[1.4rem] border border-red-400/20 bg-red-500/10 p-6"><h2 className="text-xl font-black">We couldn’t load your picks.</h2><p className="mt-2 text-sm font-semibold text-red-100/70">{error}</p><button type="button" onClick={() => setRetryKey((value) => value + 1)} className="mt-5 rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.1em]">Try Again</button></div> : !hasResults ? <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.035] p-6 text-center"><h2 className="text-2xl font-black">No strong picks yet.</h2><p className="mx-auto mt-2 max-w-xl text-sm font-semibold text-white/45">Adjust the area or preferences and we’ll try again.</p><Link href="/create" className="mt-5 inline-flex rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.1em]">Adjust My Plan</Link></div> : planType === "outing" ? <>
-          <div><div className="mb-5 flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#e1062a]">Curated for your plan</p><h2 className="mt-1 text-2xl font-black">TheOutHaven Top Picks</h2></div><p className="max-w-md text-xs font-semibold leading-5 text-white/35">Paid placements will always be clearly marked Sponsored.</p></div><div className="grid items-stretch gap-5 lg:grid-cols-3">{topPicks.map((item, index) => { const sponsored = sponsoredPair(item); return <PairCardView key={`${item.restaurant.id}-${item.activity.id}-${index}`} item={item} rank={index + 1} premium walkingRequested={walkingRequested} planType={planType} returnToResults={returnToResults} onUse={() => openPlan(item.restaurant, item.activity, item.pair, index + 1, item.resultType, sponsored ? "sponsored" : "top_pick", sponsored, sponsorId(item))} />; })}</div></div>
-          {morePairs.length ? <div className="mt-10"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">More strong matches</p><h2 className="mt-1 text-2xl font-black">More complete outings</h2><div className="mt-5 grid items-stretch gap-5 lg:grid-cols-3">{morePairs.map((item, index) => { const rank = index + 4; return <PairCardView key={`${item.restaurant.id}-${item.activity.id}-${rank}`} item={item} rank={rank} premium={false} walkingRequested={walkingRequested} planType={planType} returnToResults={returnToResults} onUse={() => openPlan(item.restaurant, item.activity, item.pair, rank, item.resultType, "organic")} />; })}</div></div> : null}
-          {restaurants.length && activities.length ? <div className="mt-10 rounded-[1.5rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#e1062a]">Prefer to choose each stop?</p><h2 className="mt-1 text-xl font-black">Build your own complete outing.</h2><p className="mt-1 text-sm font-semibold text-white/45">Mix a restaurant and activity from the same search results.</p></div><button type="button" onClick={revealBuilder} className="mt-4 shrink-0 rounded-full border border-[#e1062a]/45 bg-[#e1062a]/10 px-6 py-3 text-xs font-black uppercase tracking-[0.1em] transition hover:bg-[#e1062a]/20 sm:mt-0">Build My Own Outing ↓</button></div> : null}
-
-          {showBuilder ? <section ref={builderRef} className="scroll-mt-28 mt-10 overflow-hidden rounded-[1.65rem] border border-white/10 bg-[#0b0b0b] shadow-2xl shadow-black/35"><div className="border-b border-white/10 bg-[radial-gradient(circle_at_left,rgba(225,6,42,0.13),transparent_40%)] px-5 py-5 sm:px-7"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#e1062a]">Outing Builder</p><h2 className="mt-1 text-2xl font-black sm:text-3xl">Build your own outing</h2><p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-white/45">Choose one restaurant and one activity. Large photos and ratings make it easier to compare.</p></div><button type="button" onClick={() => setShowBuilder(false)} className="rounded-full border border-white/10 px-4 py-2 text-xs font-black text-white/55 hover:text-white">Close</button></div></div>
-            <div className="grid gap-6 p-5 sm:p-7 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_330px]">
-              <div className="rounded-[1.35rem] border border-white/10 bg-black/25 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#e1062a]">Restaurant</p><h3 className="mt-1 text-lg font-black">Choose where to eat</h3></div>{selectedRestaurant ? <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-[10px] font-black text-emerald-300">✓ Selected</span> : null}</div><div className="mt-4 max-h-[760px] space-y-4 overflow-y-auto pr-1">{restaurants.map((location) => <BuilderVisualCard key={`r-${location.id}`} location={location} type="restaurant" selected={String(location.id) === String(selectedRestaurant?.id)} onSelect={() => { setSelectedRestaurant(location); track("planner_custom_restaurant_selected", { step: 3, location_id: location.id || null, rating: ratingFor(location)?.value || null, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION }); }} />)}</div></div>
-              <div className="rounded-[1.35rem] border border-white/10 bg-black/25 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#e1062a]">Activity</p><h3 className="mt-1 text-lg font-black">Choose what to do</h3></div>{selectedActivity ? <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-[10px] font-black text-emerald-300">✓ Selected</span> : null}</div><div className="mt-4 max-h-[760px] space-y-4 overflow-y-auto pr-1">{activities.map((location) => <BuilderVisualCard key={`a-${location.id}`} location={location} type="activity" selected={String(location.id) === String(selectedActivity?.id)} onSelect={() => { setSelectedActivity(location); track("planner_custom_activity_selected", { step: 3, location_id: location.id || null, rating: ratingFor(location)?.value || null, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION }); }} />)}</div></div>
-              <aside className="self-start rounded-[1.35rem] border border-[#e1062a]/25 bg-[#e1062a]/[0.055] p-4 xl:sticky xl:top-28"><p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#e1062a]">Your Outing</p><h3 className="mt-1 text-xl font-black">Your custom pair</h3><p className="mt-1 text-xs font-semibold leading-5 text-white/40">Pick one from each column, then continue directly to Complete Outing.</p><div className="mt-4 space-y-3"><SelectedSummary location={selectedRestaurant} label="Restaurant" /><SelectedSummary location={selectedActivity} label="Activity" /></div><button type="button" disabled={!selectedRestaurant || !selectedActivity} onClick={useCustomPair} className="mt-5 w-full rounded-full bg-[#e1062a] px-5 py-3.5 text-xs font-black uppercase tracking-[0.1em] transition hover:bg-[#ff1744] disabled:cursor-not-allowed disabled:opacity-35">Use My Pair →</button></aside>
-            </div>
-          </section> : null}
-        </> : <div className="grid gap-5 md:grid-cols-2">{singles.map((location, index) => { const reason = customerWhy(location) || "A strong match for the outing you described."; return <article key={`${location.id || index}`} className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#0b0b0b] shadow-xl shadow-black/30"><VenuePanel location={location} label={planType === "restaurant" ? "Restaurant" : "Activity"} large /><div className="p-5"><p className="text-sm font-semibold leading-6 text-white/50">{reason}</p><div className="mt-5 flex items-center gap-3"><button type="button" onClick={() => openPlan(planType === "restaurant" ? location : null, planType === "activity" ? location : null, null, index + 1, planType, "organic")} className="flex-1 rounded-full bg-[#e1062a] px-5 py-3.5 text-xs font-black uppercase tracking-[0.1em]">Use This Plan →</button><Link href={profileHref(location, returnToResults)} onClick={() => track("planner_profile_viewed", { step: 3, plan_type: planType, rank: index + 1, result_type: planType, placement_group: "organic", sponsored: false, sponsor_id: null, location_id: location.id || null, location_type: planType, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION })} className="rounded-full border border-white/10 px-4 py-3 text-xs font-black text-white/65">View Profile</Link></div></div></article>; })}</div>}
+        {loading ? <LoadingResults planType={planType} index={loadingIndex} /> : error ? <div className="rounded-[1.4rem] border border-red-400/20 bg-red-500/10 p-6"><h2 className="text-xl font-black">We couldn’t load your picks.</h2><p className="mt-2 text-sm font-semibold text-red-100/70">{error}</p><button type="button" onClick={() => setRetryKey((value) => value + 1)} className="mt-5 rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase">Try again</button></div> : !hasResults ? <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.035] p-6 text-center"><h2 className="text-2xl font-black">No strong picks yet.</h2><p className="mx-auto mt-2 max-w-xl text-sm font-semibold text-white/45">Adjust the area or preferences and we’ll try again.</p><Link href="/create" className="mt-5 inline-flex rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase">Adjust my plan</Link></div> : planType === "outing" ? <>
+          <div className="grid gap-5 lg:grid-cols-2">{pairs.map((item, index) => <div key={`${item.restaurant.id}-${item.activity.id}-${index}`} className={index === 0 ? "lg:col-span-2" : ""}><PairCardView item={item} rank={index + 1} walkingRequested={walkingRequested} returnToResults={returnToResults} onUse={() => openPlan(item.restaurant, item.activity, item.pair, index + 1, item.resultType, sponsoredPair(item), sponsorId(item))} /></div>)}</div>
+          {restaurants.length && activities.length ? (
+            <details className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-5 sm:p-6">
+              <summary onClick={() => track("planner_build_own_opened", { step: 3, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION })} className="cursor-pointer list-none">
+                <div className="flex items-center justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Want more control?</p><h2 className="mt-1 text-xl font-black">Build your own outing</h2><p className="mt-1 text-sm font-semibold text-white/45">Choose one restaurant and one activity from these same results.</p></div><span className="text-2xl text-white/30">+</span></div>
+              </summary>
+              <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                <div><p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#ff7188]">Restaurant</p><div className="space-y-2">{restaurants.map((location) => <BuilderChoice key={`restaurant-${location.id}`} location={location} label="Restaurant" selected={String(selectedRestaurant?.id) === String(location.id)} onSelect={() => { setSelectedRestaurant(location); track("planner_custom_restaurant_selected", { step: 3, location_id: location.id || null, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION }); }} />)}</div></div>
+                <div><p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#ff7188]">Activity</p><div className="space-y-2">{activities.map((location) => <BuilderChoice key={`activity-${location.id}`} location={location} label="Activity" selected={String(selectedActivity?.id) === String(location.id)} onSelect={() => { setSelectedActivity(location); track("planner_custom_activity_selected", { step: 3, location_id: location.id || null, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION }); }} />)}</div></div>
+              </div>
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e1062a]/20 bg-[#e1062a]/[0.05] p-4"><p className="text-sm font-semibold text-white/55">{selectedRestaurant && selectedActivity ? `${nameFor(selectedRestaurant)} + ${nameFor(selectedActivity)}` : "Choose one restaurant and one activity."}</p><button type="button" disabled={!selectedRestaurant || !selectedActivity} onClick={() => { if (selectedRestaurant && selectedActivity) { track("planner_custom_pair_selected", { step: 3, restaurant_id: selectedRestaurant.id || null, activity_id: selectedActivity.id || null, flow_version: FLOW_VERSION, journey_version: JOURNEY_VERSION }); openPlan(selectedRestaurant, selectedActivity, null, null, "custom_pair"); } }} className="rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] disabled:cursor-not-allowed disabled:opacity-35">Choose my outing →</button></div>
+            </details>
+          ) : null}
+        </> : <div className="grid gap-5 md:grid-cols-2">{singles.map((location, index) => <SingleCard key={`${location.id || index}`} location={location} rank={index + 1} planType={planType} returnToResults={returnToResults} onUse={() => openPlan(planType === "restaurant" ? location : null, planType === "activity" ? location : null, null, index + 1, planType)} />)}</div>}
       </section>
     </main>
   );
