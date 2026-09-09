@@ -23,6 +23,23 @@ const PAGE_ISSUE_FIELDS = [
   "created_at",
 ].join(",");
 
+type SeoRunSummary = {
+  id: string;
+  created_at: string | null;
+};
+
+type SeoIssueSummary = {
+  id: string;
+  title: string | null;
+  severity: string | null;
+  status: string | null;
+  affected_route: string | null;
+  affected_file: string | null;
+  recommended_fix: string | null;
+  fix_url: string | null;
+  created_at: string | null;
+};
+
 export default async function Page() {
   await requireAdminRole(ADMIN_PAGE_ACCESS.seoTools);
 
@@ -39,11 +56,11 @@ export default async function Page() {
       .limit(120),
   ]);
 
-  const runs = runsResult.data;
-  const issues = issuesResult.data;
-  const latest = runs?.[0];
+  const runs = ((runsResult.data ?? []) as unknown) as SeoRunSummary[];
+  const issues = ((issuesResult.data ?? []) as unknown) as SeoIssueSummary[];
+  const latest = runs[0];
   const group = (severity: string) =>
-    issues?.filter((issue) => issue.severity === severity) ?? [];
+    issues.filter((issue) => issue.severity === severity);
 
   return (
     <main className="min-h-screen bg-[#090706] p-6 text-white">
@@ -87,7 +104,7 @@ export default async function Page() {
         <div className="rounded-3xl border border-white/10 bg-[#120d0b] p-5">
           {runsResult.error || issuesResult.error ? (
             <p className="text-rose-300">Failed loading SEO data.</p>
-          ) : !issues?.length ? (
+          ) : !issues.length ? (
             <p className="text-white/70">No SEO audits yet.</p>
           ) : (
             <div className="space-y-3">
