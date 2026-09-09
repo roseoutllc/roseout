@@ -19,6 +19,8 @@ const REVIEW_ATTENTION_REASONS = new Set([
   "subjective_hidden_gem_requires_review",
   "quick_service_search_only",
   "weak_outing_evidence",
+  "category_mismatch",
+  "category_evidence_missing",
   "quality_score_below_curated_threshold",
 ]);
 

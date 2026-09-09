@@ -2,6 +2,7 @@ import { detectChainBrand } from "@/lib/location-growth/chainDetection";
 
 export type GoogleDiscoveryKind = "restaurant" | "activity";
 export type GoogleDiscoveryDecision = "auto_import" | "review" | "reject";
+export type ActivityCategoryEvidence = "supported" | "missing" | "mismatch";
 
 export type GoogleDiscoveryQualityInput = {
   kind: GoogleDiscoveryKind;
@@ -36,6 +37,7 @@ export type GoogleDiscoveryQualityResult = {
   reasons: string[];
   chainBrand: string | null;
   quickService: boolean;
+  categoryEvidence: ActivityCategoryEvidence;
   thresholds: {
     autoMinRating: number;
     autoMinReviews: number;
@@ -106,6 +108,20 @@ const NICHE_ACTIVITY_CATEGORIES = new Set([
   "immersive",
 ]);
 
+const ARCADE_STRONG_TYPES = new Set([
+  "video_arcade",
+  "amusement_center",
+  "amusement_park",
+]);
+
+const ARCADE_OBVIOUS_MISMATCH_TYPES = new Set([
+  "shopping_mall",
+  "manufacturer",
+  "supplier",
+  "toy_store",
+  "store",
+]);
+
 const OUTING_SIGNALS: Array<[RegExp, number, string]> = [
   [/rooftop/, 18, "rooftop"],
   [/waterfront|water view|river view|harbor|harbour/, 18, "waterfront"],
@@ -152,6 +168,20 @@ function hasStructuredDestinationSignal(input: GoogleDiscoveryQualityInput) {
 
 function hasDestinationType(types: string[]) {
   return types.some((type) => DESTINATION_TYPES.has(type));
+}
+
+export function activityCategoryEvidence(input: Pick<GoogleDiscoveryQualityInput, "kind" | "category" | "name" | "types" | "editorialSummary">): ActivityCategoryEvidence {
+  if (input.kind !== "activity") return "supported";
+  if (input.category !== "arcade") return "supported";
+
+  const types = (input.types || []).map((type) => String(type).toLowerCase());
+  const text = normalize([input.name, input.editorialSummary].join(" "));
+  const explicitArcadeText = /\bbarcade\b|\barcade\b|video arcade|gaming lounge|esports (arena|center|centre)|pinball arcade/.test(text);
+  if (explicitArcadeText || types.some((type) => ARCADE_STRONG_TYPES.has(type))) return "supported";
+
+  const primaryType = types[0] || "";
+  if (ARCADE_OBVIOUS_MISMATCH_TYPES.has(primaryType)) return "mismatch";
+  return "missing";
 }
 
 export function isQuickServiceDiscoveryCandidate(input: Pick<GoogleDiscoveryQualityInput, "name" | "types" | "dineIn" | "takeout" | "delivery" | "curbsidePickup" | "reservable" | "goodForGroups" | "outdoorSeating" | "liveMusic" | "servesCocktails" | "servesWine">) {
@@ -204,12 +234,26 @@ function thresholdsFor(input: GoogleDiscoveryQualityInput) {
     : { autoMinRating: 4.4, autoMinReviews: 100, reviewMinRating: 4.2, reviewMinReviews: 40 };
 }
 
+function result(input: {
+  decision: GoogleDiscoveryDecision;
+  score: number;
+  outingFitScore: number;
+  reasons: string[];
+  chainBrand: string | null;
+  quickService: boolean;
+  categoryEvidence: ActivityCategoryEvidence;
+  thresholds: GoogleDiscoveryQualityResult["thresholds"];
+}): GoogleDiscoveryQualityResult {
+  return { ...input, reasons: Array.from(new Set(input.reasons)) };
+}
+
 export function evaluateGoogleDiscoveryCandidate(input: GoogleDiscoveryQualityInput): GoogleDiscoveryQualityResult {
   const reasons: string[] = [];
   const chain = detectChainBrand(input.name);
   const quickService = isQuickServiceDiscoveryCandidate(input);
   const thresholds = thresholdsFor(input);
   const hiddenGem = input.kind === "restaurant" && input.category === "hidden_gem";
+  const categoryEvidence = activityCategoryEvidence(input);
 
   if (!Number.isFinite(input.rating) || input.rating <= 0) reasons.push("missing_rating");
   if (!Number.isFinite(input.reviewCount) || input.reviewCount <= 0) reasons.push("missing_reviews");
@@ -218,6 +262,8 @@ export function evaluateGoogleDiscoveryCandidate(input: GoogleDiscoveryQualityIn
   if (chain.isChain) reasons.push("chain_or_qsr");
   if (quickService) reasons.push("quick_service");
   if (!input.hasLocation) reasons.push("missing_location");
+  if (categoryEvidence === "mismatch") reasons.push("category_mismatch");
+  if (categoryEvidence === "missing") reasons.push("category_evidence_missing");
 
   const outing = calculateOutingFitScore(input);
   const ratingScore = clamp((input.rating - 4) * 38, 0, 38);
@@ -227,18 +273,18 @@ export function evaluateGoogleDiscoveryCandidate(input: GoogleDiscoveryQualityIn
   const quickServicePenalty = quickService ? 35 : 0;
   const score = Math.round(clamp(ratingScore + reviewScore + completenessScore + outing.score - chainPenalty - quickServicePenalty, 0, 100));
 
-  const hardReject = reasons.some((reason) => ["missing_rating", "missing_reviews", "rating_below_floor", "reviews_below_floor", "chain_or_qsr", "missing_location"].includes(reason));
+  const hardReject = reasons.some((reason) => ["missing_rating", "missing_reviews", "rating_below_floor", "reviews_below_floor", "chain_or_qsr", "missing_location", "category_mismatch"].includes(reason));
   if (hardReject) {
-    return { decision: "reject", score, outingFitScore: outing.score, reasons: Array.from(new Set([...reasons, ...outing.reasons])), chainBrand: chain.chainBrand, quickService, thresholds };
+    return result({ decision: "reject", score, outingFitScore: outing.score, reasons: [...reasons, ...outing.reasons], chainBrand: chain.chainBrand, quickService, categoryEvidence, thresholds });
   }
 
   const completeForAuto = input.hasPhoto && input.hasWebsite && input.hasHours && input.hasLocation;
   const quickServiceAutoEligible = quickService && input.kind === "restaurant" && !hiddenGem && input.rating >= thresholds.autoMinRating && input.reviewCount >= thresholds.autoMinReviews && score >= 50 && completeForAuto;
-  const outingAutoEligible = !quickService && !hiddenGem && input.rating >= thresholds.autoMinRating && input.reviewCount >= thresholds.autoMinReviews && score >= 72 && outing.score >= (input.kind === "activity" ? 18 : 8) && completeForAuto;
+  const outingAutoEligible = !quickService && !hiddenGem && categoryEvidence !== "missing" && input.rating >= thresholds.autoMinRating && input.reviewCount >= thresholds.autoMinReviews && score >= 72 && outing.score >= (input.kind === "activity" ? 18 : 8) && completeForAuto;
 
   if (quickServiceAutoEligible || outingAutoEligible) {
     reasons.push(quickService ? "quick_service_search_only" : "curated_auto_import");
-    return { decision: "auto_import", score, outingFitScore: outing.score, reasons: Array.from(new Set([...reasons, ...outing.reasons])), chainBrand: chain.chainBrand, quickService, thresholds };
+    return result({ decision: "auto_import", score, outingFitScore: outing.score, reasons: [...reasons, ...outing.reasons], chainBrand: chain.chainBrand, quickService, categoryEvidence, thresholds });
   }
 
   const reviewEligible = input.rating >= thresholds.reviewMinRating && input.reviewCount >= thresholds.reviewMinReviews && score >= (quickService ? 40 : 55);
@@ -250,9 +296,9 @@ export function evaluateGoogleDiscoveryCandidate(input: GoogleDiscoveryQualityIn
     if (quickService) reasons.push("quick_service_search_only");
     else if (input.kind === "restaurant" && outing.score < 8) reasons.push("weak_outing_evidence");
     reasons.push("curated_manual_review");
-    return { decision: "review", score, outingFitScore: outing.score, reasons: Array.from(new Set([...reasons, ...outing.reasons])), chainBrand: chain.chainBrand, quickService, thresholds };
+    return result({ decision: "review", score, outingFitScore: outing.score, reasons: [...reasons, ...outing.reasons], chainBrand: chain.chainBrand, quickService, categoryEvidence, thresholds });
   }
 
   reasons.push("quality_score_below_curated_threshold");
-  return { decision: "reject", score, outingFitScore: outing.score, reasons: Array.from(new Set([...reasons, ...outing.reasons])), chainBrand: chain.chainBrand, quickService, thresholds };
+  return result({ decision: "reject", score, outingFitScore: outing.score, reasons: [...reasons, ...outing.reasons], chainBrand: chain.chainBrand, quickService, categoryEvidence, thresholds });
 }
