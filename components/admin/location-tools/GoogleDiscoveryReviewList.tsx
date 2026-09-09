@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { deriveLocationQualityState, LOCATION_QUALITY_STATE_LABELS, type CanonicalLocationQualityState } from "@/lib/location-quality-state";
 
 type Candidate = {
   id: string;
@@ -40,16 +41,6 @@ function num(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function decisionLabel(candidate: Candidate) {
-  if (candidate.import_status === "published") return "Published";
-  if (candidate.import_status === "hidden") return "Hidden";
-  if (candidate.import_status === "duplicate" || candidate.duplicate_status === "duplicate" || candidate.duplicate_status === "possible_duplicate") return "Duplicate review";
-  if (candidate.import_status === "rejected") return "Rejected";
-  if (candidate.quality_status === "publish_ready") return "Ready";
-  if (candidate.quality_status === "needs_photo") return "Needs photo";
-  return "Needs review";
-}
-
 function attentionSummary(candidate: Candidate) {
   const reasons: string[] = [];
   if (candidate.duplicate_status === "possible_duplicate") reasons.push("Possible duplicate");
@@ -63,10 +54,10 @@ function attentionSummary(candidate: Candidate) {
   return Array.from(new Set(reasons)).slice(0, 3);
 }
 
-function tone(candidate: Candidate) {
-  if (candidate.import_status === "published" || candidate.quality_status === "publish_ready") return "border-emerald-400/20 bg-emerald-500/[0.07]";
-  if (candidate.import_status === "hidden") return "border-white/10 bg-white/[0.04]";
-  if (candidate.import_status === "rejected" || candidate.import_status === "duplicate" || candidate.duplicate_status === "duplicate") return "border-red-400/15 bg-red-500/[0.05]";
+function tone(state: CanonicalLocationQualityState) {
+  if (state === "ready") return "border-emerald-400/20 bg-emerald-500/[0.07]";
+  if (state === "hidden") return "border-white/10 bg-white/[0.04]";
+  if (state === "rejected" || state === "duplicate_review") return "border-red-400/15 bg-red-500/[0.05]";
   return "border-amber-300/15 bg-amber-400/[0.06]";
 }
 
@@ -115,9 +106,10 @@ export function GoogleDiscoveryReviewList({ candidates }: { candidates: Candidat
         const duplicateNeedsReview = candidate.duplicate_status === "possible_duplicate";
         const canReview = !["published", "duplicate", "rejected"].includes(candidate.import_status || "") && !duplicateNeedsReview;
         const blockers = attentionSummary(candidate);
+        const qualityState = deriveLocationQualityState(candidate);
 
         return (
-          <article key={candidate.id} className={`overflow-hidden rounded-2xl border ${tone(candidate)}`}>
+          <article key={candidate.id} className={`overflow-hidden rounded-2xl border ${tone(qualityState)}`}>
             <button
               type="button"
               onClick={() => setOpenId(expanded ? null : candidate.id)}
@@ -128,7 +120,7 @@ export function GoogleDiscoveryReviewList({ candidates }: { candidates: Candidat
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-black text-white">{candidate.name || "Unnamed Google candidate"}</h3>
-                    <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white/70">{decisionLabel(candidate)}</span>
+                    <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white/70">{LOCATION_QUALITY_STATE_LABELS[qualityState]}</span>
                   </div>
                   <p className="mt-1 text-sm font-bold text-white/50">
                     {[candidate.city, candidate.state, candidate.primary_category].filter(Boolean).join(" · ") || "Location/category unavailable"}
@@ -150,6 +142,7 @@ export function GoogleDiscoveryReviewList({ candidates }: { candidates: Candidat
             {expanded ? (
               <div className="border-t border-white/10 bg-black/15 p-4">
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <Detail title="Canonical state" value={LOCATION_QUALITY_STATE_LABELS[qualityState]} />
                   <Detail title="Address" value={[candidate.address, candidate.city, candidate.state, candidate.zip_code].filter(Boolean).join(", ")} />
                   <Detail title="Category" value={candidate.primary_category || candidate.cuisine || candidate.activity_type} />
                   <Detail title="Duplicate check" value={candidate.duplicate_status || "unknown"} />
