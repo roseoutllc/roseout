@@ -192,7 +192,17 @@ export async function resolveAppleIntuneMdmServer() {
   const servers = await listAppleBusinessMdmServers();
   const configuredId = process.env.APPLE_BUSINESS_INTUNE_MDM_SERVER_ID?.trim();
   if (configuredId) return servers.find((server) => server.id === configuredId) || null;
-  return servers.find((server) => (server.attributes?.serverName || "").toLowerCase().includes("intune")) || null;
+
+  const preferred = servers.find((server) => {
+    const name = (server.attributes?.serverName || "").toLowerCase();
+    return name.includes("intune") || name.includes("theouthaven");
+  });
+  if (preferred) return preferred;
+
+  // A brand-new ABM tenant commonly has one external management service. In that
+  // case it is safer and more useful to use the only available service than to
+  // report "Not detected" merely because the administrator chose a custom name.
+  return servers.length === 1 ? servers[0] : null;
 }
 
 export async function assignAppleDevicesToMdmServer(deviceIds: string[], mdmServerId: string) {
