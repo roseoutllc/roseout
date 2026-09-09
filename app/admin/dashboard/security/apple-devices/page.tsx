@@ -9,6 +9,7 @@ import {
   AdminSectionCard,
   AdminStatusBadge,
 } from "@/components/admin/AdminDesignSystem";
+import { AppleConfiguratorEnrollmentGuide } from "@/components/admin/AppleConfiguratorEnrollmentGuide";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import {
@@ -148,6 +149,11 @@ export default async function AppleDeviceEnrollmentPage() {
         </div>
       </AdminSectionCard>
 
+      <AppleConfiguratorEnrollmentGuide
+        appleConnected={appleConfigured && !appleError}
+        managementServiceName={intuneServer?.attributes?.serverName}
+      />
+
       <AdminSectionCard className="p-0">
         <div className="border-b border-white/10 px-5 py-4">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-200">Company Apple inventory</p>
@@ -205,7 +211,7 @@ export default async function AppleDeviceEnrollmentPage() {
           <div className="p-5 sm:p-6">
             <AdminEmptyState
               title={appleConfigured ? "No company iPads or iPhones found" : "Connect Apple Business Manager to load devices"}
-              body={appleConfigured ? "When Apple Business Manager contains company mobile devices, they will appear here for zero-touch Intune preparation." : "Once the Apple Business API credentials are configured, this page will load your organization inventory automatically."}
+              body={appleConfigured ? "Use Apple Configurator on a physical Apple device to add company hardware to Apple Business Manager, then refresh this page. TheOutHaven will pick it up here for Intune preparation." : "Once the Apple Business API credentials are configured, this page will load your organization inventory automatically."}
             />
           </div>
         )}
