@@ -34,6 +34,7 @@ export const CHAIN_BRANDS = [
   "raising canes",
   "mad for chicken",
   "bonchon",
+  "bbq chicken",
   "just salad",
   "chopt",
   "dig inn",
