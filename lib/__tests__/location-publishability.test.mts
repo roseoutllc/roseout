@@ -8,6 +8,12 @@ describe("location publishability", () => {
      ["Good NY restaurant", base(), true], ["Good NJ activity", base({state:"NJ",location_type:"activity"}), true], ["CT clean enriched", base({state:"CT"}), true], ["CA out", base({state:"CA"}), false], ["Hidden", base({is_hidden:true}), false], ["Low-level", base({is_low_level:true}), false], ["Imported-unverified", base({source_quality_status:"imported_unverified"}), false], ["Low-confidence", base({import_confidence:"low"}), false], ["Missing photo", base({has_photos:false, main_image:null, images:[]}), false], ["Missing coordinates", base({latitude:null}), false], ["Duplicate", base({duplicate_status:"duplicate"}), false], ["Possible duplicate", base({duplicate_status:"possible_duplicate"}), false]
     ];
     for (const [name,row,want] of cases) expect(evaluateLocationPublishability(row).isSearchable, name).toBe(want);
+    expect(evaluateLocationPublishability(base()).qualityState).toBe("ready");
+    expect(evaluateLocationPublishability(base({duplicate_status:"possible_duplicate"})).qualityState).toBe("duplicate_review");
+    expect(evaluateLocationPublishability(base({has_photos:false, main_image:null, images:[]})).qualityState).toBe("needs_photo");
+    expect(evaluateLocationPublishability(base({latitude:null})).qualityState).toBe("needs_enrichment");
+    expect(evaluateLocationPublishability(base({is_hidden:true})).qualityState).toBe("hidden");
+    expect(evaluateLocationPublishability(base({status:"rejected"})).qualityState).toBe("rejected");
     expect(evaluateLocationPublishability(base({images:[], main_image:"https://x/main.jpg"})).normalizedImages).toContain("https://x/main.jpg");
     const preserved=evaluateLocationPublishability(base({images:["a","b"], main_image:"c"})); expect(preserved.normalizedImages[0]).toBe("a"); expect(preserved.normalizedImages).toContain("b");
     expect(evaluateLocationPublishability(base(), {allowApproval:true}).isReadyToApprove).toBe(true);
