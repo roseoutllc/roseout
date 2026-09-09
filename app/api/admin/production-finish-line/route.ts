@@ -9,44 +9,36 @@ const allowed = ADMIN_PAGE_ACCESS.productionFinishLine;
 
 type SeedRow = Record<string, any>;
 
+const ITEM_FIELDS = "id,item_type,week,day,title,description,priority,status,owner,notes,test_url,codex_task_url,github_pr_url,last_checked,expected_behavior,actual_behavior,sort_order,created_at,updated_at";
+const ACCESS_FIELDS = "id,role_name,area_name,status,notes,expected_behavior,actual_behavior,last_checked,sort_order,created_at,updated_at";
+const QR_FIELDS = "id,pilot_number,location_id,location_name,address,claim_code,claim_url,qr_verified,postcard_printed,mailed,scanned,claim_started,claim_submitted,claim_approved,owner_dashboard_works,status,notes,last_checked,created_at,updated_at";
+const COMMAND_FIELDS = "id,command,status,result,runner,notes,last_run_date,sort_order,created_at,updated_at";
+const PROMPT_FIELDS = "id,prompt,status,expected_result,actual_result,issue_type,reviewed_at,notes,sort_order,created_at,updated_at";
+
 function itemKey(row: SeedRow) {
   if (row.item_type === "daily_task") return [row.item_type, row.week ?? "", row.day ?? "", row.title].join("::");
   return [row.item_type, row.title].join("::");
 }
 
-function existingItemKey(row: SeedRow) {
-  return itemKey(row);
-}
-
 function withAuditDefaults(row: SeedRow, userId: string, fallbackSortOrder: number) {
   const sortOrder = Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : fallbackSortOrder;
-  return {
-    ...row,
-    sort_order: sortOrder,
-    created_by: userId,
-    updated_by: userId,
-  };
+  return { ...row, sort_order: sortOrder, created_by: userId, updated_by: userId };
 }
 
 async function insertMissingRows(table: string, rows: SeedRow[], getKey: (row: SeedRow) => string, userId: string) {
-  const { data, error } = await supabaseAdmin.from(table).select("*");
+  const existingProjection = table === "production_finish_line_items" ? "item_type,week,day,title" : "id";
+  const { data, error } = await supabaseAdmin.from(table).select(existingProjection);
   if (error) throw error;
-
   const existing = new Set((data ?? []).map(getKey));
   const missing = rows.filter((row) => !existing.has(getKey(row)));
   if (!missing.length) return 0;
-
-  const { error: insertError } = await supabaseAdmin
-    .from(table)
-    .insert(missing.map((row, index) => withAuditDefaults(row, userId, index + 1)));
+  const { error: insertError } = await supabaseAdmin.from(table).insert(missing.map((row, index) => withAuditDefaults(row, userId, index + 1)));
   if (insertError) throw insertError;
   return missing.length;
 }
 
 async function upsertSeedRows(table: string, rows: SeedRow[], onConflict: string, userId: string) {
-  const { error } = await supabaseAdmin
-    .from(table)
-    .upsert(rows.map((row, index) => withAuditDefaults(row, userId, index + 1)), { onConflict, ignoreDuplicates: true });
+  const { error } = await supabaseAdmin.from(table).upsert(rows.map((row, index) => withAuditDefaults(row, userId, index + 1)), { onConflict, ignoreDuplicates: true });
   if (error) throw error;
   return rows.length;
 }
@@ -60,16 +52,13 @@ async function repairMissingDefaults(userId: string) {
     ...securitySeeds.map((item, index) => ({ ...item, sort_order: 500 + index + 1 })),
     { ...decisionSeed, sort_order: 900 },
   ];
-
-  const repaired = {
-    items: await insertMissingRows("production_finish_line_items", itemSeeds, existingItemKey, userId),
+  return {
+    items: await insertMissingRows("production_finish_line_items", itemSeeds, itemKey, userId),
     access: await upsertSeedRows("production_access_tests", accessSeeds, "role_name,area_name", userId),
     qr: await upsertSeedRows("production_qr_claim_pilot", qrSeeds, "pilot_number", userId),
     commands: await upsertSeedRows("production_command_results", commandSeeds, "command", userId),
     prompts: await upsertSeedRows("production_search_readiness_prompts", searchPromptSeeds, "prompt", userId),
   };
-
-  return repaired;
 }
 
 async function ensureSeeded(userId: string) {
@@ -78,11 +67,11 @@ async function ensureSeeded(userId: string) {
 
 async function loadData() {
   const [items, access, qr, commands, prompts] = await Promise.all([
-    supabaseAdmin.from("production_finish_line_items").select("*").order("sort_order"),
-    supabaseAdmin.from("production_access_tests").select("*").order("sort_order"),
-    supabaseAdmin.from("production_qr_claim_pilot").select("*").order("pilot_number"),
-    supabaseAdmin.from("production_command_results").select("*").order("sort_order"),
-    supabaseAdmin.from("production_search_readiness_prompts").select("*").order("sort_order"),
+    supabaseAdmin.from("production_finish_line_items").select(ITEM_FIELDS).order("sort_order"),
+    supabaseAdmin.from("production_access_tests").select(ACCESS_FIELDS).order("sort_order"),
+    supabaseAdmin.from("production_qr_claim_pilot").select(QR_FIELDS).order("pilot_number"),
+    supabaseAdmin.from("production_command_results").select(COMMAND_FIELDS).order("sort_order"),
+    supabaseAdmin.from("production_search_readiness_prompts").select(PROMPT_FIELDS).order("sort_order"),
   ]);
   const error = [items.error, access.error, qr.error, commands.error, prompts.error].find(Boolean);
   if (error) throw error;
@@ -95,8 +84,8 @@ export async function GET() {
   try {
     await ensureSeeded(auth.adminUser.user_id);
     return NextResponse.json({ success: true, data: await loadData() });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error?.message ?? "Could not load production finish line" }, { status: 500 });
+  } catch {
+    return NextResponse.json({ success: false, error: "Could not load production finish line" }, { status: 500 });
   }
 }
 
@@ -106,22 +95,42 @@ export async function POST() {
   try {
     const repaired = await repairMissingDefaults(auth.adminUser.user_id);
     return NextResponse.json({ success: true, repaired, data: await loadData() });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error?.message ?? "Could not repair production defaults" }, { status: 500 });
+  } catch {
+    return NextResponse.json({ success: false, error: "Could not repair production defaults" }, { status: 500 });
   }
 }
 
-const tableMap: Record<string, string> = { items: "production_finish_line_items", access: "production_access_tests", qr: "production_qr_claim_pilot", commands: "production_command_results", prompts: "production_search_readiness_prompts" };
+const tableMap: Record<string, { table: string; fields: string }> = {
+  items: { table: "production_finish_line_items", fields: ITEM_FIELDS },
+  access: { table: "production_access_tests", fields: ACCESS_FIELDS },
+  qr: { table: "production_qr_claim_pilot", fields: QR_FIELDS },
+  commands: { table: "production_command_results", fields: COMMAND_FIELDS },
+  prompts: { table: "production_search_readiness_prompts", fields: PROMPT_FIELDS },
+};
 const allowedFields = new Set(["status", "owner", "notes", "test_url", "codex_task_url", "github_pr_url", "last_checked", "expected_behavior", "actual_behavior", "location_id", "location_name", "address", "claim_code", "claim_url", "qr_verified", "postcard_printed", "mailed", "scanned", "claim_started", "claim_submitted", "claim_approved", "owner_dashboard_works", "last_run_date", "result", "runner", "expected_result", "actual_result", "issue_type", "reviewed_at"]);
+const boundedTextFields = new Set(["owner","notes","test_url","codex_task_url","github_pr_url","expected_behavior","actual_behavior","location_name","address","claim_code","claim_url","result","runner","expected_result","actual_result","issue_type"]);
+
 export async function PATCH(request: Request) {
   const auth = await requireAdminApiRole(allowed);
   if (auth.error) return auth.error;
   const body = await request.json().catch(() => null);
-  const table = tableMap[String(body?.collection ?? "")];
-  const id = typeof body?.id === "string" ? body.id : null;
-  if (!table || !id || !body?.updates || typeof body.updates !== "object") return NextResponse.json({ success: false, error: "Invalid update" }, { status: 400 });
-  const updates = Object.fromEntries(Object.entries(body.updates).filter(([key]) => allowedFields.has(key)));
-  const { data, error } = await supabaseAdmin.from(table).update({ ...updates, updated_by: auth.adminUser.user_id }).eq("id", id).select("*").single();
-  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  const collection = tableMap[String(body?.collection ?? "")];
+  const id = typeof body?.id === "string" && body.id.length <= 80 ? body.id : null;
+  if (!collection || !id || !body?.updates || typeof body.updates !== "object") return NextResponse.json({ success: false, error: "Invalid update" }, { status: 400 });
+
+  const updates = Object.fromEntries(
+    Object.entries(body.updates)
+      .filter(([key]) => allowedFields.has(key))
+      .map(([key, value]) => [key, boundedTextFields.has(key) && typeof value === "string" ? value.slice(0, 8000) : value]),
+  );
+  if (!Object.keys(updates).length) return NextResponse.json({ success: false, error: "No allowed update fields" }, { status: 400 });
+
+  const { data, error } = await supabaseAdmin
+    .from(collection.table)
+    .update({ ...updates, updated_by: auth.adminUser.user_id })
+    .eq("id", id)
+    .select(collection.fields)
+    .single();
+  if (error) return NextResponse.json({ success: false, error: "Could not update production finish line item" }, { status: 500 });
   return NextResponse.json({ success: true, data });
 }

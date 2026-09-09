@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminApiRole } from "@/lib/admin-api-auth";
-import { syncRestaurantToLocation } from "@/lib/sync-location";
+import { RESTAURANT_LOCATION_SELECT, syncRestaurantToLocation } from "@/lib/sync-location";
 import { ADMIN_PAGE_ACCESS } from "@/lib/admin-permissions";
 import {
   getPlaceDetailsLegacyCompat,
@@ -233,6 +233,10 @@ function getMissingColumn(errorMessage: string) {
   );
 }
 
+function boundedError(value: unknown) {
+  return (value instanceof Error ? value.message : String(value || "Unknown error")).slice(0, 500);
+}
+
 async function safeUpdateRestaurant(id: string, payload: Record<string, unknown>) {
   const rowForSave = { ...payload };
   const removedColumns: string[] = [];
@@ -242,12 +246,12 @@ async function safeUpdateRestaurant(id: string, payload: Record<string, unknown>
       .from("restaurants")
       .update(rowForSave)
       .eq("id", id)
-      .select("*")
+      .select(RESTAURANT_LOCATION_SELECT)
       .single();
 
     if (!error) {
       return {
-        data: data as Record<string, unknown> | null,
+        data: data as unknown as Record<string, unknown> | null,
         error: null,
         removedColumns,
       };
@@ -301,7 +305,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: restaurants, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("restaurants")
       .select(`
         id,
@@ -322,18 +326,19 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json(
-        { success: false, error: error.message },
+        { success: false, error: boundedError(error.message) },
         { status: 500 },
       );
     }
 
+    const restaurants = (data || []) as unknown as RestaurantRow[];
     let checked = 0;
     let updated = 0;
     let skipped = 0;
     let failed = 0;
     const results: Record<string, unknown>[] = [];
 
-    for (const restaurant of restaurants || []) {
+    for (const restaurant of restaurants) {
       checked++;
 
       try {
@@ -436,7 +441,7 @@ export async function POST(request: NextRequest) {
             id: restaurant.id,
             status: "failed",
             name: restaurant.restaurant_name,
-            error: updateError.message,
+            error: boundedError(updateError.message),
             removedColumns,
           });
           continue;
@@ -455,9 +460,7 @@ export async function POST(request: NextRequest) {
             id: restaurant.id,
             status: "failed",
             name: restaurant.restaurant_name,
-            error: `Location sync failed: ${
-              syncError instanceof Error ? syncError.message : String(syncError)
-            }`,
+            error: `Location sync failed: ${boundedError(syncError)}`,
             removedColumns,
           });
           continue;
@@ -481,8 +484,7 @@ export async function POST(request: NextRequest) {
           id: restaurant.id,
           status: "failed",
           name: restaurant.restaurant_name,
-          error:
-            itemError instanceof Error ? itemError.message : String(itemError),
+          error: boundedError(itemError),
         });
       }
     }
@@ -500,7 +502,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: boundedError(error),
       },
       { status: 500 },
     );

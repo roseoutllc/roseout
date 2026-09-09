@@ -39,6 +39,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+const SEARCH_EVENT_FIELDS = "raw_query,normalized_query,city,state,borough,neighborhood,metadata,created_at";
+const ANALYTICS_EVENT_FIELDS = "event_name,event_type,name,type,event,action,query,location_id,source_location_id,city,borough,neighborhood,location_type,metadata,created_at";
+const OUTING_FIELDS = "restaurant_location_id,activity_location_id,source_query,status,saved_at,completed_at,completed_no_feedback_at,completion_inferred_at,last_link_clicked_at,metadata,created_at";
+const REVIEW_FEATURE_FIELDS = "location_id,approved_review_count,verified_review_count,recent_review_count,avg_rating,avg_ai_score_boost,quiet_score,loud_score,romantic_score,group_score,family_score,upscale_score,casual_score,photo_worthy_score,lively_score,relaxed_score,grown_vibe_score,date_night_score,birthday_score,girls_night_score,service_score,food_score,ambiance_score,value_score,overall_review_quality_score,review_confidence_score,wait_penalty,overpriced_penalty,service_penalty,noise_penalty,crowded_penalty,quiet_mention_count,loud_mention_count,romantic_mention_count,group_mention_count,family_mention_count,photo_worthy_mention_count,service_issue_count,wait_issue_count,value_issue_count,review_summary";
+
 const PAIR_UPSERT_CONFLICT_TARGET =
   "restaurant_location_id,activity_location_id,intent_bucket,market_key";
 
@@ -219,7 +224,7 @@ function finalizeLoc(row: any) {
     intent_score,
     score_version: INTENT_SCORE_VERSION,
     updated_at: new Date().toISOString(),
-    metadata: { source: "phase2_recalculate", pii: false, reviewMlApplied: Boolean(reviewFeatures), reviewMlIntentFit: review_fit, reviewMlConfidence: reviewFeatures?.review_confidence_score ?? 0, reviewMlSummary: reviewFeatures?.review_summary ?? null },
+    metadata: { source: "phase2_recalculate", pii: false, reviewMlApplied: Boolean(reviewFeatures), reviewMlIntentFit: review_fit, reviewMlConfidence: reviewFeatures?.review_confidence_score ?? 0, reviewMlSummary: typeof reviewFeatures?.review_summary === "string" ? reviewFeatures.review_summary.slice(0,500) : null },
   };
 }
 function finalizePair(row: any) {
@@ -314,12 +319,13 @@ export async function POST(req: NextRequest) {
   };
   const searchRes = await supabaseAdmin
     .from("search_events")
-    .select("*")
+    .select(SEARCH_EVENT_FIELDS)
     .gte("created_at", since30)
     .limit(20000);
   if (searchRes.error) errors.push(`search_events: ${searchRes.error.message}`);
-  diagnostics.searchEventsRead = (searchRes.data || []).length;
-  for (const ev of searchRes.data || []) {
+  const searchRows = (searchRes.data || []) as unknown as Record<string, any>[];
+  diagnostics.searchEventsRead = searchRows.length;
+  for (const ev of searchRows) {
     const meta = ev.metadata || {};
     const results = mlResults(meta);
     const pairs = mlPairs(meta, pairDiagnostics);
@@ -390,13 +396,14 @@ export async function POST(req: NextRequest) {
   }
   const eventsRes = await supabaseAdmin
     .from("analytics_events")
-    .select("*")
+    .select(ANALYTICS_EVENT_FIELDS)
     .gte("created_at", since30)
     .limit(50000);
   if (eventsRes.error)
     errors.push(`analytics_events: ${eventsRes.error.message}`);
-  diagnostics.analyticsEventsRead = (eventsRes.data || []).length;
-  for (const ev of eventsRes.data || []) {
+  const eventRows = (eventsRes.data || []) as unknown as Record<string, any>[];
+  diagnostics.analyticsEventsRead = eventRows.length;
+  for (const ev of eventRows) {
     const meta = ev.metadata || {};
     const locs = locationIdsFromAnalytics(ev);
     const p = pairFromAnalytics(ev);
@@ -461,42 +468,23 @@ export async function POST(req: NextRequest) {
   }
   const outingRes = await supabaseAdmin
     .from("outings")
-    .select("*")
+    .select(OUTING_FIELDS)
     .gte("created_at", since30)
     .limit(50000);
   if (outingRes.error) errors.push(`outings: ${outingRes.error.message}`);
-  diagnostics.outingsRead = (outingRes.data || []).length;
-  for (const o of outingRes.data || []) {
-    const r = pick(o, [
-      "restaurant_location_id",
-      "restaurant_id",
-      "selected_restaurant_location_id",
-    ]);
-    const a = pick(o, [
-      "activity_location_id",
-      "activity_id",
-      "selected_activity_location_id",
-    ]);
+  const outingRows = (outingRes.data || []) as unknown as Record<string, any>[];
+  diagnostics.outingsRead = outingRows.length;
+  for (const o of outingRows) {
+    const r = o.restaurant_location_id;
+    const a = o.activity_location_id;
     if (isUuid(r) && isUuid(a)) diagnostics.outingsWithRestaurantActivityIds++;
     else {
       bump(diagnostics, "outings_missing_pair_ids");
       continue;
     }
-    const q = text(
-      pick(o, ["raw_query", "search_query", "query", "prompt"]) ||
-        pick(o.metadata, ["query", "rawQuery"]),
-    );
+    const q = text(o.source_query || pick(o.metadata, ["query", "rawQuery"]));
     const cls = classifySearchIntent(q || "");
-    const market = text(
-      pick(o, [
-        "market",
-        "requested_market",
-        "city",
-        "borough",
-        "neighborhood",
-      ]),
-      100,
-    );
+    const market = text(pick(o.metadata, ["market", "requestedMarket", "city", "borough", "neighborhood"]), 100);
     const status = String(o.status || "").toLowerCase();
     const names = [
       "search_result_impression",
@@ -531,7 +519,7 @@ export async function POST(req: NextRequest) {
       }
   }
   const reviewIds = Array.from(new Set([...locAgg.values()].map((r:any)=>r.location_id).concat([...pairAgg.values()].flatMap((p:any)=>[p.restaurant_location_id,p.activity_location_id]))));
-  if (reviewIds.length) { const { data } = await supabaseAdmin.from("location_review_ml_features").select("*").in("location_id", reviewIds); reviewFeatureMap = new Map((data || []).map((r:any)=>[r.location_id,r])); }
+  if (reviewIds.length) { const { data } = await supabaseAdmin.from("location_review_ml_features").select(REVIEW_FEATURE_FIELDS).in("location_id", reviewIds); const rows = (data || []) as unknown as Record<string, any>[]; reviewFeatureMap = new Map(rows.map((r:any)=>[r.location_id,r])); }
   const locRows = [...locAgg.values()].map(finalizeLoc);
   const pairRows = [...pairAgg.values()].map(finalizePair);
   const sanitizedPairRows = pairRows.map(sanitizePairFeatureRow);
@@ -647,10 +635,12 @@ export async function POST(req: NextRequest) {
     pairDiagnostics: responsePairDiagnostics,
     sampleTopLocationIntentScores: locRows
       .sort((a, b) => b.intent_score - a.intent_score)
-      .slice(0, 5),
+      .slice(0, 5)
+      .map((row) => ({ location_id: row.location_id, intent_bucket: row.intent_bucket, market: row.market, intent_score: row.intent_score })),
     sampleTopPairScores: pairRows
       .sort((a, b) => b.pair_score - a.pair_score)
-      .slice(0, 5),
+      .slice(0, 5)
+      .map((row) => ({ restaurant_location_id: row.restaurant_location_id, activity_location_id: row.activity_location_id, intent_bucket: row.intent_bucket, market: row.market, pair_score: row.pair_score })),
   });
 }
 export async function GET(req: NextRequest) {
