@@ -9,6 +9,9 @@ export type ReserveHostReservation = {
   seated_at?: string | null;
   bookable_item_name?: string | null;
   server_staff_profile_id?: string | null;
+  late_arrival_reported_at?: string | null;
+  late_arrival_minutes?: number | null;
+  late_arrival_eta?: string | null;
 };
 
 export type ReserveHostStaff = {
@@ -45,6 +48,13 @@ const ACTIVE = new Set(["pending", "confirmed", "checked_in", "waiting", "arrive
 function minutesOfDay(value: string | null | undefined) {
   const [h, m] = String(value || "00:00").slice(0, 5).split(":").map(Number);
   return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+}
+
+function displayTime(value: string | null | undefined) {
+  const [hourRaw, minuteRaw = "00"] = String(value || "").slice(0, 5).split(":");
+  const hour = Number(hourRaw);
+  if (!Number.isFinite(hour)) return null;
+  return `${hour % 12 || 12}:${minuteRaw} ${hour >= 12 ? "PM" : "AM"}`;
 }
 
 export function resourceCapacity(resource: ReserveHostResource) {
@@ -127,7 +137,20 @@ export function hostAttentionItems(reservations: ReserveHostReservation[], now =
         message: `${reservation.bookable_item_name || "Table"} is ${Math.abs(turn.remainingMinutes)} minutes over its expected turn.`,
       }];
     }
+
     const status = String(reservation.status || "").toLowerCase();
+    if (["pending", "confirmed", "checked_in", "waiting", "arrived"].includes(status) && reservation.late_arrival_reported_at) {
+      const delay = Number(reservation.late_arrival_minutes || 0);
+      const eta = displayTime(reservation.late_arrival_eta);
+      const detail = [delay > 0 ? `${delay} min late` : "running late", eta ? `ETA ${eta}` : null].filter(Boolean).join(" · ");
+      return [{
+        key: `reported-late-${reservation.id}`,
+        tone: "warning",
+        reservationId: reservation.id,
+        message: `Guest reported ${detail}.`,
+      }];
+    }
+
     if (["confirmed", "pending"].includes(status) && reservation.reservation_date && reservation.reservation_time) {
       const start = new Date(`${reservation.reservation_date}T${String(reservation.reservation_time).slice(0, 5)}:00`).getTime();
       if (Number.isFinite(start)) {
