@@ -1,3 +1,5 @@
+import { deriveLocationQualityState, type CanonicalLocationQualityState } from "@/lib/location-quality-state";
+
 export const ACTIVE_MARKET_STATES = ["NY", "NJ", "CT"] as const;
 export type ActiveMarketState = (typeof ACTIVE_MARKET_STATES)[number];
 
@@ -6,7 +8,7 @@ export type LocationPublishabilityInput = {
 };
 
 export type LocationPublishabilityResult = {
-  isSearchable: boolean; isReadyToApprove: boolean; qualityStatus: string; sourceQualityStatus: string; importConfidence: string; publicVisibilityTier: string; isHidden: boolean; isLowLevel: boolean; normalizedImages: string[]; primaryImage: string | null; reasons: string[];
+  isSearchable: boolean; isReadyToApprove: boolean; qualityStatus: string; sourceQualityStatus: string; importConfidence: string; publicVisibilityTier: string; isHidden: boolean; isLowLevel: boolean; normalizedImages: string[]; primaryImage: string | null; reasons: string[]; qualityState: CanonicalLocationQualityState;
   reviewLabel: "Ready to approve" | "Needs review" | "Needs photo" | "Low-level / hidden" | "Duplicate" | "Out of market" | "Missing required data";
 };
 
@@ -105,7 +107,20 @@ export function evaluateLocationPublishability(location: LocationPublishabilityI
 
   const hasDuplicateBlocker = duplicateStatus === "duplicate" || duplicateStatus === "possible_duplicate";
   const reviewLabel = eligible && options.allowApproval ? "Ready to approve" : !isActiveMarketState(state) ? "Out of market" : hasDuplicateBlocker ? "Duplicate" : (isHidden || isLowLevel || sourceQuality === "imported_unverified" || importConfidence === "low") ? "Low-level / hidden" : (!hasPhoto || !primaryImage) ? "Needs photo" : reasons.some((r) => r.startsWith("Missing") || r === "Unsupported location type") ? "Missing required data" : "Needs review";
-  return { isSearchable, isReadyToApprove: eligible, qualityStatus, sourceQualityStatus, importConfidence: nextImportConfidence, publicVisibilityTier, isHidden: isSearchable ? false : isHidden, isLowLevel: isSearchable ? false : isLowLevel, normalizedImages, primaryImage, reasons: Array.from(new Set(reasons)), reviewLabel };
+  const qualityState = deriveLocationQualityState({
+    ...location,
+    location_type: locationType,
+    quality_status: qualityStatus,
+    source_quality_status: sourceQualityStatus,
+    import_confidence: nextImportConfidence,
+    public_visibility_tier: publicVisibilityTier,
+    is_hidden: isSearchable ? false : isHidden,
+    is_low_level: isSearchable ? false : isLowLevel,
+    main_image: primaryImage,
+    images: normalizedImages,
+  });
+
+  return { isSearchable, isReadyToApprove: eligible, qualityStatus, sourceQualityStatus, importConfidence: nextImportConfidence, publicVisibilityTier, isHidden: isSearchable ? false : isHidden, isLowLevel: isSearchable ? false : isLowLevel, normalizedImages, primaryImage, reasons: Array.from(new Set(reasons)), reviewLabel, qualityState };
 }
 
 export function buildPublishabilityUpdate(location: LocationPublishabilityInput, options: { allowApproval?: boolean } = {}) {
