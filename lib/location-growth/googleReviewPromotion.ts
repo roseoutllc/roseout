@@ -5,6 +5,23 @@ import { publishReadyStagedLocations } from "@/lib/location-growth/publishReady"
 
 const SOURCE = "google_curated_discovery";
 
+const REVIEW_ATTENTION_REASONS = new Set([
+  "missing_rating",
+  "missing_reviews",
+  "rating_below_floor",
+  "reviews_below_floor",
+  "chain_or_qsr",
+  "quick_service",
+  "missing_location",
+  "needs_photo",
+  "needs_website",
+  "needs_hours",
+  "subjective_hidden_gem_requires_review",
+  "quick_service_search_only",
+  "weak_outing_evidence",
+  "quality_score_below_curated_threshold",
+]);
+
 type Candidate = {
   id: string;
   batch_id: string;
@@ -59,6 +76,14 @@ function hasHours(value: Record<string, any>) {
 
 function toBoolean(value: unknown) {
   return value === true ? true : value === false ? false : null;
+}
+
+function reviewReasonFor(quality: ReturnType<typeof evaluateGoogleDiscoveryCandidate>) {
+  const reasons = Array.from(new Set(quality.reasons.filter((reason) => REVIEW_ATTENTION_REASONS.has(reason))));
+  if (reasons.length) return reasons.join(",");
+  return quality.decision === "reject"
+    ? "quality_score_below_curated_threshold"
+    : "curated_manual_review";
 }
 
 function evaluateStoredCandidate(candidate: Candidate) {
@@ -136,6 +161,7 @@ export async function promoteStoredGoogleReviewCandidates({
   if (error) throw new Error(`Unable to load stored Google review candidates: ${error.message}`);
 
   const promotedByBatch = new Map<string, number>();
+  const retainedReasonCounts: Record<string, number> = {};
   let scanned = 0;
   let promoted = 0;
   let retainedForReview = 0;
@@ -145,6 +171,25 @@ export async function promoteStoredGoogleReviewCandidates({
     scanned += 1;
     const quality = evaluateStoredCandidate(candidate);
     if (quality.decision !== "auto_import") {
+      const reviewReason = reviewReasonFor(quality);
+      retainedReasonCounts[reviewReason] = (retainedReasonCounts[reviewReason] || 0) + 1;
+      const { error: reviewUpdateError } = await supabaseAdmin
+        .from("location_import_staging")
+        .update({
+          quality_score: quality.score,
+          rejection_reason: reviewReason,
+          source_quality_status: "curated_google_review",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", candidate.id)
+        .eq("source", SOURCE)
+        .eq("import_status", "staged")
+        .eq("duplicate_status", "unique")
+        .eq("quality_status", "review");
+
+      if (reviewUpdateError) {
+        errors.push(`${candidate.name || candidate.source_id}: ${reviewUpdateError.message}`);
+      }
       retainedForReview += 1;
       continue;
     }
@@ -192,6 +237,7 @@ export async function promoteStoredGoogleReviewCandidates({
     scanned,
     promoted,
     retainedForReview,
+    retainedReasonCounts,
     published,
     markedPublished,
     skipped,
