@@ -10,7 +10,8 @@ describe("stored Google review promotion", () => {
     expect(promotion).toContain('.eq("quality_status", "review")');
     expect(promotion).toContain('.eq("duplicate_status", "unique")');
     expect(promotion).toContain('.eq("photo_status", "google_live_proxy")');
-    expect(promotion).toContain('quality.decision !== "auto_import"');
+    expect(promotion).toContain('quality.decision === "reject"');
+    expect(promotion).toContain('quality.decision === "review"');
     expect(promotion).toContain("googleApiCalls: 0");
     expect(promotion).not.toContain("getPlaceDetails");
     expect(promotion).not.toContain("searchPlaces");
@@ -35,6 +36,15 @@ describe("stored Google review promotion", () => {
     expect(promotion).toContain('"needs_website"');
     expect(promotion).toContain('"needs_hours"');
     expect(promotion).toContain('"weak_outing_evidence"');
+  });
+
+  it("removes canonical rejects from the manual review queue", () => {
+    expect(promotion).toContain('import_status: "rejected"');
+    expect(promotion).toContain('quality_status: "reject"');
+    expect(promotion).toContain('curation_tier: "rejected"');
+    expect(promotion).toContain('public_visibility_tier: "hidden"');
+    expect(promotion).toContain('source_quality_status: "curated_google_rejected"');
+    expect(promotion).toContain("rejectedReasonCounts");
   });
 
   it("runs recovery before new paid Google discovery", () => {
