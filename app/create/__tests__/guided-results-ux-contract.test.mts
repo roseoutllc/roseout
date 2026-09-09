@@ -15,3 +15,9 @@ test("secondary result actions are progressively disclosed", () => {
   assert.match(source, /More details/);
   assert.match(source, /View restaurant/);
 });
+
+test("custom outing builder remains available as a secondary path", () => {
+  assert.match(source, /Build your own outing/);
+  assert.match(source, /planner_custom_pair_selected/);
+  assert.match(source, /Choose my outing/);
+});
