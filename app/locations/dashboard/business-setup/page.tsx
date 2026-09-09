@@ -4,9 +4,10 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const steps = [
   { number: 1, title: "Profile", description: "Confirm your business name, category, address, hours, photos, and contact details.", href: "/locations/dashboard/profile", action: "Finish profile" },
-  { number: 2, title: "Reservations", description: "Turn on reservations, set availability, and confirm how guests can book.", href: "/locations/dashboard/reservations", action: "Set up reservations" },
-  { number: 3, title: "Events & Experiences", description: "Add anything guests can attend, book, or buy beyond a standard reservation.", href: "/locations/dashboard/events-experiences", action: "Add offerings" },
-  { number: 4, title: "Ready for customers", description: "Review your public presence and make sure guests can discover, choose, and contact you.", href: "/locations/dashboard", action: "Go to dashboard" },
+  { number: 2, title: "Plan", description: "Confirm your TheOutHaven plan and billing so your business tools match what you want to use.", href: "/locations/dashboard/billing", action: "Review plan" },
+  { number: 3, title: "Reservations", description: "Turn on reservations, set availability, and confirm how guests can book.", href: "/locations/dashboard/reservations", action: "Set up reservations" },
+  { number: 4, title: "Events & Experiences", description: "Add anything guests can attend, book, or buy beyond a standard reservation.", href: "/locations/dashboard/events-experiences", action: "Add offerings" },
+  { number: 5, title: "Ready for customers", description: "Review your public presence and make sure guests can discover, choose, and contact you.", href: "/locations/dashboard", action: "Go to dashboard" },
 ];
 
 export default async function BusinessSetupHubPage({ searchParams }: { searchParams?: SearchParams }) {
@@ -24,12 +25,26 @@ export default async function BusinessSetupHubPage({ searchParams }: { searchPar
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ff5f7a]">Business setup</p>
             <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">Get ready for customers.</h1>
-            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/50">Complete the essentials in order. Advanced tools stay out of the way until you need them.</p>
+            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/50">Claim or add your location, then complete the essentials in order. Advanced tools stay out of the way until you need them.</p>
           </div>
           <Link href={withQuery("/locations/dashboard")} className="rounded-full border border-white/10 px-4 py-2.5 text-xs font-black text-white/65">Back to dashboard</Link>
         </div>
 
-        <section className="mt-8 grid gap-4 lg:grid-cols-4">
+        <section className="mt-8 rounded-[1.5rem] border border-[#e1062a]/25 bg-[#e1062a]/[0.055] p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#ff7188]">Start here</p>
+              <h2 className="mt-1 text-xl font-black">Claim an existing location or add a new one.</h2>
+              <p className="mt-1 text-sm font-semibold text-white/45">Once TheOutHaven knows which location you manage, follow the five setup steps below.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/locations/signup" className="rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.08em]">Claim or add location</Link>
+              <Link href="/locations/apply" className="rounded-full border border-white/10 px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white/70">Business application</Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {steps.map((step) => (
             <article key={step.number} className="flex flex-col rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-5">
               <div className="flex items-center justify-between gap-3">
@@ -41,20 +56,6 @@ export default async function BusinessSetupHubPage({ searchParams }: { searchPar
               <Link href={withQuery(step.href)} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-white/[0.06] px-4 text-xs font-black text-white/80 transition hover:bg-white/[0.1]">{step.action} →</Link>
             </article>
           ))}
-        </section>
-
-        <section className="mt-8 rounded-[1.5rem] border border-[#e1062a]/25 bg-[#e1062a]/[0.055] p-5 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#ff7188]">Starting a new business?</p>
-              <h2 className="mt-1 text-xl font-black">Claim an existing location or add a new one first.</h2>
-              <p className="mt-1 text-sm font-semibold text-white/45">The setup path begins after TheOutHaven knows which location you manage.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/locations/signup" className="rounded-full bg-[#e1062a] px-5 py-3 text-xs font-black uppercase tracking-[0.08em]">Claim or add location</Link>
-              <Link href="/locations/apply" className="rounded-full border border-white/10 px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white/70">Business application</Link>
-            </div>
-          </div>
         </section>
 
         <details className="mt-8 rounded-[1.35rem] border border-white/10 bg-white/[0.02] p-5">
