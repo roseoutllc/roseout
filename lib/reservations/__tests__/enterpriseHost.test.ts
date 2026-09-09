@@ -41,6 +41,24 @@ describe("Reserve enterprise host helpers", () => {
     expect(hostAttentionItems([reservation], now)[0]?.message).toContain("30 minutes over");
   });
 
+  it("prioritizes a guest-reported late arrival over inferred lateness", () => {
+    const now = new Date("2026-09-03T20:30:00-04:00").getTime();
+    const reservation = {
+      id: "late-1",
+      status: "confirmed",
+      reservation_date: "2026-09-03",
+      reservation_time: "20:00",
+      late_arrival_reported_at: "2026-09-03T20:02:00-04:00",
+      late_arrival_minutes: 15,
+      late_arrival_eta: "20:15",
+    };
+    const attention = hostAttentionItems([reservation], now);
+    expect(attention).toHaveLength(1);
+    expect(attention[0]?.key).toBe("reported-late-late-1");
+    expect(attention[0]?.message).toContain("15 min late");
+    expect(attention[0]?.message).toContain("ETA 8:15 PM");
+  });
+
   it("balances staff by actual covers and recent seating pressure", () => {
     const now = new Date("2026-09-03T18:00:00-04:00").getTime();
     const staff = [
