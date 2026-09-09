@@ -5,7 +5,6 @@ import { sendSms } from "@/lib/sms/sendSms";
 import { parseReservationSmsIntent, type ReservationSmsIntent } from "@/lib/reservations/sms-intent";
 import { appendReservationMessage } from "@/lib/communications/reservation-thread";
 import { getLocationName } from "@/lib/locationName";
-import { trackLocationAnalyticsEvent } from "@/lib/analytics/business-analytics";
 
 const ACTIVE_STATUSES = ["pending", "confirmed", "checked_in", "waiting", "arrived"];
 const SESSION_MINUTES = 20;
@@ -169,13 +168,6 @@ async function recordLateArrival(phone: string, reservation: Reservation, intent
       event_type: "guest_late_arrival",
       metadata: { delay_minutes: delayMinutes, eta, source: "sms", note },
       created_at: now,
-    }),
-    trackLocationAnalyticsEvent({
-      locationId: reservation.location_id,
-      userId: reservation.user_id || null,
-      eventType: "reservation_late_arrival_reported",
-      eventSource: "reservation_sms",
-      metadata: { reservation_id: reservation.id, delay_minutes: delayMinutes, eta },
     }),
   ]);
 
