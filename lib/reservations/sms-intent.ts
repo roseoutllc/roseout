@@ -3,10 +3,12 @@ import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export type ReservationSmsIntent = {
-  intent: "cancel" | "change_time" | "change_date" | "change_party" | "details" | "help" | "unknown";
+  intent: "cancel" | "change_time" | "change_date" | "change_party" | "late_arrival" | "details" | "help" | "unknown";
   requested_date: string | null;
   requested_time: string | null;
   requested_party_size: number | null;
+  delay_minutes: number | null;
+  estimated_arrival_time: string | null;
   confidence: number;
 };
 
@@ -21,6 +23,8 @@ const UNKNOWN: ReservationSmsIntent = {
   requested_date: null,
   requested_time: null,
   requested_party_size: null,
+  delay_minutes: null,
+  estimated_arrival_time: null,
   confidence: 0,
 };
 
@@ -63,6 +67,20 @@ function extractExplicitPartySize(textInput: string) {
   return null;
 }
 
+function extractLateArrival(textInput: string) {
+  const text = textInput.trim().toLowerCase();
+  const lateContext = /\b(late|running behind|behind schedule|traffic|delayed|delay|held up|stuck in traffic)\b/i.test(text);
+  if (!lateContext) return null;
+  const delayMatch = text.match(/\b(?:about\s+|around\s+|roughly\s+)?(\d{1,3})\s*(?:min|mins|minute|minutes)\b/i);
+  const etaMatch = text.match(/\b(?:be there|arrive|arrival|getting there|make it there)(?:\s+(?:around|about|by|at))?\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\b/i);
+  const delay = Number(delayMatch?.[1] || 0);
+  const eta = normalizeTime(etaMatch?.[1] || null);
+  return {
+    delay_minutes: delay >= 1 && delay <= 240 ? delay : null,
+    estimated_arrival_time: eta,
+  };
+}
+
 function supplementExplicitValues(textInput: string, value: ReservationSmsIntent): ReservationSmsIntent {
   const party = value.requested_party_size ?? extractExplicitPartySize(textInput);
   if (!party) return value;
@@ -89,8 +107,9 @@ function exactCommandIntent(textInput: string): ReservationSmsIntent | null {
   if (/^(details|reservation details|my reservation)$/.test(text)) return { ...UNKNOWN, intent: "details", confidence: 1 };
   if (/^(help|options)$/.test(text)) return { ...UNKNOWN, intent: "help", confidence: 1 };
 
-  // Generic routing requests should never depend on AI confidence. Only claim the
-  // action when the customer has not supplied a concrete value that AI should parse.
+  const late = extractLateArrival(text);
+  if (late) return { ...UNKNOWN, intent: "late_arrival", ...late, confidence: late.delay_minutes || late.estimated_arrival_time ? 0.98 : 0.9 };
+
   if (!hasExplicitChangeValue(text) && /\b(change|reschedule|move)\b(?:.{0,80})\b(?:my|the|this)?\s*reservation\b/i.test(text)) {
     return { ...UNKNOWN, intent: "change_time", confidence: 1 };
   }
@@ -101,6 +120,9 @@ function exactCommandIntent(textInput: string): ReservationSmsIntent | null {
 function fallbackIntent(textInput: string): ReservationSmsIntent {
   const text = textInput.trim().toLowerCase();
   const result: ReservationSmsIntent = { ...UNKNOWN };
+  const late = extractLateArrival(text);
+  if (late) return { ...result, intent: "late_arrival", ...late, confidence: late.delay_minutes || late.estimated_arrival_time ? 0.9 : 0.8 };
+
   result.requested_party_size = extractExplicitPartySize(text);
   const timeMatch = text.match(/(?:time|move|change|reschedule|arrive|arrival|come|coming|be there|show up|showing up|around|at).*?\b(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\b/i)
     || text.match(/\b(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i);
@@ -114,12 +136,15 @@ function fallbackIntent(textInput: string): ReservationSmsIntent {
 }
 
 function cleanResult(value: any): ReservationSmsIntent {
-  const allowed = new Set(["cancel", "change_time", "change_date", "change_party", "details", "help", "unknown"]);
+  const allowed = new Set(["cancel", "change_time", "change_date", "change_party", "late_arrival", "details", "help", "unknown"]);
+  const delay = Number(value?.delay_minutes || 0);
   return {
     intent: allowed.has(value?.intent) ? value.intent : "unknown",
     requested_date: typeof value?.requested_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.requested_date) ? value.requested_date : null,
     requested_time: normalizeTime(typeof value?.requested_time === "string" ? value.requested_time : null),
     requested_party_size: Number.isInteger(value?.requested_party_size) && value.requested_party_size > 0 && value.requested_party_size <= 100 ? value.requested_party_size : null,
+    delay_minutes: Number.isInteger(delay) && delay > 0 && delay <= 240 ? delay : null,
+    estimated_arrival_time: normalizeTime(typeof value?.estimated_arrival_time === "string" ? value.estimated_arrival_time : null),
     confidence: Math.max(0, Math.min(1, Number(value?.confidence || 0))),
   };
 }
@@ -210,12 +235,14 @@ export async function parseReservationSmsIntent(input: {
           content: [
             "You interpret natural-language customer SMS messages about an existing reservation and return structured intent only.",
             "Never invent a date, time, party size, reservation, availability, confirmation, refund, or completed action.",
-            "Treat phrases such as 'arrive at 8pm', 'come at 7', 'be there around 6:30', and 'show up at 9' as requests to change reservation time.",
+            "Use late_arrival when the customer is reporting that they are delayed, running late, stuck in traffic, or giving an updated arrival estimate because of a delay. A late-arrival report does not change the reservation time.",
+            "Examples: 'we're running 10 minutes late' => late_arrival, delay_minutes 10. 'traffic is bad, we'll be there around 8:15' => late_arrival with estimated_arrival_time 20:15. 'we are delayed about 20 minutes' => late_arrival, delay_minutes 20.",
+            "Do not classify a normal reschedule request as late_arrival. 'Move my reservation to 8:15' is change_time. 'Can we come at 8:15 instead?' is change_time unless the customer clearly says they are late or delayed.",
+            "Treat phrases such as 'arrive at 8pm', 'come at 7', 'be there around 6:30', and 'show up at 9' as requests to change reservation time when there is no delay/late context.",
             "Treat phrases such as 'I'll have 4 guests coming', 'there will be 4 of us', 'we're a party of 4', 'make that 5 people', and 'it'll be 3 guests' as requests to change party size.",
-            "If the customer asks for more than one change in the same message, preserve every explicitly requested field even though intent is a single primary label.",
-            "Examples: 'move it to 8pm and make it 4 people' => change_time, requested_time 20:00, requested_party_size 4. 'Friday at 7 for 3' => include requested_date, requested_time, and requested_party_size when each is explicit.",
+            "If the customer asks for more than one reservation change in the same message, preserve every explicitly requested field even though intent is a single primary label.",
             "Resolve relative dates using the supplied current date. Do not change unstated fields.",
-            "For learning_cue, return the shortest contiguous 1-4 word phrase from the customer's message that signals the meaning without including the variable value. Example: 'arrive at' for 'arrive at 8pm'. Return null when there is no safe reusable cue.",
+            "For learning_cue, return the shortest contiguous 1-4 word phrase from the customer's message that signals a reusable change-time/date/party meaning. Return null for late_arrival because lateness is handled separately.",
             "learning_field must be time, date, or party when learning_cue is present; otherwise null.",
             "If the request is ambiguous or you cannot safely extract a requested value, return unknown or lower confidence rather than guessing.",
           ].join(" "),
@@ -234,15 +261,17 @@ export async function parseReservationSmsIntent(input: {
             type: "object",
             additionalProperties: false,
             properties: {
-              intent: { type: "string", enum: ["cancel", "change_time", "change_date", "change_party", "details", "help", "unknown"] },
+              intent: { type: "string", enum: ["cancel", "change_time", "change_date", "change_party", "late_arrival", "details", "help", "unknown"] },
               requested_date: { type: ["string", "null"] },
               requested_time: { type: ["string", "null"] },
               requested_party_size: { type: ["integer", "null"] },
+              delay_minutes: { type: ["integer", "null"], minimum: 1, maximum: 240 },
+              estimated_arrival_time: { type: ["string", "null"] },
               confidence: { type: "number", minimum: 0, maximum: 1 },
               learning_cue: { type: ["string", "null"] },
               learning_field: { type: ["string", "null"], enum: ["time", "date", "party", null] },
             },
-            required: ["intent", "requested_date", "requested_time", "requested_party_size", "confidence", "learning_cue", "learning_field"],
+            required: ["intent", "requested_date", "requested_time", "requested_party_size", "delay_minutes", "estimated_arrival_time", "confidence", "learning_cue", "learning_field"],
           },
         },
       },
