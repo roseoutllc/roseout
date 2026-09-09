@@ -49,6 +49,28 @@ type BackfillRow = Record<string, unknown> & {
   internal_reservations_enabled?: boolean | null;
 };
 
+const BACKFILL_FIELDS: Record<BackfillTable, string> = {
+  locations: [
+    "id","restaurant_name","activity_name","name","city","state","website",
+    "reservation_url","booking_url","reservation_link","reservation_provider","reservation_source",
+    "reservation_manual_override","reservation_upgrade_opportunity","reservation_upgrade_reason",
+    "reservation_upgrade_detected_at","reservation_outreach_status","reservation_outreach_notes",
+    "uses_internal_reservations","internal_reservations_enabled","google_place_id","place_id",
+    "google_maps_url","phone","reservation_discovery_status","reservation_last_checked_at"
+  ].join(","),
+  restaurants: [
+    "id","restaurant_name","name","city","state","website","reservation_url","booking_url",
+    "reservation_link","reservation_provider","reservation_source","reservation_manual_override",
+    "uses_internal_reservations","internal_reservations_enabled","google_place_id","place_id",
+    "google_maps_url","phone","reservation_discovery_status","reservation_last_checked_at"
+  ].join(","),
+  activities: [
+    "id","activity_name","name","city","state","website","reservation_url","booking_url",
+    "reservation_link","reservation_provider","reservation_source","uses_internal_reservations",
+    "internal_reservations_enabled","google_place_id","google_maps_url","phone"
+  ].join(","),
+};
+
 type Failure = {
   id: string | number | null;
   name: string | null;
@@ -102,9 +124,9 @@ class GooglePlaceApiError extends Error {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error
+  return (error instanceof Error
     ? error.message
-    : String(error || "Unknown error");
+    : String(error || "Unknown error")).slice(0, 500);
 }
 
 function logBackfillError(
@@ -123,7 +145,7 @@ function logBackfillError(
 
 function jsonError(error: string, details: string, step: string, status = 500) {
   return NextResponse.json<ErrorResponse>(
-    { success: false, error, details, step },
+    { success: false, error, details: details.slice(0, 500), step },
     { status },
   );
 }
@@ -177,12 +199,6 @@ async function requireAuthorization(request: NextRequest) {
       error: "Reservation link backfill failed",
       details: "Unauthorized: Admin authorization failed",
       step: "authorization",
-      authDebug: {
-        hasAuthorizationHeader: !!authHeader,
-        hasBearerToken: !!bearerToken,
-        hasXAdminSecret: !!xAdminSecret,
-        hasAdminSecretEnv: !!adminSecret,
-      },
     },
     { status: 401 },
   );
@@ -598,7 +614,6 @@ async function processRow(
         console.info("[backfill-reservation-links] low-confidence suggestion", {
           table,
           id,
-          url: lowConfidence.url,
           confidence: lowConfidence.confidence,
         });
       }
@@ -642,7 +657,7 @@ async function processRow(
             name,
             google_place_id: googlePlaceId,
             status: "website",
-            error: discovery.error || "Website discovery failed",
+            error: getErrorMessage(discovery.error || "Website discovery failed"),
           } satisfies Failure,
         };
       }
@@ -694,15 +709,15 @@ async function runTable(
   const to = offset + limit - 1;
   let query = supabaseAdmin
     .from(table)
-    .select("*")
+    .select(BACKFILL_FIELDS[table])
     .order("id", { ascending: true })
     .range(offset, to);
 
-  if (rowId) query = query.eq("id", rowId);
-  if (status) query = query.eq("reservation_discovery_status", status);
+  if (rowId) query = query.eq("id", rowId.slice(0, 100));
+  if (status) query = query.eq("reservation_discovery_status", status.slice(0, 40));
   if (lastCheckedBefore)
     query = query.or(
-      `reservation_last_checked_at.is.null,reservation_last_checked_at.lt.${lastCheckedBefore}`,
+      `reservation_last_checked_at.is.null,reservation_last_checked_at.lt.${lastCheckedBefore.slice(0, 64)}`,
     );
   if (onlyMissing)
     query = query.or(
@@ -712,7 +727,7 @@ async function runTable(
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
-  for (const row of (data || []) as BackfillRow[]) {
+  for (const row of (data || []) as unknown as BackfillRow[]) {
     summary.checked += 1;
     const result = await processRow(
       supabaseAdmin,
@@ -844,7 +859,7 @@ export async function GET(request: NextRequest) {
       result.blocked += tableResult.blocked;
       result.notFound += tableResult.notFound;
       result.failed += tableResult.failed;
-      result.failures.push(...tableResult.failures);
+      result.failures.push(...tableResult.failures.slice(0, 20 - result.failures.length));
     }
 
     return NextResponse.json(result);
