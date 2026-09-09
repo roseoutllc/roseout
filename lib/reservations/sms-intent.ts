@@ -7,8 +7,8 @@ export type ReservationSmsIntent = {
   requested_date: string | null;
   requested_time: string | null;
   requested_party_size: number | null;
-  delay_minutes: number | null;
-  estimated_arrival_time: string | null;
+  delay_minutes?: number | null;
+  estimated_arrival_time?: string | null;
   confidence: number;
 };
 
