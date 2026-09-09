@@ -14,6 +14,8 @@ const REVIEW_SIGNAL_FIELDS = [
   "occasion_fit","service_quality","food_quality","ambiance_quality","best_for","avoid_if"
 ].join(",");
 
+type ReviewSignalRow = Record<string, unknown> & { location_id?: string | null };
+
 function bearer(req: NextRequest) {
   const h = req.headers.get("authorization") || "";
   return h.toLowerCase().startsWith("bearer ") ? h.slice(7).trim() : null;
@@ -38,7 +40,8 @@ export async function recalculateReviewIntelligenceForLocation(locationId: strin
     .order("created_at", { ascending: false })
     .limit(1000);
   if (error) throw new Error(error.message);
-  const features = aggregateReviewSignals(data || []);
+  const reviews = (data || []) as unknown as ReviewSignalRow[];
+  const features = aggregateReviewSignals(reviews);
   const row = { ...features, location_id: locationId, calculated_at: new Date().toISOString() };
   const { error: upsertError } = await supabaseAdmin.from("location_review_ml_features").upsert(row, { onConflict: "location_id" });
   if (upsertError) throw new Error(upsertError.message);
@@ -76,11 +79,12 @@ export async function POST(req: NextRequest) {
   if (locationId) query = query.eq("location_id", locationId);
   if (daysBack) query = query.gte("created_at", new Date(Date.now() - daysBack * 864e5).toISOString());
 
-  const { data: reviews, error } = await query;
+  const { data, error } = await query;
   if (error) errors.push(boundedError(error.message));
+  const reviews = (data || []) as unknown as ReviewSignalRow[];
 
-  const byLocation = new Map<string, any[]>();
-  for (const review of reviews || []) {
+  const byLocation = new Map<string, ReviewSignalRow[]>();
+  for (const review of reviews) {
     if (!review.location_id) continue;
     byLocation.set(review.location_id, [...(byLocation.get(review.location_id) || []), review]);
   }
@@ -105,7 +109,7 @@ export async function POST(req: NextRequest) {
       status,
       locations_scanned: byLocation.size,
       locations_updated: updated,
-      reviews_scanned: (reviews || []).length,
+      reviews_scanned: reviews.length,
       errors: errors.slice(0, 20),
       metadata: { locationId, daysBack, dryRun, limit },
     }).eq("id", runId);
@@ -116,7 +120,7 @@ export async function POST(req: NextRequest) {
     dryRun,
     locationsScanned: byLocation.size,
     locationsUpdated: updated,
-    reviewsScanned: (reviews || []).length,
+    reviewsScanned: reviews.length,
     errors,
     sample: rows.slice(0, 5).map((r) => ({
       location_id: r.location_id,
