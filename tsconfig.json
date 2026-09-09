@@ -29,6 +29,12 @@
       "@/lib/search/runSearch": [
         "./lib/search/runSearchSafe.ts"
       ],
+      "@/lib/reservations/sms-actions": [
+        "./lib/reservations/sms-actions-entry.ts"
+      ],
+      "@/lib/reservations/sms-intent": [
+        "./lib/reservations/sms-intent-entry.ts"
+      ],
       "@/*": [
         "./*"
       ]
