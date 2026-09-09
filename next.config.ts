@@ -8,6 +8,7 @@ const myWorkspaceRedirects = ["", "/site-visits", "/social-outreach", "/support-
 
 const isProduction = process.env.NODE_ENV === "production";
 const isVercel = Boolean(process.env.VERCEL);
+const isAwsBackground = process.env.PLATFORM_RUNTIME_PROVIDER === "aws-background";
 const contentSecurityPolicy = [
   "default-src 'self' https: data: blob:",
   "base-uri 'self'",
@@ -35,7 +36,7 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
-  ...(!isVercel ? { output: "standalone" } : {}),
+  ...(isAwsBackground || !isVercel ? { output: "standalone" } : {}),
   async redirects() { return myWorkspaceRedirects; },
   async headers() { return [{ source: "/:path*", headers: securityHeaders }]; },
   images: {
