@@ -111,19 +111,25 @@ function evaluateStoredCandidate(candidate: Candidate) {
 export async function promoteStoredGoogleReviewCandidates({
   limit = 200,
   publish = true,
+  locationType,
 }: {
   limit?: number;
   publish?: boolean;
+  locationType?: "restaurant" | "activity";
 } = {}) {
   const safeLimit = Math.min(500, Math.max(1, Math.trunc(Number(limit) || 200)));
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("location_import_staging")
     .select("id,batch_id,source_id,location_type,name,restaurant_name,activity_name,primary_tag,primary_category,rating,review_count,phone,website,address,city,state,latitude,longitude,google_types,main_image,images,raw_payload")
     .eq("source", SOURCE)
     .eq("import_status", "staged")
     .eq("duplicate_status", "unique")
     .eq("quality_status", "review")
-    .eq("photo_status", "google_live_proxy")
+    .eq("photo_status", "google_live_proxy");
+
+  if (locationType) query = query.eq("location_type", locationType);
+
+  const { data, error } = await query
     .order("quality_score", { ascending: false })
     .limit(safeLimit);
 
@@ -190,6 +196,7 @@ export async function promoteStoredGoogleReviewCandidates({
     markedPublished,
     skipped,
     batches: promotedByBatch.size,
+    locationType: locationType || "all",
     googleApiCalls: 0,
     errors,
   };
