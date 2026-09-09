@@ -84,6 +84,7 @@ export function evaluateLocationPublishability(location: LocationPublishabilityI
   if (isBlank(location.city)) reasons.push("Missing city");
   if (!hasCoordinate(location.latitude) || !hasCoordinate(location.longitude)) reasons.push("Missing coordinates");
   if (duplicateStatus === "duplicate") reasons.push("Duplicate");
+  if (duplicateStatus === "possible_duplicate") reasons.push("Possible duplicate");
   if (sourceQuality === "imported_unverified") reasons.push("Imported unverified");
   if (sourceQuality === "low_level_review") reasons.push("Low-level");
   if (importConfidence === "low") reasons.push("Low import confidence");
@@ -102,7 +103,8 @@ export function evaluateLocationPublishability(location: LocationPublishabilityI
   else if (qualityStatus === "publish_ready") qualityStatus = "needs_review";
   if (isHidden) publicVisibilityTier = "hidden"; else if (isLowLevel) publicVisibilityTier = "low_level";
 
-  const reviewLabel = eligible && options.allowApproval ? "Ready to approve" : !isActiveMarketState(state) ? "Out of market" : duplicateStatus === "duplicate" ? "Duplicate" : (isHidden || isLowLevel || sourceQuality === "imported_unverified" || importConfidence === "low") ? "Low-level / hidden" : (!hasPhoto || !primaryImage) ? "Needs photo" : reasons.some((r) => r.startsWith("Missing") || r === "Unsupported location type") ? "Missing required data" : "Needs review";
+  const hasDuplicateBlocker = duplicateStatus === "duplicate" || duplicateStatus === "possible_duplicate";
+  const reviewLabel = eligible && options.allowApproval ? "Ready to approve" : !isActiveMarketState(state) ? "Out of market" : hasDuplicateBlocker ? "Duplicate" : (isHidden || isLowLevel || sourceQuality === "imported_unverified" || importConfidence === "low") ? "Low-level / hidden" : (!hasPhoto || !primaryImage) ? "Needs photo" : reasons.some((r) => r.startsWith("Missing") || r === "Unsupported location type") ? "Missing required data" : "Needs review";
   return { isSearchable, isReadyToApprove: eligible, qualityStatus, sourceQualityStatus, importConfidence: nextImportConfidence, publicVisibilityTier, isHidden: isSearchable ? false : isHidden, isLowLevel: isSearchable ? false : isLowLevel, normalizedImages, primaryImage, reasons: Array.from(new Set(reasons)), reviewLabel };
 }
 
